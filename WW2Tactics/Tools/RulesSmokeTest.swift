@@ -1,0 +1,2323 @@
+import Foundation
+
+func require(_ condition: @autoclosure () -> Bool, _ message: String) {
+    if !condition() {
+        fputs("FAILED: \(message)\n", stderr)
+        Foundation.exit(1)
+    }
+}
+
+@main
+struct RulesSmokeTest {
+    static func main() async {
+        await MainActor.run {
+            let game = GameState()
+
+            require(game.scenario.name == "阿登反击战", "scenario name should be present")
+            require(game.campaignCatalog.count >= 2, "campaign catalog should include multiple scenarios")
+            require(game.campaignCatalog.contains { $0.name == "诺曼底突破" }, "Normandy scenario should be available")
+            require(game.tiles.count == game.scenario.mapColumns * game.scenario.mapRows, "map should be rectangular")
+            require(game.scenario.mapColumns >= 22 && game.scenario.mapRows >= 14, "default scenario should use a larger playable campaign map")
+            require(game.objectiveTiles.count == 14, "scenario should include fourteen objectives")
+            require(game.objectiveTiles.contains { $0.objectiveName == "南部桥头堡" }, "expanded Ardennes map should include a southern bridgehead")
+            require(game.objectiveTiles.contains { $0.objectiveName == "莱茵补给线" }, "expanded Ardennes map should include a Rhine supply objective")
+            require(game.objectiveTiles.contains { $0.objectiveName == "默兹渡口" }, "expanded Ardennes map should include a Meuse crossing")
+            require(game.objectiveTiles.contains { $0.objectiveName == "鲁尔工业区" }, "expanded Ardennes map should include a Ruhr objective")
+            require(game.units.contains { $0.kind == .tank }, "scenario should include tanks")
+            require(game.units.contains { $0.kind == .artillery }, "scenario should include artillery")
+            require(game.units.contains { $0.kind == .recon }, "scenario should include recon units")
+            require(game.units.compactMap(\.commander).count >= 4, "scenario should include commanders")
+            require(game.objectiveProgress > 0, "objective progress should be calculated")
+            require(game.alliedStrength > 0 && game.axisStrength > 0, "force strength should be calculated")
+            require(game.units(for: .allies).count == 12, "expanded allied force roster should be available")
+            require(game.units(for: .axis).count == 15, "expanded axis force roster should be available")
+            require(game.mapFriendlyFocusUnits.count == game.units(for: .allies).count, "map friendly focus strip should expose every allied unit")
+            require(game.mapFriendlyFocusUnits.contains { $0.name == "自由法国装甲群" }, "map friendly focus strip should include deep allied units")
+            require(game.mapEnemyFocusUnits.count == game.units(for: .axis).count, "map enemy focus strip should expose every enemy unit")
+            require(game.mapEnemyFocusUnits.contains { $0.name == "鲁尔防空炮群" }, "map enemy focus strip should include deep-map enemies")
+            require(game.commandPoints(for: .allies) == 6, "allied command points should start at six")
+            require(game.commandIncome(for: .allies) == 7, "owned objectives should add command income")
+            require(game.remainingTurns == game.scenario.turnLimit, "mission timer should start at the scenario turn limit")
+            require(game.earnedStars == 0, "mission stars should start at zero")
+            require(game.missionObjectives.count == 3, "mission should expose three star objectives")
+            require(game.missionObjectives.allSatisfy { $0.state == .pending }, "mission objectives should start pending")
+            guard let suppliedTank = game.units.first(where: { $0.name == "第4装甲师" }) else {
+                require(false, "supplied tank should exist")
+                return
+            }
+            require(game.supplyState(for: suppliedTank) == .supplied, "starting allied tank should have supply")
+            require(!game.supplyLineTiles(for: suppliedTank).isEmpty, "supplied tank should show a supply path")
+
+            game.selectScenario(id: "normandy-1944")
+            require(game.scenario.name == "诺曼底突破", "scenario selector should load Normandy")
+            require(game.focusedCoordinate == game.scenario.initialFocus, "scenario selector should reset focus")
+            require(game.tiles.count == game.scenario.mapColumns * game.scenario.mapRows, "Normandy map should be rectangular")
+            require(game.objectiveTiles.count >= 4, "Normandy should include objectives")
+            game.restart()
+            require(game.scenario.name == "诺曼底突破", "restart should keep selected scenario")
+            game.selectScenario(id: "ardennes-1944")
+
+            guard let pattonTank = game.units.first(where: { $0.name == "第4装甲师" }) else {
+                require(false, "Patton tank should exist")
+                return
+            }
+            require(pattonTank.commander?.name == "巴顿", "Patton should command the allied tank")
+            require(pattonTank.attack > UnitKind.tank.baseAttack, "commander should boost attack")
+            require(pattonTank.rank == .green, "units should start as green troops")
+            require(pattonTank.moraleState == .steady, "units should start with steady morale")
+
+            guard let axisTank = game.units.first(where: { $0.name == "第2装甲集团" }) else {
+                require(false, "Axis tank should exist")
+                return
+            }
+            let testAttacker = BattleUnit(
+                name: "测试装甲",
+                kind: .tank,
+                faction: .allies,
+                position: HexCoordinate(q: 9, r: 4),
+                hp: UnitKind.tank.baseHP,
+                commander: .patton
+            )
+            guard let preview = game.combatPreview(attacker: testAttacker, defender: axisTank) else {
+                require(false, "combat preview should be available for adjacent enemies")
+                return
+            }
+            require(preview.damage > 0, "combat preview should calculate damage")
+            require(preview.defenderHPAfterAttack < axisTank.hp, "combat preview should reduce defender HP")
+            require(game.attackCoverageTiles(for: testAttacker).contains(axisTank.position), "attack coverage should include targets inside weapon range")
+            require(!game.attackCoverageTiles(for: testAttacker).contains(testAttacker.position), "attack coverage should not include the attacking unit's own tile")
+            require(game.attackableUnits(for: testAttacker).contains { $0.id == axisTank.id }, "attackable unit query should find valid target")
+            require(game.attackableTiles(for: testAttacker).isSubset(of: game.attackCoverageTiles(for: testAttacker)), "attackable target tiles should be inside attack coverage")
+
+            let baselineAuraGame = GameState(scenario: commanderAuraScenario(includeCommander: false))
+            let auraGame = GameState(scenario: commanderAuraScenario(includeCommander: true))
+            guard let baselineAuraAttacker = baselineAuraGame.units.first(where: { $0.name == "受援步兵" }),
+                  let baselineAuraTarget = baselineAuraGame.units.first(where: { $0.name == "光环目标" }),
+                  let auraAttacker = auraGame.units.first(where: { $0.name == "受援步兵" }),
+                  let auraTarget = auraGame.units.first(where: { $0.name == "光环目标" }),
+                  let baselineAuraPreview = baselineAuraGame.combatPreview(attacker: baselineAuraAttacker, defender: baselineAuraTarget),
+                  let auraPreview = auraGame.combatPreview(attacker: auraAttacker, defender: auraTarget) else {
+                require(false, "commander aura test previews should exist")
+                return
+            }
+            require(auraGame.commanderSupport(attacker: auraAttacker)?.name == "巴顿", "adjacent commander should support friendly attacks")
+            require(auraPreview.commanderSupportName == "巴顿", "combat preview should expose commander support")
+            require(auraPreview.commanderSupportBonusPercent == 8, "commander aura should add eight percent damage")
+            require(auraPreview.commanderSupportTitle == "将领协同", "commander aura should be labeled")
+            require(auraPreview.damage > baselineAuraPreview.damage, "commander aura should increase damage")
+            require(auraGame.commanderAuraSummary.contains("+8%"), "commander aura summary should describe the bonus")
+
+            let matchupGame = GameState(scenario: matchupScenario())
+            guard let reconAttacker = matchupGame.units.first(where: { $0.name == "克制侦察" }),
+                  let infantryAttacker = matchupGame.units.first(where: { $0.name == "步兵攻击" }),
+                  let artilleryTarget = matchupGame.units.first(where: { $0.name == "炮兵目标" }),
+                  let tankTarget = matchupGame.units.first(where: { $0.name == "装甲目标" }),
+                  let reconVsArtillery = matchupGame.combatPreview(attacker: reconAttacker, defender: artilleryTarget),
+                  let reconVsTank = matchupGame.combatPreview(attacker: reconAttacker, defender: tankTarget),
+                  let infantryVsTank = matchupGame.combatPreview(attacker: infantryAttacker, defender: tankTarget) else {
+                require(false, "matchup test previews should exist")
+                return
+            }
+            require(reconVsArtillery.matchupMultiplierPercent == 120, "recon should have tactical advantage against artillery")
+            require(reconVsArtillery.matchupTitle == "战术优势", "advantage preview should label tactical edge")
+            require(reconVsArtillery.damage > reconVsTank.damage, "advantage matchup should increase damage")
+            require(infantryVsTank.matchupMultiplierPercent == 92, "infantry should be disadvantaged against tanks")
+            require(infantryVsTank.matchupTitle == "战术劣势", "disadvantage preview should label tactical risk")
+
+            let infantryTerrainGame = GameState(scenario: terrainMovementScenario(unitKind: .infantry))
+            let tankTerrainGame = GameState(scenario: terrainMovementScenario(unitKind: .tank))
+            guard let terrainInfantry = infantryTerrainGame.units.first(where: { $0.name == "地形测试步兵" }),
+                  let terrainTank = tankTerrainGame.units.first(where: { $0.name == "地形测试坦克" }) else {
+                require(false, "terrain movement test units should exist")
+                return
+            }
+            let mountain = HexCoordinate(q: 1, r: 1)
+            require(TerrainKind.mountain.movementCost(for: .infantry) == 3, "infantry should handle mountains at normal cost")
+            require(TerrainKind.mountain.movementCost(for: .tank) == 5, "tanks should pay extra movement in mountains")
+            require(infantryTerrainGame.reachableTiles(for: terrainInfantry).contains(mountain), "infantry should reach adjacent mountains")
+            require(!tankTerrainGame.reachableTiles(for: terrainTank).contains(mountain), "tank should be blocked by high mountain movement cost")
+
+            let terrainCombatGame = GameState(scenario: terrainCombatScenario())
+            guard let terrainAttacker = terrainCombatGame.units.first(where: { $0.name == "地形测试装甲" }),
+                  let plainsTarget = terrainCombatGame.units.first(where: { $0.name == "平原目标" }),
+                  let riverTarget = terrainCombatGame.units.first(where: { $0.name == "河流目标" }),
+                  let plainsTerrainPreview = terrainCombatGame.combatPreview(attacker: terrainAttacker, defender: plainsTarget),
+                  let riverTerrainPreview = terrainCombatGame.combatPreview(attacker: terrainAttacker, defender: riverTarget) else {
+                require(false, "terrain combat previews should exist")
+                return
+            }
+            require(plainsTerrainPreview.terrainAttackMultiplierPercent == 108, "tanks should attack effectively on plains")
+            require(plainsTerrainPreview.terrainTitle == "地形适性", "favorable terrain should be labeled")
+            require(riverTerrainPreview.terrainAttackMultiplierPercent == 72, "river attacks should penalize tanks")
+            require(riverTerrainPreview.terrainTitle == "地形牵制", "bad terrain should be labeled")
+            require(plainsTerrainPreview.damage > riverTerrainPreview.damage, "terrain affinity should change combat damage")
+            require(riverTerrainPreview.terrainDetail.contains("河流"), "terrain preview should name defender terrain")
+
+            let postMoveGame = GameState(scenario: postMoveAttackScenario())
+            guard let postMoveTank = postMoveGame.units.first(where: { $0.name == "机动装甲" }),
+                  let postMoveTarget = postMoveGame.units.first(where: { $0.name == "前方守军" }) else {
+                require(false, "post-move attack preview units should exist")
+                return
+            }
+            let postMoveDestination = HexCoordinate(q: 3, r: 0)
+            postMoveGame.handlePrimaryAction(on: postMoveTank.position)
+            require(!postMoveGame.attackableTiles(for: postMoveTank).contains(postMoveTarget.position), "target should start outside current attack range")
+            postMoveGame.handlePrimaryAction(on: postMoveTarget.position)
+            require(!postMoveGame.focusedAttackPositionRoutes.isEmpty, "out-of-range target focus should expose reachable attack positions")
+            require(
+                postMoveGame.message.contains("右键命令 \(postMoveTank.name)") &&
+                    postMoveGame.message.contains("攻击位"),
+                "primary focus on approachable target should describe the secondary approach command"
+            )
+            require(
+                postMoveGame.focusedAttackPositionRoutes.map(\.destination).contains(postMoveDestination),
+                "attack-position preview should include the planned destination"
+            )
+            require(
+                postMoveGame.focusedAttackPositionRoute?.destination == postMoveGame.focusedAttackPositionRoutes.first?.destination,
+                "focused attack-position route should pick the best listed attack position"
+            )
+            require(
+                postMoveGame.focusedAttackPositionRoute?.coordinates.first == postMoveTank.position &&
+                    postMoveGame.focusedAttackPositionRoute?.coordinates.contains(postMoveDestination) == true,
+                "focused attack-position route should expose the movement path to the recommended position"
+            )
+            require(
+                postMoveGame.focusedAttackPositionRoutes.allSatisfy { route in
+                    postMoveGame.postMoveAttackOpportunities(for: postMoveTank, to: route.destination).contains { $0.id == postMoveTarget.id }
+                },
+                "each attack position should create an attack opportunity on the focused target"
+            )
+            guard let postMoveApproachRoute = postMoveGame.focusedAttackPositionRoute else {
+                require(false, "out-of-range target focus should expose a recommended approach route")
+                return
+            }
+            require(
+                postMoveGame.mapActionHint(for: postMoveTarget.position) == .approachAttack(
+                    cost: postMoveApproachRoute.totalCost,
+                    controlZonePenalty: postMoveApproachRoute.controlZonePenalty
+                ),
+                "out-of-range target with attack position should show an executable approach hint"
+            )
+            require(
+                postMoveGame.focusedCommandPreview == .approachAttack(
+                    unitName: postMoveTank.name,
+                    defenderName: postMoveTarget.name,
+                    route: postMoveApproachRoute
+                ),
+                "out-of-range target with attack position should preview an approach move"
+            )
+            require(
+                postMoveGame.postMoveAttackOpportunities(for: postMoveTank, to: postMoveDestination).contains { $0.id == postMoveTarget.id },
+                "move preview should expose attack opportunities from the destination"
+            )
+            postMoveGame.handlePrimaryAction(on: postMoveDestination)
+            require(postMoveGame.focusedPostMoveAttackOpportunities.map(\.id) == [postMoveTarget.id], "focused move preview should list the future target")
+            require(
+                postMoveGame.message.contains("移动后可攻击 \(postMoveTarget.name)"),
+                "primary focus on a move tile should describe post-move attack targets"
+            )
+            postMoveGame.handleSecondaryAction(on: postMoveDestination)
+            guard let postMoveTankAfter = postMoveGame.units.first(where: { $0.id == postMoveTank.id }) else {
+                require(false, "post-move tank should exist after movement")
+                return
+            }
+            guard let postMoveTargetAfterMove = postMoveGame.units.first(where: { $0.id == postMoveTarget.id }) else {
+                require(false, "post-move target should survive the movement step")
+                return
+            }
+            require(postMoveTankAfter.position == postMoveDestination, "secondary move should still move to the previewed destination")
+            require(postMoveTankAfter.hasMoved && !postMoveTankAfter.hasAttacked, "moving should preserve attack when the unit has not attacked yet")
+            require(postMoveGame.attackableTiles(for: postMoveTankAfter).contains(postMoveTarget.position), "target should be attackable after the planned move")
+            require(postMoveGame.focusedCoordinate == postMoveTarget.position, "secondary move should focus the next attack target when one is available")
+            guard let postMoveFollowUpPreview = postMoveGame.combatPreview(attacker: postMoveTankAfter, defender: postMoveTargetAfterMove) else {
+                require(false, "post-move focus should expose an immediate attack preview")
+                return
+            }
+            require(
+                postMoveGame.focusedCommandPreview == .attack(
+                    attackerName: postMoveTankAfter.name,
+                    defenderName: postMoveTargetAfterMove.name,
+                    damage: postMoveFollowUpPreview.damage,
+                    counterDamage: postMoveFollowUpPreview.counterDamage,
+                    defenderHPAfterAttack: postMoveFollowUpPreview.defenderHPAfterAttack,
+                    willDestroy: postMoveFollowUpPreview.willDestroyDefender
+                ),
+                "secondary move should switch the focused command preview to the follow-up attack"
+            )
+            postMoveGame.handleSecondaryAction(on: postMoveTarget.position)
+            guard let postMoveTankAfterAttack = postMoveGame.units.first(where: { $0.id == postMoveTank.id }),
+                  let postMoveTargetAfterAttack = postMoveGame.scenario.units.first(where: { $0.id == postMoveTarget.id }) else {
+                require(false, "post-move units should remain inspectable after the follow-up attack")
+                return
+            }
+            require(postMoveTankAfterAttack.hasAttacked, "second right-click after a post-move focus should spend the attack action")
+            require(postMoveTargetAfterAttack.hp < postMoveTarget.hp, "second right-click after a post-move focus should damage the target")
+
+            let directMoveGame = GameState(scenario: postMoveAttackScenario())
+            guard let directMoveTank = directMoveGame.units.first(where: { $0.name == "机动装甲" }),
+                  let directMoveTarget = directMoveGame.units.first(where: { $0.name == "前方守军" }) else {
+                require(false, "direct tap move units should exist")
+                return
+            }
+            directMoveGame.handleTap(on: directMoveTank.position)
+            directMoveGame.handleTap(on: postMoveDestination)
+            guard let directMoveTankAfter = directMoveGame.units.first(where: { $0.id == directMoveTank.id }),
+                  let directMoveTargetAfterMove = directMoveGame.units.first(where: { $0.id == directMoveTarget.id }) else {
+                require(false, "direct tap move units should survive movement")
+                return
+            }
+            require(directMoveTankAfter.position == postMoveDestination, "direct tap on a move tile should execute movement")
+            require(directMoveTankAfter.hasMoved && !directMoveTankAfter.hasAttacked, "direct tap movement should preserve the attack action")
+            require(directMoveGame.focusedCoordinate == directMoveTarget.position, "direct tap movement should focus the next attack target")
+            require(directMoveGame.message.contains("继续点击可攻击"), "direct tap movement should use touch-friendly follow-up copy")
+            directMoveGame.handleTap(on: directMoveTarget.position)
+            guard let directMoveTankAfterAttack = directMoveGame.units.first(where: { $0.id == directMoveTank.id }),
+                  let directMoveTargetAfterAttack = directMoveGame.scenario.units.first(where: { $0.id == directMoveTarget.id }) else {
+                require(false, "direct tap move units should remain inspectable after attack")
+                return
+            }
+            require(directMoveTankAfterAttack.hasAttacked, "direct tap follow-up should spend the attack action")
+            require(directMoveTargetAfterAttack.hp < directMoveTargetAfterMove.hp, "direct tap follow-up should damage the focused target")
+
+            let approachGame = GameState(scenario: postMoveAttackScenario())
+            guard let approachTank = approachGame.units.first(where: { $0.name == "机动装甲" }),
+                  let approachTarget = approachGame.units.first(where: { $0.name == "前方守军" }) else {
+                require(false, "approach attack units should exist")
+                return
+            }
+            approachGame.handlePrimaryAction(on: approachTank.position)
+            approachGame.handleSecondaryAction(on: approachTarget.position)
+            guard let approachTankAfter = approachGame.units.first(where: { $0.id == approachTank.id }),
+                  let approachTargetAfter = approachGame.units.first(where: { $0.id == approachTarget.id }) else {
+                require(false, "approach attack units should survive")
+                return
+            }
+            require(approachTankAfter.position == postMoveDestination, "right-clicking an out-of-range enemy should move to the recommended attack position")
+            require(approachTankAfter.hasMoved && !approachTankAfter.hasAttacked, "approach movement should preserve the attack action")
+            require(approachTargetAfter.hp == approachTarget.hp, "approach movement should not attack immediately")
+            require(approachGame.attackableTiles(for: approachTankAfter).contains(approachTarget.position), "approach destination should put the target in range")
+            require(approachGame.focusedCoordinate == approachTarget.position, "approach movement should keep the enemy target focused for the next attack")
+            guard let approachAttackPreview = approachGame.combatPreview(attacker: approachTankAfter, defender: approachTargetAfter) else {
+                require(false, "approach movement should expose an immediate attack preview")
+                return
+            }
+            require(
+                approachGame.focusedCommandPreview == .attack(
+                    attackerName: approachTankAfter.name,
+                    defenderName: approachTargetAfter.name,
+                    damage: approachAttackPreview.damage,
+                    counterDamage: approachAttackPreview.counterDamage,
+                    defenderHPAfterAttack: approachAttackPreview.defenderHPAfterAttack,
+                    willDestroy: approachAttackPreview.willDestroyDefender
+                ),
+                "focused command preview should switch to attack after approach movement"
+            )
+            approachGame.handleSecondaryAction(on: approachTarget.position)
+            guard let approachTankAfterAttack = approachGame.units.first(where: { $0.id == approachTank.id }),
+                  let approachTargetAfterAttack = approachGame.scenario.units.first(where: { $0.id == approachTarget.id }) else {
+                require(false, "approach attack units should still be inspectable after the follow-up attack")
+                return
+            }
+            require(approachTankAfterAttack.hasAttacked, "second right-click after approach should spend the attack action")
+            require(approachTargetAfterAttack.hp < approachTarget.hp, "second right-click after approach should damage the target")
+
+            let directApproachGame = GameState(scenario: postMoveAttackScenario())
+            guard let directApproachTank = directApproachGame.units.first(where: { $0.name == "机动装甲" }),
+                  let directApproachTarget = directApproachGame.units.first(where: { $0.name == "前方守军" }) else {
+                require(false, "direct tap approach units should exist")
+                return
+            }
+            directApproachGame.handleTap(on: directApproachTank.position)
+            directApproachGame.handleTap(on: directApproachTarget.position)
+            guard let directApproachTankAfter = directApproachGame.units.first(where: { $0.id == directApproachTank.id }),
+                  let directApproachTargetAfter = directApproachGame.units.first(where: { $0.id == directApproachTarget.id }) else {
+                require(false, "direct tap approach units should survive movement")
+                return
+            }
+            require(directApproachTankAfter.position == postMoveDestination, "direct tap on an approachable target should move to the recommended attack position")
+            require(directApproachTankAfter.hasMoved && !directApproachTankAfter.hasAttacked, "direct tap approach should preserve attack")
+            require(directApproachTargetAfter.hp == directApproachTarget.hp, "direct tap approach should not attack immediately")
+            require(directApproachGame.focusedCoordinate == directApproachTarget.position, "direct tap approach should keep the target focused")
+            require(directApproachGame.message.contains("继续点击可攻击"), "direct tap approach should use touch-friendly follow-up copy")
+            directApproachGame.handleTap(on: directApproachTarget.position)
+            guard let directApproachTankAfterAttack = directApproachGame.units.first(where: { $0.id == directApproachTank.id }),
+                  let directApproachTargetAfterAttack = directApproachGame.scenario.units.first(where: { $0.id == directApproachTarget.id }) else {
+                require(false, "direct tap approach units should remain inspectable after attack")
+                return
+            }
+            require(directApproachTankAfterAttack.hasAttacked, "direct tap follow-up after approach should spend the attack action")
+            require(directApproachTargetAfterAttack.hp < directApproachTarget.hp, "direct tap follow-up after approach should damage the target")
+
+            let buttonMoveGame = GameState(scenario: postMoveAttackScenario())
+            guard let buttonMoveTank = buttonMoveGame.units.first(where: { $0.name == "机动装甲" }),
+                  let buttonMoveTarget = buttonMoveGame.units.first(where: { $0.name == "前方守军" }) else {
+                require(false, "execute button move units should exist")
+                return
+            }
+            buttonMoveGame.handlePrimaryAction(on: buttonMoveTank.position)
+            buttonMoveGame.focus(coordinate: postMoveDestination)
+            require(buttonMoveGame.focusedCommandPreview?.isExecutable == true, "focused move preview should be executable by the command button")
+            buttonMoveGame.executeFocusedCommand()
+            guard let buttonMoveTankAfter = buttonMoveGame.units.first(where: { $0.id == buttonMoveTank.id }),
+                  let buttonMoveTargetAfterMove = buttonMoveGame.units.first(where: { $0.id == buttonMoveTarget.id }) else {
+                require(false, "execute button move units should survive movement")
+                return
+            }
+            require(buttonMoveTankAfter.position == postMoveDestination, "execute button should move to the focused destination")
+            require(buttonMoveTankAfter.hasMoved && !buttonMoveTankAfter.hasAttacked, "execute button movement should preserve the follow-up attack")
+            require(buttonMoveGame.focusedCoordinate == buttonMoveTarget.position, "execute button movement should focus the next attack target")
+            require(buttonMoveGame.message.contains("再次点执行可攻击"), "execute button movement should use button follow-up copy")
+            guard let buttonMoveAttackPreview = buttonMoveGame.combatPreview(attacker: buttonMoveTankAfter, defender: buttonMoveTargetAfterMove) else {
+                require(false, "execute button move should expose a follow-up attack preview")
+                return
+            }
+            require(
+                buttonMoveGame.focusedCommandPreview == .attack(
+                    attackerName: buttonMoveTankAfter.name,
+                    defenderName: buttonMoveTargetAfterMove.name,
+                    damage: buttonMoveAttackPreview.damage,
+                    counterDamage: buttonMoveAttackPreview.counterDamage,
+                    defenderHPAfterAttack: buttonMoveAttackPreview.defenderHPAfterAttack,
+                    willDestroy: buttonMoveAttackPreview.willDestroyDefender
+                ),
+                "execute button move should switch the focused preview to follow-up attack"
+            )
+            buttonMoveGame.executeFocusedCommand()
+            guard let buttonMoveTankAfterAttack = buttonMoveGame.units.first(where: { $0.id == buttonMoveTank.id }),
+                  let buttonMoveTargetAfterAttack = buttonMoveGame.scenario.units.first(where: { $0.id == buttonMoveTarget.id }) else {
+                require(false, "execute button move units should remain inspectable after attack")
+                return
+            }
+            require(buttonMoveTankAfterAttack.hasAttacked, "second execute button press should spend the attack action")
+            require(buttonMoveTargetAfterAttack.hp < buttonMoveTarget.hp, "second execute button press should damage the focused target")
+
+            let buttonApproachGame = GameState(scenario: postMoveAttackScenario())
+            guard let buttonApproachTank = buttonApproachGame.units.first(where: { $0.name == "机动装甲" }),
+                  let buttonApproachTarget = buttonApproachGame.units.first(where: { $0.name == "前方守军" }) else {
+                require(false, "execute button approach units should exist")
+                return
+            }
+            buttonApproachGame.handlePrimaryAction(on: buttonApproachTank.position)
+            buttonApproachGame.focus(unitID: buttonApproachTarget.id)
+            require(buttonApproachGame.focusedCommandPreview?.isExecutable == true, "focused approach preview should be executable by the command button")
+            buttonApproachGame.executeFocusedCommand()
+            guard let buttonApproachTankAfter = buttonApproachGame.units.first(where: { $0.id == buttonApproachTank.id }),
+                  let buttonApproachTargetAfterMove = buttonApproachGame.units.first(where: { $0.id == buttonApproachTarget.id }) else {
+                require(false, "execute button approach units should survive movement")
+                return
+            }
+            require(buttonApproachTankAfter.position == postMoveDestination, "execute button should move to the focused attack position")
+            require(buttonApproachTankAfter.hasMoved && !buttonApproachTankAfter.hasAttacked, "execute button approach should preserve the follow-up attack")
+            require(buttonApproachTargetAfterMove.hp == buttonApproachTarget.hp, "execute button approach should not attack immediately")
+            require(buttonApproachGame.focusedCoordinate == buttonApproachTarget.position, "execute button approach should keep the enemy target focused")
+            require(buttonApproachGame.message.contains("再次点执行可攻击"), "execute button approach should use button follow-up copy")
+            buttonApproachGame.executeFocusedCommand()
+            guard let buttonApproachTankAfterAttack = buttonApproachGame.units.first(where: { $0.id == buttonApproachTank.id }),
+                  let buttonApproachTargetAfterAttack = buttonApproachGame.scenario.units.first(where: { $0.id == buttonApproachTarget.id }) else {
+                require(false, "execute button approach units should remain inspectable after attack")
+                return
+            }
+            require(buttonApproachTankAfterAttack.hasAttacked, "second execute button press after approach should spend the attack action")
+            require(buttonApproachTargetAfterAttack.hp < buttonApproachTarget.hp, "second execute button press after approach should damage the target")
+
+            let objectiveAdvanceGame = GameState(scenario: objectiveAdvanceScenario(includeOccupiedDecoy: true))
+            guard let objectiveAdvanceTank = objectiveAdvanceGame.units.first(where: { $0.name == "目标推进装甲" }),
+                  let occupiedObjective = objectiveAdvanceGame.objectiveTiles.first(where: { $0.objectiveName == "占据村镇" }),
+                  let targetObjective = objectiveAdvanceGame.objectiveTiles.first(where: { $0.objectiveName == "前线据点" }) else {
+                require(false, "objective advance test targets should exist")
+                return
+            }
+            objectiveAdvanceGame.handlePrimaryAction(on: objectiveAdvanceTank.position)
+            require(
+                objectiveAdvanceGame.nearestObjectiveTarget(for: objectiveAdvanceTank)?.coordinate == targetObjective.coordinate,
+                "objective shortcut should ignore occupied objectives and target the nearest open objective"
+            )
+            require(
+                objectiveAdvanceGame.objectiveAdvanceRoute(for: objectiveAdvanceTank, to: occupiedObjective) == nil,
+                "objective shortcut should not route into occupied objective tiles"
+            )
+            guard let objectiveAdvanceRoute = objectiveAdvanceGame.objectiveAdvanceRoute(for: objectiveAdvanceTank, to: targetObjective) else {
+                require(false, "objective shortcut should expose a route to the target objective")
+                return
+            }
+            objectiveAdvanceGame.focusNearestObjectiveTarget()
+            require(objectiveAdvanceGame.focusedCoordinate == targetObjective.coordinate, "objective shortcut should focus a reachable objective")
+            require(
+                objectiveAdvanceGame.guidedObjectiveCoordinate == targetObjective.coordinate,
+                "objective shortcut should mark the final reachable objective on the map"
+            )
+            require(objectiveAdvanceGame.message.contains("夺取前线据点"), "objective shortcut should describe the capture order")
+            require(
+                objectiveAdvanceGame.focusedCommandPreview == .move(
+                    unitName: objectiveAdvanceTank.name,
+                    terrainName: objectiveAdvanceGame.tile(at: targetObjective.coordinate)?.terrain.title ?? "",
+                    route: objectiveAdvanceRoute
+                ),
+                "objective shortcut should create an executable MOVE preview on reachable objectives"
+            )
+            objectiveAdvanceGame.executeFocusedCommand()
+            require(
+                objectiveAdvanceGame.scenario.units.first(where: { $0.id == objectiveAdvanceTank.id })?.position == targetObjective.coordinate,
+                "executing focused objective MOVE should move onto the objective"
+            )
+            require(objectiveAdvanceGame.tile(at: targetObjective.coordinate)?.owner == .allies, "executing focused objective MOVE should capture the objective")
+            require(
+                objectiveAdvanceGame.guidedObjectiveCoordinate == nil,
+                "capturing the guided objective should clear objective guidance"
+            )
+
+            let distantObjectiveGame = GameState(scenario: distantObjectiveAdvanceScenario())
+            guard let distantAdvanceTank = distantObjectiveGame.units.first(where: { $0.name == "目标推进装甲" }),
+                  let distantObjective = distantObjectiveGame.objectiveTiles.first(where: { $0.objectiveName == "纵深据点" }) else {
+                require(false, "distant objective advance test targets should exist")
+                return
+            }
+            let expectedAdvance = HexCoordinate(q: 4, r: 0)
+            distantObjectiveGame.handlePrimaryAction(on: distantAdvanceTank.position)
+            require(
+                distantObjectiveGame.nearestObjectiveTarget(for: distantAdvanceTank)?.coordinate == distantObjective.coordinate,
+                "objective shortcut should pick the nearest distant objective"
+            )
+            guard let distantAdvanceRoute = distantObjectiveGame.objectiveAdvanceRoute(for: distantAdvanceTank, to: distantObjective) else {
+                require(false, "objective shortcut should expose an advance route toward distant objectives")
+                return
+            }
+            require(distantAdvanceRoute.destination == expectedAdvance, "distant objective shortcut should route to the best forward tile")
+            distantObjectiveGame.focusNearestObjectiveTarget()
+            require(distantObjectiveGame.focusedCoordinate == expectedAdvance, "distant objective shortcut should focus the forward tile")
+            require(
+                distantObjectiveGame.guidedObjectiveCoordinate == distantObjective.coordinate,
+                "distant objective shortcut should keep the final objective marked"
+            )
+            require(distantObjectiveGame.message.contains("向纵深据点"), "distant objective shortcut should describe the objective direction")
+            require(distantObjectiveGame.message.contains("距目标剩 1 格"), "distant objective shortcut should report remaining distance")
+            require(
+                distantObjectiveGame.focusedCommandPreview == .move(
+                    unitName: distantAdvanceTank.name,
+                    terrainName: distantObjectiveGame.tile(at: expectedAdvance)?.terrain.title ?? "",
+                    route: distantAdvanceRoute
+                ),
+                "distant objective shortcut should create a MOVE preview toward the objective"
+            )
+            distantObjectiveGame.executeFocusedCommand()
+            require(
+                distantObjectiveGame.scenario.units.first(where: { $0.id == distantAdvanceTank.id })?.position == expectedAdvance,
+                "executing distant objective MOVE should advance to the forward tile"
+            )
+            require(
+                distantObjectiveGame.guidedObjectiveCoordinate == distantObjective.coordinate,
+                "advancing toward a distant objective should preserve final objective guidance"
+            )
+            distantObjectiveGame.focus(coordinate: distantObjective.coordinate)
+            require(
+                distantObjectiveGame.guidedObjectiveCoordinate == nil,
+                "ordinary map focus should clear objective guidance"
+            )
+
+            let contestedZoneGame = GameState(scenario: zoneOfControlScenario(includeEnemy: true))
+            let openZoneGame = GameState(scenario: zoneOfControlScenario(includeEnemy: false))
+            guard let contestedRecon = contestedZoneGame.units.first(where: { $0.name == "接敌侦察" }),
+                  let openRecon = openZoneGame.units.first(where: { $0.name == "接敌侦察" }) else {
+                require(false, "zone of control test units should exist")
+                return
+            }
+            let contactTile = HexCoordinate(q: 1, r: 1)
+            let deepTile = HexCoordinate(q: 3, r: 0)
+            require(contestedZoneGame.enemyControlZoneTiles(for: .allies).contains(contactTile), "enemy units should project adjacent control zones")
+            require(!contestedZoneGame.threateningEnemies(against: .allies, at: contactTile).isEmpty, "enemy units should project attack threats onto covered tiles")
+            require(contestedZoneGame.threatenedTiles(for: .allies).contains(deepTile), "threat map should include enemy fire coverage beyond reachable tiles")
+            require(contestedZoneGame.threatenedReachableTiles(for: contestedRecon).contains(contactTile), "reachable threat overlay should include dangerous move destinations")
+            require(contestedZoneGame.enemyControlZonePenalty(for: contestedRecon, entering: contactTile) == 1, "entering enemy control zones should add movement cost")
+            require(
+                contestedZoneGame.movementCostPreview(for: contestedRecon, entering: contactTile) == TerrainKind.plains.movementCost(for: .recon) + 1,
+                "movement preview should include control zone cost"
+            )
+            require(openZoneGame.reachableTiles(for: openRecon).contains(deepTile), "open ground should allow recon to reach the deep tile")
+            require(!contestedZoneGame.reachableTiles(for: contestedRecon).contains(deepTile), "control zone cost should restrict deep movement")
+            require(openZoneGame.threatenedReachableTiles(for: openRecon).isEmpty, "threat overlay should stay empty when no enemy covers reachable tiles")
+            require(contestedZoneGame.zoneOfControlSummary.contains("+1"), "control zone summary should describe movement penalty")
+
+            let commandGame = GameState(
+                scenario: tacticalCommandScenario(),
+                commandPoints: [.allies: 6, .axis: 6]
+            )
+            guard let barrageArtillery = commandGame.units.first(where: { $0.name == "弹幕炮兵" }),
+                  let barrageTarget = commandGame.units.first(where: { $0.name == "弹幕目标" }),
+                  let ordinaryInfantry = commandGame.units.first(where: { $0.name == "普通步兵" }),
+                  let barragePreview = commandGame.tacticalCommandPreview(command: .artilleryBarrage, caster: barrageArtillery, target: barrageTarget) else {
+                require(false, "tactical command preview units should exist")
+                return
+            }
+            require(barragePreview.command == .artilleryBarrage, "barrage preview should identify the command")
+            require(barragePreview.commandCost == TacticalCommand.artilleryBarrage.commandCost, "barrage preview should expose command cost")
+            require(barragePreview.damage > 0, "barrage should deal damage")
+            require(barragePreview.outcomeText.contains("士气"), "barrage preview should show morale suppression")
+            require(commandGame.tacticalCommandTargets(for: barrageArtillery, command: .artilleryBarrage).count == 1, "barrage should find targets in command range")
+            require(commandGame.canUseTacticalCommand(.artilleryBarrage, with: barrageArtillery), "artillery should be able to use barrage")
+            require(!commandGame.canUseTacticalCommand(.artilleryBarrage, with: ordinaryInfantry), "non-artillery units should not use barrage")
+            commandGame.useTacticalCommand(.artilleryBarrage, casterID: barrageArtillery.id, targetID: barrageTarget.id)
+            guard let barrageArtilleryAfter = commandGame.units.first(where: { $0.id == barrageArtillery.id }),
+                  let barrageTargetAfter = commandGame.units.first(where: { $0.id == barrageTarget.id }) else {
+                require(false, "barrage units should survive the tactical command test")
+                return
+            }
+            require(commandGame.commandPoints(for: .allies) == 6 - TacticalCommand.artilleryBarrage.commandCost, "barrage should spend command points")
+            require(barrageTargetAfter.hp == barrageTarget.hp - barragePreview.damage, "barrage should apply previewed damage")
+            require(barrageTargetAfter.morale == barrageTarget.morale - TacticalCommand.artilleryBarrage.moraleDamage, "barrage should suppress morale")
+            require(barrageArtilleryAfter.hp == barrageArtillery.hp, "barrage should not trigger counterattack damage")
+            require(barrageArtilleryAfter.hasMoved && barrageArtilleryAfter.hasAttacked, "barrage should spend the artillery action")
+
+            let lowCommandGame = GameState(
+                scenario: tacticalCommandScenario(),
+                commandPoints: [.allies: 2, .axis: 6]
+            )
+            guard let lowCommandArtillery = lowCommandGame.units.first(where: { $0.name == "弹幕炮兵" }),
+                  let lowCommandTarget = lowCommandGame.units.first(where: { $0.name == "弹幕目标" }) else {
+                require(false, "low command point tactical command units should exist")
+                return
+            }
+            require(!lowCommandGame.canUseTacticalCommand(.artilleryBarrage, with: lowCommandArtillery), "barrage should require enough command points")
+            lowCommandGame.useTacticalCommand(.artilleryBarrage, casterID: lowCommandArtillery.id, targetID: lowCommandTarget.id)
+            guard let lowCommandTargetAfter = lowCommandGame.units.first(where: { $0.id == lowCommandTarget.id }) else {
+                require(false, "low command target should survive blocked command attempt")
+                return
+            }
+            require(lowCommandGame.commandPoints(for: .allies) == 2, "blocked command should not spend points")
+            require(lowCommandTargetAfter.hp == lowCommandTarget.hp, "blocked command should not damage target")
+
+            let breakthroughGame = GameState(
+                scenario: breakthroughAssaultScenario(),
+                commandPoints: [.allies: 6, .axis: 6]
+            )
+            guard let breakthroughTank = breakthroughGame.units.first(where: { $0.name == "突击装甲" }),
+                  let breakthroughInfantry = breakthroughGame.units.first(where: { $0.name == "普通步兵" }),
+                  let breakthroughTarget = breakthroughGame.units.first(where: { $0.name == "突破目标" }),
+                  let normalBreakthroughPreview = breakthroughGame.combatPreview(attacker: breakthroughTank, defender: breakthroughTarget),
+                  let breakthroughPreview = breakthroughGame.tacticalCommandPreview(command: .breakthroughAssault, caster: breakthroughTank, target: breakthroughTarget) else {
+                require(false, "breakthrough assault test units should exist")
+                return
+            }
+            require(breakthroughPreview.command == .breakthroughAssault, "breakthrough preview should identify the command")
+            require(breakthroughPreview.commandCost == TacticalCommand.breakthroughAssault.commandCost, "breakthrough preview should expose command cost")
+            require(breakthroughPreview.range == TacticalCommand.breakthroughAssault.range, "breakthrough preview should expose command range")
+            require(breakthroughPreview.damage > normalBreakthroughPreview.damage, "breakthrough assault should hit harder than a normal attack")
+            require(breakthroughGame.tacticalCommandTargets(for: breakthroughTank, command: .breakthroughAssault).count == 1, "breakthrough assault should find adjacent targets")
+            require(breakthroughGame.canUseTacticalCommand(.breakthroughAssault, with: breakthroughTank), "tanks should be able to use breakthrough assault")
+            require(!breakthroughGame.canUseTacticalCommand(.breakthroughAssault, with: breakthroughInfantry), "infantry should not use breakthrough assault")
+            breakthroughGame.useTacticalCommand(.breakthroughAssault, casterID: breakthroughTank.id, targetID: breakthroughTarget.id)
+            guard let breakthroughTankAfter = breakthroughGame.units.first(where: { $0.id == breakthroughTank.id }),
+                  let breakthroughTargetAfter = breakthroughGame.units.first(where: { $0.id == breakthroughTarget.id }) else {
+                require(false, "breakthrough units should survive the tactical command test")
+                return
+            }
+            require(breakthroughGame.commandPoints(for: .allies) == 6 - TacticalCommand.breakthroughAssault.commandCost, "breakthrough assault should spend command points")
+            require(breakthroughTargetAfter.hp == breakthroughTarget.hp - breakthroughPreview.damage, "breakthrough assault should apply previewed damage")
+            require(breakthroughTargetAfter.morale == breakthroughTarget.morale - TacticalCommand.breakthroughAssault.moraleDamage, "breakthrough assault should suppress morale")
+            require(breakthroughTankAfter.hp == breakthroughTank.hp, "breakthrough assault should not trigger counterattack damage")
+            require(breakthroughTankAfter.hasMoved && breakthroughTankAfter.hasAttacked, "breakthrough assault should spend the unit action")
+            require(breakthroughGame.battleLog.contains { $0.contains("突破突击") }, "breakthrough assault should be logged")
+
+            let pursuitGame = GameState(
+                scenario: maneuverPursuitScenario(attackerKind: .tank),
+                commandPoints: [.allies: 6, .axis: 6]
+            )
+            guard let pursuitTank = pursuitGame.units.first(where: { $0.name == "追击装甲" }),
+                  let pursuitTarget = pursuitGame.units.first(where: { $0.name == "追击目标" }) else {
+                require(false, "maneuver pursuit units should exist")
+                return
+            }
+            let pursuitObjective = HexCoordinate(q: 3, r: 0)
+            require(pursuitGame.canUseManeuverPursuit(afterDestroyingWith: pursuitTank), "tanks should be eligible for maneuver pursuit before moving")
+            require(pursuitGame.maneuverPursuitSummary.contains("坦克"), "maneuver pursuit summary should describe eligible units")
+            pursuitGame.handleTap(on: pursuitTank.position)
+            pursuitGame.handleTap(on: pursuitTarget.position)
+            guard let pursuitTankAfterKill = pursuitGame.units.first(where: { $0.id == pursuitTank.id }) else {
+                require(false, "pursuit tank should survive after kill")
+                return
+            }
+            require(pursuitTankAfterKill.hasAttacked && !pursuitTankAfterKill.hasMoved, "mobile units should keep movement after destroying a target")
+            require(pursuitGame.selectedUnit?.id == pursuitTank.id, "pursuit unit should remain selected")
+            require(pursuitGame.reachableTiles(for: pursuitTankAfterKill).contains(pursuitObjective), "pursuit unit should be able to move after kill")
+            require(pursuitGame.attackCoverageTiles(for: pursuitTankAfterKill).isEmpty, "pursuit should hide attack coverage after spending attack")
+            require(pursuitGame.attackableTiles(for: pursuitTankAfterKill).isEmpty, "pursuit should not restore attack")
+            require(pursuitGame.battleLog.contains { $0.contains("可继续机动") }, "maneuver pursuit should be logged")
+            pursuitGame.handleTap(on: pursuitObjective)
+            guard let pursuitTankAfterMove = pursuitGame.units.first(where: { $0.id == pursuitTank.id }) else {
+                require(false, "pursuit tank should survive after moving")
+                return
+            }
+            require(pursuitTankAfterMove.position == pursuitObjective, "pursuit unit should move after destroying target")
+            require(pursuitTankAfterMove.hasMoved && pursuitTankAfterMove.hasAttacked, "pursuit movement should spend remaining movement only")
+            require(pursuitGame.tile(at: pursuitObjective)?.owner == .allies, "pursuit movement should capture objectives")
+
+            let infantryPursuitGame = GameState(
+                scenario: maneuverPursuitScenario(attackerKind: .infantry),
+                commandPoints: [.allies: 6, .axis: 6]
+            )
+            guard let pursuitInfantry = infantryPursuitGame.units.first(where: { $0.name == "追击步兵" }),
+                  let infantryPursuitTarget = infantryPursuitGame.units.first(where: { $0.name == "追击目标" }) else {
+                require(false, "infantry pursuit test units should exist")
+                return
+            }
+            require(!infantryPursuitGame.canUseManeuverPursuit(afterDestroyingWith: pursuitInfantry), "infantry should not be eligible for maneuver pursuit")
+            infantryPursuitGame.handleTap(on: pursuitInfantry.position)
+            infantryPursuitGame.handleTap(on: infantryPursuitTarget.position)
+            guard let pursuitInfantryAfterKill = infantryPursuitGame.units.first(where: { $0.id == pursuitInfantry.id }) else {
+                require(false, "pursuit infantry should survive after kill")
+                return
+            }
+            require(pursuitInfantryAfterKill.hasMoved && pursuitInfantryAfterKill.hasAttacked, "infantry kills should spend the full action")
+            require(!infantryPursuitGame.battleLog.contains { $0.contains("可继续机动") }, "infantry kills should not log maneuver pursuit")
+
+            let axisCommandGame = GameState(
+                scenario: axisTacticalCommandScenario(),
+                commandPoints: [.allies: 6, .axis: 8]
+            )
+            guard let axisCommandTarget = axisCommandGame.units.first(where: { $0.name == "盟军指挥坦克" }),
+                  let axisCommandArtillery = axisCommandGame.units.first(where: { $0.name == "轴心炮兵" }) else {
+                require(false, "axis tactical command units should exist")
+                return
+            }
+            axisCommandGame.endTurn()
+            if axisCommandGame.winner == nil {
+                guard let axisCommandTargetAfter = axisCommandGame.units.first(where: { $0.id == axisCommandTarget.id }),
+                      let axisCommandArtilleryAfter = axisCommandGame.units.first(where: { $0.id == axisCommandArtillery.id }) else {
+                    require(false, "axis tactical command units should survive AI turn")
+                    return
+                }
+                require(axisCommandTargetAfter.hp < axisCommandTarget.hp, "axis AI barrage should damage valuable target")
+                require(axisCommandTargetAfter.morale < axisCommandTarget.morale, "axis AI barrage should suppress target morale")
+                require(axisCommandArtilleryAfter.hp == axisCommandArtillery.hp, "axis AI barrage should not take counterattack damage")
+                require(axisCommandArtilleryAfter.hasMoved && axisCommandArtilleryAfter.hasAttacked, "axis AI barrage should spend artillery action")
+            require(
+                axisCommandGame.commandPoints(for: .axis) < 8 + axisCommandGame.commandIncome(for: .axis),
+                "axis AI barrage should spend command points"
+            )
+            require(axisCommandGame.battleLog.contains { $0.contains("火炮弹幕") }, "axis AI barrage should be logged")
+            }
+
+            let axisAdvanceGame = GameState(
+                scenario: axisFullAdvanceScenario(),
+                commandPoints: [.allies: 6, .axis: 0]
+            )
+            guard let advanceTarget = axisAdvanceGame.units.first(where: { $0.name == "远端步兵" }),
+                  let advanceRecon = axisAdvanceGame.units.first(where: { $0.name == "突进侦察" }) else {
+                require(false, "axis advance test units should exist")
+                return
+            }
+            axisAdvanceGame.endTurn()
+            if axisAdvanceGame.winner == nil {
+                guard let advanceTargetAfter = axisAdvanceGame.units.first(where: { $0.id == advanceTarget.id }),
+                      let advanceReconAfter = axisAdvanceGame.units.first(where: { $0.id == advanceRecon.id }) else {
+                    require(false, "axis advance units should survive AI turn")
+                    return
+                }
+                require(advanceReconAfter.position == HexCoordinate(q: 1, r: 0), "axis AI should use full movement to reach attack position")
+                require(advanceTargetAfter.hp < advanceTarget.hp, "axis AI should attack after full advance")
+                require(advanceReconAfter.hasMoved && advanceReconAfter.hasAttacked, "axis AI full advance should spend movement and attack")
+            }
+
+            let axisPursuitGame = GameState(
+                scenario: axisManeuverPursuitScenario(),
+                commandPoints: [.allies: 6, .axis: 0]
+            )
+            guard let axisPursuitTarget = axisPursuitGame.units.first(where: { $0.name == "薄弱前哨" }),
+                  let axisPursuitReserve = axisPursuitGame.units.first(where: { $0.name == "纵深守军" }),
+                  let axisPursuitTank = axisPursuitGame.units.first(where: { $0.name == "追击装甲群" }) else {
+                require(false, "axis maneuver pursuit test units should exist")
+                return
+            }
+            axisPursuitGame.endTurn()
+            if axisPursuitGame.winner == nil {
+                guard let axisPursuitTankAfterAI = axisPursuitGame.units.first(where: { $0.id == axisPursuitTank.id }),
+                      let axisPursuitReserveAfterAI = axisPursuitGame.units.first(where: { $0.id == axisPursuitReserve.id }) else {
+                    require(false, "axis pursuit units should survive AI turn")
+                    return
+                }
+                require(!axisPursuitGame.units.contains { $0.id == axisPursuitTarget.id }, "axis pursuit should destroy the weak outpost")
+                require(axisPursuitTankAfterAI.position == HexCoordinate(q: 0, r: 0), "axis AI should advance after maneuver pursuit")
+                require(axisPursuitGame.tile(at: HexCoordinate(q: 0, r: 0))?.owner == .axis, "axis pursuit should capture the forward objective")
+                require(axisPursuitReserveAfterAI.hp == axisPursuitReserve.hp, "axis pursuit should not grant a second attack")
+                require(axisPursuitTankAfterAI.hasMoved && axisPursuitTankAfterAI.hasAttacked, "axis pursuit should spend remaining movement")
+                require(axisPursuitGame.battleLog.contains { $0.contains("可继续机动") }, "axis maneuver pursuit should be logged")
+            }
+
+            let objectiveRewardGame = GameState(
+                scenario: objectiveRewardScenario(),
+                commandPoints: [.allies: 4, .axis: 6]
+            )
+            guard let objectiveRewardInfantry = objectiveRewardGame.units.first(where: { $0.name == "占点步兵" }) else {
+                require(false, "objective reward infantry should exist")
+                return
+            }
+            let rewardObjective = HexCoordinate(q: 2, r: 0)
+            objectiveRewardGame.handleTap(on: objectiveRewardInfantry.position)
+            objectiveRewardGame.handleTap(on: rewardObjective)
+            guard let objectiveRewardInfantryAfter = objectiveRewardGame.units.first(where: { $0.id == objectiveRewardInfantry.id }) else {
+                require(false, "objective reward infantry should survive capture")
+                return
+            }
+            require(objectiveRewardGame.tile(at: rewardObjective)?.owner == .allies, "captured objective should change owner")
+            require(objectiveRewardGame.commandPoints(for: .allies) == 7, "capturing objective should award command points")
+            require(objectiveRewardInfantryAfter.morale == objectiveRewardInfantry.morale + 8, "capturing objective should raise morale")
+            require(objectiveRewardInfantryAfter.experience == objectiveRewardInfantry.experience + 10, "capturing objective should award experience")
+            require(objectiveRewardGame.objectiveCaptureRewardSummary.contains("指令 +3"), "objective reward summary should describe command reward")
+            require(objectiveRewardGame.battleLog.contains { $0.contains("夺取前线村镇") }, "capturing objective should be logged")
+
+            let objectiveRestGame = GameState(
+                scenario: objectiveRestScenario(),
+                commandPoints: [.allies: 6, .axis: 0]
+            )
+            guard let restingInfantry = objectiveRestGame.units.first(where: { $0.name == "休整守军" }) else {
+                require(false, "objective rest infantry should exist")
+                return
+            }
+            require(objectiveRestGame.objectiveRestRecovery(for: restingInfantry) == 10, "owned objective should recover damaged supplied units")
+            require(objectiveRestGame.objectiveRestSummary.contains("+10"), "objective rest summary should describe recovery amount")
+            objectiveRestGame.endTurn()
+            if objectiveRestGame.winner == nil {
+                guard let recoveredInfantry = objectiveRestGame.units.first(where: { $0.id == restingInfantry.id }) else {
+                    require(false, "resting infantry should survive objective rest")
+                    return
+                }
+                require(recoveredInfantry.hp == restingInfantry.hp + 10, "objective rest should restore HP on new player turn")
+                require(objectiveRestGame.battleLog.contains { $0.contains("恢复 10 耐久") }, "objective rest should be logged")
+            }
+
+            var veteranScenario = Scenario.ardennesPrototype()
+            guard let veteranAttackerIndex = veteranScenario.units.firstIndex(where: { $0.name == "第4装甲师" }),
+                  let veteranTargetIndex = veteranScenario.units.firstIndex(where: { $0.name == "第2装甲集团" }) else {
+                require(false, "veteran test units should exist")
+                return
+            }
+            veteranScenario.units[veteranAttackerIndex].position = HexCoordinate(q: 9, r: 4)
+            veteranScenario.units[veteranAttackerIndex].experience = UnitRank.regular.minimumExperience - 1
+            veteranScenario.units[veteranTargetIndex].hp = 12
+            let veteranAttackerID = veteranScenario.units[veteranAttackerIndex].id
+            let veteranTargetPosition = veteranScenario.units[veteranTargetIndex].position
+            let veteranGame = GameState(scenario: veteranScenario)
+            veteranGame.handleTap(on: HexCoordinate(q: 9, r: 4))
+            veteranGame.handleTap(on: veteranTargetPosition)
+            guard let promoted = veteranGame.units.first(where: { $0.id == veteranAttackerID }) else {
+                require(false, "promoted attacker should survive")
+                return
+            }
+            require(promoted.experience >= UnitRank.regular.minimumExperience, "combat should award experience")
+            require(promoted.rank != .green, "experience should promote units")
+            require(promoted.maxHP > promoted.kind.baseHP, "rank should increase max HP")
+
+            let isolatedGame = GameState(scenario: isolatedSupplyScenario())
+            guard let isolatedTank = isolatedGame.units.first(where: { $0.name == "孤立装甲" }),
+                  let isolatedTarget = isolatedGame.units.first(where: { $0.name == "靶标步兵" }) else {
+                require(false, "isolated supply test units should exist")
+                return
+            }
+            require(isolatedGame.supplyState(for: isolatedTank) == .isolated, "blocked unit should be isolated")
+            require(isolatedGame.supplyLineTiles(for: isolatedTank).isEmpty, "blocked unit should have no supply path")
+            let isolatedPreview = isolatedGame.combatPreview(attacker: isolatedTank, defender: isolatedTarget)
+            let fullSupplyPreview = game.combatPreview(
+                attacker: BattleUnit(
+                    name: "补给装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: isolatedTank.position,
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                defender: isolatedTarget
+            )
+            require((isolatedPreview?.damage ?? 0) < (fullSupplyPreview?.damage ?? 99), "isolated unit should deal less damage")
+            let isolatedHP = isolatedTank.hp
+            isolatedGame.endTurn()
+            guard let attritedTank = isolatedGame.units.first(where: { $0.id == isolatedTank.id }) else {
+                require(false, "isolated tank should survive attrition")
+                return
+            }
+            require(attritedTank.hp < isolatedHP, "isolated unit should take attrition on turn reset")
+
+            let inspiredGame = GameState(scenario: moraleCombatScenario(attackerMorale: 90))
+            let shakenGame = GameState(scenario: moraleCombatScenario(attackerMorale: 20))
+            let inspiredMovementGame = GameState(scenario: moraleMovementScenario(unitMorale: 90))
+            let shakenMovementGame = GameState(scenario: moraleMovementScenario(unitMorale: 20))
+            guard let inspiredTank = inspiredGame.units.first(where: { $0.name == "士气装甲" }),
+                  let shakenTank = shakenGame.units.first(where: { $0.name == "士气装甲" }),
+                  let inspiredMover = inspiredMovementGame.units.first(where: { $0.name == "士气行军装甲" }),
+                  let shakenMover = shakenMovementGame.units.first(where: { $0.name == "士气行军装甲" }),
+                  let inspiredTarget = inspiredGame.units.first(where: { $0.name == "目标守军" }),
+                  let shakenTarget = shakenGame.units.first(where: { $0.name == "目标守军" }) else {
+                require(false, "morale test units should exist")
+                return
+            }
+            require(inspiredTank.moraleState == .inspired, "high morale should create inspired state")
+            require(shakenTank.moraleState == .shaken, "low morale should create shaken state")
+            require(
+                (inspiredGame.combatPreview(attacker: inspiredTank, defender: inspiredTarget)?.damage ?? 0) >
+                    (shakenGame.combatPreview(attacker: shakenTank, defender: shakenTarget)?.damage ?? 99),
+                "inspired units should deal more damage than shaken units"
+            )
+            require(
+                inspiredMovementGame.reachableTiles(for: inspiredMover).count > shakenMovementGame.reachableTiles(for: shakenMover).count,
+                "inspired units should reach more tiles than shaken units"
+            )
+
+            let moraleGame = GameState(scenario: moraleCombatScenario(attackerMorale: 60, defenderMorale: 60))
+            guard let moraleAttacker = moraleGame.units.first(where: { $0.name == "士气装甲" }),
+                  let moraleDefender = moraleGame.units.first(where: { $0.name == "目标守军" }) else {
+                require(false, "morale combat units should exist")
+                return
+            }
+            moraleGame.handleTap(on: moraleAttacker.position)
+            moraleGame.handleTap(on: moraleDefender.position)
+            guard let moraleAttackerAfter = moraleGame.units.first(where: { $0.id == moraleAttacker.id }),
+                  let moraleDefenderAfter = moraleGame.units.first(where: { $0.id == moraleDefender.id }) else {
+                require(false, "morale combat units should survive")
+                return
+            }
+            require(moraleAttackerAfter.morale > moraleAttacker.morale, "successful attacks should raise attacker morale")
+            require(moraleDefenderAfter.morale < moraleDefender.morale, "being hit should lower defender morale")
+
+            let recoveryGame = GameState(scenario: moraleRecoveryScenario())
+            guard let tiredUnit = recoveryGame.units.first(where: { $0.name == "休整步兵" }) else {
+                require(false, "morale recovery unit should exist")
+                return
+            }
+            recoveryGame.endTurn()
+            guard let recoveredUnit = recoveryGame.units.first(where: { $0.id == tiredUnit.id }) else {
+                require(false, "morale recovery unit should survive")
+                return
+            }
+            require(recoveredUnit.morale == tiredUnit.morale + 10, "supplied units on objectives should recover morale")
+
+            let baselineEntrenchmentGame = GameState(scenario: entrenchmentScenario())
+            guard let baselineDefender = baselineEntrenchmentGame.units.first(where: { $0.name == "防御步兵" }),
+                  let baselineAttacker = baselineEntrenchmentGame.units.first(where: { $0.name == "进攻装甲" }),
+                  let baselineEntrenchmentPreview = baselineEntrenchmentGame.combatPreview(attacker: baselineAttacker, defender: baselineDefender) else {
+                require(false, "baseline entrenchment units should exist")
+                return
+            }
+            let entrenchmentGame = GameState(scenario: entrenchmentScenario())
+            guard let entrenchingDefender = entrenchmentGame.units.first(where: { $0.name == "防御步兵" }),
+                  let entrenchmentAttacker = entrenchmentGame.units.first(where: { $0.name == "进攻装甲" }) else {
+                require(false, "entrenchment units should exist")
+                return
+            }
+            entrenchmentGame.handleTap(on: entrenchingDefender.position)
+            entrenchmentGame.waitSelectedUnit()
+            guard let entrenchedDefender = entrenchmentGame.units.first(where: { $0.id == entrenchingDefender.id }),
+                  let entrenchedPreview = entrenchmentGame.combatPreview(attacker: entrenchmentAttacker, defender: entrenchedDefender) else {
+                require(false, "entrenched preview should exist")
+                return
+            }
+            require(entrenchedDefender.isEntrenched, "waiting should put unit into defensive posture")
+            require(entrenchedPreview.defenderIsEntrenched, "combat preview should expose defensive posture")
+            require(entrenchedPreview.defenseMultiplierPercent == 75, "defensive posture should reduce incoming damage to 75 percent")
+            require(entrenchedPreview.damage < baselineEntrenchmentPreview.damage, "defensive posture should reduce incoming damage")
+            require(entrenchmentGame.entrenchmentSummary.contains("75%"), "entrenchment summary should describe damage reduction")
+            entrenchmentGame.endTurn()
+            if entrenchmentGame.winner == nil {
+                guard let defenderAfterAttack = entrenchmentGame.units.first(where: { $0.id == entrenchingDefender.id }) else {
+                    require(false, "entrenched defender should survive AI attack")
+                    return
+                }
+                let hpAfterIncomingAttack = entrenchingDefender.hp - entrenchedPreview.damage
+                let expectedObjectiveRest = min(10, entrenchingDefender.maxHP - hpAfterIncomingAttack)
+                require(
+                    defenderAfterAttack.hp == hpAfterIncomingAttack + expectedObjectiveRest,
+                    "AI attack should apply reduced entrenchment damage before objective rest"
+                )
+                require(!defenderAfterAttack.isEntrenched, "defensive posture should be consumed after being hit")
+                require(entrenchmentGame.battleLog.contains { $0.contains("恢复 \(expectedObjectiveRest) 耐久") }, "objective rest should apply after entrenchment damage")
+            }
+
+            let baselineFlankingGame = GameState(scenario: flankingScenario(supportCount: 0))
+            guard let baselineFlankingAttacker = baselineFlankingGame.units.first(where: { $0.name == "协同装甲" }),
+                  let baselineFlankingTarget = baselineFlankingGame.units.first(where: { $0.name == "夹击目标" }),
+                  let baselineFlankingPreview = baselineFlankingGame.combatPreview(attacker: baselineFlankingAttacker, defender: baselineFlankingTarget) else {
+                require(false, "baseline flanking units should exist")
+                return
+            }
+            let flankingGame = GameState(scenario: flankingScenario(supportCount: 2))
+            guard let flankingAttacker = flankingGame.units.first(where: { $0.name == "协同装甲" }),
+                  let flankingTarget = flankingGame.units.first(where: { $0.name == "夹击目标" }),
+                  let flankingPreview = flankingGame.combatPreview(attacker: flankingAttacker, defender: flankingTarget) else {
+                require(false, "flanking support units should exist")
+                return
+            }
+            require(flankingGame.flankingSupportUnits(attacker: flankingAttacker, defender: flankingTarget).count == 2, "flanking support query should find adjacent friendly units")
+            require(flankingPreview.supportUnitCount == 2, "combat preview should expose support unit count")
+            require(flankingPreview.supportDamageBonusPercent == 20, "two support units should add 20 percent damage")
+            require(flankingPreview.supportTitle == "夹击协同", "supported attacks should be labeled as flanking coordination")
+            require(flankingPreview.damage > baselineFlankingPreview.damage, "flanking support should increase combat damage")
+            require(flankingGame.flankingSupportSummary.contains("+10%"), "flanking support summary should describe per-unit bonus")
+            flankingGame.handleTap(on: flankingAttacker.position)
+            flankingGame.handleTap(on: flankingTarget.position)
+            guard let flankingTargetAfterAttack = flankingGame.units.first(where: { $0.id == flankingTarget.id }) else {
+                require(false, "flanking target should survive the smoke attack")
+                return
+            }
+            require(flankingTargetAfterAttack.hp == flankingTarget.hp - flankingPreview.damage, "flanking attack should apply previewed damage")
+            require(flankingGame.battleLog.contains { $0.contains("夹击 +20%") }, "flanking support should be logged")
+
+            let missionGame = GameState(scenario: missionStarScenario())
+            guard let missionTank = missionGame.units.first(where: { $0.name == "任务装甲" }) else {
+                require(false, "mission star unit should exist")
+                return
+            }
+            missionGame.handleTap(on: missionTank.position)
+            missionGame.handleTap(on: HexCoordinate(q: 1, r: 0))
+            require(missionGame.winner == .allies, "capturing all objectives should win the mission")
+            require(missionGame.earnedStars == 3, "fast objective capture with enough survivors should award three stars")
+            require(missionGame.missionObjectives.allSatisfy { $0.state == .complete }, "all star objectives should be complete after perfect victory")
+
+            let timeoutGame = GameState(scenario: missionTimeoutScenario())
+            timeoutGame.endTurn()
+            require(timeoutGame.winner == .axis, "mission should fail when turn limit expires")
+            require(timeoutGame.earnedStars == 0, "failed missions should award zero stars")
+            require(timeoutGame.remainingTurns == 0, "expired mission should have no remaining turns")
+            require(
+                timeoutGame.missionObjectives.contains { $0.id == "primary" && $0.state == .failed },
+                "primary objective should fail after timeout"
+            )
+
+            guard let deploySite = game.deploymentSites(for: .allies).first else {
+                require(false, "allied objective should provide a deployment site")
+                return
+            }
+            let commandPointsBeforeDeploy = game.commandPoints(for: .allies)
+            let alliedCountBeforeDeploy = game.units(for: .allies).count
+            game.deploy(kind: .infantry, at: deploySite.coordinate)
+            require(game.commandPoints(for: .allies) == commandPointsBeforeDeploy - UnitKind.infantry.commandCost, "deployment should spend command points")
+            require(game.units(for: .allies).count == alliedCountBeforeDeploy + 1, "deployment should add a unit")
+
+            let primaryInspectGame = GameState()
+            primaryInspectGame.handlePrimaryAction(on: HexCoordinate(q: 0, r: 0))
+            require(primaryInspectGame.selectedUnit == nil, "primary click on empty terrain should not select a unit")
+            require(!primaryInspectGame.message.contains("需要先选择"), "primary click on empty terrain should inspect instead of issuing an order")
+
+            let invalidSecondaryGame = GameState()
+            guard let invalidEnemy = invalidSecondaryGame.units.first(where: { $0.name == "第2装甲集团" }),
+                  let invalidTank = invalidSecondaryGame.units.first(where: { $0.name == "第4装甲师" }),
+                  let invalidInfantry = invalidSecondaryGame.units.first(where: { $0.name == "第101空降师" }) else {
+                require(false, "invalid secondary action units should exist")
+                return
+            }
+            invalidSecondaryGame.handleSecondaryAction(on: invalidEnemy.position)
+            require(invalidSecondaryGame.selectedUnit == nil, "secondary click without selection should not auto-select")
+            require(invalidSecondaryGame.units.first(where: { $0.id == invalidEnemy.id })?.hp == invalidEnemy.hp, "secondary click without selection should not damage enemies")
+            require(invalidSecondaryGame.message.contains("需要先选择"), "secondary click without selection should ask for a unit")
+            invalidSecondaryGame.handleSecondaryAction(on: HexCoordinate(q: 0, r: 0))
+            require(invalidSecondaryGame.message.contains("需要先选择"), "secondary click on empty terrain should ask for a unit")
+            invalidSecondaryGame.handlePrimaryAction(on: invalidTank.position)
+            invalidSecondaryGame.handleSecondaryAction(on: invalidInfantry.position)
+            require(invalidSecondaryGame.units.first(where: { $0.id == invalidTank.id })?.position == invalidTank.position, "secondary click on friendly unit should not move selected unit")
+            require(invalidSecondaryGame.units.first(where: { $0.id == invalidTank.id })?.hasMoved == false, "secondary click on friendly unit should not spend movement")
+            invalidSecondaryGame.handleSecondaryAction(on: invalidEnemy.position)
+            require(invalidSecondaryGame.units.first(where: { $0.id == invalidTank.id })?.hasAttacked == false, "secondary click on out-of-range enemy should not spend attack")
+            require(invalidSecondaryGame.units.first(where: { $0.id == invalidEnemy.id })?.hp == invalidEnemy.hp, "secondary click on out-of-range enemy should not deal damage")
+
+            let focusGame = GameState()
+            guard let focusTank = focusGame.units.first(where: { $0.name == "第4装甲师" }),
+                  let focusEnemy = focusGame.units.first(where: { $0.name == "第2装甲集团" }),
+                  let focusObjective = focusGame.objectiveTiles.first(where: { $0.objectiveName == "南部桥头堡" }) else {
+                require(false, "focus test targets should exist")
+                return
+            }
+            focusGame.focus(unitID: focusEnemy.id)
+            require(focusGame.selectedUnit == nil, "focusing an enemy from the map UI should not select a unit")
+            require(focusGame.focusedCoordinate == focusEnemy.position, "focusing an enemy should update the focused coordinate")
+            require(focusGame.units.first(where: { $0.id == focusEnemy.id })?.hp == focusEnemy.hp, "focusing an enemy should not damage it")
+            focusGame.focus(coordinate: focusObjective.coordinate)
+            require(focusGame.selectedUnit == nil, "focusing an objective should not select a unit")
+            require(focusGame.focusedCoordinate == focusObjective.coordinate, "focusing an objective should update the focused coordinate")
+            focusGame.select(unitID: focusTank.id)
+            focusGame.focus(unitID: focusEnemy.id)
+            require(focusGame.selectedUnit?.id == focusTank.id, "focusing an enemy after selecting a unit should preserve the selected unit")
+            require(focusGame.units.first(where: { $0.id == focusTank.id })?.position == focusTank.position, "focusing should not move the selected unit")
+            require(focusGame.units.first(where: { $0.id == focusTank.id })?.hasMoved == false, "focusing should not spend movement")
+            require(focusGame.units.first(where: { $0.id == focusTank.id })?.hasAttacked == false, "focusing should not spend attacks")
+            require(focusGame.units.first(where: { $0.id == focusEnemy.id })?.hp == focusEnemy.hp, "focusing with a selected unit should not attack enemies")
+
+            game.handleTap(on: pattonTank.position)
+            require(game.selectedUnit?.id == pattonTank.id, "tap should select allied unit")
+            require(!game.reachableTiles(for: pattonTank).isEmpty, "selected tank should have reachable tiles")
+
+            guard let destination = game.reachableTiles(for: pattonTank).sorted(by: { $0.id < $1.id }).first else {
+                require(false, "reachable destination should exist")
+                return
+            }
+            game.handleTap(on: destination)
+            require(game.selectedUnit?.position == destination, "selected unit should move to reachable tile")
+            require(game.focusedCoordinate == destination, "focused tile should follow moved unit")
+
+            let previousTurn = game.turn
+            game.endTurn()
+            require(game.turn == previousTurn + 1 || game.winner != nil, "ending turn should advance back to player or finish battle")
+            require(game.activeFaction == .allies || game.winner != nil, "AI turn should return control to allies unless battle ends")
+
+            print("Rules smoke test passed")
+        }
+    }
+
+    private static func isolatedSupplyScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<2 {
+            for q in 0..<3 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "补给源"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "isolated-supply-test",
+            name: "断补给测试",
+            year: "1944",
+            briefing: "测试断补给。",
+            initialFocus: HexCoordinate(q: 2, r: 0),
+            mapColumns: 3,
+            mapRows: 2,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "孤立装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 2, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "靶标步兵",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 2, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "封锁一",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "封锁二",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 1, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ]
+        )
+    }
+
+    private static func commanderAuraScenario(includeCommander: Bool) -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<2 {
+            for q in 0..<3 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 1 {
+                    tile.objectiveName = "指挥阵地"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        var units = [
+            BattleUnit(
+                name: "受援步兵",
+                kind: .infantry,
+                faction: .allies,
+                position: HexCoordinate(q: 1, r: 0),
+                hp: UnitKind.infantry.baseHP,
+                commander: nil
+            ),
+            BattleUnit(
+                name: "光环目标",
+                kind: .infantry,
+                faction: .axis,
+                position: HexCoordinate(q: 2, r: 0),
+                hp: UnitKind.infantry.baseHP,
+                commander: nil
+            )
+        ]
+
+        if includeCommander {
+            units.append(BattleUnit(
+                name: "指挥装甲",
+                kind: .tank,
+                faction: .allies,
+                position: HexCoordinate(q: 0, r: 1),
+                hp: UnitKind.tank.baseHP,
+                commander: .patton
+            ))
+        }
+
+        return Scenario(
+            id: includeCommander ? "commander-aura-test" : "commander-aura-baseline-test",
+            name: "将领协同测试",
+            year: "1944",
+            briefing: "测试相邻将领对友军攻击的协同加成。",
+            initialFocus: HexCoordinate(q: 1, r: 0),
+            mapColumns: 3,
+            mapRows: 2,
+            tiles: tiles,
+            units: units,
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func objectiveRestScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<2 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .plains
+            )
+            if q == 0 {
+                tile.objectiveName = "休整据点"
+                tile.owner = .allies
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "objective-rest-test",
+            name: "据点休整测试",
+            year: "1944",
+            briefing: "测试己方据点自动恢复受损单位。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 2,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "休整守军",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.infantry.baseHP - 18,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func matchupScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<3 {
+            for q in 0..<4 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 1 {
+                    tile.objectiveName = "测试据点"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "matchup-test",
+            name: "兵种克制测试",
+            year: "1944",
+            briefing: "测试兵种克制。",
+            initialFocus: HexCoordinate(q: 0, r: 1),
+            mapColumns: 4,
+            mapRows: 3,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "克制侦察",
+                    kind: .recon,
+                    faction: .allies,
+                    position: HexCoordinate(q: 1, r: 1),
+                    hp: UnitKind.recon.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "步兵攻击",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "炮兵目标",
+                    kind: .artillery,
+                    faction: .axis,
+                    position: HexCoordinate(q: 2, r: 1),
+                    hp: UnitKind.artillery.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "装甲目标",
+                    kind: .tank,
+                    faction: .axis,
+                    position: HexCoordinate(q: 2, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                )
+            ]
+        )
+    }
+
+    private static func terrainMovementScenario(unitKind: UnitKind) -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<3 {
+            for q in 0..<3 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: q == 1 && r == 1 ? .mountain : .plains
+                )
+                if q == 0 && r == 1 {
+                    tile.objectiveName = "地形测试据点"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "terrain-move-\(unitKind.rawValue)",
+            name: "地形移动测试",
+            year: "1944",
+            briefing: "测试不同兵种进入地形的移动成本。",
+            initialFocus: HexCoordinate(q: 0, r: 1),
+            mapColumns: 3,
+            mapRows: 3,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: unitKind == .tank ? "地形测试坦克" : "地形测试步兵",
+                    kind: unitKind,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 1),
+                    hp: unitKind.baseHP,
+                    commander: nil
+                )
+            ]
+        )
+    }
+
+    private static func terrainCombatScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<2 {
+            for q in 0..<2 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: q == 0 && r == 1 ? .river : .plains
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "火力测试据点"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "terrain-combat-test",
+            name: "地形战斗测试",
+            year: "1944",
+            briefing: "测试地形适性对战斗预测的影响。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 2,
+            mapRows: 2,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "地形测试装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "平原目标",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "河流目标",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 0, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ]
+        )
+    }
+
+    private static func postMoveAttackScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<5 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "机动出发点"
+                tile.owner = .allies
+            } else if q == 4 {
+                tile.objectiveName = "守军阵地"
+                tile.owner = .axis
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "post-move-attack-test",
+            name: "移动后攻击预览测试",
+            year: "1944",
+            briefing: "测试移动预览能显示后续攻击机会。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "机动装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "前方守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 4, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func tacticalCommandScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<2 {
+            for q in 0..<5 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: q == 3 && r == 0 ? .city : .plains
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "炮兵阵地"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "tactical-command-test",
+            name: "战术命令测试",
+            year: "1944",
+            briefing: "测试火炮弹幕战术命令。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 2,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "弹幕炮兵",
+                    kind: .artillery,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.artillery.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "普通步兵",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "弹幕目标",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 3, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ]
+        )
+    }
+
+    private static func breakthroughAssaultScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<2 {
+            for q in 0..<3 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "突击出发点"
+                    tile.owner = .allies
+                }
+                if q == 2 && r == 0 {
+                    tile.objectiveName = "敌方阵地"
+                    tile.owner = .axis
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "breakthrough-assault-test",
+            name: "突破突击测试",
+            year: "1944",
+            briefing: "测试装甲和侦察单位的近距战术命令。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 3,
+            mapRows: 2,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "突击装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "普通步兵",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 2, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "突破目标",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func maneuverPursuitScenario(attackerKind: UnitKind) -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<5 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "出发据点"
+                tile.owner = .allies
+            }
+            if q == 3 {
+                tile.objectiveName = "追击据点"
+                tile.owner = nil
+            }
+            if q == 4 {
+                tile.objectiveName = "敌后据点"
+                tile.owner = .axis
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "maneuver-pursuit-\(attackerKind.rawValue)-test",
+            name: "机动追击测试",
+            year: "1944",
+            briefing: "测试装甲和侦察击毁后继续移动。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: attackerKind == .infantry ? "追击步兵" : "追击装甲",
+                    kind: attackerKind,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: attackerKind.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "追击目标",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: 8,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "后方守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 4, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func axisTacticalCommandScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<2 {
+            for q in 0..<5 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "盟军基地"
+                    tile.owner = .allies
+                }
+                if q == 4 && r == 0 {
+                    tile.objectiveName = "轴心炮兵阵地"
+                    tile.owner = .axis
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "axis-tactical-command-test",
+            name: "轴心战术命令测试",
+            year: "1944",
+            briefing: "测试轴心国 AI 使用火炮弹幕。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 2,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "盟军指挥坦克",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: .patton,
+                    morale: 82
+                ),
+                BattleUnit(
+                    name: "轴心炮兵",
+                    kind: .artillery,
+                    faction: .axis,
+                    position: HexCoordinate(q: 4, r: 0),
+                    hp: UnitKind.artillery.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "轴心守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 4, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 5,
+            decisiveTurnLimit: 3,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func axisManeuverPursuitScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<5 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "前线据点"
+                tile.owner = .allies
+            }
+            if q == 4 {
+                tile.objectiveName = "纵深据点"
+                tile.owner = .allies
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "axis-maneuver-pursuit-test",
+            name: "轴心机动追击测试",
+            year: "1944",
+            briefing: "测试轴心 AI 击毁后继续推进但不追加攻击。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "薄弱前哨",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: 8,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "纵深守军",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 4, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "追击装甲群",
+                    kind: .tank,
+                    faction: .axis,
+                    position: HexCoordinate(q: 2, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func axisFullAdvanceScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<5 {
+            tiles.append(TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            ))
+        }
+
+        return Scenario(
+            id: "axis-full-advance-test",
+            name: "轴心全速推进测试",
+            year: "1944",
+            briefing: "测试轴心国 AI 使用完整移动力进入攻击位置。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "远端步兵",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "突进侦察",
+                    kind: .recon,
+                    faction: .axis,
+                    position: HexCoordinate(q: 4, r: 0),
+                    hp: UnitKind.recon.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func entrenchmentScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<2 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .plains
+            )
+            if q == 0 {
+                tile.objectiveName = "防御阵地"
+                tile.owner = .allies
+            }
+            if q == 1 {
+                tile.objectiveName = "进攻阵地"
+                tile.owner = .axis
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "entrenchment-test",
+            name: "防御姿态测试",
+            year: "1944",
+            briefing: "测试待命构筑防御后的减伤和消耗。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 2,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "防御步兵",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "进攻装甲",
+                    kind: .tank,
+                    faction: .axis,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func flankingScenario(supportCount: Int) -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<3 {
+            for q in 0..<3 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 1 {
+                    tile.objectiveName = "协同出发点"
+                    tile.owner = .allies
+                }
+                if q == 2 && r == 1 {
+                    tile.objectiveName = "敌方阵地"
+                    tile.owner = .axis
+                }
+                tiles.append(tile)
+            }
+        }
+
+        var units = [
+            BattleUnit(
+                name: "协同装甲",
+                kind: .tank,
+                faction: .allies,
+                position: HexCoordinate(q: 0, r: 1),
+                hp: UnitKind.tank.baseHP,
+                commander: nil
+            ),
+            BattleUnit(
+                name: "夹击目标",
+                kind: .infantry,
+                faction: .axis,
+                position: HexCoordinate(q: 1, r: 1),
+                hp: UnitKind.infantry.baseHP,
+                commander: nil
+            )
+        ]
+
+        let supportPositions = [
+            HexCoordinate(q: 1, r: 0),
+            HexCoordinate(q: 0, r: 2),
+            HexCoordinate(q: 2, r: 0)
+        ]
+        for index in 0..<min(supportCount, supportPositions.count) {
+            units.append(BattleUnit(
+                name: "协同支援\(index + 1)",
+                kind: index == 0 ? .infantry : .recon,
+                faction: .allies,
+                position: supportPositions[index],
+                hp: index == 0 ? UnitKind.infantry.baseHP : UnitKind.recon.baseHP,
+                commander: nil
+            ))
+        }
+
+        return Scenario(
+            id: "flanking-support-\(supportCount)-test",
+            name: "夹击协同测试",
+            year: "1944",
+            briefing: "测试友军围攻目标时的伤害加成。",
+            initialFocus: HexCoordinate(q: 0, r: 1),
+            mapColumns: 3,
+            mapRows: 3,
+            tiles: tiles,
+            units: units,
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func objectiveRewardScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<3 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .plains
+            )
+            if q == 0 {
+                tile.objectiveName = "后方基地"
+                tile.owner = .allies
+            }
+            if q == 2 {
+                tile.objectiveName = "前线村镇"
+                tile.owner = .axis
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "objective-reward-test",
+            name: "据点奖励测试",
+            year: "1944",
+            briefing: "测试夺取据点后的即时奖励。",
+            initialFocus: HexCoordinate(q: 1, r: 0),
+            mapColumns: 3,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "占点步兵",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "远方守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 2, r: 0),
+                    hp: 0,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func objectiveAdvanceScenario(includeOccupiedDecoy: Bool) -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<2 {
+            for q in 0..<4 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .road
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "出发据点"
+                    tile.owner = .allies
+                } else if includeOccupiedDecoy && q == 0 && r == 1 {
+                    tile.objectiveName = "占据村镇"
+                    tile.owner = .axis
+                } else if q == 2 && r == 0 {
+                    tile.objectiveName = "前线据点"
+                    tile.owner = .axis
+                }
+                tiles.append(tile)
+            }
+        }
+
+        var units = [
+            BattleUnit(
+                name: "目标推进装甲",
+                kind: .tank,
+                faction: .allies,
+                position: HexCoordinate(q: 0, r: 0),
+                hp: UnitKind.tank.baseHP,
+                commander: nil
+            )
+        ]
+        if includeOccupiedDecoy {
+            units.append(BattleUnit(
+                name: "占据守军",
+                kind: .infantry,
+                faction: .axis,
+                position: HexCoordinate(q: 0, r: 1),
+                hp: UnitKind.infantry.baseHP,
+                commander: nil
+            ))
+        }
+
+        return Scenario(
+            id: "objective-advance-test",
+            name: "目标推进测试",
+            year: "1944",
+            briefing: "测试地图快捷目标推进。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 4,
+            mapRows: 2,
+            tiles: tiles,
+            units: units,
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func distantObjectiveAdvanceScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<6 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "出发据点"
+                tile.owner = .allies
+            } else if q == 5 {
+                tile.objectiveName = "纵深据点"
+                tile.owner = .axis
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "distant-objective-advance-test",
+            name: "远距目标推进测试",
+            year: "1944",
+            briefing: "测试目标较远时先给出推进格。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 6,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "目标推进装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func zoneOfControlScenario(includeEnemy: Bool) -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<2 {
+            for q in 0..<4 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 1 {
+                    tile.objectiveName = "接敌出发点"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        var units = [
+            BattleUnit(
+                name: "接敌侦察",
+                kind: .recon,
+                faction: .allies,
+                position: HexCoordinate(q: 0, r: 1),
+                hp: UnitKind.recon.baseHP,
+                commander: nil
+            )
+        ]
+
+        if includeEnemy {
+            units.append(BattleUnit(
+                name: "控制区守军",
+                kind: .infantry,
+                faction: .axis,
+                position: HexCoordinate(q: 2, r: 0),
+                hp: UnitKind.infantry.baseHP,
+                commander: nil
+            ))
+        }
+
+        return Scenario(
+            id: includeEnemy ? "zoc-contested-test" : "zoc-open-test",
+            name: "控制区测试",
+            year: "1944",
+            briefing: "测试敌方控制区对移动范围的影响。",
+            initialFocus: HexCoordinate(q: 0, r: 1),
+            mapColumns: 4,
+            mapRows: 2,
+            tiles: tiles,
+            units: units,
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func missionStarScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<2 {
+            for q in 0..<3 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 1 && r == 0 {
+                    tile.objectiveName = "任务据点"
+                    tile.owner = .axis
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "mission-star-test",
+            name: "三星测试",
+            year: "1944",
+            briefing: "测试任务星级。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 3,
+            mapRows: 2,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "任务装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "远方守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 2, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func missionTimeoutScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<3 {
+            for q in 0..<5 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "待夺取据点"
+                    tile.owner = nil
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "mission-timeout-test",
+            name: "期限测试",
+            year: "1944",
+            briefing: "测试任务期限。",
+            initialFocus: HexCoordinate(q: 0, r: 1),
+            mapColumns: 5,
+            mapRows: 3,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "拖延步兵",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "远方敌军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 4, r: 2),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 1,
+            decisiveTurnLimit: 1,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func moraleCombatScenario(attackerMorale: Int, defenderMorale: Int = 60) -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<3 {
+            for q in 0..<5 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 1 {
+                    tile.objectiveName = "前进基地"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "morale-combat-test",
+            name: "士气战斗测试",
+            year: "1944",
+            briefing: "测试士气对移动和攻击的影响。",
+            initialFocus: HexCoordinate(q: 0, r: 1),
+            mapColumns: 5,
+            mapRows: 3,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "士气装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 1),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil,
+                    morale: attackerMorale
+                ),
+                BattleUnit(
+                    name: "目标守军",
+                    kind: .tank,
+                    faction: .axis,
+                    position: HexCoordinate(q: 1, r: 1),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil,
+                    morale: defenderMorale
+                )
+            ]
+        )
+    }
+
+    private static func moraleMovementScenario(unitMorale: Int) -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<3 {
+            for q in 0..<5 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 1 {
+                    tile.objectiveName = "行军基地"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "morale-movement-test",
+            name: "士气移动测试",
+            year: "1944",
+            briefing: "测试士气对无接敌行军范围的影响。",
+            initialFocus: HexCoordinate(q: 0, r: 1),
+            mapColumns: 5,
+            mapRows: 3,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "士气行军装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 1),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil,
+                    morale: unitMorale
+                )
+            ]
+        )
+    }
+
+    private static func moraleRecoveryScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<2 {
+            for q in 0..<2 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "休整据点"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "morale-recovery-test",
+            name: "士气恢复测试",
+            year: "1944",
+            briefing: "测试补给据点恢复士气。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 2,
+            mapRows: 2,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "休整步兵",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil,
+                    morale: 20,
+                    hasMoved: true,
+                    hasAttacked: true
+                )
+            ]
+        )
+    }
+}

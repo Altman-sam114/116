@@ -1,0 +1,3932 @@
+import SwiftUI
+import UIKit
+
+struct ContentView: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        GeometryReader { proxy in
+            let isWide = proxy.size.width >= 820
+
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.10, green: 0.12, blue: 0.11),
+                        Color(red: 0.18, green: 0.20, blue: 0.18)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    TopCommandBar()
+
+                    if isWide {
+                        HStack(spacing: 12) {
+                            BattlefieldView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            InspectorPanel()
+                                .frame(width: 310)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 12)
+                    } else {
+                        VStack(spacing: 10) {
+                            BattlefieldView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            InspectorPanel()
+                                .frame(maxHeight: 260)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 10)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct TopCommandBar: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                CommandTitle()
+                CampaignPicker()
+                    .frame(width: 190)
+                Spacer(minLength: 8)
+                StatusStrip()
+                EndTurnButton()
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    CommandTitle()
+                    Spacer()
+                    EndTurnButton(iconOnly: true)
+                }
+                CampaignPicker()
+                ScrollView(.horizontal, showsIndicators: false) {
+                    StatusStrip()
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.black.opacity(0.28))
+    }
+}
+
+private struct CampaignPicker: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        Picker("战役", selection: selectedScenarioID) {
+            ForEach(game.campaignCatalog) { scenario in
+                Text(scenario.name)
+                    .tag(scenario.id)
+            }
+        }
+        .pickerStyle(.menu)
+        .tint(.white)
+        .accessibilityLabel("选择战役")
+    }
+
+    private var selectedScenarioID: Binding<String> {
+        Binding(
+            get: { game.scenario.id },
+            set: { game.selectScenario(id: $0) }
+        )
+    }
+}
+
+private struct CommandTitle: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(game.scenario.name)
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(.white)
+            Text("\(game.scenario.year) · 二战回合制战役")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.66))
+        }
+    }
+}
+
+private struct StatusStrip: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        HStack(spacing: 8) {
+            StatusChip(icon: "flag.fill", label: "回合 \(game.turn)")
+            StatusChip(icon: "hourglass", label: "剩余 \(game.remainingTurns)")
+            StatusChip(icon: "shield.lefthalf.filled", label: game.activeFaction.title)
+            StatusChip(icon: "scope", label: "据点 \(game.alliedScore):\(game.axisScore)")
+            StatusChip(icon: "chart.bar.fill", label: "战力 \(game.alliedStrength):\(game.axisStrength)")
+            StatusChip(icon: "star.fill", label: "星 \(game.earnedStars)")
+            StatusChip(icon: "star.circle.fill", label: "指令 \(game.activeCommandPoints)")
+            StatusChip(icon: "person.3.fill", label: "待命 \(game.readyUnitCount)")
+        }
+    }
+}
+
+private struct EndTurnButton: View {
+    @EnvironmentObject private var game: GameState
+    var iconOnly = false
+
+    var body: some View {
+        Button {
+            game.endTurn()
+        } label: {
+            if iconOnly {
+                Image(systemName: "forward.end.fill")
+                    .font(.body.weight(.bold))
+                    .frame(width: 36, height: 34)
+            } else {
+                Label("结束回合", systemImage: "forward.end.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+            }
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(.orange)
+        .disabled(game.winner != nil)
+        .accessibilityLabel("结束回合")
+    }
+}
+
+private struct StatusChip: View {
+    let icon: String
+    let label: String
+
+    var body: some View {
+        Label(label, systemImage: icon)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.white.opacity(0.86))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private struct BattlefieldView: View {
+    @EnvironmentObject private var game: GameState
+    @State private var mapScaleMode: MapScaleMode = .campaign
+
+    var body: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                Text(game.message)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(2)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button {
+                    game.restart()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.body.weight(.bold))
+                        .frame(width: 34, height: 34)
+                }
+                .buttonStyle(.bordered)
+                .tint(.white)
+                .accessibilityLabel("重新开始")
+            }
+
+            MapCommandCenter(mapScaleMode: $mapScaleMode)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ForceRibbon()
+            TacticalOrderStrip()
+            ReinforcementDock()
+
+            MapLegendView()
+        }
+    }
+}
+
+private enum MapScaleMode: String, CaseIterable, Identifiable {
+    case campaign
+    case tactical
+    case detail
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .campaign:
+            "战役"
+        case .tactical:
+            "战术"
+        case .detail:
+            "细节"
+        }
+    }
+
+    var scale: CGFloat {
+        switch self {
+        case .campaign:
+            0.86
+        case .tactical:
+            1.0
+        case .detail:
+            1.14
+        }
+    }
+}
+
+private struct MapCommandCenter: View {
+    @EnvironmentObject private var game: GameState
+    @Binding var mapScaleMode: MapScaleMode
+
+    var body: some View {
+        VStack(spacing: 0) {
+            MapToolbar(mapScaleMode: $mapScaleMode)
+
+            ZStack {
+                ScrollViewReader { proxy in
+                    ScrollView([.horizontal, .vertical], showsIndicators: true) {
+                        HexMapView(tileScale: mapScaleMode.scale)
+                            .padding(22)
+                    }
+                    .onAppear {
+                        scrollToFocusedCoordinate(with: proxy, animated: false)
+                    }
+                    .onChange(of: game.focusedCoordinate?.id) { _, _ in
+                        scrollToFocusedCoordinate(with: proxy, animated: true)
+                    }
+                }
+
+                VStack {
+                    HStack(alignment: .top, spacing: 12) {
+                        MapCampaignHUD()
+                        Spacer(minLength: 12)
+                        MapActionHUD()
+                    }
+                    .padding(12)
+
+                    Spacer(minLength: 12)
+
+                    ObjectiveJumpDock()
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(red: 0.07, green: 0.08, blue: 0.07))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+        )
+    }
+
+    private func scrollToFocusedCoordinate(with proxy: ScrollViewProxy, animated: Bool) {
+        guard let focusedCoordinate = game.focusedCoordinate else { return }
+        let action = {
+            proxy.scrollTo(focusedCoordinate.id, anchor: .center)
+        }
+
+        if animated {
+            withAnimation(.easeInOut(duration: 0.24), action)
+        } else {
+            action()
+        }
+    }
+}
+
+private struct MapToolbar: View {
+    @EnvironmentObject private var game: GameState
+    @Binding var mapScaleMode: MapScaleMode
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                toolbarTitle
+                Spacer(minLength: 8)
+                scalePicker
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                toolbarTitle
+                scalePicker
+            }
+        }
+        .padding(12)
+    }
+
+    private var toolbarTitle: some View {
+        HStack(spacing: 9) {
+            Image(systemName: "map.fill")
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.yellow)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("战区地图 \(game.scenario.mapColumns)x\(game.scenario.mapRows)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.86))
+                Text(game.message)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.56))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+    }
+
+    private var scalePicker: some View {
+        Picker("地图缩放", selection: $mapScaleMode) {
+            ForEach(MapScaleMode.allCases) { mode in
+                Text(mode.title)
+                    .tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 184)
+        .accessibilityLabel("地图缩放")
+    }
+}
+
+private struct MapCampaignHUD: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 8) {
+                Image(systemName: "flag.2.crossed.fill")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.yellow)
+                    .frame(width: 24, height: 24)
+                    .background(Color.black.opacity(0.26), in: RoundedRectangle(cornerRadius: 6))
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(game.scenario.name)
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    Text("第 \(game.turn) 回合 · \(game.activeFaction.title)")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.62))
+                }
+
+                Spacer(minLength: 6)
+
+                Text("\(game.remainingTurns)")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(Color.orange.opacity(0.72), in: Capsule())
+            }
+
+            ProgressView(value: game.objectiveProgress)
+                .tint(Faction.allies.accentColor)
+
+            HStack(spacing: 7) {
+                MapHudMetric(
+                    icon: "flag.fill",
+                    label: "OBJ",
+                    value: "\(game.alliedScore)/\(game.objectiveTiles.count)",
+                    color: Faction.allies.accentColor
+                )
+                MapHudMetric(
+                    icon: "star.circle.fill",
+                    label: "CMD",
+                    value: "\(game.activeCommandPoints)",
+                    color: .yellow
+                )
+                MapHudMetric(
+                    icon: "chart.bar.fill",
+                    label: "PWR",
+                    value: "\(game.alliedStrength):\(game.axisStrength)",
+                    color: .white.opacity(0.76)
+                )
+            }
+
+            HStack(spacing: 5) {
+                ForEach(game.missionObjectives) { objective in
+                    Image(systemName: objective.state.systemImage)
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundStyle(objective.state.accentColor)
+                        .frame(width: 18, height: 18)
+                        .background(Color.black.opacity(0.18), in: Circle())
+                        .accessibilityLabel(objective.title)
+                }
+            }
+        }
+        .padding(10)
+        .frame(width: 258, alignment: .leading)
+        .background(MapHudBackground())
+    }
+}
+
+private struct MapActionHUD: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            if let unit = game.selectedUnit {
+                HStack(spacing: 9) {
+                    UnitShapeBadge(
+                        kind: unit.kind,
+                        faction: unit.faction,
+                        hasCommander: unit.commander != nil,
+                        rank: unit.rank,
+                        supplyState: game.supplyState(for: unit),
+                        tacticalStatus: unit.tacticalStatus,
+                        isSpent: unit.hasMoved && unit.hasAttacked,
+                        width: 52,
+                        height: 30
+                    )
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(unit.name)
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                        Text("\(unit.kind.title) · HP \(unit.hp)/\(unit.maxHP)")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.62))
+                    }
+
+                    Spacer(minLength: 6)
+
+                    Button {
+                        game.waitSelectedUnit()
+                    } label: {
+                        Image(systemName: "pause.fill")
+                            .font(.caption.weight(.black))
+                            .frame(width: 26, height: 26)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.white)
+                    .disabled(unit.hasMoved && unit.hasAttacked)
+                    .accessibilityLabel("待命")
+                }
+
+                HStack(spacing: 7) {
+                    MapHudMetric(icon: "point.topleft.down.curvedto.point.bottomright.up", label: "MOVE", value: "\(game.reachableTiles(for: unit).count)", color: .cyan)
+                    MapHudMetric(icon: "target", label: "ATK", value: "\(game.attackableTiles(for: unit).count)", color: .orange)
+                    MapHudMetric(icon: "exclamationmark.triangle.fill", label: "THR", value: "\(game.threatenedReachableTiles(for: unit).count)", color: .red)
+                    MapHudMetric(icon: game.supplyState(for: unit) == .supplied ? "fuelpump.fill" : "exclamationmark.octagon.fill", label: game.supplyState(for: unit).shortTitle, value: "\(max(0, game.supplyLineTiles(for: unit).count - 1))", color: game.supplyState(for: unit) == .supplied ? .green : .red)
+                }
+
+                HStack(spacing: 7) {
+                    MapQuickCommandButton(
+                        icon: "forward.fill",
+                        title: "NEXT",
+                        color: .yellow,
+                        isEnabled: !game.readyUnits.isEmpty
+                    ) {
+                        game.selectNextReadyUnitFromMap()
+                    }
+                    MapQuickCommandButton(
+                        icon: "target",
+                        title: "ATK",
+                        color: .orange,
+                        isEnabled: !game.attackableUnits(for: unit).isEmpty
+                    ) {
+                        game.focusNearestAttackTarget()
+                    }
+                    MapQuickCommandButton(
+                        icon: "scope",
+                        title: "POS",
+                        color: .cyan,
+                        isEnabled: game.nearestApproachTarget(for: unit) != nil
+                    ) {
+                        game.focusNearestApproachTarget()
+                    }
+                    MapQuickCommandButton(
+                        icon: "flag.checkered",
+                        title: "OBJ",
+                        color: .green,
+                        isEnabled: game.nearestObjectiveTarget(for: unit) != nil
+                    ) {
+                        game.focusNearestObjectiveTarget()
+                    }
+                }
+
+                InlineMapCommandPreview()
+            } else {
+                HStack(spacing: 9) {
+                    Image(systemName: "scope")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(.yellow)
+                        .frame(width: 26, height: 26)
+                        .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 6))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(focusTitle)
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                        Text(game.message)
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.62))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.72)
+                    }
+                }
+
+                MapQuickCommandButton(
+                    icon: "forward.fill",
+                    title: "NEXT",
+                    color: .yellow,
+                    isEnabled: !game.readyUnits.isEmpty
+                ) {
+                    game.selectNextReadyUnitFromMap()
+                }
+            }
+        }
+        .padding(10)
+        .frame(width: 330, alignment: .leading)
+        .background(MapHudBackground())
+    }
+
+    private var focusTitle: String {
+        if let unit = game.focusedUnit {
+            return "\(unit.faction.title) \(unit.name)"
+        }
+        if let tile = game.focusedTile {
+            return tile.objectiveName ?? tile.terrain.title
+        }
+        return "战场焦点"
+    }
+}
+
+private struct MapQuickCommandButton: View {
+    let icon: String
+    let title: String
+    let color: Color
+    let isEnabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 9, weight: .black, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .foregroundStyle(isEnabled ? color : Color.white.opacity(0.38))
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 6)
+                .background((isEnabled ? color : Color.white).opacity(isEnabled ? 0.16 : 0.06), in: RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke((isEnabled ? color : Color.white).opacity(isEnabled ? 0.32 : 0.10), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .accessibilityLabel(title)
+    }
+}
+
+private struct ObjectiveJumpDock: View {
+    var body: some View {
+        ObjectiveJumpStrip()
+            .padding(8)
+            .background(MapHudBackground())
+    }
+}
+
+private struct MapHudMetric: View {
+    let icon: String
+    let label: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 9, weight: .black))
+            Text(label)
+                .font(.system(size: 8, weight: .black, design: .rounded))
+            Text(value)
+                .font(.system(size: 10, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(color)
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+private struct MapHudBackground: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(Color.black.opacity(0.58))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 5)
+    }
+}
+
+private struct FrontlineStrip: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                MapIntelPill(
+                    icon: "flag.fill",
+                    title: "盟军据点",
+                    value: "\(game.alliedScore)",
+                    color: Faction.allies.accentColor
+                )
+                MapIntelPill(
+                    icon: "flag.slash.fill",
+                    title: "轴心据点",
+                    value: "\(game.axisScore)",
+                    color: Faction.axis.accentColor
+                )
+                MapIntelPill(
+                    icon: "circle.dashed",
+                    title: "中立",
+                    value: "\(game.objectiveTiles.filter { $0.owner == nil }.count)",
+                    color: .white.opacity(0.72)
+                )
+                MapIntelPill(
+                    icon: "scope",
+                    title: "焦点",
+                    value: focusedText,
+                    color: .yellow
+                )
+            }
+        }
+    }
+
+    private var focusedText: String {
+        guard let coordinate = game.focusedCoordinate else { return "--" }
+        return "q\(coordinate.q),r\(coordinate.r)"
+    }
+}
+
+private struct ObjectiveJumpStrip: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(game.mapFriendlyFocusUnits) { unit in
+                    UnitFocusButton(unit: unit)
+                }
+
+                Divider()
+                    .frame(height: 30)
+                    .overlay(Color.white.opacity(0.16))
+
+                ForEach(game.objectiveTiles.sorted(by: objectiveSort)) { tile in
+                    ObjectiveJumpButton(tile: tile)
+                }
+
+                Divider()
+                    .frame(height: 30)
+                    .overlay(Color.white.opacity(0.16))
+
+                ForEach(game.mapEnemyFocusUnits) { unit in
+                    UnitFocusButton(unit: unit)
+                }
+            }
+            .padding(.vertical, 1)
+        }
+    }
+
+    private func objectiveSort(_ left: TerrainTile, _ right: TerrainTile) -> Bool {
+        let leftOwnerRank = ownerRank(left.owner)
+        let rightOwnerRank = ownerRank(right.owner)
+        if leftOwnerRank == rightOwnerRank {
+            return (left.objectiveName ?? left.id) < (right.objectiveName ?? right.id)
+        }
+        return leftOwnerRank < rightOwnerRank
+    }
+
+    private func ownerRank(_ owner: Faction?) -> Int {
+        switch owner {
+        case .axis:
+            0
+        case nil:
+            1
+        case .allies:
+            2
+        }
+    }
+}
+
+private struct ObjectiveJumpButton: View {
+    @EnvironmentObject private var game: GameState
+    let tile: TerrainTile
+
+    var body: some View {
+        Button {
+            game.focus(coordinate: tile.coordinate)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "flag.fill")
+                    .font(.caption2.weight(.black))
+                Text(tile.objectiveName ?? "据点")
+                    .font(.caption2.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+                Text(ownerCode)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(ownerColor.opacity(0.18), in: Capsule())
+            }
+            .foregroundStyle(ownerColor)
+            .frame(height: 30)
+            .padding(.horizontal, 8)
+            .background(Color.white.opacity(isFocused ? 0.14 : 0.07), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(isFocused ? Color.yellow : ownerColor.opacity(0.22), lineWidth: isFocused ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("定位据点\(tile.objectiveName ?? "据点")")
+    }
+
+    private var isFocused: Bool {
+        game.focusedCoordinate == tile.coordinate
+    }
+
+    private var ownerColor: Color {
+        tile.owner?.accentColor ?? Color.white.opacity(0.74)
+    }
+
+    private var ownerCode: String {
+        tile.owner?.shortTitle ?? "NEU"
+    }
+}
+
+private struct UnitFocusButton: View {
+    @EnvironmentObject private var game: GameState
+    let unit: BattleUnit
+
+    var body: some View {
+        Button {
+            if unit.faction == game.activeFaction {
+                game.select(unitID: unit.id)
+            } else {
+                game.focus(unitID: unit.id)
+            }
+        } label: {
+            HStack(spacing: 6) {
+                UnitShapeBadge(
+                    kind: unit.kind,
+                    faction: unit.faction,
+                    hasCommander: unit.commander != nil,
+                    rank: unit.rank,
+                    supplyState: game.supplyState(for: unit),
+                    tacticalStatus: unit.tacticalStatus,
+                    isSpent: unit.hasMoved && unit.hasAttacked,
+                    width: 34,
+                    height: 20
+                )
+                Text(unit.name)
+                    .font(.caption2.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+            }
+            .foregroundStyle(.white.opacity(0.82))
+            .frame(height: 30)
+            .padding(.horizontal, 8)
+            .background(Color.white.opacity(isFocused ? 0.14 : 0.07), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(isFocused ? Color.yellow : unit.faction.accentColor.opacity(0.22), lineWidth: isFocused ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(unit.faction == game.activeFaction ? "选择\(unit.name)" : "定位\(unit.name)")
+    }
+
+    private var isFocused: Bool {
+        game.focusedUnit?.id == unit.id
+    }
+}
+
+private struct MapIntelPill: View {
+    let icon: String
+    let title: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption2.weight(.black))
+            Text(title)
+                .font(.caption2.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+            Spacer(minLength: 3)
+            Text(value)
+                .font(.caption.weight(.black))
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+        }
+        .foregroundStyle(color)
+        .frame(minWidth: 104)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(color.opacity(0.20), lineWidth: 1)
+        )
+    }
+}
+
+private struct InlineMapCommandPreview: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        let preview = game.focusedCommandPreview
+
+        HStack(spacing: 9) {
+            Image(systemName: preview.map(iconName) ?? "scope")
+                .font(.caption.weight(.bold))
+                .frame(width: 18, height: 18)
+                .foregroundStyle(preview.map(accentColor) ?? .white.opacity(0.66))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(preview.map(title) ?? "地图命令")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.86))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                Text(preview.map(detail) ?? "选择部队后，地图会标出移动、攻击和接敌位置。")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+            }
+
+            Spacer(minLength: 6)
+
+            if let preview, preview.isExecutable {
+                Button {
+                    game.executeFocusedCommand()
+                } label: {
+                    Label("执行", systemImage: commandIcon(for: preview))
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .labelStyle(.titleAndIcon)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(accentColor(for: preview).opacity(0.64), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("执行当前地图命令")
+            } else {
+                Text("预览")
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background((preview.map(accentColor) ?? Color.white).opacity(0.28), in: Capsule())
+            }
+        }
+        .padding(9)
+        .background((preview.map(accentColor) ?? Color.white).opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke((preview.map(accentColor) ?? Color.white).opacity(0.22), lineWidth: 1)
+        )
+    }
+
+    private func iconName(for preview: MapCommandPreview) -> String {
+        switch preview {
+        case .move:
+            "arrow.turn.up.right"
+        case .attack:
+            "target"
+        case .approachAttack:
+            "scope"
+        case .selectedUnit, .selectUnit, .friendlyOccupied:
+            "shield.fill"
+        case .enemyOutOfRange, .enemyUnavailable, .unreachable:
+            "exclamationmark.triangle.fill"
+        case .inspectTerrain:
+            "hexagon.fill"
+        }
+    }
+
+    private func commandIcon(for preview: MapCommandPreview) -> String {
+        switch preview {
+        case .move:
+            "arrow.turn.up.right"
+        case .attack:
+            "target"
+        case .approachAttack:
+            "scope"
+        case .inspectTerrain, .selectedUnit, .selectUnit, .friendlyOccupied, .enemyOutOfRange, .enemyUnavailable, .unreachable:
+            "play.fill"
+        }
+    }
+
+    private func title(for preview: MapCommandPreview) -> String {
+        switch preview {
+        case .move:
+            "MOVE 移动预览"
+        case .attack:
+            "ATK 攻击判定"
+        case .approachAttack:
+            "POS 接敌位置"
+        case let .selectedUnit(unitName):
+            unitName
+        case let .selectUnit(unitName, _):
+            "可选择 \(unitName)"
+        case .friendlyOccupied:
+            "友军占据"
+        case .enemyOutOfRange:
+            "目标在射程外"
+        case .enemyUnavailable:
+            "攻击不可用"
+        case .unreachable:
+            "无法移动"
+        case .inspectTerrain:
+            "查看地形"
+        }
+    }
+
+    private func detail(for preview: MapCommandPreview) -> String {
+        switch preview {
+        case let .move(unitName, terrainName, route):
+            let zone = route.controlZonePenalty > 0 ? "，含控制区 +\(route.controlZonePenalty)" : ""
+            return "\(unitName) 可进入\(terrainName)，\(route.stepCount) 格，消耗 \(route.totalCost)\(zone)。"
+        case let .attack(attackerName, defenderName, damage, counterDamage, defenderHPAfterAttack, willDestroy):
+            let result = willDestroy ? "可击毁" : "目标剩 \(defenderHPAfterAttack)"
+            let counter = counterDamage > 0 ? "，反击 -\(counterDamage)" : "，无反击"
+            return "\(attackerName) 攻击 \(defenderName)：-\(damage)，\(result)\(counter)。"
+        case let .approachAttack(unitName, defenderName, route):
+            return "\(unitName) 可移动到 q\(route.destination.q),r\(route.destination.r) 接近 \(defenderName)，再继续攻击。"
+        case let .selectedUnit(unitName):
+            return "\(unitName) 已选中，地图已标出可执行命令。"
+        case let .selectUnit(unitName, kind):
+            return "左键切换到 \(unitName)（\(kind.title)）。"
+        case let .friendlyOccupied(unitName):
+            return "\(unitName) 占据该格，不能作为移动目标。"
+        case let .enemyOutOfRange(defenderName, distance, range):
+            return "\(defenderName) 距离 \(distance)，当前射程 \(range)。"
+        case let .enemyUnavailable(defenderName, _, _):
+            return "\(defenderName) 当前不可攻击。"
+        case let .unreachable(unitName, terrainName):
+            return "\(unitName) 本回合无法进入该\(terrainName)格。"
+        case let .inspectTerrain(terrainName):
+            return "\(terrainName) 地格。"
+        }
+    }
+
+    private func accentColor(for preview: MapCommandPreview) -> Color {
+        switch preview {
+        case .move:
+            .cyan
+        case .attack, .approachAttack:
+            .orange
+        case .enemyOutOfRange, .enemyUnavailable, .unreachable:
+            .red
+        case .selectedUnit, .selectUnit, .friendlyOccupied:
+            .yellow
+        case .inspectTerrain:
+            .white.opacity(0.72)
+        }
+    }
+}
+
+private struct OperationalOverview: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Label("作战进度", systemImage: "flag.2.crossed.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.78))
+                Spacer()
+                Text("\(game.alliedScore)/\(game.objectiveTiles.count) 据点")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.72))
+            }
+
+            ProgressView(value: game.objectiveProgress)
+                .tint(Faction.allies.accentColor)
+
+            HStack(spacing: 8) {
+                ForceScorePill(faction: .allies, strength: game.alliedStrength)
+                ForceScorePill(faction: .axis, strength: game.axisStrength)
+            }
+
+            VStack(spacing: 6) {
+                ForEach(game.missionObjectives) { objective in
+                    MissionObjectiveRow(objective: objective)
+                }
+            }
+        }
+        .padding(10)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+}
+
+private struct MissionObjectiveRow: View {
+    let objective: MissionObjectiveStatus
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: objective.state.systemImage)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(objective.state.accentColor)
+                .frame(width: 16)
+            Text(objective.title)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white.opacity(0.78))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Spacer(minLength: 6)
+            Text(objective.detail)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.58))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+    }
+}
+
+private struct ForceScorePill: View {
+    let faction: Faction
+    let strength: Int
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(faction.accentColor)
+                .frame(width: 8, height: 8)
+            Text(faction.title)
+                .font(.caption2.weight(.bold))
+            Spacer(minLength: 4)
+            Text("\(strength)")
+                .font(.caption.weight(.black))
+        }
+        .foregroundStyle(.white.opacity(0.82))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private struct ForceRibbon: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(game.units(for: .allies)) { unit in
+                    UnitRibbonButton(
+                        unit: unit,
+                        isSelected: game.selectedUnitID == unit.id,
+                        isEnabled: unit.faction == game.activeFaction && game.winner == nil
+                    )
+                }
+
+                Divider()
+                    .frame(height: 42)
+                    .overlay(Color.white.opacity(0.18))
+
+                ForEach(game.units(for: .axis)) { unit in
+                    UnitRibbonButton(
+                        unit: unit,
+                        isSelected: game.focusedUnit?.id == unit.id,
+                        isEnabled: game.winner == nil
+                    )
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+}
+
+private struct TacticalOrderStrip: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        Group {
+            if let unit = game.selectedUnit {
+                ViewThatFits(in: .horizontal) {
+                    horizontalLayout(for: unit)
+                    verticalLayout(for: unit)
+                }
+            } else {
+                noSelectionLayout
+            }
+        }
+        .padding(10)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private func horizontalLayout(for unit: BattleUnit) -> some View {
+        HStack(spacing: 10) {
+            UnitShapeBadge(
+                kind: unit.kind,
+                faction: unit.faction,
+                hasCommander: unit.commander != nil,
+                rank: unit.rank,
+                supplyState: game.supplyState(for: unit),
+                tacticalStatus: unit.tacticalStatus,
+                isSpent: unit.hasMoved && unit.hasAttacked,
+                width: 52,
+                height: 30
+            )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(unit.name)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                Text(unit.commander.map { "\($0.name) · \($0.trait)" } ?? "\(unit.kind.title) · \(unit.rank.title) · \(game.supplyState(for: unit).title)")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.66)
+            }
+
+            Spacer(minLength: 6)
+
+            TacticalMetric(icon: "point.topleft.down.curvedto.point.bottomright.up", label: "MOVE", value: "\(game.reachableTiles(for: unit).count)")
+            TacticalMetric(icon: "target", label: "ATK", value: "\(game.attackableTiles(for: unit).count)")
+            TacticalMetric(icon: "shield.fill", label: "HP", value: "\(unit.hp)")
+            TacticalMetric(icon: "flag.fill", label: unit.moraleState.shortTitle, value: "\(unit.morale)")
+            TacticalMetric(icon: game.supplyState(for: unit) == .supplied ? "fuelpump.fill" : "exclamationmark.octagon.fill", label: game.supplyState(for: unit).shortTitle, value: "\(max(0, game.supplyLineTiles(for: unit).count - 1))")
+            ForEach(TacticalCommand.allCases.filter { $0.canBeUsed(by: unit.kind) }) { command in
+                TacticalMetric(icon: command.systemImage, label: command.shortTitle, value: "\(game.tacticalCommandTargets(for: unit, command: command).count)")
+            }
+            tacticalButtons(for: unit)
+        }
+    }
+
+    private func verticalLayout(for unit: BattleUnit) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 9) {
+                UnitShapeBadge(
+                    kind: unit.kind,
+                    faction: unit.faction,
+                    hasCommander: unit.commander != nil,
+                    rank: unit.rank,
+                    supplyState: game.supplyState(for: unit),
+                    tacticalStatus: unit.tacticalStatus,
+                    isSpent: unit.hasMoved && unit.hasAttacked,
+                    width: 50,
+                    height: 30
+                )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(unit.name)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    Text("\(unit.kind.title) · \(unit.rank.title) · \(game.supplyState(for: unit).title)")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.62))
+                }
+                Spacer(minLength: 4)
+                tacticalButtons(for: unit)
+            }
+
+            HStack(spacing: 8) {
+                TacticalMetric(icon: "point.topleft.down.curvedto.point.bottomright.up", label: "MOVE", value: "\(game.reachableTiles(for: unit).count)")
+                TacticalMetric(icon: "target", label: "ATK", value: "\(game.attackableTiles(for: unit).count)")
+                TacticalMetric(icon: "shield.fill", label: "HP", value: "\(unit.hp)")
+                TacticalMetric(icon: "flag.fill", label: unit.moraleState.shortTitle, value: "\(unit.morale)")
+                TacticalMetric(icon: game.supplyState(for: unit) == .supplied ? "fuelpump.fill" : "exclamationmark.octagon.fill", label: game.supplyState(for: unit).shortTitle, value: "\(max(0, game.supplyLineTiles(for: unit).count - 1))")
+                ForEach(TacticalCommand.allCases.filter { $0.canBeUsed(by: unit.kind) }) { command in
+                    TacticalMetric(icon: command.systemImage, label: command.shortTitle, value: "\(game.tacticalCommandTargets(for: unit, command: command).count)")
+                }
+            }
+        }
+    }
+
+    private var noSelectionLayout: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "scope")
+                .font(.body.weight(.bold))
+                .foregroundStyle(.yellow)
+                .frame(width: 28, height: 28)
+                .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 6))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("作战目标")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white)
+                Text("\(game.scenario.name) · 夺取 \(game.objectiveTiles.count) 个据点 · 当前 \(game.alliedScore)/\(game.objectiveTiles.count)")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+            }
+
+            Spacer(minLength: 6)
+        }
+    }
+
+    private func tacticalButtons(for unit: BattleUnit) -> some View {
+        HStack(spacing: 6) {
+            Button {
+                game.waitSelectedUnit()
+            } label: {
+                Image(systemName: "pause.fill")
+                    .font(.caption.weight(.bold))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.bordered)
+            .tint(.white)
+            .disabled(unit.hasMoved && unit.hasAttacked)
+            .accessibilityLabel("待命")
+
+            Button {
+                game.clearSelection()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.bold))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.bordered)
+            .tint(.white)
+            .accessibilityLabel("取消选择")
+
+            Button {
+                game.focusNearestObjectiveTarget()
+            } label: {
+                Image(systemName: "flag.checkered")
+                    .font(.caption.weight(.bold))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.bordered)
+            .tint(.green)
+            .disabled(game.nearestObjectiveTarget(for: unit) == nil)
+            .accessibilityLabel("定位最近目标据点")
+        }
+    }
+}
+
+private struct TacticalMetric: View {
+    let icon: String
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.caption2.weight(.bold))
+            Text(label)
+                .font(.system(size: 9, weight: .black, design: .rounded))
+            Text(value)
+                .font(.caption.weight(.black))
+        }
+        .foregroundStyle(.white.opacity(0.82))
+        .padding(.horizontal, 7)
+        .padding(.vertical, 6)
+        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private struct ReinforcementDock: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        let sites = game.deploymentSites(for: .allies)
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label("增援部署", systemImage: "plus.square.on.square")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.78))
+                Spacer()
+                Text("盟军指令 \(game.commandPoints(for: .allies))")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.64))
+            }
+
+            if sites.isEmpty {
+                Text("占领并腾出己方据点后可部署新部队。")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.62))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(sites) { site in
+                            DeploymentGroup(site: site)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+}
+
+private struct DeploymentGroup: View {
+    @EnvironmentObject private var game: GameState
+    let site: DeploymentSite
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Label(site.title, systemImage: "flag.fill")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.yellow)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            HStack(spacing: 6) {
+                ForEach(UnitKind.allCases) { kind in
+                    DeploymentButton(kind: kind, coordinate: site.coordinate)
+                }
+            }
+        }
+        .padding(8)
+        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private struct DeploymentButton: View {
+    @EnvironmentObject private var game: GameState
+    let kind: UnitKind
+    let coordinate: HexCoordinate
+
+    var body: some View {
+        Button {
+            game.deploy(kind: kind, at: coordinate)
+        } label: {
+            VStack(spacing: 3) {
+                UnitShapeBadge(
+                    kind: kind,
+                    faction: .allies,
+                    rank: .green,
+                    supplyState: .supplied,
+                    width: 34,
+                    height: 20
+                )
+                Text("\(kind.commandCost)")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.62))
+            }
+            .frame(width: 42, height: 40)
+            .background(
+                Faction.allies.accentColor.opacity(game.commandPoints(for: .allies) >= kind.commandCost ? 1 : 0.36),
+                in: RoundedRectangle(cornerRadius: 6)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(game.commandPoints(for: .allies) < kind.commandCost || game.winner != nil)
+        .accessibilityLabel("部署\(kind.title)，消耗\(kind.commandCost)指令点")
+    }
+}
+
+private struct UnitRibbonButton: View {
+    @EnvironmentObject private var game: GameState
+    let unit: BattleUnit
+    let isSelected: Bool
+    let isEnabled: Bool
+
+    var body: some View {
+        Button {
+            if unit.faction == game.activeFaction {
+                game.select(unitID: unit.id)
+            } else {
+                game.focus(unitID: unit.id)
+            }
+        } label: {
+            HStack(spacing: 7) {
+                UnitShapeBadge(
+                    kind: unit.kind,
+                    faction: unit.faction,
+                    hasCommander: unit.commander != nil,
+                    rank: unit.rank,
+                    supplyState: game.supplyState(for: unit),
+                    tacticalStatus: unit.tacticalStatus,
+                    isSpent: unit.hasMoved && unit.hasAttacked,
+                    width: 42,
+                    height: 25
+                )
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(unit.name)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.68)
+
+                    HStack(spacing: 5) {
+                        MiniHealthBar(ratio: unit.hpRatio)
+                            .frame(width: 42, height: 5)
+                        Text(unit.actionStateText)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
+                }
+            }
+            .frame(width: 138, height: 42)
+            .padding(.horizontal, 7)
+            .background(Color.white.opacity(isSelected ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.yellow : Color.white.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+            )
+            .opacity(isEnabled || unit.faction != game.activeFaction ? 1 : 0.62)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .accessibilityLabel(unit.faction == game.activeFaction ? "选择\(unit.name)" : "定位\(unit.name)")
+    }
+}
+
+private struct MiniHealthBar: View {
+    let ratio: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.black.opacity(0.42))
+                Capsule()
+                    .fill(ratio > 0.45 ? Color.green : Color.red)
+                    .frame(width: proxy.size.width * ratio)
+            }
+        }
+    }
+}
+
+private struct HexMapView: View {
+    @EnvironmentObject private var game: GameState
+    let tileScale: CGFloat
+
+    private let tileWidth: CGFloat = 86
+    private let tileHeight: CGFloat = 74
+
+    var body: some View {
+        let selected = game.selectedUnit
+        let supplyLine = selected.map { game.supplyLineTiles(for: $0) } ?? []
+        let enemyControlZones = selected.map { game.enemyControlZoneTiles(for: $0.faction) } ?? []
+        let threatenedReachableTiles = selected.map { game.threatenedReachableTiles(for: $0) } ?? []
+        let attackCoverage = selected.map { game.attackCoverageTiles(for: $0) } ?? []
+        let postMoveAttackTargets = Set(game.focusedPostMoveAttackOpportunities.map(\.position))
+        let attackPositions = Set(game.focusedAttackPositionRoutes.map(\.destination))
+        let focusedRoute = game.focusedMovementRoute ?? game.focusedAttackPositionRoute
+        let focusedRouteCoordinates = Set(focusedRoute?.coordinates ?? [])
+        let guidedObjectiveCoordinate = game.guidedObjectiveCoordinate
+        let contentWidth = CGFloat(game.scenario.mapColumns) * tileWidth * 0.78 + tileWidth
+        let contentHeight = CGFloat(game.scenario.mapRows) * tileHeight * 0.78 + tileHeight
+
+        ZStack(alignment: .topLeading) {
+            MapGridBackdrop(width: contentWidth, height: contentHeight)
+
+            ForEach(0..<game.scenario.mapColumns, id: \.self) { q in
+                CoordinateLabel(text: "\(q)")
+                    .position(
+                        x: position(for: HexCoordinate(q: q, r: 0)).x,
+                        y: 12
+                    )
+            }
+
+            ForEach(0..<game.scenario.mapRows, id: \.self) { r in
+                CoordinateLabel(text: "\(r)")
+                    .position(
+                        x: max(12, position(for: HexCoordinate(q: 0, r: r)).x - tileWidth * 0.46),
+                        y: position(for: HexCoordinate(q: 0, r: r)).y
+                    )
+            }
+
+            ForEach(game.tiles) { tile in
+                let point = position(for: tile.coordinate)
+                HexTileView(
+                    tile: tile,
+                    unit: game.unit(at: tile.coordinate),
+                    isSelected: selected?.position == tile.coordinate,
+                    isFocused: game.focusedCoordinate == tile.coordinate,
+                    actionHint: game.mapActionHint(for: tile.coordinate),
+                    isMovementRoute: focusedRouteCoordinates.contains(tile.coordinate),
+                    isRouteDestination: focusedRoute?.destination == tile.coordinate,
+                    isSupplyLine: supplyLine.contains(tile.coordinate),
+                    isAttackCoverage: attackCoverage.contains(tile.coordinate),
+                    isPostMoveAttackTarget: postMoveAttackTargets.contains(tile.coordinate),
+                    isAttackPosition: attackPositions.contains(tile.coordinate),
+                    isEnemyControlZone: enemyControlZones.contains(tile.coordinate),
+                    isThreatenedMoveTile: threatenedReachableTiles.contains(tile.coordinate),
+                    isGuidedObjective: guidedObjectiveCoordinate == tile.coordinate
+                )
+                .frame(width: tileWidth, height: tileHeight)
+                .position(x: point.x, y: point.y)
+                .id(tile.coordinate.id)
+                .overlay(
+                    HexInputReader(
+                        hitShape: Hexagon().path(in: CGRect(origin: .zero, size: CGSize(width: tileWidth, height: tileHeight))),
+                        directTouchAction: {
+                            game.handleTap(on: tile.coordinate)
+                        },
+                        primaryAction: {
+                            game.handlePrimaryAction(on: tile.coordinate)
+                        },
+                        secondaryAction: {
+                            game.handleSecondaryAction(on: tile.coordinate)
+                        }
+                    )
+                )
+            }
+        }
+        .frame(width: contentWidth, height: contentHeight)
+        .scaleEffect(tileScale, anchor: .topLeading)
+        .frame(
+            width: contentWidth * tileScale,
+            height: contentHeight * tileScale,
+            alignment: .topLeading
+        )
+    }
+
+    private func position(for coordinate: HexCoordinate) -> CGPoint {
+        let x = CGFloat(coordinate.q) * tileWidth * 0.78 + CGFloat(coordinate.r) * tileWidth * 0.39 + tileWidth / 2
+        let y = CGFloat(coordinate.r) * tileHeight * 0.76 + tileHeight / 2
+        return CGPoint(x: x, y: y)
+    }
+}
+
+private struct MapGridBackdrop: View {
+    let width: CGFloat
+    let height: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Rectangle()
+                .fill(Color(red: 0.09, green: 0.10, blue: 0.09))
+
+            Path { path in
+                let spacing: CGFloat = 72
+                var x: CGFloat = 0
+                while x <= width {
+                    path.move(to: CGPoint(x: x, y: 0))
+                    path.addLine(to: CGPoint(x: x, y: height))
+                    x += spacing
+                }
+
+                var y: CGFloat = 0
+                while y <= height {
+                    path.move(to: CGPoint(x: 0, y: y))
+                    path.addLine(to: CGPoint(x: width, y: y))
+                    y += spacing
+                }
+            }
+            .stroke(Color.white.opacity(0.035), lineWidth: 1)
+
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.10),
+                    Color.black.opacity(0.0),
+                    Color.black.opacity(0.16)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        }
+        .frame(width: width, height: height)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct CoordinateLabel: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 9, weight: .black, design: .rounded))
+            .foregroundStyle(.white.opacity(0.36))
+            .frame(width: 22, height: 16)
+            .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 4))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct HexTileView: View {
+    let tile: TerrainTile
+    let unit: BattleUnit?
+    let isSelected: Bool
+    let isFocused: Bool
+    let actionHint: MapActionHint
+    let isMovementRoute: Bool
+    let isRouteDestination: Bool
+    let isSupplyLine: Bool
+    let isAttackCoverage: Bool
+    let isPostMoveAttackTarget: Bool
+    let isAttackPosition: Bool
+    let isEnemyControlZone: Bool
+    let isThreatenedMoveTile: Bool
+    let isGuidedObjective: Bool
+
+    var body: some View {
+        ZStack {
+            Hexagon()
+                .fill(tile.terrain.mapColor)
+                .overlay(
+                    Hexagon()
+                        .stroke(borderColor, lineWidth: borderWidth)
+                )
+                .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
+
+            if let owner = tile.owner {
+                Hexagon()
+                    .fill(owner.accentColor.opacity(0.12))
+            }
+
+            TerrainSymbol(tile: tile)
+
+            if isSupplyLine {
+                SupplyLineMarker()
+            }
+
+            if isMovementRoute {
+                MovementRouteMarker(isDestination: isRouteDestination)
+            }
+
+            if isGuidedObjective {
+                GuidedObjectiveMarker()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 22)
+            }
+
+            if isAttackCoverage {
+                AttackCoverageMarker()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .padding(.bottom, 6)
+                    .padding(.leading, 9)
+            }
+
+            if isPostMoveAttackTarget {
+                PostMoveAttackMarker()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .padding(.leading, 8)
+            }
+
+            if isAttackPosition {
+                AttackPositionMarker()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, 6)
+            }
+
+            if isEnemyControlZone {
+                ControlZoneMarker()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(.bottom, 6)
+                    .padding(.trailing, 9)
+            }
+
+            if isThreatenedMoveTile {
+                ThreatenedMoveMarker()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                    .padding(.trailing, 9)
+            }
+
+            if actionHint.isCommandable {
+                ActionMarker(actionHint: actionHint)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(.top, 5)
+                    .padding(.trailing, 8)
+            }
+
+            if shouldShowUnavailableTargetMarker {
+                UnavailableTargetMarker(actionHint: actionHint)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(.top, 5)
+                    .padding(.trailing, 8)
+            }
+
+            VStack(spacing: 3) {
+                HStack {
+                    if tile.isObjective {
+                        ObjectiveFlagMarker(owner: tile.owner)
+                    } else {
+                        TerrainCodeBadge(code: tile.terrain.code)
+                    }
+                    Spacer(minLength: 0)
+                }
+
+                Spacer(minLength: 0)
+
+                if let unit {
+                    UnitCounter(unit: unit)
+                    UnitStatusPlate(unit: unit)
+                } else if let objectiveName = tile.objectiveName {
+                    ObjectiveNamePlate(name: objectiveName, owner: tile.owner)
+                } else {
+                    Spacer(minLength: 32)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+        }
+        .contentShape(Hexagon())
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var borderColor: Color {
+        if isSelected { return .yellow }
+        if actionHint.isAttack { return .red }
+        if actionHint.isApproachAttack { return .orange.opacity(0.92) }
+        if actionHint.isMove { return .cyan }
+        if isPostMoveAttackTarget { return .orange.opacity(0.9) }
+        if isAttackPosition { return .orange.opacity(0.78) }
+        if isGuidedObjective { return .green.opacity(0.96) }
+        if isMovementRoute { return .cyan.opacity(0.88) }
+        if isAttackCoverage { return .orange.opacity(0.58) }
+        if isSupplyLine { return .green.opacity(0.9) }
+        if isThreatenedMoveTile { return .red.opacity(0.76) }
+        if isEnemyControlZone { return .red.opacity(0.62) }
+        if isFocused { return .white.opacity(0.9) }
+        if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.9) }
+        return .black.opacity(0.28)
+    }
+
+    private var borderWidth: CGFloat {
+        if isSelected || actionHint.isAttack || actionHint.isApproachAttack || actionHint.isMove { return 3 }
+        if isPostMoveAttackTarget { return 3 }
+        if isAttackPosition { return 3 }
+        if isGuidedObjective { return 3 }
+        if isMovementRoute { return 2 }
+        if isAttackCoverage { return 2 }
+        if isSupplyLine { return 2 }
+        if isThreatenedMoveTile { return 2 }
+        if isEnemyControlZone { return 2 }
+        if isFocused { return 2 }
+        if tile.isObjective { return 2 }
+        return 1
+    }
+
+    private var shouldShowUnavailableTargetMarker: Bool {
+        switch actionHint {
+        case .enemyOutOfRange, .enemyUnavailable:
+            return true
+        case .none, .selectedUnit, .selectableUnit, .move, .attack, .approachAttack, .friendlyOccupied:
+            return false
+        }
+    }
+
+    private var accessibilityLabel: String {
+        let unitText = unit.map { "\($0.faction.title)\($0.kind.title)\($0.name)" } ?? "空地"
+        let objectiveText = tile.objectiveName.map { "据点\($0)" } ?? ""
+        let controlZoneText = isEnemyControlZone ? "敌方控制区" : ""
+        let threatText = isThreatenedMoveTile ? "敌方火力覆盖" : ""
+        let attackCoverageText = isAttackCoverage ? "射程覆盖" : ""
+        let postMoveAttackText = isPostMoveAttackTarget ? "移动后可攻击" : ""
+        let attackPositionText = isAttackPosition ? "可进入攻击位" : ""
+        let guidedObjectiveText = isGuidedObjective ? "当前目标据点" : ""
+        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(unitText) \(actionAccessibilityText)"
+    }
+
+    private var actionAccessibilityText: String {
+        switch actionHint {
+        case .none:
+            return ""
+        case .selectedUnit:
+            return "当前选中"
+        case .selectableUnit:
+            return "可左键选择"
+        case let .move(cost, controlZonePenalty):
+            return controlZonePenalty > 0 ? "可右键移动，消耗\(cost)，含敌方控制区+\(controlZonePenalty)" : "可右键移动，消耗\(cost)"
+        case let .attack(damage, counterDamage, willDestroy):
+            let destroyText = willDestroy ? "，预计击毁" : ""
+            return "可右键攻击，伤害\(damage)，反击\(counterDamage)\(destroyText)"
+        case let .approachAttack(cost, controlZonePenalty):
+            return controlZonePenalty > 0 ? "可右键接敌移动，消耗\(cost)，含敌方控制区+\(controlZonePenalty)" : "可右键接敌移动，消耗\(cost)"
+        case .friendlyOccupied:
+            return "友军占据"
+        case let .enemyOutOfRange(distance, range):
+            return "敌军距离\(distance)，超过射程\(range)"
+        case .enemyUnavailable:
+            return "敌军当前不可攻击"
+        }
+    }
+}
+
+private struct ObjectiveFlagMarker: View {
+    let owner: Faction?
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "flag.fill")
+                .font(.system(size: 9, weight: .black))
+            Text(owner?.shortTitle ?? "NEU")
+                .font(.system(size: 8, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background((owner?.accentColor ?? Color.gray).opacity(0.86), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.34), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct TerrainCodeBadge: View {
+    let code: String
+
+    var body: some View {
+        Text(code)
+            .font(.system(size: 8, weight: .black, design: .rounded))
+            .foregroundStyle(.black.opacity(0.46))
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .background(Color.white.opacity(0.16), in: Capsule())
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct ObjectiveNamePlate: View {
+    let name: String
+    let owner: Faction?
+
+    var body: some View {
+        Text(name)
+            .font(.system(size: 8, weight: .black, design: .rounded))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.55)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 3)
+            .frame(maxWidth: .infinity)
+            .background(Color.black.opacity(0.48), in: RoundedRectangle(cornerRadius: 5))
+            .overlay(
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke((owner?.accentColor ?? Color.yellow).opacity(0.48), lineWidth: 1)
+            )
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct UnitStatusPlate: View {
+    let unit: BattleUnit
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: unit.hasAttacked ? "checkmark.seal.fill" : "bolt.fill")
+                .font(.system(size: 7, weight: .black))
+            Text(unit.hasAttacked ? "DONE" : "READY")
+                .font(.system(size: 7, weight: .black, design: .rounded))
+            Spacer(minLength: 2)
+            Text("\(unit.hp)")
+                .font(.system(size: 8, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .frame(maxWidth: .infinity)
+        .background(unit.faction.accentColor.opacity(unit.hasAttacked ? 0.58 : 0.84), in: RoundedRectangle(cornerRadius: 5))
+        .overlay(
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(Color.white.opacity(unit.hasAttacked ? 0.20 : 0.38), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct ControlZoneMarker: View {
+    var body: some View {
+        Image(systemName: "exclamationmark.triangle.fill")
+            .font(.system(size: 10, weight: .black))
+            .foregroundStyle(.white)
+            .padding(4)
+            .background(Color.red.opacity(0.88), in: Circle())
+            .overlay(
+                Circle()
+                    .stroke(Color.white.opacity(0.35), lineWidth: 1)
+            )
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct SupplyLineMarker: View {
+    var body: some View {
+        Capsule()
+            .fill(Color.green.opacity(0.22))
+            .frame(width: 56, height: 10)
+            .overlay(
+                Capsule()
+                    .stroke(Color.green.opacity(0.46), lineWidth: 1)
+            )
+            .rotationEffect(.degrees(-18))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct AttackCoverageMarker: View {
+    var body: some View {
+        Image(systemName: "scope")
+            .font(.system(size: 10, weight: .black))
+            .foregroundStyle(.white.opacity(0.9))
+            .padding(4)
+            .background(Color.orange.opacity(0.72), in: Circle())
+            .overlay(
+                Circle()
+                    .stroke(Color.white.opacity(0.32), lineWidth: 1)
+            )
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct PostMoveAttackMarker: View {
+    var body: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 7, weight: .black))
+            Text("NEXT")
+                .font(.system(size: 7, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(Color.orange.opacity(0.86), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.34), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct AttackPositionMarker: View {
+    var body: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "scope")
+                .font(.system(size: 7, weight: .black))
+            Text("POS")
+                .font(.system(size: 7, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(Color.orange.opacity(0.76), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.34), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct ThreatenedMoveMarker: View {
+    var body: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 7, weight: .black))
+            Text("THR")
+                .font(.system(size: 7, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(Color.red.opacity(0.78), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.34), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct GuidedObjectiveMarker: View {
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "flag.checkered")
+                .font(.system(size: 8, weight: .black))
+            Text("OBJ")
+                .font(.system(size: 8, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(Color.green.opacity(0.82), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.38), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct MovementRouteMarker: View {
+    let isDestination: Bool
+
+    var body: some View {
+        ZStack {
+            Capsule()
+                .fill(Color.cyan.opacity(isDestination ? 0.28 : 0.20))
+                .frame(width: 58, height: 11)
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(isDestination ? 0.42 : 0.26), lineWidth: 1)
+                )
+                .rotationEffect(.degrees(-18))
+
+            if isDestination {
+                Image(systemName: "location.fill")
+                    .font(.system(size: 10, weight: .black))
+                    .foregroundStyle(.white)
+                    .padding(4)
+                    .background(Color.cyan.opacity(0.88), in: Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.38), lineWidth: 1)
+                    )
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct TerrainSymbol: View {
+    let tile: TerrainTile
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(tile.terrain.mapSymbol)
+                .font(.system(size: 20, weight: .black, design: .rounded))
+                .foregroundStyle(tile.terrain.symbolColor)
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 21)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct ActionMarker: View {
+    let actionHint: MapActionHint
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 7, weight: .black))
+            Text(label)
+                .font(.system(size: 8, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(backgroundColor, in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.34), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var icon: String {
+        switch actionHint {
+        case .move:
+            return "arrow.turn.up.right"
+        case .attack:
+            return "target"
+        case .approachAttack:
+            return "scope"
+        case .none, .selectedUnit, .selectableUnit, .friendlyOccupied, .enemyOutOfRange, .enemyUnavailable:
+            return "circle"
+        }
+    }
+
+    private var label: String {
+        switch actionHint {
+        case let .move(cost, controlZonePenalty):
+            return controlZonePenalty > 0 ? "M\(cost)+" : "M\(cost)"
+        case let .attack(damage, counterDamage, willDestroy):
+            let counterText = counterDamage > 0 ? "/C\(counterDamage)" : ""
+            return willDestroy ? "KILL" : "A\(damage)\(counterText)"
+        case let .approachAttack(cost, controlZonePenalty):
+            return controlZonePenalty > 0 ? "POS\(cost)+" : "POS\(cost)"
+        case .none, .selectedUnit, .selectableUnit, .friendlyOccupied, .enemyOutOfRange, .enemyUnavailable:
+            return ""
+        }
+    }
+
+    private var backgroundColor: Color {
+        switch actionHint {
+        case .move:
+            return Color.cyan.opacity(0.86)
+        case .attack(_, _, let willDestroy):
+            return willDestroy ? Color.orange.opacity(0.94) : Color.red.opacity(0.92)
+        case .approachAttack:
+            return Color.orange.opacity(0.88)
+        case .none, .selectedUnit, .selectableUnit, .friendlyOccupied, .enemyOutOfRange, .enemyUnavailable:
+            return Color.white.opacity(0.3)
+        }
+    }
+}
+
+private struct UnavailableTargetMarker: View {
+    let actionHint: MapActionHint
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 7, weight: .black, design: .rounded))
+            .foregroundStyle(.white.opacity(0.82))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 3)
+            .background(Color.black.opacity(0.46), in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(Color.red.opacity(0.38), lineWidth: 1)
+            )
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    private var label: String {
+        switch actionHint {
+        case let .enemyOutOfRange(distance, range):
+            return "\(distance)>\(range)"
+        case .enemyUnavailable:
+            return "NO"
+        case .none, .selectedUnit, .selectableUnit, .move, .attack, .approachAttack, .friendlyOccupied:
+            return ""
+        }
+    }
+}
+
+private struct UnitCounter: View {
+    let unit: BattleUnit
+
+    var body: some View {
+        VStack(spacing: 3) {
+            UnitShapeBadge(
+                kind: unit.kind,
+                faction: unit.faction,
+                hasCommander: unit.commander != nil,
+                rank: unit.rank,
+                tacticalStatus: unit.tacticalStatus,
+                isSpent: unit.hasAttacked,
+                width: unit.kind.counterWidth,
+                height: 23,
+                lineWidth: unit.hasAttacked ? 1 : 2
+            )
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.black.opacity(0.42))
+                    Capsule()
+                        .fill(unit.hpRatio > 0.45 ? Color.green : Color.red)
+                        .frame(width: proxy.size.width * unit.hpRatio)
+                }
+            }
+            .frame(width: 42, height: 5)
+        }
+        .opacity(unit.hasAttacked ? 0.72 : 1)
+    }
+}
+
+private struct UnitShapeBadge: View {
+    let kind: UnitKind
+    let faction: Faction
+    var hasCommander = false
+    var rank: UnitRank = .green
+    var supplyState: SupplyState = .supplied
+    var tacticalStatus: UnitTacticalStatus = .normal
+    var isSpent = false
+    var width: CGFloat = 44
+    var height: CGFloat = 24
+    var lineWidth: CGFloat = 1
+
+    var body: some View {
+        ZStack {
+            UnitMarkerShape(kind: kind)
+                .fill(faction.accentColor.opacity(isSpent ? 0.72 : 1))
+            UnitMarkerShape(kind: kind)
+                .stroke(isSpent ? Color.white.opacity(0.28) : Color.white.opacity(0.9), lineWidth: lineWidth)
+
+            HStack(spacing: 2) {
+                Text(kind.tacticalSymbol)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                Text(kind.code)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                if hasCommander {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 7, weight: .black))
+                        .foregroundStyle(.yellow)
+                }
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5)
+
+            Text(rank.insignia)
+                .font(.system(size: 6, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 3)
+                .padding(.vertical, 1)
+                .background(Color.black.opacity(0.34), in: Capsule())
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(.trailing, 3)
+                .padding(.bottom, 2)
+
+            if supplyState == .isolated {
+                Text("CUT")
+                    .font(.system(size: 6, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 1)
+                    .background(Color.red.opacity(0.92), in: Capsule())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(.leading, 3)
+                    .padding(.top, 2)
+            }
+
+            if tacticalStatus != .normal {
+                Text(tacticalStatus.shortTitle)
+                    .font(.system(size: 6, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 1)
+                    .background(tacticalStatus.mapColor.opacity(0.95), in: Capsule())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(.trailing, 3)
+                    .padding(.top, 2)
+            }
+        }
+        .frame(width: width, height: height)
+        .accessibilityLabel("\(rank.title)\(kind.title)\(hasCommander ? "，有将领" : "")，\(supplyState.title)，\(tacticalStatus.title)")
+    }
+}
+
+private struct UnitMarkerShape: Shape {
+    let kind: UnitKind
+
+    func path(in rect: CGRect) -> Path {
+        switch kind {
+        case .infantry:
+            return infantryPath(in: rect)
+        case .tank:
+            return tankPath(in: rect)
+        case .artillery:
+            return artilleryPath(in: rect)
+        case .recon:
+            return reconPath(in: rect)
+        }
+    }
+
+    private func infantryPath(in rect: CGRect) -> Path {
+        let inset = rect.height * 0.08
+        var path = Path()
+        path.addRoundedRect(
+            in: rect.insetBy(dx: inset, dy: inset),
+            cornerSize: CGSize(width: rect.height * 0.12, height: rect.height * 0.12)
+        )
+        return path
+    }
+
+    private func tankPath(in rect: CGRect) -> Path {
+        let body = CGRect(
+            x: rect.minX + rect.width * 0.05,
+            y: rect.minY + rect.height * 0.22,
+            width: rect.width * 0.78,
+            height: rect.height * 0.58
+        )
+        let turret = CGRect(
+            x: rect.minX + rect.width * 0.30,
+            y: rect.minY + rect.height * 0.06,
+            width: rect.width * 0.36,
+            height: rect.height * 0.32
+        )
+        let barrel = CGRect(
+            x: rect.minX + rect.width * 0.62,
+            y: rect.minY + rect.height * 0.16,
+            width: rect.width * 0.32,
+            height: rect.height * 0.13
+        )
+
+        var path = Path()
+        path.addRoundedRect(
+            in: body,
+            cornerSize: CGSize(width: rect.height * 0.18, height: rect.height * 0.18)
+        )
+        path.addRoundedRect(
+            in: turret,
+            cornerSize: CGSize(width: rect.height * 0.12, height: rect.height * 0.12)
+        )
+        path.addRect(barrel)
+        return path
+    }
+
+    private func artilleryPath(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.06))
+        path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.08, y: rect.maxY - rect.height * 0.12))
+        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.08, y: rect.maxY - rect.height * 0.12))
+        path.closeSubpath()
+        return path
+    }
+
+    private func reconPath(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.04))
+        path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.05, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY - rect.height * 0.04))
+        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.05, y: rect.midY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct InspectorPanel: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if let winner = game.winner {
+                    VictoryPanel(winner: winner)
+                } else if let unit = game.selectedUnit {
+                    UnitDetail(unit: unit)
+                } else {
+                    ScenarioPanel()
+                }
+
+                if let tile = game.focusedTile {
+                    Divider()
+                        .overlay(Color.white.opacity(0.18))
+                    TileDetail(tile: tile, unit: game.focusedUnit)
+                }
+
+                Divider()
+                    .overlay(Color.white.opacity(0.18))
+
+                BattleLogView()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(14)
+        .foregroundStyle(.white)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.black.opacity(0.34))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+        )
+    }
+}
+
+private struct VictoryPanel: View {
+    @EnvironmentObject private var game: GameState
+    let winner: Faction
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("\(winner.title)胜利", systemImage: "crown.fill")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(.yellow)
+
+            Text(winner == .allies ? "\(game.scenario.name)目标达成。" : "\(game.scenario.name)盟军失败。")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.76))
+
+            Button {
+                game.restart()
+            } label: {
+                Label("重新开局", systemImage: "arrow.clockwise")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.orange)
+        }
+    }
+}
+
+private struct ScenarioPanel: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("战役目标", systemImage: "map.fill")
+                .font(.headline.weight(.semibold))
+
+            Text(game.scenario.briefing)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.76))
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                ForEach(game.objectiveTiles) { tile in
+                    ObjectiveBadge(tile: tile)
+                }
+            }
+
+            Label(game.objectiveCaptureRewardSummary, systemImage: "gift.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.yellow.opacity(0.88))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Label(game.objectiveRestSummary, systemImage: "cross.case.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.green.opacity(0.88))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Label(game.zoneOfControlSummary, systemImage: "exclamationmark.triangle.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.red.opacity(0.86))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Label(game.entrenchmentSummary, systemImage: "shield.lefthalf.filled")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.cyan.opacity(0.88))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Label(game.flankingSupportSummary, systemImage: "point.3.connected.trianglepath.dotted")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.green.opacity(0.88))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Label(game.commanderAuraSummary, systemImage: "star.bubble.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.yellow.opacity(0.88))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Label(game.maneuverPursuitSummary, systemImage: "arrow.forward.circle.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.orange.opacity(0.88))
+                .fixedSize(horizontal: false, vertical: true)
+
+            TerrainKey()
+        }
+    }
+}
+
+private struct ObjectiveBadge: View {
+    let tile: TerrainTile
+
+    var body: some View {
+        VStack(spacing: 5) {
+            Image(systemName: "star.fill")
+                .foregroundStyle(tile.owner?.accentColor ?? .white.opacity(0.55))
+            Text(tile.objectiveName ?? "据点")
+                .font(.caption2.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(8)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private struct UnitDetail: View {
+    @EnvironmentObject private var game: GameState
+    let unit: BattleUnit
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(unit.name)
+                        .font(.headline.weight(.bold))
+                    Text("\(unit.faction.title) · \(unit.kind.title) · \(unit.rank.title)")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.66))
+                }
+
+                Spacer()
+
+                Text(unit.kind.code)
+                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 7)
+                    .background(unit.faction.accentColor, in: RoundedRectangle(cornerRadius: 6))
+            }
+
+            StatRows(unit: unit)
+            ExperiencePanel(unit: unit)
+            SupplyPanel(unit: unit)
+            MoralePanel(unit: unit)
+            ActionSummary(unit: unit)
+            FocusedCommandPreviewPanel()
+            AttackTargetsView(unit: unit)
+            TacticalCommandPanel(unit: unit)
+            ThreatSummary(unit: unit)
+
+            if let preview = game.combatPreviewAgainstFocusedTarget() {
+                CombatForecastView(preview: preview)
+            }
+
+            if let commander = unit.commander {
+                CommanderView(commander: commander)
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    game.reinforceSelectedUnit()
+                } label: {
+                    Label("整补", systemImage: "cross.case.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
+                .disabled(!game.canReinforce(unit))
+
+                Button {
+                    game.waitSelectedUnit()
+                } label: {
+                    Label("待命", systemImage: "pause.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.gray)
+                .disabled(unit.hasMoved && unit.hasAttacked)
+
+                Button {
+                    game.clearSelection()
+                } label: {
+                    Label("取消", systemImage: "xmark")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(.white)
+            }
+        }
+    }
+}
+
+private struct TacticalCommandPanel: View {
+    @EnvironmentObject private var game: GameState
+    let unit: BattleUnit
+
+    var body: some View {
+        let commands = TacticalCommand.allCases.filter { $0.canBeUsed(by: unit.kind) }
+
+        if !commands.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(commands) { command in
+                    TacticalCommandGroup(unit: unit, command: command)
+                }
+            }
+        }
+    }
+}
+
+private struct TacticalCommandGroup: View {
+    @EnvironmentObject private var game: GameState
+    let unit: BattleUnit
+    let command: TacticalCommand
+
+    var body: some View {
+        let targets = game.tacticalCommandTargets(for: unit, command: command)
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(command.title, systemImage: command.systemImage)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(command.accentColor)
+                Spacer()
+                Text("指令 \(command.commandCost)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(game.commandPoints(for: unit.faction) >= command.commandCost ? .white.opacity(0.66) : .red)
+            }
+
+            Text(command.detail)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.62))
+                .fixedSize(horizontal: false, vertical: true)
+
+            if targets.isEmpty {
+                Text(unit.hasAttacked ? "本回合已完成攻击，无法执行\(command.title)。" : "射程 \(command.range) 内没有可执行目标。")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.62))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(9)
+                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+            } else {
+                VStack(spacing: 7) {
+                    ForEach(targets) { target in
+                        TacticalCommandTargetButton(command: command, caster: unit, target: target)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(command.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(command.accentColor.opacity(0.24), lineWidth: 1)
+        )
+    }
+}
+
+private struct TacticalCommandTargetButton: View {
+    @EnvironmentObject private var game: GameState
+    let command: TacticalCommand
+    let caster: BattleUnit
+    let target: BattleUnit
+
+    var body: some View {
+        let preview = game.tacticalCommandPreview(command: command, caster: caster, target: target)
+
+        Button {
+            game.useTacticalCommand(command, casterID: caster.id, targetID: target.id)
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 9) {
+                    UnitShapeBadge(
+                        kind: target.kind,
+                        faction: target.faction,
+                        hasCommander: target.commander != nil,
+                        rank: target.rank,
+                        supplyState: game.supplyState(for: target),
+                        tacticalStatus: target.tacticalStatus,
+                        width: 42,
+                        height: 26
+                    )
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(target.name)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                        Text(preview?.outcomeText ?? "无法预览")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.62))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+
+                    Spacer(minLength: 6)
+
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text(preview.map { "-\($0.damage)" } ?? "--")
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(command.accentColor)
+                        Text("无反击")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.58))
+                    }
+                }
+            }
+            .padding(9)
+            .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(command.accentColor.opacity(0.18), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(preview == nil || game.commandPoints(for: caster.faction) < command.commandCost || game.winner != nil)
+        .accessibilityLabel("使用\(command.title)攻击\(target.name)")
+    }
+}
+
+private struct SupplyPanel: View {
+    @EnvironmentObject private var game: GameState
+    let unit: BattleUnit
+
+    var body: some View {
+        let state = game.supplyState(for: unit)
+        let lineLength = max(0, game.supplyLineTiles(for: unit).count - 1)
+
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Label(state.title, systemImage: state == .supplied ? "fuelpump.fill" : "exclamationmark.octagon.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(state == .supplied ? .green : .red)
+                Spacer()
+                Text(state == .supplied ? "\(lineLength) 格补给线" : "被切断")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.68))
+            }
+
+            if state == .supplied {
+                Text("可从己方据点获得整补与完整战力；驻守己方据点时下回合开始自动恢复耐久。地图绿色格显示当前补给通道。")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.64))
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("攻击降至 \(state.attackMultiplierPercent)%，移动 -\(state.movementPenalty)，下回合开始损失 \(state.attritionDamage) 耐久。夺回据点或清除阻断敌军可恢复。")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(9)
+        .background((state == .supplied ? Color.green : Color.red).opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke((state == .supplied ? Color.green : Color.red).opacity(0.24), lineWidth: 1)
+        )
+    }
+}
+
+private struct MoralePanel: View {
+    let unit: BattleUnit
+
+    var body: some View {
+        let state = unit.moraleState
+        let movementText = state.movementModifier == 0 ? "移动不变" : "移动 \(state.movementModifier > 0 ? "+" : "")\(state.movementModifier)"
+
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Label(state.title, systemImage: "flag.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(state.accentColor)
+                Spacer()
+                Text("\(unit.morale)/100")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.68))
+            }
+
+            ProgressView(value: Double(unit.morale), total: 100)
+                .tint(state.accentColor)
+
+            Text("攻击 \(state.attackMultiplierPercent)%，\(movementText)。攻击奏效与击毁会提振士气，受击、反击和断补给会压低士气。")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.white.opacity(0.66))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(9)
+        .background(state.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(state.accentColor.opacity(0.24), lineWidth: 1)
+        )
+    }
+}
+
+private struct ExperiencePanel: View {
+    let unit: BattleUnit
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Label("\(unit.rank.title) \(unit.rank.insignia)", systemImage: "chevron.up.square.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.yellow)
+                Spacer()
+                Text("\(unit.experience) XP")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.68))
+            }
+
+            if let nextRank = unit.rank.nextRank {
+                let currentFloor = unit.rank.minimumExperience
+                let needed = nextRank.minimumExperience - currentFloor
+                let progress = max(0, unit.experience - currentFloor)
+
+                ProgressView(value: Double(progress), total: Double(needed))
+                    .tint(.yellow)
+                Text("距\(nextRank.title)还需 \(max(0, nextRank.minimumExperience - unit.experience)) XP，晋升后攻击 +\(nextRank.attackBonus)，耐久上限 +\(nextRank.hpBonus)。")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.64))
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                ProgressView(value: 1)
+                    .tint(.yellow)
+                Text("王牌部队已达到最高军衔。")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.64))
+            }
+        }
+        .padding(9)
+        .background(Color.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.yellow.opacity(0.22), lineWidth: 1)
+        )
+    }
+}
+
+private struct StatRows: View {
+    let unit: BattleUnit
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ProgressView(value: Double(unit.hp), total: Double(unit.maxHP)) {
+                HStack {
+                    Text("耐久")
+                    Spacer()
+                    Text("\(unit.hp)/\(unit.maxHP)")
+                }
+                .font(.caption.weight(.semibold))
+            }
+            .tint(unit.hpRatio > 0.45 ? .green : .red)
+
+            HStack(spacing: 8) {
+                StatBox(icon: "bolt.fill", title: "攻击", value: "\(unit.attack)")
+                StatBox(icon: "arrow.up.left.and.arrow.down.right", title: "移动", value: "\(unit.movement)")
+                StatBox(icon: "scope", title: "射程", value: "\(unit.range)")
+            }
+        }
+    }
+}
+
+private struct StatBox: View {
+    let icon: String
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                Text(title)
+            }
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(.white.opacity(0.62))
+            Text(value)
+                .font(.headline.weight(.bold))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private struct ActionSummary: View {
+    @EnvironmentObject private var game: GameState
+    let unit: BattleUnit
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ActionBadge(
+                icon: "point.topleft.down.curvedto.point.bottomright.up",
+                title: "可移动",
+                value: "\(game.reachableTiles(for: unit).count)"
+            )
+            ActionBadge(
+                icon: "target",
+                title: "可攻击",
+                value: "\(game.attackableTiles(for: unit).count)"
+            )
+            ActionBadge(
+                icon: unit.isEntrenched ? "shield.lefthalf.filled" : (unit.hasAttacked ? "checkmark.seal.fill" : "circle.dotted"),
+                title: "状态",
+                value: unit.actionStateText
+            )
+        }
+    }
+}
+
+private struct ActionBadge: View {
+    let icon: String
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Label(title, systemImage: icon)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white.opacity(0.62))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(value)
+                .font(.caption.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private struct FocusedCommandPreviewPanel: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        if let preview = game.focusedCommandPreview,
+           game.selectedUnit != nil {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 7) {
+                    Image(systemName: icon(for: preview))
+                        .font(.caption.weight(.bold))
+                        .frame(width: 16)
+                    Text(title(for: preview))
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    Spacer(minLength: 8)
+                    Text(preview.isExecutable ? "右键执行" : "左键查看")
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .foregroundStyle(preview.isExecutable ? .white : .white.opacity(0.58))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(preview.isExecutable ? accentColor(for: preview).opacity(0.72) : Color.white.opacity(0.08), in: Capsule())
+                }
+                .foregroundStyle(accentColor(for: preview))
+
+                Text(detail(for: preview))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.68))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(9)
+            .background(accentColor(for: preview).opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(accentColor(for: preview).opacity(0.24), lineWidth: 1)
+            )
+        }
+    }
+
+    private func icon(for preview: MapCommandPreview) -> String {
+        switch preview {
+        case .move, .approachAttack:
+            return "arrow.turn.up.right"
+        case .attack:
+            return "target"
+        case .selectedUnit, .selectUnit, .friendlyOccupied:
+            return "shield.fill"
+        case .enemyOutOfRange, .enemyUnavailable:
+            return "exclamationmark.triangle.fill"
+        case .inspectTerrain, .unreachable:
+            return "hexagon.fill"
+        }
+    }
+
+    private func title(for preview: MapCommandPreview) -> String {
+        switch preview {
+        case .inspectTerrain:
+            return "查看地形"
+        case let .selectedUnit(unitName):
+            return unitName
+        case let .selectUnit(_, kind):
+            return "选择 \(kind.title)"
+        case .move:
+            return "移动预览"
+        case .approachAttack:
+            return "接敌移动"
+        case .attack:
+            return "攻击预览"
+        case .friendlyOccupied:
+            return "友军占据"
+        case .enemyOutOfRange:
+            return "超出射程"
+        case .enemyUnavailable:
+            return "攻击不可用"
+        case .unreachable:
+            return "无法到达"
+        }
+    }
+
+    private func detail(for preview: MapCommandPreview) -> String {
+        switch preview {
+        case let .inspectTerrain(terrainName):
+            return "当前焦点为\(terrainName)，选择部队后会显示移动或攻击预览。"
+        case let .selectedUnit(unitName):
+            return "\(unitName) 已选中。左键聚焦目标，右键在可执行格移动或攻击。"
+        case let .selectUnit(unitName, kind):
+            return "左键可切换选择 \(unitName)（\(kind.title)）。"
+        case let .move(unitName, terrainName, route):
+            let penaltyText = route.controlZonePenalty > 0 ? "，其中敌方控制区 +\(route.controlZonePenalty)" : ""
+            return "右键命令 \(unitName) 进入\(terrainName)，路线 \(route.stepCount) 格，总消耗 \(route.totalCost) 移动力\(penaltyText)。\(postMoveAttackText(for: route))"
+        case let .approachAttack(unitName, defenderName, route):
+            let penaltyText = route.controlZonePenalty > 0 ? "，敌方控制区 +\(route.controlZonePenalty)" : ""
+            return "右键命令 \(unitName) 移动到 q\(route.destination.q),r\(route.destination.r) 接近 \(defenderName)，路线 \(route.stepCount) 格，消耗 \(route.totalCost) 移动力\(penaltyText)。移动后可继续右键攻击。"
+        case let .attack(attackerName, defenderName, damage, counterDamage, defenderHPAfterAttack, willDestroy):
+            let outcome = willDestroy ? "预计击毁目标" : "目标剩余 \(defenderHPAfterAttack) 耐久"
+            let counter = counterDamage > 0 ? "，可能遭反击 -\(counterDamage)" : "，无反击"
+            return "右键命令 \(attackerName) 攻击 \(defenderName)，造成 \(damage) 伤害，\(outcome)\(counter)。"
+        case let .friendlyOccupied(unitName):
+            return "\(unitName) 占据该格，右键不会移动当前选中部队。"
+        case let .enemyOutOfRange(defenderName, distance, range):
+            return "\(defenderName) 距离 \(distance)，当前射程 \(range)，右键不会攻击。\(attackPositionText())"
+        case let .enemyUnavailable(defenderName, distance, range):
+            return "\(defenderName) 距离 \(distance)，射程 \(range)，当前单位本回合已无法攻击。"
+        case let .unreachable(unitName, terrainName):
+            return "\(unitName) 本回合无法进入该\(terrainName)格，右键不会执行移动。"
+        }
+    }
+
+    private func postMoveAttackText(for route: MovementRoute) -> String {
+        guard let selectedUnit = game.selectedUnit else { return "" }
+        let opportunities = game.postMoveAttackOpportunities(for: selectedUnit, to: route.destination)
+
+        if opportunities.isEmpty {
+            return selectedUnit.canAttack ? "移动后暂无射程内目标。" : "本回合已无法继续攻击。"
+        }
+
+        let names = opportunities.prefix(2).map(\.name).joined(separator: "、")
+        let extraCount = opportunities.count - min(opportunities.count, 2)
+        let extraText = extraCount > 0 ? "等 \(opportunities.count) 个目标" : ""
+        return "移动后可攻击 \(names)\(extraText)。"
+    }
+
+    private func attackPositionText() -> String {
+        let routes = game.focusedAttackPositionRoutes
+        guard let bestRoute = routes.first else { return "本回合没有可进入的攻击位。" }
+
+        if routes.count == 1 {
+            return "可移动到 q\(bestRoute.destination.q),r\(bestRoute.destination.r) 进入攻击位。"
+        }
+
+        return "地图标出 \(routes.count) 个攻击位，最近 q\(bestRoute.destination.q),r\(bestRoute.destination.r)，消耗 \(bestRoute.totalCost) 移动力。"
+    }
+
+    private func accentColor(for preview: MapCommandPreview) -> Color {
+        switch preview {
+        case .move:
+            return .cyan
+        case .approachAttack:
+            return .orange
+        case .attack:
+            return .orange
+        case .enemyOutOfRange, .enemyUnavailable, .unreachable:
+            return .red
+        case .selectedUnit, .selectUnit, .friendlyOccupied:
+            return .yellow
+        case .inspectTerrain:
+            return .white.opacity(0.74)
+        }
+    }
+}
+
+private struct AttackTargetsView: View {
+    @EnvironmentObject private var game: GameState
+    let unit: BattleUnit
+
+    var body: some View {
+        let targets = game.attackableUnits(for: unit)
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label("攻击目标", systemImage: "target")
+                    .font(.subheadline.weight(.bold))
+                Spacer()
+                Text(targets.isEmpty ? "无" : "\(targets.count)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.62))
+            }
+
+            if targets.isEmpty {
+                Text(unit.hasAttacked ? "本回合已完成攻击。" : "当前射程内没有敌军。")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.62))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(9)
+                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+            } else {
+                VStack(spacing: 7) {
+                    ForEach(targets) { target in
+                        AttackTargetButton(attacker: unit, target: target)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct AttackTargetButton: View {
+    @EnvironmentObject private var game: GameState
+    let attacker: BattleUnit
+    let target: BattleUnit
+
+    var body: some View {
+        let preview = game.combatPreview(attacker: attacker, defender: target)
+        let counterDamage = preview?.counterDamage ?? 0
+
+        Button {
+            game.handleTap(on: target.position)
+        } label: {
+            HStack(spacing: 9) {
+                UnitShapeBadge(
+                    kind: target.kind,
+                    faction: target.faction,
+                    hasCommander: target.commander != nil,
+                    rank: target.rank,
+                    tacticalStatus: target.tacticalStatus,
+                    width: 42,
+                    height: 26
+                )
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(target.name)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    HStack(spacing: 6) {
+                        MiniHealthBar(ratio: target.hpRatio)
+                            .frame(width: 48, height: 5)
+                        Text("\(target.hp)/\(target.maxHP)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.58))
+                    }
+
+                    if let preview {
+                        HStack(spacing: 6) {
+                            Text(preview.matchupTitle)
+                                .foregroundStyle(preview.matchupAccentColor)
+                            Text(preview.terrainTitle)
+                                .foregroundStyle(preview.terrainAccentColor)
+                            if preview.supportUnitCount > 0 {
+                                Text(preview.supportTitle)
+                                    .foregroundStyle(.green)
+                            }
+                            if preview.defenderIsEntrenched {
+                                Text(preview.defenseTitle)
+                                    .foregroundStyle(.cyan)
+                            }
+                        }
+                        .font(.system(size: 10, weight: .bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    }
+                }
+
+                Spacer(minLength: 6)
+
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(preview.map { "-\($0.damage)" } ?? "--")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(.orange)
+                    Text(counterDamage > 0 ? "反击 -\(counterDamage)" : "无反击")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.58))
+                }
+            }
+            .padding(9)
+            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(game.focusedUnit?.id == target.id ? Color.red : Color.white.opacity(0.08), lineWidth: game.focusedUnit?.id == target.id ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct ThreatSummary: View {
+    @EnvironmentObject private var game: GameState
+    let unit: BattleUnit
+
+    var body: some View {
+        let threats = game.threateningEnemies(against: unit)
+
+        if !threats.isEmpty {
+            VStack(alignment: .leading, spacing: 7) {
+                Label("敌方威胁", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.orange)
+
+                HStack(spacing: 6) {
+                    ForEach(threats.prefix(3)) { enemy in
+                        UnitShapeBadge(
+                            kind: enemy.kind,
+                            faction: enemy.faction,
+                            hasCommander: enemy.commander != nil,
+                            rank: enemy.rank,
+                            tacticalStatus: enemy.tacticalStatus,
+                            width: 38,
+                            height: 22
+                        )
+                            .accessibilityLabel("\(enemy.name) 可攻击当前单位")
+                    }
+
+                    Text(threats.count == 1 ? "1 支敌军覆盖当前位置" : "\(threats.count) 支敌军覆盖当前位置")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.68))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+            }
+            .padding(9)
+            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(Color.orange.opacity(0.25), lineWidth: 1)
+            )
+        }
+    }
+}
+
+private struct CombatForecastView: View {
+    let preview: CombatPreview
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("战斗预测", systemImage: "scope")
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.yellow)
+
+            HStack(spacing: 8) {
+                ForecastMetric(title: "伤害", value: "-\(preview.damage)", color: .orange)
+                ForecastMetric(title: "目标剩余", value: "\(preview.defenderHPAfterAttack)", color: preview.willDestroyDefender ? .red : .white)
+                ForecastMetric(title: "反击", value: preview.counterDamage > 0 ? "-\(preview.counterDamage)" : "无", color: preview.counterDamage > 0 ? .red : .white)
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: preview.matchupIcon)
+                    .font(.caption.weight(.bold))
+                Text("\(preview.matchupTitle)：\(preview.matchupDetail)")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundStyle(preview.matchupAccentColor)
+
+            HStack(spacing: 6) {
+                Image(systemName: preview.terrainIcon)
+                    .font(.caption.weight(.bold))
+                Text("\(preview.terrainTitle)：\(preview.terrainDetail)")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundStyle(preview.terrainAccentColor)
+
+            if preview.commanderSupportName != nil {
+                HStack(spacing: 6) {
+                    Image(systemName: "star.bubble.fill")
+                        .font(.caption.weight(.bold))
+                    Text("\(preview.commanderSupportTitle)：\(preview.commanderSupportDetail)")
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+                .foregroundStyle(.yellow)
+            }
+
+            if preview.supportUnitCount > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "point.3.connected.trianglepath.dotted")
+                        .font(.caption.weight(.bold))
+                    Text("\(preview.supportTitle)：\(preview.supportDetail)")
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+                .foregroundStyle(.green)
+            }
+
+            if preview.defenderIsEntrenched {
+                HStack(spacing: 6) {
+                    Image(systemName: "shield.lefthalf.filled")
+                        .font(.caption.weight(.bold))
+                    Text("\(preview.defenseTitle)：\(preview.defenseDetail)")
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+                .foregroundStyle(.cyan)
+            }
+
+            if preview.willDestroyDefender || preview.willLoseAttacker {
+                Text(preview.willDestroyDefender ? "预计可击毁目标。" : "攻击后有被反击击毁风险。")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(preview.willDestroyDefender ? .green : .red)
+            } else {
+                Text("\(preview.attackerName) 进攻 \(preview.defenderName) 后，我方预计剩余 \(preview.attackerHPAfterCounter) 耐久。")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.68))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(10)
+        .background(Color.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.yellow.opacity(0.22), lineWidth: 1)
+        )
+    }
+}
+
+private struct ForecastMetric: View {
+    let title: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(title)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white.opacity(0.58))
+            Text(value)
+                .font(.caption.weight(.black))
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.68)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private struct TileDetail: View {
+    @EnvironmentObject private var game: GameState
+
+    let tile: TerrainTile
+    let unit: BattleUnit?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(tile.terrain.title, systemImage: tile.isObjective ? "star.fill" : "hexagon.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(tile.isObjective ? .yellow : .white)
+                Spacer()
+                Text("q\(tile.coordinate.q), r\(tile.coordinate.r)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.58))
+            }
+
+            HStack(spacing: 8) {
+                TileMetric(title: unit == nil ? "基础移动" : "\(unit?.kind.title ?? "")移动", value: "\(unit.map { tile.terrain.movementCost(for: $0.kind) } ?? tile.terrain.movementCost)")
+                TileMetric(title: "防御", value: "+\(tile.terrain.defenseBonus)")
+                TileMetric(title: "控制", value: tile.owner?.title ?? "中立")
+            }
+
+            if let unit {
+                let attackMultiplier = tile.terrain.attackMultiplierPercent(for: unit.kind)
+                Text("\(unit.kind.title)进入该地形消耗 \(tile.terrain.movementCost(for: unit.kind)) 移动力，攻击该格目标时攻势为 \(attackMultiplier)%。")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.68))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let selected = game.selectedUnit,
+               selected.position != tile.coordinate,
+               let route = game.movementRoute(for: selected, to: tile.coordinate) {
+                Text(route.controlZonePenalty > 0
+                     ? "\(selected.kind.title)到达该格总消耗 \(route.totalCost) 移动力，路线 \(route.stepCount) 格，其中敌方控制区 +\(route.controlZonePenalty)。"
+                     : "\(selected.kind.title)到达该格总消耗 \(route.totalCost) 移动力，路线 \(route.stepCount) 格。")
+                    .font(.caption)
+                    .foregroundStyle(route.controlZonePenalty > 0 ? .red.opacity(0.78) : .white.opacity(0.64))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let objectiveName = tile.objectiveName {
+                Label(objectiveName, systemImage: "flag.checkered")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.yellow.opacity(0.9))
+            }
+
+            if let unit {
+                Text("\(unit.name) 占据此格，\(unit.faction.title) \(unit.kind.title)，\(unit.actionStateText)。")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+private struct TileMetric: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(title)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white.opacity(0.58))
+            Text(value)
+                .font(.caption.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private struct TerrainKey: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("地形")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.white.opacity(0.66))
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 6)], spacing: 6) {
+                ForEach(TerrainKind.allCases) { terrain in
+                    LegendItem(color: terrain.mapColor, label: terrain.title, symbol: terrain.mapSymbol)
+                }
+            }
+        }
+    }
+}
+
+private struct MapLegendView: View {
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                LegendItem(color: .white.opacity(0.85), label: "左键选择")
+                LegendItem(color: .orange.opacity(0.94), label: "右键执行")
+                LegendItem(color: .yellow, label: "选中")
+                LegendItem(color: .cyan, label: "移动消耗", symbol: "M")
+                LegendItem(color: .red, label: "攻击预估", symbol: "A")
+                LegendItem(color: .orange.opacity(0.86), label: "移动后目标", symbol: "NX")
+                LegendItem(color: .orange.opacity(0.76), label: "攻击位", symbol: "POS")
+                LegendItem(color: .red.opacity(0.78), label: "敌火覆盖", symbol: "TH")
+                LegendItem(color: .green.opacity(0.9), label: "补给线")
+                LegendItem(color: .red.opacity(0.92), label: "断补给", symbol: "CUT")
+                LegendItem(color: .white.opacity(0.85), label: "焦点")
+                LegendItem(color: Faction.allies.accentColor, label: "盟军")
+                LegendItem(color: Faction.axis.accentColor, label: "轴心国")
+                LegendItem(color: .purple.opacity(0.92), label: "压制", symbol: "PIN")
+                UnitLegendItem(kind: .infantry, faction: .allies)
+                UnitLegendItem(kind: .tank, faction: .allies)
+                UnitLegendItem(kind: .artillery, faction: .axis)
+                UnitLegendItem(kind: .recon, faction: .axis)
+            }
+            .padding(.vertical, 2)
+        }
+    }
+}
+
+private struct LegendItem: View {
+    let color: Color
+    let label: String
+    var symbol: String?
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(color)
+                if let symbol {
+                    Text(symbol)
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+            }
+            .frame(width: 14, height: 14)
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.68))
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+private struct UnitLegendItem: View {
+    let kind: UnitKind
+    let faction: Faction
+
+    var body: some View {
+        HStack(spacing: 5) {
+            UnitShapeBadge(kind: kind, faction: faction, rank: .green, width: 34, height: 18)
+            Text(kind.title)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.68))
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+private struct CommanderView: View {
+    let commander: Commander
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(commander.name, systemImage: "person.crop.square.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.yellow)
+                Spacer()
+                Text("评分 \(commander.rating)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.72))
+            }
+            Text("\(commander.nation) · \(commander.rank)")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.66))
+            Text(commander.trait)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.78))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .background(Color.yellow.opacity(0.11), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.yellow.opacity(0.24), lineWidth: 1)
+        )
+    }
+}
+
+private struct BattleLogView: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("战报", systemImage: "list.bullet.rectangle.fill")
+                .font(.subheadline.weight(.bold))
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(game.battleLog.enumerated()), id: \.offset) { _, entry in
+                        Text(entry)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.72))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct Hexagon: Shape {
+    func path(in rect: CGRect) -> Path {
+        let width = rect.width
+        let height = rect.height
+        let points = [
+            CGPoint(x: width * 0.25, y: 0),
+            CGPoint(x: width * 0.75, y: 0),
+            CGPoint(x: width, y: height * 0.5),
+            CGPoint(x: width * 0.75, y: height),
+            CGPoint(x: width * 0.25, y: height),
+            CGPoint(x: 0, y: height * 0.5)
+        ]
+
+        var path = Path()
+        path.move(to: points[0])
+        for point in points.dropFirst() {
+            path.addLine(to: point)
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct HexInputReader: UIViewRepresentable {
+    let hitShape: Path
+    let directTouchAction: () -> Void
+    let primaryAction: () -> Void
+    let secondaryAction: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(
+            directTouchAction: directTouchAction,
+            primaryAction: primaryAction,
+            secondaryAction: secondaryAction
+        )
+    }
+
+    func makeUIView(context: Context) -> HexInputView {
+        let view = HexInputView(hitShape: hitShape)
+        let directTouchRecognizer = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleDirectTouchTap(_:))
+        )
+        directTouchRecognizer.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        directTouchRecognizer.cancelsTouchesInView = false
+        view.addGestureRecognizer(directTouchRecognizer)
+
+        let primaryRecognizer = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handlePrimaryTap)
+        )
+        primaryRecognizer.buttonMaskRequired = .primary
+        primaryRecognizer.cancelsTouchesInView = false
+        view.addGestureRecognizer(primaryRecognizer)
+
+        let secondaryRecognizer = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleSecondaryTap)
+        )
+        secondaryRecognizer.buttonMaskRequired = .secondary
+        secondaryRecognizer.cancelsTouchesInView = false
+        view.addGestureRecognizer(secondaryRecognizer)
+
+        return view
+    }
+
+    func updateUIView(_ uiView: HexInputView, context: Context) {
+        uiView.hitShape = hitShape
+        context.coordinator.directTouchAction = directTouchAction
+        context.coordinator.primaryAction = primaryAction
+        context.coordinator.secondaryAction = secondaryAction
+    }
+
+    final class Coordinator: NSObject {
+        var directTouchAction: () -> Void
+        var primaryAction: () -> Void
+        var secondaryAction: () -> Void
+
+        init(
+            directTouchAction: @escaping () -> Void,
+            primaryAction: @escaping () -> Void,
+            secondaryAction: @escaping () -> Void
+        ) {
+            self.directTouchAction = directTouchAction
+            self.primaryAction = primaryAction
+            self.secondaryAction = secondaryAction
+        }
+
+        @objc func handleDirectTouchTap(_ recognizer: UITapGestureRecognizer) {
+            guard recognizer.state == .ended else { return }
+            directTouchAction()
+        }
+
+        @objc func handlePrimaryTap() {
+            primaryAction()
+        }
+
+        @objc func handleSecondaryTap() {
+            secondaryAction()
+        }
+    }
+}
+
+private final class HexInputView: UIView {
+    var hitShape: Path
+
+    init(hitShape: Path) {
+        self.hitShape = hitShape
+        super.init(frame: .zero)
+        backgroundColor = .clear
+        isOpaque = false
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        return hitShape.contains(point)
+    }
+}
+
+private extension TerrainKind {
+    var mapColor: Color {
+        switch self {
+        case .plains:
+            Color(red: 0.54, green: 0.61, blue: 0.41)
+        case .forest:
+            Color(red: 0.25, green: 0.42, blue: 0.26)
+        case .city:
+            Color(red: 0.54, green: 0.53, blue: 0.49)
+        case .mountain:
+            Color(red: 0.48, green: 0.48, blue: 0.45)
+        case .snow:
+            Color(red: 0.78, green: 0.82, blue: 0.80)
+        case .river:
+            Color(red: 0.22, green: 0.42, blue: 0.60)
+        case .road:
+            Color(red: 0.62, green: 0.55, blue: 0.42)
+        }
+    }
+
+    var mapSymbol: String {
+        switch self {
+        case .plains:
+            "·"
+        case .forest:
+            "♣"
+        case .city:
+            "▦"
+        case .mountain:
+            "△"
+        case .snow:
+            "*"
+        case .river:
+            "≈"
+        case .road:
+            "="
+        }
+    }
+
+    var symbolColor: Color {
+        switch self {
+        case .forest, .mountain, .river:
+            Color.white.opacity(0.38)
+        case .snow:
+            Color.black.opacity(0.32)
+        default:
+            Color.black.opacity(0.28)
+        }
+    }
+}
+
+private extension Faction {
+    var accentColor: Color {
+        switch self {
+        case .allies:
+            Color(red: 0.12, green: 0.36, blue: 0.72)
+        case .axis:
+            Color(red: 0.72, green: 0.16, blue: 0.14)
+        }
+    }
+}
+
+private extension MoraleState {
+    var accentColor: Color {
+        switch self {
+        case .shaken:
+            Color(red: 0.86, green: 0.28, blue: 0.22)
+        case .steady:
+            Color(red: 0.36, green: 0.68, blue: 0.78)
+        case .inspired:
+            Color(red: 0.96, green: 0.68, blue: 0.24)
+        }
+    }
+}
+
+private extension MissionObjectiveState {
+    var systemImage: String {
+        switch self {
+        case .pending:
+            "circle"
+        case .complete:
+            "checkmark.circle.fill"
+        case .failed:
+            "xmark.circle.fill"
+        }
+    }
+
+    var accentColor: Color {
+        switch self {
+        case .pending:
+            Color.white.opacity(0.48)
+        case .complete:
+            Color(red: 0.42, green: 0.78, blue: 0.40)
+        case .failed:
+            Color(red: 0.86, green: 0.28, blue: 0.22)
+        }
+    }
+}
+
+private extension CombatPreview {
+    var matchupAccentColor: Color {
+        if matchupMultiplierPercent >= 110 {
+            return .green
+        }
+        if matchupMultiplierPercent <= 94 {
+            return .red
+        }
+        return .white.opacity(0.68)
+    }
+
+    var matchupIcon: String {
+        if matchupMultiplierPercent >= 110 {
+            return "chevron.up.circle.fill"
+        }
+        if matchupMultiplierPercent <= 94 {
+            return "chevron.down.circle.fill"
+        }
+        return "equal.circle.fill"
+    }
+
+    var terrainAccentColor: Color {
+        if terrainAttackMultiplierPercent >= 106 {
+            return .green
+        }
+        if terrainAttackMultiplierPercent <= 94 {
+            return .orange
+        }
+        return .white.opacity(0.68)
+    }
+
+    var terrainIcon: String {
+        if terrainAttackMultiplierPercent >= 106 {
+            return "mountain.2.circle.fill"
+        }
+        if terrainAttackMultiplierPercent <= 94 {
+            return "exclamationmark.circle.fill"
+        }
+        return "circle.grid.cross.fill"
+    }
+}
+
+private extension TacticalCommand {
+    var systemImage: String {
+        switch self {
+        case .artilleryBarrage:
+            "burst.fill"
+        case .breakthroughAssault:
+            "bolt.fill"
+        }
+    }
+
+    var accentColor: Color {
+        switch self {
+        case .artilleryBarrage:
+            .orange
+        case .breakthroughAssault:
+            .red
+        }
+    }
+}
+
+private extension UnitTacticalStatus {
+    var mapColor: Color {
+        switch self {
+        case .normal:
+            .white.opacity(0.36)
+        case .suppressed:
+            .purple
+        case .disrupted:
+            .orange
+        }
+    }
+}
+
+private extension UnitKind {
+    var tacticalSymbol: String {
+        switch self {
+        case .infantry:
+            "■"
+        case .tank:
+            "▰"
+        case .artillery:
+            "▲"
+        case .recon:
+            "◆"
+        }
+    }
+
+    var counterWidth: CGFloat {
+        switch self {
+        case .infantry:
+            43
+        case .tank:
+            49
+        case .artillery:
+            45
+        case .recon:
+            44
+        }
+    }
+}
+
+private extension BattleUnit {
+    var hpRatio: CGFloat {
+        CGFloat(max(0, min(hp, maxHP))) / CGFloat(maxHP)
+    }
+
+    var actionStateText: String {
+        if isEntrenched {
+            return "防御"
+        }
+
+        return switch (hasMoved, hasAttacked) {
+        case (false, false):
+            "待命"
+        case (true, false):
+            "已移动"
+        case (false, true):
+            "已攻击"
+        case (true, true):
+            "完成"
+        }
+    }
+}

@@ -1,0 +1,2159 @@
+import Foundation
+
+@MainActor
+final class GameState: ObservableObject {
+    @Published private(set) var scenario: Scenario
+    @Published var selectedUnitID: BattleUnit.ID?
+    @Published var activeFaction: Faction = .allies
+    @Published var turn = 1
+    @Published var message = "夺取全部据点，保持装甲突击节奏。"
+    @Published var battleLog: [String] = ["1944 阿登战役开始，盟军必须夺取地图上的全部据点。"]
+    @Published var winner: Faction?
+    @Published private(set) var earnedStars = 0
+    @Published var focusedCoordinate: HexCoordinate?
+    @Published private(set) var guidedObjectiveCoordinate: HexCoordinate?
+    @Published var commandPoints: [Faction: Int]
+
+    private enum MapCommandInputMode {
+        case directTap
+        case secondaryAction
+        case commandButton
+
+        var followUpAttackPrompt: String {
+            switch self {
+            case .directTap:
+                return "继续点击可攻击"
+            case .secondaryAction:
+                return "再次右键可攻击"
+            case .commandButton:
+                return "再次点执行可攻击"
+            }
+        }
+    }
+
+    private struct ObjectiveAdvancePlan {
+        let tile: TerrainTile
+        let route: MovementRoute
+        let reachesObjective: Bool
+        let currentDistance: Int
+        let remainingDistance: Int
+    }
+
+    private static let objectiveCaptureCommandReward = 3
+    private static let objectiveCaptureMoraleReward = 8
+    private static let objectiveCaptureExperienceReward = 10
+    private static let enemyControlZoneMovementPenalty = 1
+    private static let entrenchedDamageMultiplierPercent = 75
+    private static let flankingSupportBonusPercent = 10
+    private static let maxFlankingSupportBonusPercent = 30
+    private static let commanderAuraDamageBonusPercent = 8
+    private static let objectiveRestRecoveryAmount = 10
+
+    init(
+        scenario: Scenario = Scenario.ardennesPrototype(),
+        commandPoints: [Faction: Int] = [.allies: 6, .axis: 6]
+    ) {
+        self.scenario = scenario
+        self.commandPoints = commandPoints
+        focusedCoordinate = scenario.initialFocus
+        message = Self.openingMessage(for: scenario)
+        battleLog = [Self.openingLog(for: scenario)]
+    }
+
+    var campaignCatalog: [Scenario] {
+        Scenario.campaignCatalog
+    }
+
+    var tiles: [TerrainTile] { scenario.tiles }
+    var units: [BattleUnit] { scenario.units.filter { !$0.isDestroyed } }
+
+    var selectedUnit: BattleUnit? {
+        guard let selectedUnitID else { return nil }
+        return scenario.units.first { $0.id == selectedUnitID && !$0.isDestroyed }
+    }
+
+    var focusedTile: TerrainTile? {
+        guard let focusedCoordinate else { return selectedUnit.flatMap { tile(at: $0.position) } }
+        return tile(at: focusedCoordinate)
+    }
+
+    var guidedObjectiveTile: TerrainTile? {
+        guard let guidedObjectiveCoordinate,
+              let tile = tile(at: guidedObjectiveCoordinate),
+              tile.isObjective else { return nil }
+        return tile
+    }
+
+    var focusedUnit: BattleUnit? {
+        guard let focusedCoordinate else { return selectedUnit }
+        return unit(at: focusedCoordinate)
+    }
+
+    var focusedCommandPreview: MapCommandPreview? {
+        guard let focusedCoordinate else { return nil }
+        return mapCommandPreview(for: focusedCoordinate)
+    }
+
+    var focusedMovementRoute: MovementRoute? {
+        guard let selectedUnit,
+              let focusedCoordinate else { return nil }
+        return movementRoute(for: selectedUnit, to: focusedCoordinate)
+    }
+
+    var focusedPostMoveAttackOpportunities: [BattleUnit] {
+        guard let selectedUnit,
+              let route = focusedMovementRoute else { return [] }
+        return postMoveAttackOpportunities(for: selectedUnit, to: route.destination)
+    }
+
+    var focusedAttackPositionRoutes: [MovementRoute] {
+        guard let selectedUnit,
+              let focusedUnit,
+              focusedUnit.faction != selectedUnit.faction,
+              !attackableTiles(for: selectedUnit).contains(focusedUnit.position) else { return [] }
+        return attackPositionRoutes(for: selectedUnit, against: focusedUnit)
+    }
+
+    var focusedAttackPositionRoute: MovementRoute? {
+        focusedAttackPositionRoutes.first
+    }
+
+    var objectiveTiles: [TerrainTile] {
+        scenario.tiles.filter(\.isObjective)
+    }
+
+    var alliedScore: Int {
+        objectiveTiles.filter { $0.owner == .allies }.count
+    }
+
+    var axisScore: Int {
+        objectiveTiles.filter { $0.owner == .axis }.count
+    }
+
+    var readyUnitCount: Int {
+        units.filter { $0.faction == activeFaction && (!$0.hasMoved || !$0.hasAttacked) }.count
+    }
+
+    var readyUnits: [BattleUnit] {
+        units(for: activeFaction)
+            .filter { !$0.hasMoved || !$0.hasAttacked }
+    }
+
+    var mapEnemyFocusUnits: [BattleUnit] {
+        let anchor = selectedUnit?.position ?? focusedCoordinate ?? scenario.initialFocus
+        return units
+            .filter { $0.faction != activeFaction }
+            .sorted { left, right in
+                let leftDistance = anchor.distance(to: left.position)
+                let rightDistance = anchor.distance(to: right.position)
+                if leftDistance == rightDistance {
+                    if left.kind == right.kind {
+                        return left.name < right.name
+                    }
+                    return left.kind.sortOrder < right.kind.sortOrder
+                }
+                return leftDistance < rightDistance
+            }
+    }
+
+    var mapFriendlyFocusUnits: [BattleUnit] {
+        let anchor = selectedUnit?.position ?? focusedCoordinate ?? scenario.initialFocus
+        return units
+            .filter { $0.faction == activeFaction }
+            .sorted { left, right in
+                let leftReady = !left.hasMoved || !left.hasAttacked
+                let rightReady = !right.hasMoved || !right.hasAttacked
+                if leftReady != rightReady {
+                    return leftReady && !rightReady
+                }
+
+                let leftDistance = anchor.distance(to: left.position)
+                let rightDistance = anchor.distance(to: right.position)
+                if leftDistance == rightDistance {
+                    if left.kind == right.kind {
+                        return left.name < right.name
+                    }
+                    return left.kind.sortOrder < right.kind.sortOrder
+                }
+                return leftDistance < rightDistance
+            }
+    }
+
+    var activeCommandPoints: Int {
+        commandPoints[activeFaction, default: 0]
+    }
+
+    var alliedStrength: Int {
+        strength(for: .allies)
+    }
+
+    var axisStrength: Int {
+        strength(for: .axis)
+    }
+
+    var objectiveProgress: Double {
+        guard !objectiveTiles.isEmpty else { return 0 }
+        return Double(alliedScore) / Double(objectiveTiles.count)
+    }
+
+    var remainingTurns: Int {
+        max(0, scenario.turnLimit - turn + 1)
+    }
+
+    var missionObjectives: [MissionObjectiveStatus] {
+        let primaryComplete = winner == .allies
+        let failed = winner == .axis || turn > scenario.turnLimit
+        let speedComplete = primaryComplete && turn <= scenario.decisiveTurnLimit
+        let speedFailed = failed || turn > scenario.decisiveTurnLimit
+        let alliedSurvivors = units.filter { $0.faction == .allies }.count
+        let survivalComplete = primaryComplete && alliedSurvivors >= scenario.survivalStarThreshold
+        let survivalFailed = failed || (primaryComplete && !survivalComplete)
+
+        return [
+            MissionObjectiveStatus(
+                id: "primary",
+                title: "完成主目标",
+                detail: "\(alliedScore)/\(objectiveTiles.count) 据点",
+                state: primaryComplete ? .complete : (failed ? .failed : .pending)
+            ),
+            MissionObjectiveStatus(
+                id: "speed",
+                title: "\(scenario.decisiveTurnLimit) 回合内获胜",
+                detail: "当前第 \(turn) 回合",
+                state: speedComplete ? .complete : (speedFailed ? .failed : .pending)
+            ),
+            MissionObjectiveStatus(
+                id: "survival",
+                title: "保留 \(scenario.survivalStarThreshold) 支部队",
+                detail: "现有 \(alliedSurvivors)",
+                state: survivalComplete ? .complete : (survivalFailed ? .failed : .pending)
+            )
+        ]
+    }
+
+    var objectiveCaptureRewardSummary: String {
+        "占领/夺取据点：指令 +\(Self.objectiveCaptureCommandReward)，士气 +\(Self.objectiveCaptureMoraleReward)，经验 +\(Self.objectiveCaptureExperienceReward)"
+    }
+
+    var objectiveRestSummary: String {
+        "据点休整：补给畅通且驻守己方据点的受损单位，回合开始恢复 +\(Self.objectiveRestRecoveryAmount) 耐久"
+    }
+
+    var zoneOfControlSummary: String {
+        "敌方控制区：进入相邻敌军格额外消耗 +\(Self.enemyControlZoneMovementPenalty) 移动力"
+    }
+
+    var entrenchmentSummary: String {
+        "待命构筑防御：下一次受击伤害降至 \(Self.entrenchedDamageMultiplierPercent)%"
+    }
+
+    var flankingSupportSummary: String {
+        "夹击协同：目标相邻的其他友军每支伤害 +\(Self.flankingSupportBonusPercent)%，最高 +\(Self.maxFlankingSupportBonusPercent)%"
+    }
+
+    var commanderAuraSummary: String {
+        "将领协同：相邻友军由将领指挥时，普通攻击和突破突击伤害 +\(Self.commanderAuraDamageBonusPercent)%"
+    }
+
+    var maneuverPursuitSummary: String {
+        "机动追击：坦克和侦察未移动时击毁目标，可保留移动继续推进"
+    }
+
+    func tile(at coordinate: HexCoordinate) -> TerrainTile? {
+        scenario.tiles.first { $0.coordinate == coordinate }
+    }
+
+    func unit(at coordinate: HexCoordinate) -> BattleUnit? {
+        units.first { $0.position == coordinate }
+    }
+
+    func commandPoints(for faction: Faction) -> Int {
+        commandPoints[faction, default: 0]
+    }
+
+    func selectScenario(id: Scenario.ID) {
+        guard let scenario = campaignCatalog.first(where: { $0.id == id }) else { return }
+        loadScenario(scenario)
+    }
+
+    func units(for faction: Faction) -> [BattleUnit] {
+        units
+            .filter { $0.faction == faction }
+            .sorted { left, right in
+                if left.kind == right.kind {
+                    return left.name < right.name
+                }
+                return left.kind.sortOrder < right.kind.sortOrder
+            }
+    }
+
+    func select(unitID: BattleUnit.ID) {
+        guard let unit = units.first(where: { $0.id == unitID }),
+              unit.faction == activeFaction else { return }
+        clearObjectiveGuidance()
+        selectedUnitID = unit.id
+        focusedCoordinate = unit.position
+        message = unitSelectionMessage(for: unit)
+    }
+
+    func focus(unitID: BattleUnit.ID) {
+        guard let unit = units.first(where: { $0.id == unitID }) else { return }
+        focus(coordinate: unit.position)
+    }
+
+    func focus(coordinate: HexCoordinate) {
+        clearObjectiveGuidance()
+        guard tile(at: coordinate) != nil else {
+            focusedCoordinate = coordinate
+            message = "地图外区域。"
+            return
+        }
+
+        focusedCoordinate = coordinate
+
+        if let focusedUnit = unit(at: coordinate) {
+            if focusedUnit.faction == activeFaction {
+                message = "\(focusedUnit.faction.title)\(focusedUnit.kind.title) \(focusedUnit.name)：耐久 \(focusedUnit.hp)，左键或编队条可选择。"
+            } else if selectedUnit != nil,
+                      let preview = mapCommandPreview(for: coordinate) {
+                message = primaryEnemyPreviewMessage(for: preview, fallbackUnit: focusedUnit)
+            } else {
+                message = "\(focusedUnit.faction.title)\(focusedUnit.kind.title) \(focusedUnit.name)：耐久 \(focusedUnit.hp)，射程 \(focusedUnit.range)。"
+            }
+            return
+        }
+
+        if let selectedUnit {
+            message = primaryTilePreviewMessage(for: selectedUnit, to: coordinate)
+        } else {
+            message = tileMessage(for: coordinate)
+        }
+    }
+
+    func selectNextReadyUnitFromMap() {
+        guard winner == nil else { return }
+        guard let unit = readyUnits.first else {
+            selectedUnitID = nil
+            message = "\(activeFaction.title)没有待命部队。"
+            return
+        }
+
+        selectedUnitID = unit.id
+        focusedCoordinate = unit.position
+        clearObjectiveGuidance()
+        message = "快速选择 \(unit.name)。\(unitSelectionMessage(for: unit))"
+    }
+
+    func focusNearestAttackTarget() {
+        guard winner == nil else { return }
+        guard let selectedUnit else {
+            selectNextReadyUnitFromMap()
+            return
+        }
+
+        guard let target = attackableUnits(for: selectedUnit).first else {
+            message = "\(selectedUnit.name) 当前射程内没有可攻击目标。"
+            return
+        }
+
+        focus(unitID: target.id)
+    }
+
+    func focusNearestApproachTarget() {
+        guard winner == nil else { return }
+        guard let selectedUnit else {
+            selectNextReadyUnitFromMap()
+            return
+        }
+
+        guard let target = nearestApproachTarget(for: selectedUnit) else {
+            message = "\(selectedUnit.name) 本回合没有可进入的攻击位。"
+            return
+        }
+
+        focus(unitID: target.id)
+    }
+
+    func nearestObjectiveTarget(for unit: BattleUnit) -> TerrainTile? {
+        objectiveAdvancePlans(for: unit).first?.tile
+    }
+
+    func objectiveAdvanceRoute(for unit: BattleUnit, to objective: TerrainTile) -> MovementRoute? {
+        guard objective.isObjective,
+              objective.owner != unit.faction,
+              self.unit(at: objective.coordinate) == nil else { return nil }
+
+        return objectiveAdvancePlan(for: unit, objective: objective)?.route
+    }
+
+    func focusNearestObjectiveTarget() {
+        guard winner == nil else { return }
+        guard let selectedUnit else {
+            selectNextReadyUnitFromMap()
+            return
+        }
+
+        guard let plan = objectiveAdvancePlans(for: selectedUnit).first else {
+            message = "\(selectedUnit.name) 本回合没有可推进的空置目标据点。"
+            return
+        }
+
+        let objectiveName = plan.tile.objectiveName ?? "目标据点"
+        let ownerText = plan.tile.owner?.title ?? "中立"
+        let penaltyText = plan.route.controlZonePenalty > 0 ? "，含敌方控制区 +\(plan.route.controlZonePenalty)" : ""
+
+        if plan.reachesObjective {
+            focusedCoordinate = plan.tile.coordinate
+            guidedObjectiveCoordinate = plan.tile.coordinate
+            let action = plan.tile.owner == nil ? "占领" : "夺取"
+            message = "\(selectedUnit.name) 可\(action)\(objectiveName)（\(ownerText)），执行 MOVE 消耗 \(plan.route.totalCost) 移动力\(penaltyText)。"
+        } else {
+            focusedCoordinate = plan.route.destination
+            guidedObjectiveCoordinate = plan.tile.coordinate
+            message = "\(selectedUnit.name) 向\(objectiveName)（\(ownerText)）推进：先到 q\(plan.route.destination.q),r\(plan.route.destination.r)，消耗 \(plan.route.totalCost) 移动力\(penaltyText)，距目标剩 \(plan.remainingDistance) 格。"
+        }
+    }
+
+    func combatPreview(attacker: BattleUnit, defender: BattleUnit) -> CombatPreview? {
+        guard attacker.faction != defender.faction,
+              !attacker.isDestroyed,
+              !defender.isDestroyed,
+              attacker.position.distance(to: defender.position) <= attacker.range else { return nil }
+
+        let supportUnits = flankingSupportUnits(attacker: attacker, defender: defender)
+        let supportBonus = flankingSupportDamageBonusPercent(forSupportCount: supportUnits.count)
+        let damage = damageValue(attacker: attacker, defender: defender)
+        let defenderHPAfterAttack = max(0, defender.hp - damage)
+        let counterDamage: Int
+        let attackerHPAfterCounter: Int
+
+        if defenderHPAfterAttack > 0,
+           defender.position.distance(to: attacker.position) <= defender.range {
+            counterDamage = counterDamageValue(defender: defender, attacker: attacker)
+            attackerHPAfterCounter = max(0, attacker.hp - counterDamage)
+        } else {
+            counterDamage = 0
+            attackerHPAfterCounter = attacker.hp
+        }
+
+        return CombatPreview(
+            attackerName: attacker.name,
+            defenderName: defender.name,
+            damage: damage,
+            counterDamage: counterDamage,
+            matchupMultiplierPercent: matchupAttackMultiplier(attacker: attacker, defender: defender),
+            defenderTerrainName: tile(at: defender.position)?.terrain.title ?? "未知地形",
+            terrainAttackMultiplierPercent: terrainAttackMultiplier(attacker: attacker, defender: defender),
+            terrainDefenseBonus: tile(at: defender.position)?.terrain.defenseBonus ?? 0,
+            commanderSupportName: commanderSupport(attacker: attacker)?.name,
+            commanderSupportBonusPercent: commanderAuraDamageBonusPercent(attacker: attacker),
+            supportUnitCount: supportUnits.count,
+            supportDamageBonusPercent: supportBonus,
+            defenderIsEntrenched: defender.isEntrenched,
+            defenseMultiplierPercent: defenseDamageMultiplierPercent(for: defender),
+            defenderHPAfterAttack: defenderHPAfterAttack,
+            attackerHPAfterCounter: attackerHPAfterCounter,
+            willDestroyDefender: defenderHPAfterAttack == 0,
+            willLoseAttacker: attackerHPAfterCounter == 0
+        )
+    }
+
+    func combatPreviewAgainstFocusedTarget() -> CombatPreview? {
+        guard let attacker = selectedUnit,
+              let defender = focusedUnit,
+              attacker.faction != defender.faction,
+              attackableTiles(for: attacker).contains(defender.position) else { return nil }
+        return combatPreview(attacker: attacker, defender: defender)
+    }
+
+    func canUseTacticalCommand(_ command: TacticalCommand, with unit: BattleUnit) -> Bool {
+        guard winner == nil,
+              unit.faction == activeFaction,
+              !unit.isDestroyed,
+              command.canBeUsed(by: unit.kind),
+              !unit.hasAttacked,
+              activeCommandPoints >= command.commandCost else { return false }
+        return !tacticalCommandTargets(for: unit, command: command).isEmpty
+    }
+
+    func tacticalCommandTargets(for unit: BattleUnit, command: TacticalCommand) -> [BattleUnit] {
+        guard unit.faction == activeFaction,
+              !unit.isDestroyed,
+              command.canBeUsed(by: unit.kind),
+              !unit.hasAttacked else { return [] }
+
+        return units
+            .filter { target in
+                target.faction != unit.faction &&
+                !target.isDestroyed &&
+                unit.position.distance(to: target.position) <= command.range
+            }
+            .sorted { left, right in
+                let leftDistance = unit.position.distance(to: left.position)
+                let rightDistance = unit.position.distance(to: right.position)
+                if leftDistance == rightDistance {
+                    return left.hp < right.hp
+                }
+                return leftDistance < rightDistance
+            }
+    }
+
+    func tacticalCommandPreview(command: TacticalCommand, caster: BattleUnit, target: BattleUnit) -> TacticalCommandPreview? {
+        guard caster.faction != target.faction,
+              !caster.isDestroyed,
+              !target.isDestroyed,
+              command.canBeUsed(by: caster.kind),
+              caster.position.distance(to: target.position) <= command.range else { return nil }
+
+        let damage = tacticalCommandDamage(command: command, caster: caster, target: target)
+        let hpAfterCommand = max(0, target.hp - damage)
+        return TacticalCommandPreview(
+            command: command,
+            casterName: caster.name,
+            targetName: target.name,
+            commandCost: command.commandCost,
+            range: command.range,
+            damage: damage,
+            targetHPAfterCommand: hpAfterCommand,
+            moraleDamage: command.moraleDamage,
+            targetIsEntrenched: target.isEntrenched,
+            defenseMultiplierPercent: defenseDamageMultiplierPercent(for: target),
+            statusEffect: command.statusEffect,
+            willDestroyTarget: hpAfterCommand == 0
+        )
+    }
+
+    func useTacticalCommand(_ command: TacticalCommand, casterID: BattleUnit.ID, targetID: BattleUnit.ID) {
+        guard winner == nil,
+              let casterIndex = scenario.units.firstIndex(where: { $0.id == casterID }),
+              let targetIndex = scenario.units.firstIndex(where: { $0.id == targetID }) else { return }
+
+        let caster = scenario.units[casterIndex]
+        let target = scenario.units[targetIndex]
+        guard caster.faction == activeFaction,
+              !caster.hasAttacked,
+              activeCommandPoints >= command.commandCost,
+              tacticalCommandPreview(command: command, caster: caster, target: target) != nil else {
+            message = "无法执行\(command.title)。"
+            return
+        }
+
+        clearObjectiveGuidance()
+        let damage = tacticalCommandDamage(command: command, caster: caster, target: target)
+        spendCommandPoints(command.commandCost, for: activeFaction)
+        scenario.units[targetIndex].hp = max(0, scenario.units[targetIndex].hp - damage)
+        scenario.units[targetIndex].isEntrenched = false
+        scenario.units[casterIndex].tacticalStatus = .normal
+        scenario.units[casterIndex].hasMoved = true
+        scenario.units[casterIndex].hasAttacked = true
+        scenario.units[casterIndex].isEntrenched = false
+        let targetDestroyed = scenario.units[targetIndex].isDestroyed
+
+        awardExperience(
+            to: casterID,
+            amount: experienceForDamage(damage) + (targetDestroyed ? 10 : 0),
+            reason: command.title
+        )
+
+        if targetDestroyed {
+            message = "\(caster.name) \(command.actionVerb)\(command.title)，击毁 \(target.name)，造成 \(damage) 伤害。"
+        } else {
+            scenario.units[targetIndex].tacticalStatus = command.statusEffect
+            adjustMorale(unitID: targetID, delta: -command.moraleDamage, reason: command.title)
+            message = "\(caster.name) \(command.actionVerb)\(command.title)压制 \(target.name)，造成 \(damage) 伤害，附加\(command.statusEffect.title)，消耗 \(command.commandCost) 指令点。"
+        }
+
+        appendLog(message)
+        updateObjectiveControl()
+        checkVictory()
+        selectNextReadyUnit()
+    }
+
+    func threateningEnemies(against unit: BattleUnit) -> [BattleUnit] {
+        threateningEnemies(against: unit.faction, at: unit.position)
+    }
+
+    func threateningEnemies(against faction: Faction, at coordinate: HexCoordinate) -> [BattleUnit] {
+        units
+            .filter { enemy in
+                enemy.faction != faction &&
+                !enemy.isDestroyed &&
+                enemy.position != coordinate &&
+                enemy.position.distance(to: coordinate) <= enemy.range
+            }
+            .sorted { left, right in
+                let leftDistance = left.position.distance(to: coordinate)
+                let rightDistance = right.position.distance(to: coordinate)
+                if leftDistance == rightDistance {
+                    if left.kind == right.kind {
+                        return left.name < right.name
+                    }
+                    return left.kind.sortOrder < right.kind.sortOrder
+                }
+                return leftDistance < rightDistance
+            }
+    }
+
+    func threatenedTiles(for faction: Faction) -> Set<HexCoordinate> {
+        Set(tiles
+            .map(\.coordinate)
+            .filter { !threateningEnemies(against: faction, at: $0).isEmpty })
+    }
+
+    func threatenedReachableTiles(for unit: BattleUnit) -> Set<HexCoordinate> {
+        Set(reachableTiles(for: unit)
+            .filter { !threateningEnemies(against: unit.faction, at: $0).isEmpty })
+    }
+
+    func flankingSupportUnits(attacker: BattleUnit, defender: BattleUnit) -> [BattleUnit] {
+        units
+            .filter { support in
+                support.id != attacker.id &&
+                    support.faction == attacker.faction &&
+                    !support.isDestroyed &&
+                    support.position.distance(to: defender.position) == 1
+            }
+            .sorted { left, right in
+                if left.kind == right.kind {
+                    return left.name < right.name
+                }
+                return left.kind.sortOrder < right.kind.sortOrder
+            }
+    }
+
+    func commanderSupport(attacker: BattleUnit) -> Commander? {
+        return units
+            .filter { support in
+                support.id != attacker.id &&
+                    support.faction == attacker.faction &&
+                    !support.isDestroyed &&
+                    support.commander != nil &&
+                    support.position.distance(to: attacker.position) == 1
+            }
+            .sorted { left, right in
+                let leftRating = left.commander?.rating ?? 0
+                let rightRating = right.commander?.rating ?? 0
+                if leftRating == rightRating {
+                    return left.name < right.name
+                }
+                return leftRating > rightRating
+            }
+            .first?
+            .commander
+    }
+
+    func supplyState(for unit: BattleUnit) -> SupplyState {
+        supplyLineTiles(for: unit).isEmpty ? .isolated : .supplied
+    }
+
+    func supplyLineTiles(for unit: BattleUnit) -> Set<HexCoordinate> {
+        guard !unit.isDestroyed else { return [] }
+        if let tile = tile(at: unit.position),
+           tile.isObjective,
+           tile.owner == unit.faction {
+            return [unit.position]
+        }
+
+        let sources = Set(objectiveTiles
+            .filter { $0.owner == unit.faction }
+            .map(\.coordinate))
+        guard !sources.isEmpty else { return [] }
+
+        let enemyOccupied = Set(units
+            .filter { $0.faction != unit.faction }
+            .map(\.position))
+        var frontier: [HexCoordinate] = [unit.position]
+        var visited: Set<HexCoordinate> = [unit.position]
+        var parent: [HexCoordinate: HexCoordinate] = [:]
+
+        while !frontier.isEmpty {
+            let current = frontier.removeFirst()
+            if sources.contains(current) {
+                var path: Set<HexCoordinate> = [current]
+                var cursor = current
+                while let previous = parent[cursor] {
+                    path.insert(previous)
+                    cursor = previous
+                }
+                return path
+            }
+
+            for next in current.neighbors {
+                guard !visited.contains(next),
+                      tile(at: next) != nil,
+                      !enemyOccupied.contains(next) else { continue }
+                visited.insert(next)
+                parent[next] = current
+                frontier.append(next)
+            }
+        }
+
+        return []
+    }
+
+    func commandIncome(for faction: Faction) -> Int {
+        3 + objectiveTiles.filter { $0.owner == faction }.count * 2
+    }
+
+    func deploymentSites(for faction: Faction) -> [DeploymentSite] {
+        var seen: Set<HexCoordinate> = []
+        var sites: [DeploymentSite] = []
+
+        for objective in objectiveTiles
+            .filter({ $0.owner == faction })
+            .sorted(by: { ($0.objectiveName ?? $0.id) < ($1.objectiveName ?? $1.id) }) {
+            let candidates = [objective.coordinate] + objective.coordinate.neighbors
+            for coordinate in candidates {
+                guard seen.insert(coordinate).inserted,
+                      tile(at: coordinate) != nil,
+                      unit(at: coordinate) == nil else { continue }
+                sites.append(DeploymentSite(
+                    coordinate: coordinate,
+                    sourceObjectiveName: objective.objectiveName ?? "据点"
+                ))
+            }
+        }
+
+        return sites
+    }
+
+    func enemyControlZoneTiles(for faction: Faction) -> Set<HexCoordinate> {
+        Set(units
+            .filter { $0.faction != faction }
+            .flatMap { $0.position.neighbors }
+            .filter { tile(at: $0) != nil })
+    }
+
+    func isEnemyControlZone(_ coordinate: HexCoordinate, for faction: Faction) -> Bool {
+        enemyControlZoneTiles(for: faction).contains(coordinate)
+    }
+
+    func enemyControlZonePenalty(for unit: BattleUnit, entering coordinate: HexCoordinate) -> Int {
+        isEnemyControlZone(coordinate, for: unit.faction) ? Self.enemyControlZoneMovementPenalty : 0
+    }
+
+    func movementCostPreview(for unit: BattleUnit, entering coordinate: HexCoordinate) -> Int? {
+        guard let tile = tile(at: coordinate) else { return nil }
+        return movementCost(for: unit, entering: tile)
+    }
+
+    func mapActionHint(for coordinate: HexCoordinate) -> MapActionHint {
+        guard winner == nil else { return .none }
+
+        if let occupant = unit(at: coordinate) {
+            if occupant.id == selectedUnit?.id {
+                return .selectedUnit
+            }
+            if occupant.faction == activeFaction {
+                return selectedUnit == nil ? .selectableUnit : .friendlyOccupied
+            }
+        }
+
+        guard let selectedUnit else { return .none }
+
+        if let target = unit(at: coordinate), target.faction != selectedUnit.faction {
+            let distance = selectedUnit.position.distance(to: target.position)
+            if attackableTiles(for: selectedUnit).contains(coordinate),
+               let preview = combatPreview(attacker: selectedUnit, defender: target) {
+                return .attack(
+                    damage: preview.damage,
+                    counterDamage: preview.counterDamage,
+                    willDestroy: preview.willDestroyDefender
+                )
+            }
+            if selectedUnit.canAttack {
+                if let route = attackPositionRoutes(for: selectedUnit, against: target).first {
+                    return .approachAttack(
+                        cost: route.totalCost,
+                        controlZonePenalty: route.controlZonePenalty
+                    )
+                }
+                return .enemyOutOfRange(distance: distance, range: selectedUnit.range)
+            }
+            return .enemyUnavailable(distance: distance, range: selectedUnit.range)
+        }
+
+        if let route = movementRoute(for: selectedUnit, to: coordinate) {
+            return .move(
+                cost: route.totalCost,
+                controlZonePenalty: route.controlZonePenalty
+            )
+        }
+
+        return .none
+    }
+
+    func mapCommandPreview(for coordinate: HexCoordinate) -> MapCommandPreview? {
+        guard let tile = tile(at: coordinate) else { return nil }
+
+        let hint = mapActionHint(for: coordinate)
+        switch hint {
+        case .none:
+            if let selectedUnit {
+                return .unreachable(
+                    unitName: selectedUnit.name,
+                    terrainName: tile.terrain.title
+                )
+            }
+            return .inspectTerrain(terrainName: tile.terrain.title)
+        case .selectedUnit:
+            guard let unit = unit(at: coordinate) else { return .inspectTerrain(terrainName: tile.terrain.title) }
+            return .selectedUnit(unitName: unit.name)
+        case .selectableUnit:
+            guard let unit = unit(at: coordinate) else { return .inspectTerrain(terrainName: tile.terrain.title) }
+            return .selectUnit(unitName: unit.name, kind: unit.kind)
+        case .move:
+            guard let selectedUnit else { return .inspectTerrain(terrainName: tile.terrain.title) }
+            guard let route = movementRoute(for: selectedUnit, to: coordinate) else {
+                return .unreachable(unitName: selectedUnit.name, terrainName: tile.terrain.title)
+            }
+            return .move(
+                unitName: selectedUnit.name,
+                terrainName: tile.terrain.title,
+                route: route
+            )
+        case let .attack(damage, counterDamage, willDestroy):
+            guard let attacker = selectedUnit,
+                  let defender = unit(at: coordinate),
+                  let preview = combatPreview(attacker: attacker, defender: defender) else { return nil }
+            return .attack(
+                attackerName: attacker.name,
+                defenderName: defender.name,
+                damage: damage,
+                counterDamage: counterDamage,
+                defenderHPAfterAttack: preview.defenderHPAfterAttack,
+                willDestroy: willDestroy
+            )
+        case .approachAttack:
+            guard let selectedUnit,
+                  let unit = unit(at: coordinate),
+                  let route = attackPositionRoutes(for: selectedUnit, against: unit).first else {
+                return .inspectTerrain(terrainName: tile.terrain.title)
+            }
+            return .approachAttack(
+                unitName: selectedUnit.name,
+                defenderName: unit.name,
+                route: route
+            )
+        case .friendlyOccupied:
+            guard let unit = unit(at: coordinate) else { return .inspectTerrain(terrainName: tile.terrain.title) }
+            return .friendlyOccupied(unitName: unit.name)
+        case let .enemyOutOfRange(distance, range):
+            guard let unit = unit(at: coordinate) else { return .inspectTerrain(terrainName: tile.terrain.title) }
+            return .enemyOutOfRange(defenderName: unit.name, distance: distance, range: range)
+        case let .enemyUnavailable(distance, range):
+            guard let unit = unit(at: coordinate) else { return .inspectTerrain(terrainName: tile.terrain.title) }
+            return .enemyUnavailable(defenderName: unit.name, distance: distance, range: range)
+        }
+    }
+
+    func canReinforce(_ unit: BattleUnit) -> Bool {
+        guard unit.faction == activeFaction,
+              !unit.isDestroyed,
+              unit.hp < unit.maxHP,
+              let tile = tile(at: unit.position),
+              tile.isObjective,
+              tile.owner == unit.faction else { return false }
+        return activeCommandPoints >= reinforceCost(for: unit)
+    }
+
+    func reinforceCost(for unit: BattleUnit) -> Int {
+        max(2, (unit.maxHP - unit.hp + 19) / 20)
+    }
+
+    func objectiveRestRecovery(for unit: BattleUnit) -> Int {
+        guard !unit.isDestroyed,
+              unit.hp < unit.maxHP,
+              supplyState(for: unit) == .supplied,
+              let tile = tile(at: unit.position),
+              tile.isObjective,
+              tile.owner == unit.faction else { return 0 }
+        return min(Self.objectiveRestRecoveryAmount, unit.maxHP - unit.hp)
+    }
+
+    func canUseManeuverPursuit(afterDestroyingWith unit: BattleUnit) -> Bool {
+        !unit.hasMoved && (unit.kind == .tank || unit.kind == .recon) && !unit.isDestroyed
+    }
+
+    func reinforceSelectedUnit() {
+        guard let unit = selectedUnit else { return }
+        reinforce(unitID: unit.id)
+    }
+
+    func deploy(kind: UnitKind, at coordinate: HexCoordinate) {
+        guard winner == nil,
+              activeCommandPoints >= kind.commandCost,
+              let site = deploymentSites(for: activeFaction).first(where: { $0.coordinate == coordinate }) else {
+            message = "无法在此处部署 \(kind.title)。"
+            return
+        }
+
+        clearObjectiveGuidance()
+        spendCommandPoints(kind.commandCost, for: activeFaction)
+        let unit = BattleUnit(
+            name: "\(kind.reinforcementName)增援",
+            kind: kind,
+            faction: activeFaction,
+            position: coordinate,
+            hp: kind.baseHP,
+            commander: nil,
+            hasMoved: true,
+            hasAttacked: true
+        )
+        scenario.units.append(unit)
+        selectedUnitID = unit.id
+        focusedCoordinate = coordinate
+        message = "\(site.sourceObjectiveName) 部署 \(unit.name)，消耗 \(kind.commandCost) 指令点。"
+        appendLog(message)
+        checkVictory()
+    }
+
+    func handleTap(on coordinate: HexCoordinate) {
+        guard winner == nil else { return }
+        focusedCoordinate = coordinate
+
+        if let tappedUnit = unit(at: coordinate) {
+            if tappedUnit.faction == activeFaction {
+                clearObjectiveGuidance()
+                selectedUnitID = tappedUnit.id
+                message = unitSelectionMessage(for: tappedUnit)
+                return
+            }
+        }
+
+        if let preview = mapCommandPreview(for: coordinate),
+           preview.isExecutable {
+            executeMapCommand(preview, on: coordinate, inputMode: .directTap)
+            return
+        }
+
+        if let tappedUnit = unit(at: coordinate), tappedUnit.faction != activeFaction {
+            clearObjectiveGuidance()
+            message = selectedUnit == nil
+                ? "\(tappedUnit.faction.title)\(tappedUnit.kind.title) \(tappedUnit.name)：耐久 \(tappedUnit.hp)，射程 \(tappedUnit.range)。"
+                : "目标不在射程内。"
+            return
+        }
+
+        guard let selectedUnit else {
+            clearObjectiveGuidance()
+            message = tileMessage(for: coordinate)
+            return
+        }
+
+        if reachableTiles(for: selectedUnit).contains(coordinate) {
+            move(unitID: selectedUnit.id, to: coordinate)
+        } else {
+            clearObjectiveGuidance()
+            message = "\(tileMessage(for: coordinate)) 超出 \(selectedUnit.name) 的移动范围。"
+        }
+    }
+
+    func handlePrimaryAction(on coordinate: HexCoordinate) {
+        guard winner == nil else { return }
+        clearObjectiveGuidance()
+        focusedCoordinate = coordinate
+
+        if let focusedUnit = unit(at: coordinate) {
+            if focusedUnit.faction == activeFaction {
+                selectedUnitID = focusedUnit.id
+                message = unitSelectionMessage(for: focusedUnit)
+            } else if selectedUnit != nil,
+                      let preview = mapCommandPreview(for: coordinate) {
+                message = primaryEnemyPreviewMessage(for: preview, fallbackUnit: focusedUnit)
+            } else {
+                message = "\(focusedUnit.faction.title)\(focusedUnit.kind.title) \(focusedUnit.name)：耐久 \(focusedUnit.hp)，射程 \(focusedUnit.range)。"
+            }
+            return
+        }
+
+        guard let selectedUnit else {
+            message = tileMessage(for: coordinate)
+            return
+        }
+
+        message = primaryTilePreviewMessage(for: selectedUnit, to: coordinate)
+    }
+
+    private func primaryTilePreviewMessage(for selectedUnit: BattleUnit, to coordinate: HexCoordinate) -> String {
+        if let route = movementRoute(for: selectedUnit, to: coordinate) {
+            let terrainName = tile(at: coordinate)?.terrain.title ?? "目标格"
+            let penaltyText = route.controlZonePenalty > 0 ? "，含敌方控制区 +\(route.controlZonePenalty)" : ""
+            let threatText = threatExposureText(for: selectedUnit.faction, at: coordinate)
+            let opportunities = postMoveAttackOpportunities(for: selectedUnit, to: coordinate)
+            if opportunities.isEmpty {
+                return "\(selectedUnit.name) 可进入 \(terrainName)，消耗 \(route.totalCost) 移动力\(penaltyText)\(threatText)。"
+            }
+
+            let names = opportunities.prefix(2).map(\.name).joined(separator: "、")
+            let extraCount = opportunities.count - min(opportunities.count, 2)
+            let extraText = extraCount > 0 ? "等 \(opportunities.count) 个目标" : ""
+            return "\(selectedUnit.name) 可进入 \(terrainName)，消耗 \(route.totalCost) 移动力\(penaltyText)\(threatText)，移动后可攻击 \(names)\(extraText)。"
+        }
+
+        return tileMessage(for: coordinate)
+    }
+
+    private func primaryEnemyPreviewMessage(
+        for preview: MapCommandPreview,
+        fallbackUnit: BattleUnit
+    ) -> String {
+        switch preview {
+        case let .attack(_, defenderName, damage, counterDamage, defenderHPAfterAttack, willDestroy):
+            let outcome = willDestroy ? "预计击毁" : "目标剩余 \(defenderHPAfterAttack) 耐久"
+            let counter = counterDamage > 0 ? "，反击 \(counterDamage)" : "，无反击"
+            return "\(defenderName) 在射程内，右键攻击造成 \(damage) 伤害，\(outcome)\(counter)。"
+        case let .approachAttack(unitName, defenderName, route):
+            let penaltyText = route.controlZonePenalty > 0 ? "，含敌方控制区 +\(route.controlZonePenalty)" : ""
+            let threatText = selectedUnit.map { threatExposureText(for: $0.faction, at: route.destination) } ?? ""
+            return "\(defenderName) 射程外，右键命令 \(unitName) 进入 q\(route.destination.q),r\(route.destination.r) 攻击位，消耗 \(route.totalCost) 移动力\(penaltyText)\(threatText)。"
+        case let .enemyOutOfRange(defenderName, distance, range):
+            return "\(defenderName) 距离 \(distance)，超出当前射程 \(range)。"
+        case let .enemyUnavailable(defenderName, distance, range):
+            return "\(defenderName) 距离 \(distance)，射程 \(range)，当前单位本回合已无法攻击。"
+        default:
+            return "\(fallbackUnit.faction.title)\(fallbackUnit.kind.title) \(fallbackUnit.name)：耐久 \(fallbackUnit.hp)，射程 \(fallbackUnit.range)。"
+        }
+    }
+
+    func handleSecondaryAction(on coordinate: HexCoordinate) {
+        guard winner == nil else { return }
+        focusedCoordinate = coordinate
+
+        guard let preview = mapCommandPreview(for: coordinate) else {
+            message = "无法在地图外执行命令。"
+            return
+        }
+
+        executeMapCommand(preview, on: coordinate, inputMode: .secondaryAction)
+    }
+
+    func executeFocusedCommand() {
+        guard winner == nil else { return }
+        guard let focusedCoordinate else {
+            message = "需要先聚焦地图目标。"
+            return
+        }
+        guard let preview = mapCommandPreview(for: focusedCoordinate) else {
+            message = "无法在地图外执行命令。"
+            return
+        }
+
+        executeMapCommand(preview, on: focusedCoordinate, inputMode: .commandButton)
+    }
+
+    private func executeMapCommand(
+        _ preview: MapCommandPreview,
+        on coordinate: HexCoordinate,
+        inputMode: MapCommandInputMode
+    ) {
+        switch preview {
+        case let .move(_, _, route):
+            guard let selectedUnit else {
+                message = "需要先选择可行动部队。"
+                return
+            }
+            guard route.destination == coordinate else {
+                message = "无法确认移动目标。"
+                return
+            }
+            let preservesObjectiveGuidance = shouldPreserveObjectiveGuidance(for: route, unit: selectedUnit)
+            let postMoveTargets = postMoveAttackOpportunities(for: selectedUnit, to: coordinate)
+            move(
+                unitID: selectedUnit.id,
+                to: coordinate,
+                preservingObjectiveGuidance: preservesObjectiveGuidance
+            )
+            if winner == nil,
+               let nextTarget = postMoveTargets.first,
+               let movedUnit = self.selectedUnit,
+               unit(at: nextTarget.position)?.id == nextTarget.id {
+                clearObjectiveGuidance()
+                focusedCoordinate = nextTarget.position
+                message = "\(movedUnit.name) 进入攻击位，\(nextTarget.name) 已在射程内，\(inputMode.followUpAttackPrompt)。"
+                appendLog(message)
+            }
+        case .attack:
+            guard let attacker = selectedUnit,
+                  let target = unit(at: coordinate),
+                  target.faction != attacker.faction else {
+                message = "无法确认攻击目标。"
+                return
+            }
+            attack(attackerID: attacker.id, targetID: target.id)
+        case let .approachAttack(_, defenderName, route):
+            guard let selectedUnit else {
+                message = "需要先选择可行动部队。"
+                return
+            }
+            let destination = route.destination
+            let threatText = threatExposureText(for: selectedUnit.faction, at: destination)
+            move(unitID: selectedUnit.id, to: destination)
+            if winner == nil,
+               let movedUnit = self.selectedUnit {
+                focusedCoordinate = coordinate
+                message = "\(movedUnit.name) 进入攻击位\(threatText)，\(defenderName) 已在射程内，\(inputMode.followUpAttackPrompt)。"
+                appendLog(message)
+            }
+        case let .selectedUnit(unitName):
+            message = "\(unitName) 已选中。"
+        case let .selectUnit(unitName, _):
+            message = "右键不会切换选择。左键选择 \(unitName)。"
+        case let .friendlyOccupied(unitName):
+            message = "\(unitName) 占据该格。"
+        case let .enemyOutOfRange(defenderName, distance, range):
+            message = "\(defenderName) 距离 \(distance)，超出射程 \(range)。"
+        case let .enemyUnavailable(defenderName, _, _):
+            message = "\(defenderName) 当前不可攻击。"
+        case let .unreachable(unitName, terrainName):
+            message = "\(terrainName) 超出 \(unitName) 的移动范围。"
+        case let .inspectTerrain(terrainName):
+            message = "需要先选择可行动部队。\(terrainName)：\(tileMessage(for: coordinate))"
+        }
+    }
+
+    func reachableTiles(for unit: BattleUnit) -> Set<HexCoordinate> {
+        Set(movementRoutes(for: unit).keys)
+    }
+
+    func movementRoute(for unit: BattleUnit, to coordinate: HexCoordinate) -> MovementRoute? {
+        movementRoutes(for: unit)[coordinate]
+    }
+
+    func movementRoutes(for unit: BattleUnit) -> [HexCoordinate: MovementRoute] {
+        guard unit.faction == activeFaction, unit.canMove else { return [:] }
+
+        let movementAllowance = effectiveMovement(for: unit)
+        var bestCost: [HexCoordinate: Int] = [unit.position: 0]
+        var bestPenalty: [HexCoordinate: Int] = [unit.position: 0]
+        var parent: [HexCoordinate: HexCoordinate] = [:]
+        var frontier: [HexCoordinate] = [unit.position]
+        let occupied = Set(units.filter { $0.id != unit.id }.map(\.position))
+
+        while !frontier.isEmpty {
+            let current = frontier.removeFirst()
+            let currentCost = bestCost[current, default: 0]
+
+            for next in current.neighbors {
+                guard let tile = tile(at: next), !occupied.contains(next) else { continue }
+                let stepPenalty = enemyControlZonePenalty(for: unit, entering: next)
+                let newCost = currentCost + movementCost(for: unit, entering: tile)
+                let newPenalty = bestPenalty[current, default: 0] + stepPenalty
+                guard newCost <= movementAllowance else { continue }
+
+                let shouldUpdate = bestCost[next] == nil ||
+                    newCost < bestCost[next, default: Int.max] ||
+                    (newCost == bestCost[next, default: Int.max] && newPenalty < bestPenalty[next, default: Int.max])
+
+                if shouldUpdate {
+                    bestCost[next] = newCost
+                    bestPenalty[next] = newPenalty
+                    parent[next] = current
+                    frontier.append(next)
+                }
+            }
+        }
+
+        bestCost.removeValue(forKey: unit.position)
+        return bestCost.reduce(into: [HexCoordinate: MovementRoute]()) { routes, entry in
+            let destination = entry.key
+            var coordinates = [destination]
+            var cursor = destination
+
+            while cursor != unit.position {
+                guard let previous = parent[cursor] else { return }
+                coordinates.append(previous)
+                cursor = previous
+            }
+
+            routes[destination] = MovementRoute(
+                destination: destination,
+                coordinates: coordinates.reversed(),
+                totalCost: entry.value,
+                controlZonePenalty: bestPenalty[destination, default: 0]
+            )
+        }
+    }
+
+    func attackCoverageTiles(for unit: BattleUnit) -> Set<HexCoordinate> {
+        attackCoverageTiles(for: unit, from: unit.position)
+    }
+
+    func attackCoverageTiles(for unit: BattleUnit, from coordinate: HexCoordinate) -> Set<HexCoordinate> {
+        guard unit.faction == activeFaction, unit.canAttack else { return [] }
+        guard tile(at: coordinate) != nil else { return [] }
+        return Set(tiles
+            .map(\.coordinate)
+            .filter { $0 != coordinate && coordinate.distance(to: $0) <= unit.range })
+    }
+
+    func attackableTiles(for unit: BattleUnit) -> Set<HexCoordinate> {
+        attackableTiles(for: unit, from: unit.position)
+    }
+
+    func attackableTiles(for unit: BattleUnit, from coordinate: HexCoordinate) -> Set<HexCoordinate> {
+        let coverage = attackCoverageTiles(for: unit, from: coordinate)
+        guard !coverage.isEmpty else { return [] }
+        return Set(units
+            .filter { $0.faction != unit.faction && !$0.isDestroyed }
+            .filter { coverage.contains($0.position) }
+            .map(\.position))
+    }
+
+    func attackableUnits(for unit: BattleUnit) -> [BattleUnit] {
+        attackableUnits(for: unit, from: unit.position)
+    }
+
+    func attackableUnits(for unit: BattleUnit, from coordinate: HexCoordinate) -> [BattleUnit] {
+        let attackable = attackableTiles(for: unit, from: coordinate)
+        return units
+            .filter { $0.faction != unit.faction && attackable.contains($0.position) }
+            .sorted { left, right in
+                let leftDistance = coordinate.distance(to: left.position)
+                let rightDistance = coordinate.distance(to: right.position)
+                if leftDistance == rightDistance {
+                    return left.hp < right.hp
+                }
+                return leftDistance < rightDistance
+            }
+    }
+
+    func postMoveAttackOpportunities(for unit: BattleUnit, to coordinate: HexCoordinate) -> [BattleUnit] {
+        guard unit.canMove,
+              unit.canAttack,
+              movementRoute(for: unit, to: coordinate) != nil else { return [] }
+        return attackableUnits(for: unit, from: coordinate)
+    }
+
+    func attackPositionRoutes(for unit: BattleUnit, against target: BattleUnit) -> [MovementRoute] {
+        guard unit.faction == activeFaction,
+              unit.faction != target.faction,
+              unit.canMove,
+              unit.canAttack,
+              !target.isDestroyed else { return [] }
+
+        return movementRoutes(for: unit)
+            .values
+            .filter { $0.destination.distance(to: target.position) <= unit.range }
+            .sorted { left, right in
+                if left.totalCost == right.totalCost {
+                    if left.stepCount == right.stepCount {
+                        return left.destination.id < right.destination.id
+                    }
+                    return left.stepCount < right.stepCount
+                }
+                return left.totalCost < right.totalCost
+            }
+    }
+
+    func nearestApproachTarget(for unit: BattleUnit) -> BattleUnit? {
+        guard unit.faction == activeFaction,
+              unit.canMove,
+              unit.canAttack else { return nil }
+
+        return units
+            .filter { target in
+                target.faction != unit.faction &&
+                    !target.isDestroyed &&
+                    !attackableTiles(for: unit).contains(target.position) &&
+                    !attackPositionRoutes(for: unit, against: target).isEmpty
+            }
+            .sorted { left, right in
+                let leftRoute = attackPositionRoutes(for: unit, against: left).first
+                let rightRoute = attackPositionRoutes(for: unit, against: right).first
+                let leftCost = leftRoute?.totalCost ?? Int.max
+                let rightCost = rightRoute?.totalCost ?? Int.max
+                if leftCost == rightCost {
+                    let leftDistance = unit.position.distance(to: left.position)
+                    let rightDistance = unit.position.distance(to: right.position)
+                    if leftDistance == rightDistance {
+                        return left.hp < right.hp
+                    }
+                    return leftDistance < rightDistance
+                }
+                return leftCost < rightCost
+            }
+            .first
+    }
+
+    private func objectiveAdvancePlans(for unit: BattleUnit) -> [ObjectiveAdvancePlan] {
+        guard unit.faction == activeFaction,
+              unit.canMove,
+              !unit.isDestroyed else { return [] }
+
+        return objectiveTiles
+            .filter { objective in
+                objective.owner != unit.faction &&
+                    self.unit(at: objective.coordinate) == nil
+            }
+            .compactMap { objectiveAdvancePlan(for: unit, objective: $0) }
+            .sorted(by: objectiveAdvancePlanSort)
+    }
+
+    private func objectiveAdvancePlan(for unit: BattleUnit, objective: TerrainTile) -> ObjectiveAdvancePlan? {
+        let currentDistance = unit.position.distance(to: objective.coordinate)
+        let routes = movementRoutes(for: unit)
+
+        if let directRoute = routes[objective.coordinate] {
+            return ObjectiveAdvancePlan(
+                tile: objective,
+                route: directRoute,
+                reachesObjective: true,
+                currentDistance: currentDistance,
+                remainingDistance: 0
+            )
+        }
+
+        guard let bestRoute = routes.values
+            .filter({ $0.destination.distance(to: objective.coordinate) < currentDistance })
+            .sorted(by: { left, right in
+                let leftDistance = left.destination.distance(to: objective.coordinate)
+                let rightDistance = right.destination.distance(to: objective.coordinate)
+                if leftDistance == rightDistance {
+                    if left.totalCost == right.totalCost {
+                        return left.destination.id < right.destination.id
+                    }
+                    return left.totalCost < right.totalCost
+                }
+                return leftDistance < rightDistance
+            })
+            .first else { return nil }
+
+        return ObjectiveAdvancePlan(
+            tile: objective,
+            route: bestRoute,
+            reachesObjective: false,
+            currentDistance: currentDistance,
+            remainingDistance: bestRoute.destination.distance(to: objective.coordinate)
+        )
+    }
+
+    private func objectiveAdvancePlanSort(_ left: ObjectiveAdvancePlan, _ right: ObjectiveAdvancePlan) -> Bool {
+        if left.currentDistance == right.currentDistance {
+            if left.reachesObjective != right.reachesObjective {
+                return left.reachesObjective && !right.reachesObjective
+            }
+
+            if left.remainingDistance == right.remainingDistance {
+                if left.route.totalCost == right.route.totalCost {
+                    if left.route.stepCount == right.route.stepCount {
+                        return (left.tile.objectiveName ?? left.tile.id) < (right.tile.objectiveName ?? right.tile.id)
+                    }
+                    return left.route.stepCount < right.route.stepCount
+                }
+
+                return left.route.totalCost < right.route.totalCost
+            }
+
+            return left.remainingDistance < right.remainingDistance
+        }
+
+        return left.currentDistance < right.currentDistance
+    }
+
+    func waitSelectedUnit() {
+        guard let selectedUnit else { return }
+        clearObjectiveGuidance()
+        updateUnit(id: selectedUnit.id) { unit in
+            unit.hasMoved = true
+            unit.hasAttacked = true
+            unit.tacticalStatus = .normal
+            unit.isEntrenched = true
+        }
+        message = "\(selectedUnit.name) 原地待命，构筑防御姿态。"
+        appendLog(message)
+        selectNextReadyUnit()
+    }
+
+    func clearSelection() {
+        selectedUnitID = nil
+        clearObjectiveGuidance()
+        message = "已取消选择。"
+    }
+
+    func endTurn() {
+        guard winner == nil else { return }
+        selectedUnitID = nil
+        clearObjectiveGuidance()
+        resetUnits(for: .axis)
+        activeFaction = .axis
+        addCommandIncome(for: .axis)
+        message = "轴心国回合开始。"
+        appendLog("第 \(turn) 回合：轴心国行动。")
+        runAxisAI()
+
+        if winner == nil {
+            resetUnits(for: .allies)
+            activeFaction = .allies
+            turn += 1
+            checkTurnLimit()
+
+            if winner == nil {
+                addCommandIncome(for: .allies)
+                message = "第 \(turn) 回合，盟军行动。获得 \(commandIncome(for: .allies)) 指令点。"
+                appendLog("第 \(turn) 回合：盟军行动。")
+                selectNextReadyUnit()
+            }
+        }
+    }
+
+    func restart() {
+        let scenarioID = scenario.id
+        let freshScenario = campaignCatalog.first { $0.id == scenarioID } ?? Scenario.ardennesPrototype()
+        loadScenario(freshScenario)
+    }
+
+    private func loadScenario(_ newScenario: Scenario) {
+        scenario = newScenario
+        selectedUnitID = nil
+        activeFaction = .allies
+        turn = 1
+        winner = nil
+        earnedStars = 0
+        focusedCoordinate = newScenario.initialFocus
+        guidedObjectiveCoordinate = nil
+        commandPoints = [.allies: 6, .axis: 6]
+        message = Self.openingMessage(for: newScenario)
+        battleLog = [Self.openingLog(for: newScenario)]
+    }
+
+    private func move(
+        unitID: BattleUnit.ID,
+        to coordinate: HexCoordinate,
+        preservingObjectiveGuidance: Bool = false
+    ) {
+        guard let index = scenario.units.firstIndex(where: { $0.id == unitID }) else { return }
+        scenario.units[index].position = coordinate
+        scenario.units[index].hasMoved = true
+        scenario.units[index].tacticalStatus = .normal
+        scenario.units[index].isEntrenched = false
+        updateObjectiveControl()
+
+        let unit = scenario.units[index]
+        selectedUnitID = unit.id
+        focusedCoordinate = coordinate
+        if shouldClearObjectiveGuidance(afterMoving: unit, to: coordinate, preserving: preservingObjectiveGuidance) {
+            clearObjectiveGuidance()
+        }
+        message = "\(unit.name) 进入 \(tile(at: coordinate)?.terrain.title ?? "未知地形")\(threatExposureText(for: unit.faction, at: coordinate))。"
+        appendLog(message)
+        checkVictory()
+    }
+
+    private func clearObjectiveGuidance() {
+        guidedObjectiveCoordinate = nil
+    }
+
+    private func threatExposureText(for faction: Faction, at coordinate: HexCoordinate) -> String {
+        let threats = threateningEnemies(against: faction, at: coordinate)
+        guard !threats.isEmpty else { return "" }
+
+        let names = threats.prefix(2).map(\.name).joined(separator: "、")
+        let extraCount = threats.count - min(threats.count, 2)
+        let extraText = extraCount > 0 ? "等 \(threats.count) 支敌军" : ""
+        return "，暴露在 \(names)\(extraText) 火力下"
+    }
+
+    private func shouldPreserveObjectiveGuidance(for route: MovementRoute, unit: BattleUnit) -> Bool {
+        guard let guidedObjectiveTile,
+              guidedObjectiveTile.owner != unit.faction,
+              self.unit(at: guidedObjectiveTile.coordinate) == nil,
+              let guidedRoute = objectiveAdvanceRoute(for: unit, to: guidedObjectiveTile) else { return false }
+        return guidedRoute == route
+    }
+
+    private func shouldClearObjectiveGuidance(
+        afterMoving unit: BattleUnit,
+        to coordinate: HexCoordinate,
+        preserving: Bool
+    ) -> Bool {
+        guard preserving,
+              let guidedObjectiveCoordinate,
+              let guidedObjective = tile(at: guidedObjectiveCoordinate),
+              guidedObjective.isObjective,
+              guidedObjective.owner != unit.faction,
+              coordinate != guidedObjectiveCoordinate else { return true }
+        return false
+    }
+
+    private func attack(attackerID: BattleUnit.ID, targetID: BattleUnit.ID) {
+        guard let attackerIndex = scenario.units.firstIndex(where: { $0.id == attackerID }),
+              let targetIndex = scenario.units.firstIndex(where: { $0.id == targetID }) else { return }
+
+        clearObjectiveGuidance()
+        let attacker = scenario.units[attackerIndex]
+        let defender = scenario.units[targetIndex]
+        let supportBonus = flankingSupportDamageBonusPercent(attacker: attacker, defender: defender)
+        let supportText = supportBonus > 0 ? "（夹击 +\(supportBonus)%）" : ""
+        let damage = damageValue(attacker: attacker, defender: defender)
+
+        scenario.units[targetIndex].hp = max(0, scenario.units[targetIndex].hp - damage)
+        scenario.units[targetIndex].isEntrenched = false
+        let targetDestroyed = scenario.units[targetIndex].isDestroyed
+        let keepsMovementAfterKill = targetDestroyed && canUseManeuverPursuit(afterDestroyingWith: attacker)
+        scenario.units[attackerIndex].hasAttacked = true
+        scenario.units[attackerIndex].hasMoved = !keepsMovementAfterKill
+        scenario.units[attackerIndex].tacticalStatus = .normal
+        scenario.units[attackerIndex].isEntrenched = false
+        awardExperience(
+            to: attackerID,
+            amount: experienceForDamage(damage) + (targetDestroyed ? 18 : 0),
+            reason: targetDestroyed ? "击毁" : "攻击"
+        )
+        adjustMorale(
+            unitID: attackerID,
+            delta: targetDestroyed ? 12 : 6,
+            reason: targetDestroyed ? "击毁敌军" : "攻击奏效"
+        )
+
+        if targetDestroyed {
+            let pursuitText = keepsMovementAfterKill ? "，可继续机动" : ""
+            message = "\(attacker.name) 击毁 \(defender.name)，造成 \(damage) 伤害\(supportText)\(pursuitText)。"
+        } else {
+            adjustMorale(unitID: targetID, delta: -10, reason: "遭受攻击")
+            message = "\(attacker.name) 攻击 \(defender.name)，造成 \(damage) 伤害\(supportText)。"
+            counterAttackIfPossible(defenderID: targetID, attackerID: attackerID)
+        }
+
+        appendLog(message)
+        updateObjectiveControl()
+        checkVictory()
+        selectNextReadyUnit(preferredUnitID: keepsMovementAfterKill ? attackerID : nil)
+    }
+
+    private func counterAttackIfPossible(defenderID: BattleUnit.ID, attackerID: BattleUnit.ID) {
+        guard let defenderIndex = scenario.units.firstIndex(where: { $0.id == defenderID }),
+              let attackerIndex = scenario.units.firstIndex(where: { $0.id == attackerID }) else { return }
+
+        let defender = scenario.units[defenderIndex]
+        let attacker = scenario.units[attackerIndex]
+        guard !defender.isDestroyed,
+              !attacker.isDestroyed,
+              defender.position.distance(to: attacker.position) <= defender.range else { return }
+
+        let counterDamage = counterDamageValue(defender: defender, attacker: attacker)
+        scenario.units[attackerIndex].hp = max(0, scenario.units[attackerIndex].hp - counterDamage)
+        awardExperience(
+            to: defenderID,
+            amount: experienceForDamage(counterDamage),
+            reason: "反击"
+        )
+        adjustMorale(unitID: defenderID, delta: 4, reason: "反击成功")
+        adjustMorale(unitID: attackerID, delta: -5, reason: "遭到反击")
+        appendLog("\(defender.name) 反击 \(attacker.name)，造成 \(counterDamage) 伤害。")
+    }
+
+    private func counterDamageValue(defender: BattleUnit, attacker: BattleUnit) -> Int {
+        var counterDamage = max(6, damageValue(attacker: defender, defender: attacker) / 2)
+        if defender.commander?.name == "曼施坦因" {
+            counterDamage += 5
+        }
+        return counterDamage
+    }
+
+    private func tacticalCommandDamage(command: TacticalCommand, caster: BattleUnit, target: BattleUnit) -> Int {
+        switch command {
+        case .artilleryBarrage:
+            let terrainDefense = tile(at: target.position)?.terrain.defenseBonus ?? 0
+            let healthFactor = max(45, caster.hp) * 100 / caster.maxHP
+            let moraleFactor = caster.moraleState.attackMultiplierPercent
+            let supplyFactor = supplyState(for: caster).attackMultiplierPercent
+            let terrainFactor = tile(at: target.position)?.terrain.attackMultiplierPercent(for: .artillery) ?? 100
+            let scaled = effectiveAttack(for: caster) * healthFactor * moraleFactor * supplyFactor * terrainFactor / 100_000_000
+            return applyDefensePosture(to: max(10, scaled - terrainDefense / 2), defender: target)
+        case .breakthroughAssault:
+            return max(12, damageValue(attacker: caster, defender: target) * 115 / 100)
+        }
+    }
+
+    private func applyDefensePosture(to damage: Int, defender: BattleUnit) -> Int {
+        max(1, damage * defenseDamageMultiplierPercent(for: defender) / 100)
+    }
+
+    private func defenseDamageMultiplierPercent(for defender: BattleUnit) -> Int {
+        defender.isEntrenched ? Self.entrenchedDamageMultiplierPercent : 100
+    }
+
+    private func reinforce(unitID: BattleUnit.ID) {
+        guard let index = scenario.units.firstIndex(where: { $0.id == unitID }) else { return }
+        let unit = scenario.units[index]
+        guard canReinforce(unit) else {
+            message = "该单位必须在己方据点且有损伤，才可整补。"
+            return
+        }
+
+        clearObjectiveGuidance()
+        let cost = reinforceCost(for: unit)
+        spendCommandPoints(cost, for: activeFaction)
+        let recovered = min(unit.kind.reinforceAmount, unit.maxHP - unit.hp)
+        scenario.units[index].hp += recovered
+        scenario.units[index].hasMoved = true
+        scenario.units[index].hasAttacked = true
+        scenario.units[index].tacticalStatus = .normal
+        scenario.units[index].isEntrenched = false
+        selectedUnitID = scenario.units[index].id
+        focusedCoordinate = scenario.units[index].position
+        message = "\(unit.name) 整补 +\(recovered) 耐久，消耗 \(cost) 指令点。"
+        appendLog(message)
+        selectNextReadyUnit()
+    }
+
+    private func addCommandIncome(for faction: Faction) {
+        commandPoints[faction, default: 0] += commandIncome(for: faction)
+    }
+
+    private func spendCommandPoints(_ amount: Int, for faction: Faction) {
+        commandPoints[faction, default: 0] = max(0, commandPoints[faction, default: 0] - amount)
+    }
+
+    private func applySupplyAttrition(for faction: Faction) {
+        var attritionEntries: [String] = []
+
+        for index in scenario.units.indices where scenario.units[index].faction == faction && !scenario.units[index].isDestroyed {
+            let state = supplyState(for: scenario.units[index])
+            guard state == .isolated else { continue }
+
+            scenario.units[index].hp = max(1, scenario.units[index].hp - state.attritionDamage)
+            adjustMorale(unitID: scenario.units[index].id, delta: -8, reason: "断补给")
+            attritionEntries.append("\(scenario.units[index].name) 断补给，损失 \(state.attritionDamage) 耐久。")
+        }
+
+        for entry in attritionEntries {
+            appendLog(entry)
+        }
+    }
+
+    private func recoverMorale(for faction: Faction) {
+        for unit in units where unit.faction == faction {
+            guard supplyState(for: unit) == .supplied else { continue }
+            let onOwnedObjective = tile(at: unit.position)?.owner == unit.faction &&
+                tile(at: unit.position)?.isObjective == true
+            adjustMorale(
+                unitID: unit.id,
+                delta: onOwnedObjective ? 10 : 4,
+                reason: onOwnedObjective ? "据点休整" : "补给恢复"
+            )
+        }
+    }
+
+    private func recoverObjectiveRest(for faction: Faction) {
+        var recoveryEntries: [String] = []
+
+        for index in scenario.units.indices where scenario.units[index].faction == faction && !scenario.units[index].isDestroyed {
+            let recovered = objectiveRestRecovery(for: scenario.units[index])
+            guard recovered > 0 else { continue }
+
+            scenario.units[index].hp += recovered
+            recoveryEntries.append("\(scenario.units[index].name) 在己方据点休整，恢复 \(recovered) 耐久。")
+        }
+
+        for entry in recoveryEntries {
+            appendLog(entry)
+        }
+    }
+
+    private func awardExperience(to unitID: BattleUnit.ID, amount: Int, reason: String) {
+        guard amount > 0,
+              let index = scenario.units.firstIndex(where: { $0.id == unitID }),
+              !scenario.units[index].isDestroyed else { return }
+
+        let previousRank = scenario.units[index].rank
+        scenario.units[index].experience += amount
+        let newRank = scenario.units[index].rank
+        if newRank != previousRank {
+            let hpGain = newRank.hpBonus - previousRank.hpBonus
+            scenario.units[index].hp = min(
+                scenario.units[index].maxHP,
+                scenario.units[index].hp + max(0, hpGain)
+            )
+            appendLog("\(scenario.units[index].name) 晋升为\(newRank.title)，攻击 +\(newRank.attackBonus)，耐久上限 +\(newRank.hpBonus)。")
+        } else {
+            appendLog("\(scenario.units[index].name) 因\(reason)获得 \(amount) 经验。")
+        }
+    }
+
+    private func experienceForDamage(_ damage: Int) -> Int {
+        max(3, damage / 4)
+    }
+
+    private func adjustMorale(unitID: BattleUnit.ID, delta: Int, reason: String) {
+        guard delta != 0,
+              let index = scenario.units.firstIndex(where: { $0.id == unitID }),
+              !scenario.units[index].isDestroyed else { return }
+
+        let previousState = scenario.units[index].moraleState
+        scenario.units[index].morale = max(0, min(100, scenario.units[index].morale + delta))
+        let newState = scenario.units[index].moraleState
+
+        if newState != previousState {
+            appendLog("\(scenario.units[index].name) 因\(reason)\(delta > 0 ? "士气提升" : "士气受挫")，进入\(newState.title)。")
+        }
+    }
+
+    private func damageValue(attacker: BattleUnit, defender: BattleUnit) -> Int {
+        let terrainDefense = tile(at: defender.position)?.terrain.defenseBonus ?? 0
+        var commanderDefense = defender.commander?.morale ?? 0
+        if defender.commander?.name == "蒙哥马利",
+           tile(at: defender.position)?.terrain == .city {
+            commanderDefense += 6
+        }
+
+        let healthFactor = max(40, attacker.hp) * 100 / attacker.maxHP
+        let supplyFactor = supplyState(for: attacker).attackMultiplierPercent
+        let moraleFactor = attacker.moraleState.attackMultiplierPercent
+        let matchupFactor = matchupAttackMultiplier(attacker: attacker, defender: defender)
+        let terrainAttackFactor = terrainAttackMultiplier(attacker: attacker, defender: defender)
+        let commanderAuraFactor = 100 + commanderAuraDamageBonusPercent(attacker: attacker)
+        let scaledAttack = effectiveAttack(for: attacker) * healthFactor * supplyFactor * moraleFactor * matchupFactor * terrainAttackFactor * commanderAuraFactor / 1_000_000_000_000
+        let supportedAttack = scaledAttack * (100 + flankingSupportDamageBonusPercent(attacker: attacker, defender: defender)) / 100
+        return applyDefensePosture(to: max(8, supportedAttack - terrainDefense - commanderDefense), defender: defender)
+    }
+
+    private func commanderAuraDamageBonusPercent(attacker: BattleUnit) -> Int {
+        commanderSupport(attacker: attacker) == nil ? 0 : Self.commanderAuraDamageBonusPercent
+    }
+
+    private func flankingSupportDamageBonusPercent(attacker: BattleUnit, defender: BattleUnit) -> Int {
+        flankingSupportDamageBonusPercent(forSupportCount: flankingSupportUnits(attacker: attacker, defender: defender).count)
+    }
+
+    private func flankingSupportDamageBonusPercent(forSupportCount supportCount: Int) -> Int {
+        min(supportCount * Self.flankingSupportBonusPercent, Self.maxFlankingSupportBonusPercent)
+    }
+
+    private func matchupAttackMultiplier(attacker: BattleUnit, defender: BattleUnit) -> Int {
+        attacker.kind.matchupAttackMultiplierPercent(against: defender.kind)
+    }
+
+    private func terrainAttackMultiplier(attacker: BattleUnit, defender: BattleUnit) -> Int {
+        tile(at: defender.position)?.terrain.attackMultiplierPercent(for: attacker.kind) ?? 100
+    }
+
+    private func movementCost(for unit: BattleUnit, entering tile: TerrainTile) -> Int {
+        tile.terrain.movementCost(for: unit.kind) +
+            enemyControlZonePenalty(for: unit, entering: tile.coordinate)
+    }
+
+    private func effectiveMovement(for unit: BattleUnit) -> Int {
+        max(1, unit.movement - supplyState(for: unit).movementPenalty - unit.tacticalStatus.movementPenalty + unit.moraleState.movementModifier)
+    }
+
+    private func effectiveAttack(for unit: BattleUnit) -> Int {
+        unit.attack * unit.tacticalStatus.attackMultiplierPercent / 100
+    }
+
+    private func runAxisAI() {
+        runAxisLogistics()
+
+        var actedIDs: [BattleUnit.ID] = []
+
+        while winner == nil,
+              let unit = scenario.units.first(where: { unit in
+            unit.faction == .axis &&
+            !unit.isDestroyed &&
+            !actedIDs.contains(unit.id) &&
+            (!unit.hasMoved || !unit.hasAttacked)
+        }) {
+            actedIDs.append(unit.id)
+
+            if let target = bestAttackTarget(for: unit, requiringKill: true) {
+                attack(attackerID: unit.id, targetID: target.id)
+                advanceAfterManeuverPursuitIfPossible(unitID: unit.id)
+                continue
+            }
+
+            if let plan = bestTacticalCommandPlan(for: unit) {
+                useTacticalCommand(plan.command, casterID: unit.id, targetID: plan.target.id)
+                continue
+            }
+
+            if let target = bestAttackTarget(for: unit) {
+                attack(attackerID: unit.id, targetID: target.id)
+                continue
+            }
+
+            if let destination = bestAdvanceDestination(for: unit) {
+                move(unitID: unit.id, to: destination)
+            }
+
+            if winner != nil {
+                break
+            }
+
+            if let refreshed = scenario.units.first(where: { $0.id == unit.id }),
+               let target = bestAttackTarget(for: refreshed) {
+                attack(attackerID: refreshed.id, targetID: target.id)
+                advanceAfterManeuverPursuitIfPossible(unitID: refreshed.id)
+            } else {
+                updateUnit(id: unit.id) { axisUnit in
+                    axisUnit.hasMoved = true
+                    axisUnit.hasAttacked = true
+                    axisUnit.isEntrenched = true
+                }
+            }
+        }
+    }
+
+    private func bestAttackTarget(for unit: BattleUnit, requiringKill: Bool = false) -> BattleUnit? {
+        guard !unit.hasAttacked else { return nil }
+
+        return units
+            .filter { target in
+                target.faction != unit.faction &&
+                !target.isDestroyed &&
+                unit.position.distance(to: target.position) <= unit.range
+            }
+            .compactMap { target -> (target: BattleUnit, preview: CombatPreview, score: Int)? in
+                guard let preview = combatPreview(attacker: unit, defender: target),
+                      !requiringKill || preview.willDestroyDefender else { return nil }
+                let commanderBonus = target.commander == nil ? 0 : 18
+                let score = (preview.willDestroyDefender ? 120 : 0) +
+                    preview.damage +
+                    target.kind.commandCost * 3 +
+                    commanderBonus -
+                    target.hp / 8
+                return (target, preview, score)
+            }
+            .sorted { left, right in
+                if left.score == right.score {
+                    return left.target.hp < right.target.hp
+                }
+                return left.score > right.score
+            }
+            .first?
+            .target
+    }
+
+    private func bestTacticalCommandPlan(for unit: BattleUnit) -> (command: TacticalCommand, target: BattleUnit, preview: TacticalCommandPreview)? {
+        guard !unit.hasAttacked else { return nil }
+
+        return TacticalCommand.allCases
+            .filter { commandPoints(for: unit.faction) >= $0.commandCost }
+            .flatMap { command in
+                tacticalCommandTargets(for: unit, command: command)
+                    .compactMap { target -> (command: TacticalCommand, target: BattleUnit, preview: TacticalCommandPreview, score: Int)? in
+                        guard let preview = tacticalCommandPreview(command: command, caster: unit, target: target),
+                              shouldUseTacticalCommand(command, caster: unit, target: target, preview: preview) else { return nil }
+
+                        let distance = unit.position.distance(to: target.position)
+                        let commanderBonus = target.commander == nil ? 0 : 22
+                        let rangeBonus = distance > unit.range ? 32 : 0
+                        let moraleBonus = target.moraleState == .inspired ? 10 : 0
+                        let score = (preview.willDestroyTarget ? 140 : 0) +
+                            rangeBonus +
+                            commanderBonus +
+                            moraleBonus +
+                            preview.damage +
+                            target.kind.commandCost * 4 -
+                            target.hp / 10
+                        return (command, target, preview, score)
+                    }
+            }
+            .sorted { left, right in
+                if left.score == right.score {
+                    return left.preview.damage > right.preview.damage
+                }
+                return left.score > right.score
+            }
+            .first
+            .map { (command: $0.command, target: $0.target, preview: $0.preview) }
+    }
+
+    private func shouldUseTacticalCommand(
+        _ command: TacticalCommand,
+        caster: BattleUnit,
+        target: BattleUnit,
+        preview: TacticalCommandPreview
+    ) -> Bool {
+        switch command {
+        case .artilleryBarrage:
+            let distance = caster.position.distance(to: target.position)
+            return preview.willDestroyTarget ||
+                distance > caster.range ||
+                target.commander != nil ||
+                target.moraleState == .inspired
+        case .breakthroughAssault:
+            return preview.willDestroyTarget ||
+                target.commander != nil ||
+                target.moraleState == .inspired
+        }
+    }
+
+    private func runAxisLogistics() {
+        while let unit = axisReinforcementCandidate() {
+            reinforce(unitID: unit.id)
+        }
+
+        deployAxisReinforcementIfPossible()
+    }
+
+    private func advanceAfterManeuverPursuitIfPossible(unitID: BattleUnit.ID) {
+        guard winner == nil,
+              let unit = scenario.units.first(where: { $0.id == unitID }),
+              unit.faction == activeFaction,
+              unit.hasAttacked,
+              !unit.hasMoved,
+              let destination = bestAdvanceDestination(for: unit) else { return }
+        move(unitID: unit.id, to: destination)
+    }
+
+    private func axisReinforcementCandidate() -> BattleUnit? {
+        units
+            .filter { $0.faction == .axis && canReinforce($0) }
+            .sorted { left, right in
+                if left.hp == right.hp {
+                    return left.kind.commandCost > right.kind.commandCost
+                }
+                return left.hp < right.hp
+            }
+            .first
+    }
+
+    private func deployAxisReinforcementIfPossible() {
+        guard let site = deploymentSites(for: .axis).first else { return }
+        let affordableKinds = UnitKind.allCases
+            .filter { commandPoints(for: .axis) >= $0.commandCost }
+            .sorted { left, right in
+                if left.commandCost == right.commandCost {
+                    return left.sortOrder < right.sortOrder
+                }
+                return left.commandCost > right.commandCost
+            }
+        guard let kind = affordableKinds.first else { return }
+        deploy(kind: kind, at: site.coordinate)
+    }
+
+    private func bestAdvanceDestination(for unit: BattleUnit) -> HexCoordinate? {
+        reachableTiles(for: unit)
+            .compactMap { coordinate -> (coordinate: HexCoordinate, score: Int, distance: Int)? in
+                guard let tile = tile(at: coordinate) else { return nil }
+                let score = advanceScore(for: unit, movingTo: coordinate, tile: tile)
+                guard score > 0 else { return nil }
+                return (coordinate, score, nearestAdvanceTargetDistance(from: coordinate, for: unit))
+            }
+            .sorted { left, right in
+                if left.score == right.score {
+                    if left.distance == right.distance {
+                        return left.coordinate.id < right.coordinate.id
+                    }
+                    return left.distance < right.distance
+                }
+                return left.score > right.score
+            }
+            .first?
+            .coordinate
+    }
+
+    private func advanceScore(for unit: BattleUnit, movingTo coordinate: HexCoordinate, tile: TerrainTile) -> Int {
+        var score = 0
+
+        if tile.isObjective, tile.owner != unit.faction {
+            score += tile.owner == nil ? 900 : 1_100
+        }
+
+        if let attackScore = attackOpportunityScore(for: unit, from: coordinate) {
+            score += 500 + attackScore
+        }
+
+        if let objectiveProgress = distanceProgress(
+            from: unit.position,
+            to: coordinate,
+            targets: objectiveTiles.filter { $0.owner != unit.faction }.map(\.coordinate)
+        ) {
+            score += objectiveProgress * 80
+        }
+
+        if let enemyProgress = distanceProgress(
+            from: unit.position,
+            to: coordinate,
+            targets: units.filter { $0.faction != unit.faction }.map(\.position)
+        ) {
+            score += enemyProgress * 35
+        }
+
+        return score
+    }
+
+    private func attackOpportunityScore(for unit: BattleUnit, from coordinate: HexCoordinate) -> Int? {
+        units
+            .filter { target in
+                target.faction != unit.faction &&
+                !target.isDestroyed &&
+                coordinate.distance(to: target.position) <= unit.range
+            }
+            .map { target in
+                let commanderBonus = target.commander == nil ? 0 : 24
+                return target.kind.commandCost * 8 + commanderBonus - target.hp / 8
+            }
+            .max()
+    }
+
+    private func distanceProgress(from origin: HexCoordinate, to destination: HexCoordinate, targets: [HexCoordinate]) -> Int? {
+        guard let currentDistance = targets.map({ origin.distance(to: $0) }).min(),
+              let newDistance = targets.map({ destination.distance(to: $0) }).min() else { return nil }
+        return max(0, currentDistance - newDistance)
+    }
+
+    private func nearestAdvanceTargetDistance(from coordinate: HexCoordinate, for unit: BattleUnit) -> Int {
+        let targets = objectiveTiles
+            .filter { $0.owner != unit.faction }
+            .map(\.coordinate) +
+            units
+            .filter { $0.faction != unit.faction }
+            .map(\.position)
+
+        return targets.map { coordinate.distance(to: $0) }.min() ?? 0
+    }
+
+    private func updateObjectiveControl() {
+        for index in scenario.tiles.indices where scenario.tiles[index].isObjective {
+            if let occupyingUnit = unit(at: scenario.tiles[index].coordinate) {
+                let previousOwner = scenario.tiles[index].owner
+                guard previousOwner != occupyingUnit.faction else { continue }
+
+                scenario.tiles[index].owner = occupyingUnit.faction
+                applyObjectiveCaptureReward(
+                    to: occupyingUnit,
+                    objectiveName: scenario.tiles[index].objectiveName ?? "据点",
+                    previousOwner: previousOwner
+                )
+            }
+        }
+    }
+
+    private func applyObjectiveCaptureReward(to unit: BattleUnit, objectiveName: String, previousOwner: Faction?) {
+        commandPoints[unit.faction, default: 0] += Self.objectiveCaptureCommandReward
+        awardExperience(
+            to: unit.id,
+            amount: Self.objectiveCaptureExperienceReward,
+            reason: "夺取据点"
+        )
+        adjustMorale(
+            unitID: unit.id,
+            delta: Self.objectiveCaptureMoraleReward,
+            reason: "夺取\(objectiveName)"
+        )
+
+        let action = previousOwner == nil ? "占领" : "夺取"
+        appendLog("\(unit.name)\(action)\(objectiveName)，\(unit.faction.title)获得 \(Self.objectiveCaptureCommandReward) 指令点。")
+    }
+
+    private func checkVictory() {
+        let alliedAlive = units.contains { $0.faction == .allies }
+        let axisAlive = units.contains { $0.faction == .axis }
+        let allObjectivesAllied = !objectiveTiles.isEmpty && objectiveTiles.allSatisfy { $0.owner == .allies }
+        let allObjectivesAxis = !objectiveTiles.isEmpty && objectiveTiles.allSatisfy { $0.owner == .axis }
+
+        if !axisAlive || allObjectivesAllied {
+            winner = .allies
+            earnedStars = alliedVictoryStars()
+            selectedUnitID = nil
+            message = "盟军胜利：完成 \(scenario.name) 目标，获得 \(earnedStars) 星。"
+            appendLog(message)
+        } else if !alliedAlive || allObjectivesAxis {
+            winner = .axis
+            earnedStars = 0
+            selectedUnitID = nil
+            message = "任务失败：盟军防线崩溃。"
+            appendLog(message)
+        }
+    }
+
+    private func checkTurnLimit() {
+        guard winner == nil, turn > scenario.turnLimit else { return }
+        winner = .axis
+        earnedStars = 0
+        selectedUnitID = nil
+        message = "任务失败：超过 \(scenario.turnLimit) 回合期限。"
+        appendLog(message)
+    }
+
+    private func alliedVictoryStars() -> Int {
+        let survivedAllies = units.filter { $0.faction == .allies }.count
+        return 1 +
+            (turn <= scenario.decisiveTurnLimit ? 1 : 0) +
+            (survivedAllies >= scenario.survivalStarThreshold ? 1 : 0)
+    }
+
+    private func resetUnits(for faction: Faction) {
+        for index in scenario.units.indices where scenario.units[index].faction == faction {
+            scenario.units[index].hasMoved = false
+            scenario.units[index].hasAttacked = false
+        }
+        applySupplyAttrition(for: faction)
+        recoverObjectiveRest(for: faction)
+        recoverMorale(for: faction)
+    }
+
+    private func updateUnit(id: BattleUnit.ID, mutate: (inout BattleUnit) -> Void) {
+        guard let index = scenario.units.firstIndex(where: { $0.id == id }) else { return }
+        mutate(&scenario.units[index])
+    }
+
+    private func selectNextReadyUnit(preferredUnitID: BattleUnit.ID? = nil) {
+        guard winner == nil else {
+            selectedUnitID = nil
+            clearObjectiveGuidance()
+            return
+        }
+
+        if let preferredUnitID,
+           let preferredUnit = scenario.units.first(where: {
+               $0.id == preferredUnitID &&
+                   $0.faction == activeFaction &&
+                   !$0.isDestroyed &&
+                   (!$0.hasMoved || !$0.hasAttacked)
+        }) {
+            selectedUnitID = preferredUnit.id
+            focusedCoordinate = preferredUnit.position
+            clearObjectiveGuidance()
+            return
+        }
+
+        selectedUnitID = scenario.units.first {
+            $0.faction == activeFaction && !$0.isDestroyed && (!$0.hasMoved || !$0.hasAttacked)
+        }?.id
+        if let selectedUnit {
+            focusedCoordinate = selectedUnit.position
+        }
+        clearObjectiveGuidance()
+    }
+
+    private func appendLog(_ entry: String) {
+        battleLog.insert(entry, at: 0)
+        if battleLog.count > 8 {
+            battleLog.removeLast()
+        }
+    }
+
+    private func strength(for faction: Faction) -> Int {
+        units
+            .filter { $0.faction == faction }
+            .reduce(0) { total, unit in
+                let moraleAdjustedAttack = effectiveAttack(for: unit) * unit.moraleState.attackMultiplierPercent / 100
+                return total + unit.hp + moraleAdjustedAttack * 2 + effectiveMovement(for: unit) * 4 + unit.range * 6
+            }
+    }
+
+    private func unitSelectionMessage(for unit: BattleUnit) -> String {
+        let moveCount = reachableTiles(for: unit).count
+        let attackCount = attackableTiles(for: unit).count
+        return "\(unit.name)：\(supplyState(for: unit).title)，\(unit.moraleState.title)，可移动 \(moveCount) 格，可攻击 \(attackCount) 个目标。"
+    }
+
+    private func tileMessage(for coordinate: HexCoordinate) -> String {
+        guard let tile = tile(at: coordinate) else { return "地图外区域。" }
+        let objective = tile.objectiveName.map { " 据点：\($0)。" } ?? ""
+        let owner = tile.owner.map { " 控制：\($0.title)。" } ?? ""
+        let controlZone = isEnemyControlZone(coordinate, for: activeFaction) ? " 敌方控制区：进入 +\(Self.enemyControlZoneMovementPenalty) 移动。" : ""
+        return "\(tile.terrain.title) q\(coordinate.q),r\(coordinate.r)：基础移动 \(tile.terrain.movementCost)，防御 +\(tile.terrain.defenseBonus)。\(controlZone)\(objective)\(owner)"
+    }
+
+    private static func openingMessage(for scenario: Scenario) -> String {
+        "\(scenario.name)：\(scenario.turnLimit) 回合内夺取全部据点。"
+    }
+
+    private static func openingLog(for scenario: Scenario) -> String {
+        "\(scenario.year) \(scenario.name)开始，盟军必须在 \(scenario.turnLimit) 回合内夺取地图上的全部据点。"
+    }
+}

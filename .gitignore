@@ -1,0 +1,8 @@
+.DS_Store
+WW2Tactics/.build/
+.build/
+DerivedData/
+*.xcuserdata/
+*.xcuserstate
+截屏2026-06-07 上午2.09.34.png
+截屏2026-06-07 上午2.15.48.png
