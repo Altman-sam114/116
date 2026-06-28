@@ -4,6 +4,17 @@
 
 当前玩法参考 EasyTech《World Conqueror 4》《Glory of Generals》一类二战战棋的核心体验：离线战役、大地图多据点推进、格子地图、步兵/坦克/火炮等兵种、将领加成、地形影响、左键选择/查看并用右键移动或攻击，回合结束后由敌方 AI 行动。触屏点按也复用同一套 MOVE/ATK/POS 命令链，可点选单位后直接点地图标记格执行移动、接敌和攻击。
 
+## 协作与维护文档
+
+后续 Codex/Agent 迭代必须先阅读项目根目录的 `AGENTS.md`。项目维护文档结构如下：
+
+- `AGENTS.md`：项目入口记忆、基本规则和 Agent A/B/C 工作流。
+- `update_log.md`：版本更新记录、历史决策、完成事项和遗留问题。
+- `md/prompt/`：Agent A 写给 Agent B 的版本化实现提示词。
+- `md/test/test.md`：测试规范、测试分层、命令、触发条件和当前基线。
+- `md/flow/flow.md`：当前真实核心逻辑文档。
+- `md/flow/flowchart.md`：核心数据流、执行流和 Agent 迭代流的 Mermaid 图。
+
 ## 已实现
 
 - 二战战役目录：1944 阿登反击战、1944 诺曼底突破
