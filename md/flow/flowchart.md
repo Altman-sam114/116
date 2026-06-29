@@ -68,7 +68,7 @@ flowchart LR
 
 ## 4. Agent 迭代流程图
 
-读图说明：这张图展示后续项目不再由单个 Agent 直接乱改，而是按 A 设计、B 实现、C 验收、人工复核循环推进。
+读图说明：这张图展示后续项目不再由单个 Agent 直接乱改，而是按 A 设计、B 实现、C 验收、通过后自动按版本提交、人工复核循环推进；如果 C 不通过，则退回 B 修复。
 
 ```mermaid
 flowchart TD
@@ -76,8 +76,11 @@ flowchart TD
   A --> P["md/prompt/vN（阶段）/vN.x（任务）.md"]
   P --> B["Agent B：实现、补测试、跑验证、更新文档"]
   B --> C["Agent C：查看 diff、核对测试、验收实现"]
-  C --> F["更新 md/flow、flowchart、update_log"]
-  F --> R["人工复核"]
+  C --> D{"验收是否通过？"}
+  D -->|不通过| B2["退回 Agent B：指出问题、缺失测试和需修复点"]
+  B2 --> B
+  D -->|通过| F["更新 md/flow、flowchart、update_log"]
+  F --> G["按版本号 git commit：vN.x: 简要说明"]
+  G --> R["人工复核提交和汇报"]
   R --> H
-  C -->|不通过| B
 ```
