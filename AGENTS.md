@@ -16,17 +16,20 @@
 4. `md/flow/flowchart.md`：核心数据流、执行流和 Agent 迭代流。
 5. `md/test/test.md`：测试分层、命令、触发条件。
 6. `WW2Tactics/README.md`：面向使用者的项目现状和运行方式。
-7. 与任务相关的源码、测试和 prompt 文件。
+7. `md/prompt/README.md`：提示词目录、版本和云端阶段规则。
+8. 与任务相关的源码、测试和 prompt 文件。
 
 ## 3. 角色召唤和身份标识
 
 - 用户消息以 `agenta`、`a:` 或 `A:` 开头，表示召唤 Agent A。
 - 用户消息以 `agentb`、`b:` 或 `B:` 开头，表示召唤 Agent B。
 - 用户消息以 `agentc`、`c:` 或 `C:` 开头，表示召唤 Agent C。
-- 没有这些前缀时，按普通 Codex 任务处理；若任务需要 A/B/C 边界，先提醒用户指定角色或说明本轮按普通任务执行。
+- 用户消息以 `agentx`、`x:` 或 `X:` 开头，表示召唤 Agent X。
+- 没有这些前缀时，按普通 Codex 任务处理；若任务需要 A/B/C/X 边界，先提醒用户指定角色或说明本轮按普通任务执行。
 - Agent A 最终回复第一行必须写：`我是 Agent A。`
 - Agent B 最终回复第一行必须写：`我是 Agent B。`
 - Agent C 最终回复第一行必须写：`我是 Agent C。`
+- Agent X 最终回复第一行必须写：`我是 Agent X。`
 
 ## 4. 项目基本规则
 
@@ -73,6 +76,35 @@ git status --short --branch
 ### 人工
 
 人工提出目标、限制、验收标准和测试要求。人工复核 Agent C 的验收结论后进入下一轮。
+
+### Agent X：主控循环调度
+
+Agent X 是主控调度角色，不直接替代 Agent A、Agent B 或 Agent C。
+
+职责：
+
+1. 接收人工总目标 X，确认目标、限制、验收标准和停止条件。
+2. 将总目标拆成多个小轮次，每轮只保留可验证、可提交、可验收的范围。
+3. 每轮按 `Agent A -> Agent B -> Agent C` 顺序推进：Agent A 写版本化提示词，Agent B 实现并 push，Agent C 下载并验收 GitHub Actions artifact。
+4. 根据 Agent C 的验收结论判断下一步：继续下一轮、退回 Agent B 修复、暂停等待人工确认，或宣布总目标完成。
+5. 记录每轮目标、版本提示词、commit、workflow run、artifact、Agent C 结论和剩余风险。
+
+循环边界：
+
+- Agent X 只能调度现有 A/B/C 职责，不能跳过 Agent A 的版本化提示词、Agent B 的 `main` 直推流程或 Agent C 的云端 artifact 验收。
+- 每轮必须以当前工作树和 `origin/main` 最新状态为准，不得凭旧对话记忆判断项目状态。
+- 每轮范围必须服务于人工总目标 X，不得为了循环推进扩大无关改动。
+- Agent X 判断“继续下一轮”前，必须确认上一轮 Agent C 已核对最新 `origin/main` commit、workflow run、run attempt 和 artifact。
+
+停止条件：
+
+- 总目标已完成。
+- 连续 3 轮遇到同一阻塞。
+- 连续 2 轮没有产生有效 diff。
+- CI 连续失败且原因相同。
+- 需要账号、权限、密钥、付费服务或人工决策。
+- 当前工作区存在无法判断归属的冲突。
+- 用户要求停止或改变方向。
 
 ### Agent A：目标分析与提示词
 
@@ -180,6 +212,13 @@ v1.0: 增强地图拖拽和路径预览
 - Agent C 是否下载并核对结果包；未下载时说明原因。
 - 下一步建议。
 
+Agent X 最终回复除第一行身份标识外，还必须包含：
+
+- 总目标 X 当前状态：继续、退回、暂停或完成。
+- 本轮拆分目标和下一轮建议。
+- 最新已验收的 commit SHA、workflow run id、run attempt 和 artifact 名称；若没有完成云端验收，必须明确说明。
+- 触发停止条件时，写清阻塞类型、连续次数和需要人工决定的事项。
+
 ## 11. 禁止项
 
 - 不得重置、回滚或删除用户/其他 Agent 改动，除非用户明确要求。
@@ -192,3 +231,10 @@ v1.0: 增强地图拖拽和路径预览
 - 不得把旧 artifact、旧 output 或 checkout 自带报告冒充本轮云端结果。
 - 不得在 Agent C 验收不通过时宣称版本通过。
 - 不得使用模糊提交信息，例如 `update`、`fix`、`1`。
+- Agent X 禁止无条件无限循环。
+- Agent X 禁止跳过 Agent C 云端 artifact 验收。
+- Agent X 禁止把旧 run、旧 artifact、本地输出冒充最新云端结果。
+- Agent X 禁止在总目标未完成时宣布完成。
+- Agent X 禁止为了循环推进扩大无关改动范围。
+- 禁止使用非 `Altman-sam114` 的 GitHub 账号伪装完成 push、CI 或 artifact 验收。
+- 禁止默认下载大体积测试数据、模型、历史 artifact 或无关产物，导致本机或 CI 容量被撑爆。

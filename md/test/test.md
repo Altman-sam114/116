@@ -1,6 +1,6 @@
 # 测试规范
 
-本文指导 Agent B 和 Agent C 选择测试层级、记录命令和判断当前基线。
+本文指导 Agent B、Agent C 和未来 Agent X 循环选择测试层级、记录命令和判断当前基线。
 
 ## 1. 默认策略
 
@@ -11,11 +11,41 @@
 - Xcode project 修改还必须运行 `plutil -lint WW2Tactics/WW2Tactics.xcodeproj/project.pbxproj`。
 - Swift / Xcode / 规则 / UI 相关改动完成后，默认由 Agent B commit 并 `git push origin main`，让 GitHub Actions 运行重验证。
 - Agent C 必须下载未加密 CI 结果包，不能只看 Agent B 的文字汇报。
+- Agent X 循环下，每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact、Agent C 下载复判为准。
 - 不能运行、不能 push 或不能下载 artifact 时，必须说明缺少远端、权限、登录、Xcode、runner 或模拟器环境中的哪一项。
 
-## 2. 本地轻量检查
+## 2. Agent X 循环验证规则
 
-### 2.1 文档和空白检查
+- Agent X 可以拆分总目标并调度多轮，但每轮验证链路仍是 `Agent B 本地轻量检查 -> git push origin main -> GitHub Actions artifact -> Agent C 下载复判`。
+- Agent X 不得跳过 Agent C artifact 验收，也不得只凭 Agent B 文字汇报进入下一轮。
+- Agent C 验收不通过时，Agent X 必须退回 Agent B 追加修复 commit，不能继续下一轮或伪装成功。
+- 每轮只认最新 `origin/main` commit 对应的 workflow run、`runAttempt` 和 artifact；旧 run、旧 artifact、本地 output 或 checkout 自带报告都不能作为通过依据。
+- 若 CI 连续失败且原因相同、连续 3 轮遇到同一阻塞、连续 2 轮没有有效 diff，Agent X 必须暂停并交还人工决策。
+- 若需要账号、权限、密钥、付费服务、下载大体积数据或人工产品决策，Agent X 必须停止等待人工确认。
+
+## 3. 测试数据与下载容量限制
+
+本项目默认采用小数据量验证策略，避免下载过大 artifact、模型、数据集、缓存或结果包，把本机、CI runner 或临时目录容量撑爆。
+
+规则：
+
+- 测试数据必须尽量小，只覆盖必要边界。
+- CI artifact 只上传必要文件：manifest、JUnit 或测试摘要、关键日志、失败摘要、必要结果包。
+- 不上传大体积 DerivedData、完整 build cache、无关截图、视频、模型文件、历史 artifact 或重复压缩包。
+- Agent C 下载 artifact 前优先确认只下载最新 run 对应的必要结果包。
+- 下载缓存默认放在 `/private/tmp/ww2tactics-c-review-<run_id>/`。
+- 下载后应检查目录大小：
+
+```sh
+du -sh /private/tmp/ww2tactics-c-review-<run_id>/
+```
+
+- 禁止使用非 `Altman-sam114` 的 GitHub 账号伪装完成 push、CI 或 artifact 验收。
+- 禁止默认下载大体积测试数据、模型、历史 artifact 或无关产物。
+
+## 4. 本地轻量检查
+
+### 4.1 文档和空白检查
 
 触发条件：
 
@@ -32,7 +62,7 @@ git diff --check
 
 - 无输出，退出码为 0。
 
-### 2.2 GitHub Actions YAML 检查
+### 4.2 GitHub Actions YAML 检查
 
 触发条件：
 
@@ -50,7 +80,7 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 yaml ok
 ```
 
-### 2.3 Xcode project plist 检查
+### 4.3 Xcode project plist 检查
 
 触发条件：
 
@@ -69,9 +99,9 @@ plutil -lint WW2Tactics/WW2Tactics.xcodeproj/project.pbxproj
 WW2Tactics/WW2Tactics.xcodeproj/project.pbxproj: OK
 ```
 
-## 3. 云端重验证
+## 5. 云端重验证
 
-### 3.1 触发方式
+### 5.1 触发方式
 
 默认 workflow：`.github/workflows/ci-results.yml`
 
@@ -99,7 +129,7 @@ git push origin main
 
 若 `origin/main` 不存在或无权限 push，停止并说明原因，不得伪装云端验证已完成。
 
-### 3.2 云端检查内容
+### 5.2 云端检查内容
 
 GitHub Actions 至少运行：
 
@@ -121,7 +151,7 @@ GitHub Actions 至少运行：
 - `ci-results/ci-artifact-manifest.json`
 - `ci-results/WW2Tactics.xcresult`
 
-### 3.3 CI artifact 命名
+### 5.3 CI artifact 命名
 
 建议格式：
 
@@ -129,7 +159,7 @@ GitHub Actions 至少运行：
 ww2tactics-ci-vX.Y-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
-### 3.4 manifest 必须包含
+### 5.4 manifest 必须包含
 
 `ci-artifact-manifest.json` 至少包含：
 
@@ -158,7 +188,7 @@ ww2tactics-ci-vX.Y-main-<short_sha>-run<run_id>-attempt<run_attempt>
 }
 ```
 
-## 4. Agent C 下载和验收
+## 6. Agent C 下载和验收
 
 Agent C 必须先登录 GitHub CLI：
 
@@ -190,14 +220,15 @@ Agent C 必须核对：
 - `junit.xml` 是否存在并能说明静态检查、smoke 和 build 结果。
 - `xcodebuild.log` 和 `rules-smoke.log` 是否来自本次 run。
 - `.xcresult` 是否存在；若缺失，manifest 和 failure summary 必须说明原因。
+- 下载目录大小是否合理，必要时运行 `du -sh /private/tmp/ww2tactics-c-review-<run_id>/`。
 
 CI 失败时，Agent C 写退回清单；Agent B 在 `main` 上追加修复 commit 并重新 push。
 
-## 5. 人工明确要求时的本机构建命令
+## 7. 人工明确要求时的本机构建命令
 
 以下命令不是默认路径，只有人工明确要求或排查云端失败时才运行。
 
-### 5.1 Probe / Fast
+### 7.1 Probe / Fast
 
 触发条件：
 
@@ -224,7 +255,7 @@ CI 失败时，Agent C 写退回清单；Agent B 在 `main` 上追加修复 comm
 - 预期输出 `Rules smoke test passed`。
 - 覆盖战役配置、地图、单位、移动、攻击、AI、补给、士气、目标推进、THR 威胁覆盖等主规则链。
 
-### 5.2 Smoke
+### 7.2 Smoke
 
 触发条件：
 
@@ -247,7 +278,7 @@ CI 失败时，Agent C 写退回清单；Agent B 在 `main` 上追加修复 comm
 
 - SwiftUI 和项目源码应完成 typecheck。
 
-### 5.3 Stage Regression
+### 7.3 Stage Regression
 
 触发条件：
 
@@ -285,7 +316,7 @@ CI 失败时，Agent C 写退回清单；Agent B 在 `main` 上追加修复 comm
 
 - `GameStateTests.swift` 应通过源码级 typecheck。
 
-### 5.4 Full
+### 7.4 Full
 
 触发条件：
 
@@ -311,7 +342,7 @@ CI 失败时，Agent C 写退回清单；Agent B 在 `main` 上追加修复 comm
 - 预期能构建 app 和 test bundle。
 - 实际运行 XCTest 需要 CoreSimulatorService 和可用模拟器 runtime；不可用时必须明确说明。
 
-## 6. 规则
+## 8. 规则
 
 - 每次实现前先读本文件。
 - 默认从本地轻量检查开始，根据改动范围扩大到云端重验证。

@@ -16,6 +16,7 @@
 - 当前源码已包含阿登 22x14 大地图、诺曼底战役、MOVE/ATK/POS/NEXT/OBJ/THR 地图反馈、规则 smoke test 和 XCTest。
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
+- 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
 - 近期规划已进入 `v1（地图操作体验）`：Agent A 已创建 `md/prompt/v1（地图操作体验）/v1.0（路线与战斗预判强化）.md`；Agent B 已实现 v1.0，功能提交 `24bdac8` 已由 Agent C 核对 GitHub Actions artifact 并验收通过。
 
 ## 历史记录
@@ -157,6 +158,37 @@
 遗留事项：
 
 - 当前本地仓库若未配置 `origin/main`，无法完成真实 main push、Actions run 和 artifact 下载；需要配置 GitHub 远端和权限后补跑。
+
+### v0.5 / 引入 Agent X 循环迭代文档基线
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 Agent X 召唤、职责、循环判断和停止条件。
+- 将现有 Agent A/B/C 云端验证流程扩展为可被 Agent X 多轮调度。
+- 更新 flow、flowchart、test、prompt README 和 README 中的协作说明。
+- 明确本轮只做文档准备，不启动真实自动循环。
+
+关键文件：
+
+- `AGENTS.md`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `update_log.md`
+- `md/prompt/v0（协作自动化）/v0.5（引入AgentX循环迭代）.md`
+
+验证结果：
+
+- `git diff --check` 通过。
+
+遗留事项：
+
+- 后续人工可用 `agentx:` 提供总目标 X，启动 Agent X 主控循环。
+- Agent X 真正执行循环时，仍必须经过 Agent A 提示词、Agent B 实现 push、Agent C 云端 artifact 验收。
 
 ### v1.0 / 路线与战斗预判强化
 

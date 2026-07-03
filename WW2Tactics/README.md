@@ -19,6 +19,8 @@
 
 后续默认使用 `main` 直推和 GitHub Actions 云端重验证：Agent B 在本地完成轻量检查后提交并推送到 `origin/main`，Actions 生成未加密 CI 结果包；Agent C 下载结果包，核对 manifest、JUnit、构建日志、规则 smoke 日志和 `.xcresult` 后验收。只有人工明确要求时，才默认在本机运行完整 Xcode build 或模拟器验证。
 
+未来可用 `agentx:`、`x:` 或 `X:` 启动主控循环：Agent X 接收总目标并拆分多轮任务，但不直接替代 A/B/C；每轮仍由 Agent A 写提示词、Agent B 实现并 push、Agent C 下载 artifact 验收后，再由 Agent X 判断继续、退回、暂停或完成。
+
 ## 已实现
 
 - 二战战役目录：1944 阿登反击战、1944 诺曼底突破

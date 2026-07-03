@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-`WW2Tactics` 的主链路是：玩家在 SwiftUI 地图上选择单位和目标，`GameState` 根据 `GameModels` 执行移动、攻击、补给、AI、目标和胜负规则，`ContentView` 将状态渲染为 EasyTech 风格的大地图战棋界面，测试层用 XCTest 和 smoke test 锁住核心规则；协作链路默认由 Agent B 在 `main` 提交并推送到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载结果包后验收。
+`WW2Tactics` 的主链路是：玩家在 SwiftUI 地图上选择单位和目标，`GameState` 根据 `GameModels` 执行移动、攻击、补给、AI、目标和胜负规则，`ContentView` 将状态渲染为 EasyTech 风格的大地图战棋界面，测试层用 XCTest 和 smoke test 锁住核心规则；协作链路默认由 Agent B 在 `main` 提交并推送到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载结果包后验收；未来可由 Agent X 围绕人工总目标拆分多轮，并按 Agent A -> Agent B -> Agent C 循环调度。
 
 ## 1. 当前核心数据流
 
@@ -184,14 +184,26 @@
 
 ## 7. 云端协作执行流
 
-### 7.1 Agent A 提示词阶段
+### 7.1 Agent X 主控循环阶段
+
+1. 人工用 `agentx`、`x:` 或 `X:` 提供总目标 X、限制、验收标准和优先级。
+2. Agent X 不直接替代 Agent A/B/C，而是把总目标拆成多个小轮次。
+3. 每轮开始时，Agent X 明确本轮目标、非目标、边界、验证要求和预期产物。
+4. Agent X 调度 Agent A 写版本化提示词，再调度 Agent B 实现、轻量检查、提交并 `git push origin main`。
+5. GitHub Actions 生成未加密 CI 结果包后，Agent X 必须等待 Agent C 下载并核对 artifact。
+6. Agent X 只基于 Agent C 对最新 `origin/main` commit、workflow run、run attempt 和 artifact 的结论判断下一步。
+7. 通过时，Agent X 判断总目标是否完成；未完成则拆分下一轮目标并回到 Agent A。
+8. 不通过时，Agent X 默认退回 Agent B 在 `main` 上追加修复 commit，不得伪装本轮完成。
+9. 遇到连续阻塞、连续无有效 diff、同因 CI 连续失败、账号权限密钥需求、无法判断归属的工作区冲突或人工要求停止时，Agent X 暂停并交还人工决策。
+
+### 7.2 Agent A 提示词阶段
 
 1. 人工用 `agenta`、`a:` 或 `A:` 召唤 Agent A。
 2. Agent A 阅读入口文档、测试规范、核心流程和相关源码。
 3. Agent A 写入 `md/prompt/vN（阶段）/vN.x（任务）.md`。
 4. 提示词必须写清 `main` 直推、云端验证、CI artifact、Agent C 下载核对和失败后追加修复 commit 要求。
 
-### 7.2 Agent B main 直推阶段
+### 7.3 Agent B main 直推阶段
 
 1. Agent B 基于最新 `origin/main` 切到本地 `main`。
 2. Agent B 小步实现、补测试和同步文档。
@@ -200,7 +212,7 @@
 5. Agent B 直接 `git push origin main` 触发 GitHub Actions。
 6. GitHub Actions 运行静态检查、规则 smoke test、Xcode build-for-testing，并上传未加密 CI 结果包。
 
-### 7.3 Agent C 结果包验收阶段
+### 7.4 Agent C 结果包验收阶段
 
 1. Agent C 确认 `origin/main` 最新 commit。
 2. Agent C 用 `gh auth login` 后下载 artifact 到 `/private/tmp/ww2tactics-c-review-<run_id>/`。
@@ -209,7 +221,7 @@
 5. 通过时，Agent C 确认 `origin/main` 最新 run 通过并输出验收结论。
 6. 不通过时，Agent C 写清退回清单；Agent B 在 `main` 上追加修复 commit，再次 push 触发新 run。
 
-### 7.4 当前远端约束
+### 7.5 当前远端约束
 
 - 默认流程要求存在 `origin/main` 和 GitHub Actions 权限。
 - 若本地仓库没有配置远端或没有权限下载 artifact，Agent 必须在 push 或验收前停止并说明阻塞。
@@ -226,6 +238,7 @@
 - 测试命令和结果必须真实记录。
 - `main` 是唯一默认提交、推送和云端验证分支。
 - Agent C 只验收 `origin/main` 最新 commit 对应的未加密 CI 结果包。
+- Agent X 只能调度 A/B/C 多轮推进，不能跳过 Agent C artifact 验收或无限循环。
 
 ## 9. 未来扩展点
 

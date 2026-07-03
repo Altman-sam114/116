@@ -72,28 +72,31 @@ flowchart LR
   AI --> RES
 ```
 
-## 4. Agent 迭代流程图
+## 4. Agent X 主控迭代流程图
 
-读图说明：这张图展示后续项目不再由单个 Agent 直接乱改，而是按 A 设计、B 在 `main` 实现并直推、GitHub Actions 云端重验证、C 下载结果包验收、人工复核循环推进；如果 C 不通过，则退回 B 在 `main` 上追加修复 commit。
+读图说明：这张图展示未来人工可用 `agentx:` 提供总目标，由 Agent X 拆分轮次并调度 A/B/C。每轮仍必须经过 Agent A 写提示词、Agent B 在 `main` 实现并直推、GitHub Actions 生成 artifact、Agent C 下载并核对结果包；Agent X 只能根据 Agent C 结论决定继续、退回、暂停或完成。
 
 ```mermaid
 flowchart TD
-  H["人工提出目标、限制、验收标准"] --> A["Agent A：分析目标并写实现提示词"]
+  H["人工提供总目标 X、限制、验收标准"] --> X["Agent X：拆分本轮目标和停止条件"]
+  X --> A["Agent A：分析本轮目标并写实现提示词"]
   A --> P["md/prompt/vN（阶段）/vN.x（任务）.md"]
   P --> S["Agent B：同步 origin/main 并确认位于 main"]
   S --> B["Agent B：实现、补测试、轻量检查、更新文档"]
   B --> M["main commit：vN.x: 简要说明"]
   M --> U["git push origin main"]
   U --> G["GitHub Actions：静态检查、smoke、Xcode build"]
-  G --> Q["未加密 CI 结果包：manifest、failure summary、JUnit、log、xcresult"]
-  Q --> C["Agent C：下载结果包并核对 origin/main 最新 commit"]
-  C --> D{"验收是否通过？"}
-  D -->|不通过| B2["退回 Agent B：问题清单、缺失测试、风险"]
-  B2 --> R["main 追加修复 commit"]
+  G --> Q["未加密 CI artifact：manifest、failure summary、JUnit、log、xcresult"]
+  Q --> C["Agent C：下载 artifact 并核对 origin/main 最新 commit"]
+  C --> D{"Agent C 验收是否通过？"}
+  D -->|不通过| BX["Agent X：退回 Agent B 修复"]
+  BX --> R["Agent B：main 追加修复 commit"]
   R --> U
-  D -->|通过| F["Agent C：确认最新 run、artifact 和文档同步"]
-  F --> K["人工复核 main 最新提交和验收结论"]
-  K --> H
+  D -->|通过| J["Agent X：判断总目标进度"]
+  J -->|继续下一轮| X
+  J -->|需要人工确认| W["暂停：等待人工决策"]
+  J -->|总目标完成| F["完成：输出 commit、run、artifact 和剩余风险"]
+  J -->|触发停止条件| W
 ```
 
 ## 5. 云端结果包验收流
