@@ -1,0 +1,246 @@
+name: WW2Tactics CI Results
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  ci-results:
+    name: Build and package CI results
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare result paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          short_sha="$(git rev-parse --short HEAD)"
+          branch_slug="${GITHUB_REF_NAME//\//-}"
+          commit_subject="$(git log -1 --pretty=%s)"
+          ci_version="unversioned"
+          if [[ "$commit_subject" =~ ^(v[0-9]+(\.[0-9]+)?): ]]; then
+            ci_version="${BASH_REMATCH[1]}"
+          fi
+
+          mkdir -p ci-results
+          {
+            echo "SHORT_SHA=$short_sha"
+            echo "BRANCH_SLUG=$branch_slug"
+            echo "CI_VERSION=$ci_version"
+            echo "ARTIFACT_NAME=ww2tactics-ci-${ci_version}-${branch_slug}-${short_sha}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
+            echo "RESULT_BUNDLE=ci-results/WW2Tactics.xcresult"
+            echo "DERIVED_DATA=.derivedData-ci"
+            echo "MODULE_CACHE=.module-cache-ci"
+          } >> "$GITHUB_ENV"
+
+      - name: Run checks and build
+        shell: bash
+        run: |
+          set +e
+          set -o pipefail
+
+          mkdir -p ci-results "$DERIVED_DATA" "$MODULE_CACHE"
+
+          static_status=0
+          smoke_status=0
+          build_status=0
+
+          {
+            echo "## Static checks"
+            if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+              git diff --check HEAD^ HEAD
+            else
+              git diff --check
+            fi
+            diff_status=$?
+            echo
+            plutil -lint WW2Tactics/WW2Tactics.xcodeproj/project.pbxproj
+            plutil_status=$?
+            if [[ $diff_status -ne 0 || $plutil_status -ne 0 ]]; then
+              static_status=1
+            fi
+          } > ci-results/static-checks.log 2>&1
+
+          {
+            echo "## Rules smoke test"
+            macos_sdk="$(xcrun --sdk macosx --show-sdk-path)"
+            xcrun --sdk macosx swiftc \
+              -swift-version 5 \
+              -sdk "$macos_sdk" \
+              -module-cache-path "$MODULE_CACHE" \
+              -parse-as-library \
+              WW2Tactics/WW2Tactics/GameModels.swift \
+              WW2Tactics/WW2Tactics/GameState.swift \
+              WW2Tactics/Tools/RulesSmokeTest.swift \
+              -o ci-results/WW2TacticsRulesSmokeTest
+            compile_status=$?
+            if [[ $compile_status -eq 0 ]]; then
+              ci-results/WW2TacticsRulesSmokeTest
+              run_status=$?
+            else
+              run_status=1
+            fi
+            if [[ $compile_status -ne 0 || $run_status -ne 0 ]]; then
+              smoke_status=1
+            fi
+          } > ci-results/rules-smoke.log 2>&1
+
+          rm -rf "$RESULT_BUNDLE"
+          {
+            echo "## Xcode"
+            xcodebuild -version
+            echo
+            xcodebuild \
+              -project WW2Tactics/WW2Tactics.xcodeproj \
+              -scheme WW2Tactics \
+              -configuration Debug \
+              -destination 'generic/platform=iOS Simulator' \
+              -derivedDataPath "$DERIVED_DATA" \
+              -resultBundlePath "$RESULT_BUNDLE" \
+              build-for-testing CODE_SIGNING_ALLOWED=NO
+          } > ci-results/xcodebuild.log 2>&1
+          build_status=$?
+
+          {
+            echo "STATIC_STATUS=$static_status"
+            echo "SMOKE_STATUS=$smoke_status"
+            echo "BUILD_STATUS=$build_status"
+          } >> "$GITHUB_ENV"
+
+      - name: Generate result package metadata
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          static_outcome="success"
+          smoke_outcome="success"
+          build_outcome="success"
+          [[ "${STATIC_STATUS:-1}" == "0" ]] || static_outcome="failure"
+          [[ "${SMOKE_STATUS:-1}" == "0" ]] || smoke_outcome="failure"
+          [[ "${BUILD_STATUS:-1}" == "0" ]] || build_outcome="failure"
+
+          result_bundle_exists="false"
+          if [[ -d "$RESULT_BUNDLE" ]]; then
+            result_bundle_exists="true"
+          fi
+
+          {
+            echo "# WW2Tactics CI Failure Summary"
+            echo
+            echo "- version: ${CI_VERSION}"
+            echo "- branch: ${GITHUB_REF_NAME}"
+            echo "- commitSha: ${GITHUB_SHA}"
+            echo "- runId: ${GITHUB_RUN_ID}"
+            echo "- runAttempt: ${GITHUB_RUN_ATTEMPT}"
+            echo "- staticChecksOutcome: ${static_outcome}"
+            echo "- smokeTestOutcome: ${smoke_outcome}"
+            echo "- buildOutcome: ${build_outcome}"
+            echo "- testOutcome: skipped"
+            echo "- resultBundleExists: ${result_bundle_exists}"
+            echo
+            if [[ "$static_outcome" == "success" && "$smoke_outcome" == "success" && "$build_outcome" == "success" ]]; then
+              echo "All configured CI checks passed. XCTest execution is skipped; build-for-testing produced the test bundle."
+            else
+              echo "One or more checks failed. Inspect ci-results/static-checks.log, ci-results/rules-smoke.log, and ci-results/xcodebuild.log."
+            fi
+          } > ci-results/ci-failure-summary.md
+
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          static_status = os.environ.get("STATIC_STATUS", "1")
+          smoke_status = os.environ.get("SMOKE_STATUS", "1")
+          build_status = os.environ.get("BUILD_STATUS", "1")
+
+          def outcome(status):
+              return "success" if status == "0" else "failure"
+
+          manifest = {
+              "version": os.environ["CI_VERSION"],
+              "branch": os.environ["GITHUB_REF_NAME"],
+              "commitSha": os.environ["GITHUB_SHA"],
+              "shortSha": os.environ["SHORT_SHA"],
+              "runId": os.environ["GITHUB_RUN_ID"],
+              "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "workflowName": "WW2Tactics CI Results",
+              "createdAt": datetime.now(timezone.utc).isoformat(),
+              "projectName": "WW2Tactics",
+              "scheme": "WW2Tactics",
+              "destination": "generic/platform=iOS Simulator",
+              "resultBundlePath": os.environ["RESULT_BUNDLE"],
+              "resultBundleExists": os.path.isdir(os.environ["RESULT_BUNDLE"]),
+              "junitPath": "ci-results/junit.xml",
+              "buildLogPath": "ci-results/xcodebuild.log",
+              "failureSummaryPath": "ci-results/ci-failure-summary.md",
+              "staticChecksOutcome": outcome(static_status),
+              "smokeTestOutcome": outcome(smoke_status),
+              "buildOutcome": outcome(build_status),
+              "testOutcome": "skipped",
+              "projectSpecificReports": [
+                  "ci-results/static-checks.log",
+                  "ci-results/rules-smoke.log"
+              ]
+          }
+
+          with open("ci-results/ci-artifact-manifest.json", "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2)
+              f.write("\n")
+          PY
+
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+
+          checks = [
+              ("static-checks", os.environ.get("STATIC_STATUS", "1"), "git diff --check and plutil"),
+              ("rules-smoke", os.environ.get("SMOKE_STATUS", "1"), "RulesSmokeTest compile and run"),
+              ("xcode-build-for-testing", os.environ.get("BUILD_STATUS", "1"), "xcodebuild build-for-testing"),
+          ]
+          failures = sum(1 for _, status, _ in checks if status != "0")
+          suite = ET.Element("testsuite", {
+              "name": "WW2Tactics CI Results",
+              "tests": str(len(checks)),
+              "failures": str(failures),
+              "errors": "0",
+              "skipped": "0",
+          })
+          for name, status, detail in checks:
+              case = ET.SubElement(suite, "testcase", {
+                  "classname": "WW2TacticsCI",
+                  "name": name,
+              })
+              if status != "0":
+                  failure = ET.SubElement(case, "failure", {
+                      "message": f"{name} failed",
+                  })
+                  failure.text = detail
+          tree = ET.ElementTree(suite)
+          ET.indent(tree, space="  ")
+          tree.write("ci-results/junit.xml", encoding="utf-8", xml_declaration=True)
+          PY
+
+      - name: Upload CI result package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ci-results
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Fail when checks failed
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${STATIC_STATUS:-1}" != "0" || "${SMOKE_STATUS:-1}" != "0" || "${BUILD_STATUS:-1}" != "0" ]]; then
+            exit 1
+          fi

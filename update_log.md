@@ -15,6 +15,7 @@
 - 目标体验是 EasyTech 风格二战回合制战棋：大地图、多据点、单位移动、攻击判定、将领、地形、补给、士气、AI 回合。
 - 当前源码已包含阿登 22x14 大地图、诺曼底战役、MOVE/ATK/POS/NEXT/OBJ/THR 地图反馈、规则 smoke test 和 XCTest。
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
+- 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 
 ## 历史记录
 
@@ -123,4 +124,35 @@
 
 遗留事项：
 
-- 本次只更新文档规范，不执行实际 git commit；未来 Agent C 在验收通过后按该规则执行提交。
+- 本次只更新文档规范，不执行实际 git commit；该本地验收后提交规则已在 v0.5 被 `main` 直推和云端结果包验收流程取代。
+
+### v0.5 / 升级 main 直推云端验证流程
+
+日期：2026-07-03
+
+核心变更：
+
+- 将默认协作制度从本地验证和本地验收提交升级为 `main` 直推、GitHub Actions 云端重验证、Agent C 下载未加密结果包验收。
+- 增加 `agenta` / `a:`、`agentb` / `b:`、`agentc` / `c:` 角色召唤和最终回复身份标识规则。
+- 明确 Agent B 默认流程：同步 `origin/main`、在 `main` 小步实现、本地轻量检查、提交并 `git push origin main`。
+- 明确 Agent C 默认流程：只验收 `origin/main` 最新 commit 对应的 manifest、JUnit、日志、`.xcresult` 和 artifact。
+- 新增 GitHub Actions CI 结果包 workflow，生成 manifest、failure summary、JUnit、规则 smoke 日志、Xcode build 日志和 `.xcresult`。
+
+关键文件：
+
+- `AGENTS.md`
+- `WW2Tactics/README.md`
+- `md/prompt/README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `.github/workflows/ci-results.yml`
+
+验证结果：
+
+- 本轮是流程制度和 CI 骨架变更，不改 Swift 业务逻辑。
+- 本地轻量检查和云端试跑结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 当前本地仓库若未配置 `origin/main`，无法完成真实 main push、Actions run 和 artifact 下载；需要配置 GitHub 远端和权限后补跑。

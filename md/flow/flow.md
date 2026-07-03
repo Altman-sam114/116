@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-`WW2Tactics` 的主链路是：玩家在 SwiftUI 地图上选择单位和目标，`GameState` 根据 `GameModels` 执行移动、攻击、补给、AI、目标和胜负规则，`ContentView` 将状态渲染为 EasyTech 风格的大地图战棋界面，测试层用 XCTest 和 smoke test 锁住核心规则。
+`WW2Tactics` 的主链路是：玩家在 SwiftUI 地图上选择单位和目标，`GameState` 根据 `GameModels` 执行移动、攻击、补给、AI、目标和胜负规则，`ContentView` 将状态渲染为 EasyTech 风格的大地图战棋界面，测试层用 XCTest 和 smoke test 锁住核心规则；协作链路默认由 Agent B 在 `main` 提交并推送到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载结果包后验收。
 
 ## 1. 当前核心数据流
 
@@ -176,9 +176,43 @@
 - 移动、攻击、补给、士气、AI、目标推进：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
-- 文档-only 修改：`git diff --check`。
+- 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。
+- workflow 修改：本地 YAML 解析，云端上传 manifest、failure summary、JUnit、构建日志、smoke 日志和 `.xcresult`。
 
-## 7. 已确认铁律
+## 7. 云端协作执行流
+
+### 7.1 Agent A 提示词阶段
+
+1. 人工用 `agenta`、`a:` 或 `A:` 召唤 Agent A。
+2. Agent A 阅读入口文档、测试规范、核心流程和相关源码。
+3. Agent A 写入 `md/prompt/vN（阶段）/vN.x（任务）.md`。
+4. 提示词必须写清 `main` 直推、云端验证、CI artifact、Agent C 下载核对和失败后追加修复 commit 要求。
+
+### 7.2 Agent B main 直推阶段
+
+1. Agent B 基于最新 `origin/main` 切到本地 `main`。
+2. Agent B 小步实现、补测试和同步文档。
+3. Agent B 本地只跑轻量检查；除非人工明确要求，不默认本机完整 build。
+4. Agent B 用 `vN.x: 简要说明` 提交本轮相关文件。
+5. Agent B 直接 `git push origin main` 触发 GitHub Actions。
+6. GitHub Actions 运行静态检查、规则 smoke test、Xcode build-for-testing，并上传未加密 CI 结果包。
+
+### 7.3 Agent C 结果包验收阶段
+
+1. Agent C 确认 `origin/main` 最新 commit。
+2. Agent C 用 `gh auth login` 后下载 artifact 到 `/private/tmp/ww2tactics-c-review-<run_id>/`。
+3. Agent C 核对 `ci-artifact-manifest.json` 中的 `branch`、`commitSha`、`runId`、`runAttempt`。
+4. Agent C 检查 `ci-failure-summary.md`、`junit.xml`、`xcodebuild.log`、`rules-smoke.log` 和 `.xcresult`。
+5. 通过时，Agent C 确认 `origin/main` 最新 run 通过并输出验收结论。
+6. 不通过时，Agent C 写清退回清单；Agent B 在 `main` 上追加修复 commit，再次 push 触发新 run。
+
+### 7.4 当前远端约束
+
+- 默认流程要求存在 `origin/main` 和 GitHub Actions 权限。
+- 若本地仓库没有配置远端或没有权限下载 artifact，Agent 必须在 push 或验收前停止并说明阻塞。
+- 不能把旧结果包、旧 output 或 checkout 自带报告当作本轮云端结果。
+
+## 8. 已确认铁律
 
 - 聚焦不能执行命令。
 - 右键/执行按钮才执行 MOVE、ATK、POS。
@@ -187,8 +221,10 @@
 - 用户可见功能变化必须更新 README。
 - 核心流程变化必须更新 `md/flow`。
 - 测试命令和结果必须真实记录。
+- `main` 是唯一默认提交、推送和云端验证分支。
+- Agent C 只验收 `origin/main` 最新 commit 对应的未加密 CI 结果包。
 
-## 8. 未来扩展点
+## 9. 未来扩展点
 
 - 地图拖动/缩放手感、路线箭头、危险格更细粒度显示。
 - 战斗动画、战损弹窗、攻击前后对比。
@@ -197,7 +233,7 @@
 - 保存进度和战役进度界面。
 - 真实地图贴图、单位立绘、将领头像。
 
-## 9. 不允许破坏的行为
+## 10. 不允许破坏的行为
 
 - 选中己方单位后，地图必须显示可移动/可攻击/可接敌反馈。
 - 据点条和敌军条只能聚焦，不得误触发攻击。

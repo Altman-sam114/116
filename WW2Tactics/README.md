@@ -15,6 +15,10 @@
 - `md/flow/flow.md`：当前真实核心逻辑文档。
 - `md/flow/flowchart.md`：核心数据流、执行流和 Agent 迭代流的 Mermaid 图。
 
+### 协作与云端验证
+
+后续默认使用 `main` 直推和 GitHub Actions 云端重验证：Agent B 在本地完成轻量检查后提交并推送到 `origin/main`，Actions 生成未加密 CI 结果包；Agent C 下载结果包，核对 manifest、JUnit、构建日志、规则 smoke 日志和 `.xcresult` 后验收。只有人工明确要求时，才默认在本机运行完整 Xcode build 或模拟器验证。
+
 ## 已实现
 
 - 二战战役目录：1944 阿登反击战、1944 诺曼底突破

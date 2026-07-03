@@ -2,6 +2,16 @@
 
 本目录保存每轮 Agent A 写给 Agent B 的详细实现提示词。
 
+## 角色召唤
+
+- 用户消息以 `agenta`、`a:` 或 `A:` 开头，表示召唤 Agent A。
+- 用户消息以 `agentb`、`b:` 或 `B:` 开头，表示召唤 Agent B。
+- 用户消息以 `agentc`、`c:` 或 `C:` 开头，表示召唤 Agent C。
+- 没有这些前缀时，按普通 Codex 任务处理；若任务需要 A/B/C 边界，先提醒用户指定角色或说明本轮按普通任务执行。
+- Agent A 最终回复第一行必须写：`我是 Agent A。`
+- Agent B 最终回复第一行必须写：`我是 Agent B。`
+- Agent C 最终回复第一行必须写：`我是 Agent C。`
+
 ## 命名规则
 
 推荐格式：
@@ -35,6 +45,21 @@
 - 文档更新要求。
 - 验收标准。
 - 风险和禁止项。
+
+## 云端阶段要求
+
+Agent A 写给 Agent B 的提示词必须包含：
+
+- 当前固定使用 `main` 作为唯一上传、提交、推送和云端验证分支。
+- 本轮不使用 `smalldata_test`、`develop`、`codeb/...` 或 PR 流程。
+- Agent B 开始前同步最新 `origin/main`，确认当前分支是 `main`，工作区没有无关改动。
+- Agent B 完成后先跑本地轻量检查，再用 `vN.x: 简要说明` 提交并 `git push origin main`。
+- GitHub Actions 必须生成未加密 CI 结果包，至少包含 `ci-artifact-manifest.json`、`ci-failure-summary.md`、`junit.xml`、主构建日志和项目专属结果文件。
+- Swift / Xcode / 规则 / UI 改动的云端重验证必须包含规则 smoke test 和 Xcode build 或等价 typecheck。
+- Agent C 必须用 `gh auth login` 后下载 artifact 到 `/private/tmp/ww2tactics-c-review-<run_id>/`。
+- Agent C 必须核对 manifest 的 `branch=main`、`commitSha`、`runId`、`runAttempt` 与 `origin/main` 最新状态一致。
+- 云端失败时，Agent C 写退回清单；Agent B 在 `main` 上追加修复 commit 并重新 push。
+- 若仓库没有 `origin/main` 或没有 artifact 下载权限，Agent 必须停止并说明阻塞，不能伪装云端验证完成。
 
 ## 当前建议
 

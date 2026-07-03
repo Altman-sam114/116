@@ -68,19 +68,51 @@ flowchart LR
 
 ## 4. Agent 迭代流程图
 
-读图说明：这张图展示后续项目不再由单个 Agent 直接乱改，而是按 A 设计、B 实现、C 验收、通过后自动按版本提交、人工复核循环推进；如果 C 不通过，则退回 B 修复。
+读图说明：这张图展示后续项目不再由单个 Agent 直接乱改，而是按 A 设计、B 在 `main` 实现并直推、GitHub Actions 云端重验证、C 下载结果包验收、人工复核循环推进；如果 C 不通过，则退回 B 在 `main` 上追加修复 commit。
 
 ```mermaid
 flowchart TD
   H["人工提出目标、限制、验收标准"] --> A["Agent A：分析目标并写实现提示词"]
   A --> P["md/prompt/vN（阶段）/vN.x（任务）.md"]
-  P --> B["Agent B：实现、补测试、跑验证、更新文档"]
-  B --> C["Agent C：查看 diff、核对测试、验收实现"]
+  P --> S["Agent B：同步 origin/main 并确认位于 main"]
+  S --> B["Agent B：实现、补测试、轻量检查、更新文档"]
+  B --> M["main commit：vN.x: 简要说明"]
+  M --> U["git push origin main"]
+  U --> G["GitHub Actions：静态检查、smoke、Xcode build"]
+  G --> Q["未加密 CI 结果包：manifest、failure summary、JUnit、log、xcresult"]
+  Q --> C["Agent C：下载结果包并核对 origin/main 最新 commit"]
   C --> D{"验收是否通过？"}
-  D -->|不通过| B2["退回 Agent B：指出问题、缺失测试和需修复点"]
-  B2 --> B
-  D -->|通过| F["更新 md/flow、flowchart、update_log"]
-  F --> G["按版本号 git commit：vN.x: 简要说明"]
-  G --> R["人工复核提交和汇报"]
-  R --> H
+  D -->|不通过| B2["退回 Agent B：问题清单、缺失测试、风险"]
+  B2 --> R["main 追加修复 commit"]
+  R --> U
+  D -->|通过| F["Agent C：确认最新 run、artifact 和文档同步"]
+  F --> K["人工复核 main 最新提交和验收结论"]
+  K --> H
+```
+
+## 5. 云端结果包验收流
+
+读图说明：这张图展示 Agent C 的验收对象不是 Agent B 的文字汇报，而是 `origin/main` 最新 run 上传的未加密 artifact。manifest 中的 commit 和 run 信息必须与远端最新状态一致。
+
+```mermaid
+flowchart TD
+  O["origin/main 最新 commit"] --> R["GitHub Actions run"]
+  R --> A["artifact：ww2tactics-ci-vX.Y-main-<sha>-run<id>-attempt<n>"]
+  A --> M["ci-artifact-manifest.json"]
+  A --> F["ci-failure-summary.md"]
+  A --> J["junit.xml"]
+  A --> L["xcodebuild.log / rules-smoke.log"]
+  A --> X["WW2Tactics.xcresult"]
+  C["Agent C：gh auth login"] --> D["下载到 /private/tmp/ww2tactics-c-review-<run_id>/"]
+  D --> M
+  D --> F
+  D --> J
+  D --> L
+  D --> X
+  M --> V{"branch、commitSha、runId、runAttempt 是否匹配？"}
+  V -->|否| N["不通过：不能验收旧 run 或旧 artifact"]
+  V -->|是| T{"日志、JUnit、summary 是否通过？"}
+  T -->|否| B["退回 Agent B：main 追加修复 commit"]
+  B --> O
+  T -->|是| Y["通过：确认 main 最新 run"]
 ```
