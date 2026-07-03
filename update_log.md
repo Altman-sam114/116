@@ -16,7 +16,7 @@
 - 当前源码已包含阿登 22x14 大地图、诺曼底战役、MOVE/ATK/POS/NEXT/OBJ/THR 地图反馈、规则 smoke test 和 XCTest。
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
-- 近期规划已进入 `v1（地图操作体验）`：Agent A 已创建 `md/prompt/v1（地图操作体验）/v1.0（路线与战斗预判强化）.md`；Agent B 已实现 v1.0 并完成本地轻量检查，最终通过仍以 `origin/main` 最新 GitHub Actions artifact 和 Agent C 核对为准。
+- 近期规划已进入 `v1（地图操作体验）`：Agent A 已创建 `md/prompt/v1（地图操作体验）/v1.0（路线与战斗预判强化）.md`；Agent B 已实现 v1.0，功能提交 `24bdac8` 已由 Agent C 核对 GitHub Actions artifact 并验收通过。
 
 ## 历史记录
 
@@ -187,7 +187,9 @@
 - `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
 - iOS app 源码级 typecheck：通过，退出码 0。
 - `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
-- 云端 GitHub Actions 和 Agent C artifact 核对：待本轮 push 后执行；本记录不宣称 Agent C 已验收通过。
+- GitHub Actions `WW2Tactics CI Results` run `28671787823` / attempt `1`：completed / success。
+- Artifact `ww2tactics-ci-v1.0-main-24bdac8-run28671787823-attempt1`：Agent C 已下载到 `/private/tmp/ww2tactics-c-review-28671787823/` 并核对 `ci-artifact-manifest.json`、`ci-failure-summary.md`、`junit.xml`、`rules-smoke.log`、`xcodebuild.log` 和 `WW2Tactics.xcresult`。
+- Manifest `commitSha=24bdac828154453d8b85ab64f8d87abf4b657c97` 与 `origin/main` 当时最新功能提交一致；静态检查、规则 smoke 和 Xcode build-for-testing 均为 success，XCTest 执行按当前 CI 策略为 skipped。
 
 遗留事项：
 
