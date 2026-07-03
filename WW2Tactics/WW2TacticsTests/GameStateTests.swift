@@ -922,6 +922,31 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(contestedGame.message.contains("暴露在 控制区守军 火力下"))
     }
 
+    func testRouteStepPreviewsExposeCostsControlZonesAndThreats() throws {
+        let game = GameState(scenario: Self.zoneOfControlScenario(includeEnemy: true))
+        let recon = try XCTUnwrap(game.units.first { $0.name == "接敌侦察" })
+        let contactTile = HexCoordinate(q: 1, r: 1)
+        let route = try XCTUnwrap(game.movementRoute(for: recon, to: contactTile))
+
+        let steps = game.routeStepPreviews(for: recon, route: route)
+
+        XCTAssertEqual(steps.count, route.stepCount)
+        XCTAssertEqual(route.coordinates.first, recon.position)
+        XCTAssertEqual(steps.first?.coordinate, contactTile)
+        XCTAssertEqual(steps.first?.stepIndex, 1)
+        XCTAssertEqual(steps.last?.isDestination, true)
+        XCTAssertEqual(steps.map(\.movementCost).reduce(0, +), route.totalCost)
+        XCTAssertEqual(steps.map(\.controlZonePenalty).reduce(0, +), route.controlZonePenalty)
+        XCTAssertEqual(steps.first?.controlZonePenalty, 1)
+        XCTAssertEqual(steps.first?.threatCount, 1)
+        XCTAssertEqual(steps.first?.threatNames, ["控制区守军"])
+
+        game.handlePrimaryAction(on: recon.position)
+        game.handlePrimaryAction(on: contactTile)
+
+        XCTAssertEqual(game.focusedRouteStepPreviews, steps)
+    }
+
     func testSelectingAndMovingUnitUpdatesBattlefieldState() throws {
         let game = GameState()
         let tank = try XCTUnwrap(game.units.first { $0.name == "第4装甲师" })
@@ -1245,6 +1270,30 @@ final class GameStateTests: XCTestCase {
         XCTAssertLessThan(targetAfterAttack.hp, target.hp)
     }
 
+    func testPostMoveAttackPreviewsMatchCombatPreviewFromDestination() throws {
+        let game = GameState(scenario: Self.postMoveAttackScenario())
+        let tank = try XCTUnwrap(game.units.first { $0.name == "机动装甲" })
+        let target = try XCTUnwrap(game.units.first { $0.name == "前方守军" })
+        let destination = HexCoordinate(q: 3, r: 0)
+
+        game.handlePrimaryAction(on: tank.position)
+        game.handlePrimaryAction(on: destination)
+
+        var movedAttacker = tank
+        movedAttacker.position = destination
+        let expectedCombat = try XCTUnwrap(game.combatPreview(attacker: movedAttacker, defender: target))
+        let previews = game.postMoveAttackPreviews(for: tank, to: destination)
+
+        XCTAssertEqual(previews.count, 1)
+        XCTAssertEqual(game.focusedPostMoveAttackPreviews, previews)
+        XCTAssertEqual(previews.first?.targetID, target.id)
+        XCTAssertEqual(previews.first?.targetName, target.name)
+        XCTAssertEqual(previews.first?.damage, expectedCombat.damage)
+        XCTAssertEqual(previews.first?.counterDamage, expectedCombat.counterDamage)
+        XCTAssertEqual(previews.first?.defenderHPAfterAttack, expectedCombat.defenderHPAfterAttack)
+        XCTAssertEqual(previews.first?.willDestroy, expectedCombat.willDestroyDefender)
+    }
+
     func testExecuteFocusedCommandRunsMoveAttackAndApproachOrders() throws {
         let moveGame = GameState(scenario: Self.postMoveAttackScenario())
         let moveTank = try XCTUnwrap(moveGame.units.first { $0.name == "机动装甲" })
@@ -1381,6 +1430,16 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(approachRoute.coordinates.contains(expectedPosition))
         XCTAssertTrue(game.focusedAttackPositionRoutes.allSatisfy { route in
             game.postMoveAttackOpportunities(for: tank, to: route.destination).contains { $0.id == target.id }
+        })
+        XCTAssertEqual(game.focusedRouteStepPreviews.last?.coordinate, expectedPosition)
+        XCTAssertEqual(
+            game.focusedRouteStepPreviews.map(\.movementCost).reduce(0, +),
+            approachRoute.totalCost
+        )
+        XCTAssertTrue(game.focusedRouteStepPreviews.contains { step in
+            step.coordinate == expectedPosition &&
+                step.threatNames.contains(target.name) &&
+                step.controlZonePenalty > 0
         })
 
         game.handleSecondaryAction(on: target.position)

@@ -106,6 +106,21 @@ final class GameState: ObservableObject {
         return postMoveAttackOpportunities(for: selectedUnit, to: route.destination)
     }
 
+    var focusedRouteStepPreviews: [RouteStepPreview] {
+        guard let selectedUnit else { return [] }
+        if let route = focusedMovementRoute {
+            return routeStepPreviews(for: selectedUnit, route: route)
+        }
+        guard let route = focusedAttackPositionRoute else { return [] }
+        return routeStepPreviews(for: selectedUnit, route: route)
+    }
+
+    var focusedPostMoveAttackPreviews: [PostMoveAttackPreview] {
+        guard let selectedUnit,
+              let route = focusedMovementRoute else { return [] }
+        return postMoveAttackPreviews(for: selectedUnit, to: route.destination)
+    }
+
     var focusedAttackPositionRoutes: [MovementRoute] {
         guard let selectedUnit,
               let focusedUnit,
@@ -737,6 +752,45 @@ final class GameState: ObservableObject {
         return movementCost(for: unit, entering: tile)
     }
 
+    func routeStepPreviews(for unit: BattleUnit, route: MovementRoute) -> [RouteStepPreview] {
+        route.coordinates.dropFirst().enumerated().compactMap { offset, coordinate in
+            guard let movementCost = movementCostPreview(for: unit, entering: coordinate) else { return nil }
+            let threats = threateningEnemies(against: unit.faction, at: coordinate)
+            return RouteStepPreview(
+                coordinate: coordinate,
+                stepIndex: offset + 1,
+                movementCost: movementCost,
+                controlZonePenalty: enemyControlZonePenalty(for: unit, entering: coordinate),
+                threatCount: threats.count,
+                threatNames: Array(threats.prefix(2).map(\.name)),
+                isDestination: coordinate == route.destination
+            )
+        }
+    }
+
+    func postMoveAttackPreviews(for unit: BattleUnit, to coordinate: HexCoordinate) -> [PostMoveAttackPreview] {
+        guard unit.canMove,
+              unit.canAttack,
+              movementRoute(for: unit, to: coordinate) != nil else { return [] }
+
+        var attacker = unit
+        attacker.position = coordinate
+
+        return postMoveAttackOpportunities(for: unit, to: coordinate)
+            .compactMap { target -> PostMoveAttackPreview? in
+                guard let preview = combatPreview(attacker: attacker, defender: target) else { return nil }
+                return PostMoveAttackPreview(
+                    targetID: target.id,
+                    targetName: target.name,
+                    damage: preview.damage,
+                    counterDamage: preview.counterDamage,
+                    defenderHPAfterAttack: preview.defenderHPAfterAttack,
+                    willDestroy: preview.willDestroyDefender
+                )
+            }
+            .sorted(by: postMoveAttackPreviewSort)
+    }
+
     func mapActionHint(for coordinate: HexCoordinate) -> MapActionHint {
         guard winner == nil else { return .none }
 
@@ -1274,6 +1328,19 @@ final class GameState: ObservableObject {
                 return leftCost < rightCost
             }
             .first
+    }
+
+    private func postMoveAttackPreviewSort(_ left: PostMoveAttackPreview, _ right: PostMoveAttackPreview) -> Bool {
+        if left.willDestroy != right.willDestroy {
+            return left.willDestroy && !right.willDestroy
+        }
+        if left.damage != right.damage {
+            return left.damage > right.damage
+        }
+        if left.defenderHPAfterAttack != right.defenderHPAfterAttack {
+            return left.defenderHPAfterAttack < right.defenderHPAfterAttack
+        }
+        return left.targetName < right.targetName
     }
 
     private func objectiveAdvancePlans(for unit: BattleUnit) -> [ObjectiveAdvancePlan] {

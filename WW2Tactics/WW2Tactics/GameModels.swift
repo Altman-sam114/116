@@ -670,6 +670,30 @@ struct MovementRoute: Equatable {
     }
 }
 
+struct RouteStepPreview: Identifiable, Equatable {
+    let coordinate: HexCoordinate
+    let stepIndex: Int
+    let movementCost: Int
+    let controlZonePenalty: Int
+    let threatCount: Int
+    let threatNames: [String]
+    let isDestination: Bool
+
+    var id: String { "\(stepIndex)-\(coordinate.id)" }
+    var isThreatened: Bool { threatCount > 0 }
+}
+
+struct PostMoveAttackPreview: Identifiable, Equatable {
+    let targetID: BattleUnit.ID
+    let targetName: String
+    let damage: Int
+    let counterDamage: Int
+    let defenderHPAfterAttack: Int
+    let willDestroy: Bool
+
+    var id: BattleUnit.ID { targetID }
+}
+
 enum MapCommandPreview: Equatable {
     case inspectTerrain(terrainName: String)
     case selectedUnit(unitName: String)

@@ -970,14 +970,13 @@ private struct InlineMapCommandPreview: View {
     private func detail(for preview: MapCommandPreview) -> String {
         switch preview {
         case let .move(unitName, terrainName, route):
-            let zone = route.controlZonePenalty > 0 ? "，含控制区 +\(route.controlZonePenalty)" : ""
-            return "\(unitName) 可进入\(terrainName)，\(route.stepCount) 格，消耗 \(route.totalCost)\(zone)。"
+            return "\(unitName) 可进入\(terrainName)，\(routeSummaryText(for: route))\(postMoveAttackPreviewText())"
         case let .attack(attackerName, defenderName, damage, counterDamage, defenderHPAfterAttack, willDestroy):
             let result = willDestroy ? "可击毁" : "目标剩 \(defenderHPAfterAttack)"
             let counter = counterDamage > 0 ? "，反击 -\(counterDamage)" : "，无反击"
             return "\(attackerName) 攻击 \(defenderName)：-\(damage)，\(result)\(counter)。"
         case let .approachAttack(unitName, defenderName, route):
-            return "\(unitName) 可移动到 q\(route.destination.q),r\(route.destination.r) 接近 \(defenderName)，再继续攻击。"
+            return "\(unitName) 接近 \(defenderName)：\(routeSummaryText(for: route))移动后目标进射程，不自动攻击。"
         case let .selectedUnit(unitName):
             return "\(unitName) 已选中，地图已标出可执行命令。"
         case let .selectUnit(unitName, kind):
@@ -993,6 +992,40 @@ private struct InlineMapCommandPreview: View {
         case let .inspectTerrain(terrainName):
             return "\(terrainName) 地格。"
         }
+    }
+
+    private func routeSummaryText(for route: MovementRoute) -> String {
+        let steps = game.focusedRouteStepPreviews
+        let threatenedSteps = steps.filter(\.isThreatened)
+        let zone = route.controlZonePenalty > 0 ? "，控区 +\(route.controlZonePenalty)" : ""
+        let risk = routeRiskSummary(for: threatenedSteps)
+        return "\(route.stepCount) 步，总消耗 \(route.totalCost)\(zone)\(risk)。"
+    }
+
+    private func routeRiskSummary(for threatenedSteps: [RouteStepPreview]) -> String {
+        guard !threatenedSteps.isEmpty else { return "，无敌火风险" }
+        let names = uniqueThreatNames(from: threatenedSteps).prefix(2).joined(separator: "、")
+        return "，\(threatenedSteps.count) 步受威胁：\(names)"
+    }
+
+    private func uniqueThreatNames(from steps: [RouteStepPreview]) -> [String] {
+        var names: [String] = []
+        for step in steps {
+            for name in step.threatNames where !names.contains(name) {
+                names.append(name)
+            }
+        }
+        return names
+    }
+
+    private func postMoveAttackPreviewText() -> String {
+        guard let selectedUnit = game.selectedUnit else { return "" }
+        guard let best = game.focusedPostMoveAttackPreviews.first else {
+            return selectedUnit.canAttack ? "移动后暂无射程内目标。" : "本回合已无法继续攻击。"
+        }
+        let result = best.willDestroy ? "预计击毁" : "目标剩 \(best.defenderHPAfterAttack)"
+        let counter = best.counterDamage > 0 ? "，反击 -\(best.counterDamage)" : "，无反击"
+        return "最佳目标 \(best.targetName)：-\(best.damage)，\(result)\(counter)。"
     }
 
     private func accentColor(for preview: MapCommandPreview) -> Color {
@@ -1504,6 +1537,7 @@ private struct HexMapView: View {
         let attackPositions = Set(game.focusedAttackPositionRoutes.map(\.destination))
         let focusedRoute = game.focusedMovementRoute ?? game.focusedAttackPositionRoute
         let focusedRouteCoordinates = Set(focusedRoute?.coordinates ?? [])
+        let focusedRouteSteps = Dictionary(uniqueKeysWithValues: game.focusedRouteStepPreviews.map { ($0.coordinate, $0) })
         let guidedObjectiveCoordinate = game.guidedObjectiveCoordinate
         let contentWidth = CGFloat(game.scenario.mapColumns) * tileWidth * 0.78 + tileWidth
         let contentHeight = CGFloat(game.scenario.mapRows) * tileHeight * 0.78 + tileHeight
@@ -1537,6 +1571,7 @@ private struct HexMapView: View {
                     actionHint: game.mapActionHint(for: tile.coordinate),
                     isMovementRoute: focusedRouteCoordinates.contains(tile.coordinate),
                     isRouteDestination: focusedRoute?.destination == tile.coordinate,
+                    routeStepPreview: focusedRouteSteps[tile.coordinate],
                     isSupplyLine: supplyLine.contains(tile.coordinate),
                     isAttackCoverage: attackCoverage.contains(tile.coordinate),
                     isPostMoveAttackTarget: postMoveAttackTargets.contains(tile.coordinate),
@@ -1645,6 +1680,7 @@ private struct HexTileView: View {
     let actionHint: MapActionHint
     let isMovementRoute: Bool
     let isRouteDestination: Bool
+    let routeStepPreview: RouteStepPreview?
     let isSupplyLine: Bool
     let isAttackCoverage: Bool
     let isPostMoveAttackTarget: Bool
@@ -1675,7 +1711,7 @@ private struct HexTileView: View {
             }
 
             if isMovementRoute {
-                MovementRouteMarker(isDestination: isRouteDestination)
+                MovementRouteMarker(step: routeStepPreview, isDestination: isRouteDestination)
             }
 
             if isGuidedObjective {
@@ -1809,7 +1845,15 @@ private struct HexTileView: View {
         let postMoveAttackText = isPostMoveAttackTarget ? "移动后可攻击" : ""
         let attackPositionText = isAttackPosition ? "可进入攻击位" : ""
         let guidedObjectiveText = isGuidedObjective ? "当前目标据点" : ""
-        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(unitText) \(actionAccessibilityText)"
+        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(unitText) \(actionAccessibilityText)"
+    }
+
+    private var routeAccessibilityText: String {
+        guard let routeStepPreview else { return "" }
+        let destinationText = routeStepPreview.isDestination ? "，终点" : ""
+        let controlZoneText = routeStepPreview.controlZonePenalty > 0 ? "，控制区+\(routeStepPreview.controlZonePenalty)" : ""
+        let threatText = routeStepPreview.threatCount > 0 ? "，受\(routeStepPreview.threatNames.joined(separator: "、"))火力威胁" : ""
+        return "路线第\(routeStepPreview.stepIndex)步，消耗\(routeStepPreview.movementCost)\(controlZoneText)\(threatText)\(destinationText)"
     }
 
     private var actionAccessibilityText: String {
@@ -2057,33 +2101,71 @@ private struct GuidedObjectiveMarker: View {
 }
 
 private struct MovementRouteMarker: View {
+    let step: RouteStepPreview?
     let isDestination: Bool
 
     var body: some View {
         ZStack {
             Capsule()
-                .fill(Color.cyan.opacity(isDestination ? 0.28 : 0.20))
-                .frame(width: 58, height: 11)
+                .fill(markerFill)
+                .frame(width: 62, height: 14)
                 .overlay(
                     Capsule()
-                        .stroke(Color.white.opacity(isDestination ? 0.42 : 0.26), lineWidth: 1)
+                        .stroke(Color.white.opacity(isDestination ? 0.46 : 0.28), lineWidth: 1)
                 )
                 .rotationEffect(.degrees(-18))
 
-            if isDestination {
-                Image(systemName: "location.fill")
-                    .font(.system(size: 10, weight: .black))
-                    .foregroundStyle(.white)
-                    .padding(4)
-                    .background(Color.cyan.opacity(0.88), in: Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(0.38), lineWidth: 1)
-                    )
+            if let step {
+                HStack(spacing: 2) {
+                    if step.isThreatened {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 7, weight: .black))
+                    }
+                    Text("\(step.stepIndex):\(step.movementCost)")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 3)
+                .background(markerBadgeFill, in: Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.38), lineWidth: 1)
+                )
+            } else if isDestination {
+                RouteDestinationIcon()
             }
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    private var markerFill: Color {
+        guard step?.isThreatened == true else {
+            return Color.cyan.opacity(isDestination ? 0.28 : 0.20)
+        }
+        return Color.red.opacity(isDestination ? 0.26 : 0.20)
+    }
+
+    private var markerBadgeFill: Color {
+        guard step?.isThreatened == true else {
+            return Color.cyan.opacity(isDestination ? 0.92 : 0.78)
+        }
+        return Color.red.opacity(isDestination ? 0.94 : 0.82)
+    }
+}
+
+private struct RouteDestinationIcon: View {
+    var body: some View {
+        Image(systemName: "location.fill")
+            .font(.system(size: 10, weight: .black))
+            .foregroundStyle(.white)
+            .padding(4)
+            .background(Color.cyan.opacity(0.88), in: Circle())
+            .overlay(
+                Circle()
+                    .stroke(Color.white.opacity(0.38), lineWidth: 1)
+            )
     }
 }
 
@@ -3028,11 +3110,9 @@ private struct FocusedCommandPreviewPanel: View {
         case let .selectUnit(unitName, kind):
             return "左键可切换选择 \(unitName)（\(kind.title)）。"
         case let .move(unitName, terrainName, route):
-            let penaltyText = route.controlZonePenalty > 0 ? "，其中敌方控制区 +\(route.controlZonePenalty)" : ""
-            return "右键命令 \(unitName) 进入\(terrainName)，路线 \(route.stepCount) 格，总消耗 \(route.totalCost) 移动力\(penaltyText)。\(postMoveAttackText(for: route))"
+            return "右键命令 \(unitName) 进入\(terrainName)，\(routeSummaryText(for: route))\(postMoveAttackText())"
         case let .approachAttack(unitName, defenderName, route):
-            let penaltyText = route.controlZonePenalty > 0 ? "，敌方控制区 +\(route.controlZonePenalty)" : ""
-            return "右键命令 \(unitName) 移动到 q\(route.destination.q),r\(route.destination.r) 接近 \(defenderName)，路线 \(route.stepCount) 格，消耗 \(route.totalCost) 移动力\(penaltyText)。移动后可继续右键攻击。"
+            return "右键命令 \(unitName) 移动到 q\(route.destination.q),r\(route.destination.r) 接近 \(defenderName)，\(routeSummaryText(for: route))移动后目标进入射程，可继续右键攻击，不会自动攻击。"
         case let .attack(attackerName, defenderName, damage, counterDamage, defenderHPAfterAttack, willDestroy):
             let outcome = willDestroy ? "预计击毁目标" : "目标剩余 \(defenderHPAfterAttack) 耐久"
             let counter = counterDamage > 0 ? "，可能遭反击 -\(counterDamage)" : "，无反击"
@@ -3048,18 +3128,43 @@ private struct FocusedCommandPreviewPanel: View {
         }
     }
 
-    private func postMoveAttackText(for route: MovementRoute) -> String {
-        guard let selectedUnit = game.selectedUnit else { return "" }
-        let opportunities = game.postMoveAttackOpportunities(for: selectedUnit, to: route.destination)
+    private func routeSummaryText(for route: MovementRoute) -> String {
+        let steps = game.focusedRouteStepPreviews
+        let threatenedSteps = steps.filter(\.isThreatened)
+        let penaltyText = route.controlZonePenalty > 0 ? "其中敌方控制区 +\(route.controlZonePenalty)，" : ""
+        return "路线 \(route.stepCount) 步，总消耗 \(route.totalCost) 移动力，\(penaltyText)\(routeRiskText(for: threatenedSteps))。"
+    }
 
-        if opportunities.isEmpty {
+    private func routeRiskText(for threatenedSteps: [RouteStepPreview]) -> String {
+        guard !threatenedSteps.isEmpty else { return "无敌火风险" }
+        let names = uniqueThreatNames(from: threatenedSteps).prefix(2).joined(separator: "、")
+        return "\(threatenedSteps.count) 步暴露在 \(names) 火力下"
+    }
+
+    private func uniqueThreatNames(from steps: [RouteStepPreview]) -> [String] {
+        var names: [String] = []
+        for step in steps {
+            for name in step.threatNames where !names.contains(name) {
+                names.append(name)
+            }
+        }
+        return names
+    }
+
+    private func postMoveAttackText() -> String {
+        guard let selectedUnit = game.selectedUnit else { return "" }
+        let previews = game.focusedPostMoveAttackPreviews
+
+        if previews.isEmpty {
             return selectedUnit.canAttack ? "移动后暂无射程内目标。" : "本回合已无法继续攻击。"
         }
 
-        let names = opportunities.prefix(2).map(\.name).joined(separator: "、")
-        let extraCount = opportunities.count - min(opportunities.count, 2)
-        let extraText = extraCount > 0 ? "等 \(opportunities.count) 个目标" : ""
-        return "移动后可攻击 \(names)\(extraText)。"
+        guard let best = previews.first else { return "" }
+        let result = best.willDestroy ? "预计击毁" : "目标剩余 \(best.defenderHPAfterAttack) 耐久"
+        let counter = best.counterDamage > 0 ? "，可能遭反击 -\(best.counterDamage)" : "，无反击"
+        let extraCount = previews.count - 1
+        let extraText = extraCount > 0 ? "，另有 \(extraCount) 个目标" : ""
+        return "移动后最佳目标 \(best.targetName)：造成 \(best.damage) 伤害，\(result)\(counter)\(extraText)。"
     }
 
     private func attackPositionText() -> String {
@@ -3465,7 +3570,8 @@ private struct MapLegendView: View {
                 LegendItem(color: .white.opacity(0.85), label: "左键选择")
                 LegendItem(color: .orange.opacity(0.94), label: "右键执行")
                 LegendItem(color: .yellow, label: "选中")
-                LegendItem(color: .cyan, label: "移动消耗", symbol: "M")
+                LegendItem(color: .cyan, label: "步序/消耗", symbol: "1")
+                LegendItem(color: .red.opacity(0.82), label: "路线风险", symbol: "!")
                 LegendItem(color: .red, label: "攻击预估", symbol: "A")
                 LegendItem(color: .orange.opacity(0.86), label: "移动后目标", symbol: "NX")
                 LegendItem(color: .orange.opacity(0.76), label: "攻击位", symbol: "POS")

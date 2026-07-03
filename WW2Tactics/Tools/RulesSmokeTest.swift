@@ -193,6 +193,18 @@ struct RulesSmokeTest {
                 return
             }
             require(
+                postMoveGame.focusedRouteStepPreviews.map(\.movementCost).reduce(0, +) == postMoveApproachRoute.totalCost,
+                "focused approach route step costs should sum to the route total"
+            )
+            require(
+                postMoveGame.focusedRouteStepPreviews.contains { step in
+                    step.coordinate == postMoveDestination &&
+                        step.threatNames.contains(postMoveTarget.name) &&
+                        step.controlZonePenalty > 0
+                },
+                "focused approach route should expose destination threat and control-zone risk"
+            )
+            require(
                 postMoveGame.mapActionHint(for: postMoveTarget.position) == .approachAttack(
                     cost: postMoveApproachRoute.totalCost,
                     controlZonePenalty: postMoveApproachRoute.controlZonePenalty
@@ -213,6 +225,20 @@ struct RulesSmokeTest {
             )
             postMoveGame.handlePrimaryAction(on: postMoveDestination)
             require(postMoveGame.focusedPostMoveAttackOpportunities.map(\.id) == [postMoveTarget.id], "focused move preview should list the future target")
+            guard let postMoveAttackPreview = postMoveGame.focusedPostMoveAttackPreviews.first else {
+                require(false, "focused move preview should expose future combat numbers")
+                return
+            }
+            var previewAttacker = postMoveTank
+            previewAttacker.position = postMoveDestination
+            guard let expectedPostMoveCombat = postMoveGame.combatPreview(attacker: previewAttacker, defender: postMoveTarget) else {
+                require(false, "future combat preview should be computable from the destination")
+                return
+            }
+            require(postMoveAttackPreview.targetID == postMoveTarget.id, "focused post-move attack preview should name the future target")
+            require(postMoveAttackPreview.damage == expectedPostMoveCombat.damage, "post-move attack preview damage should match combat preview")
+            require(postMoveAttackPreview.counterDamage == expectedPostMoveCombat.counterDamage, "post-move attack preview counter damage should match combat preview")
+            require(postMoveAttackPreview.willDestroy == expectedPostMoveCombat.willDestroyDefender, "post-move attack preview kill flag should match combat preview")
             require(
                 postMoveGame.message.contains("移动后可攻击 \(postMoveTarget.name)"),
                 "primary focus on a move tile should describe post-move attack targets"
@@ -533,6 +559,14 @@ struct RulesSmokeTest {
                 contestedZoneGame.movementCostPreview(for: contestedRecon, entering: contactTile) == TerrainKind.plains.movementCost(for: .recon) + 1,
                 "movement preview should include control zone cost"
             )
+            guard let contestedRoute = contestedZoneGame.movementRoute(for: contestedRecon, to: contactTile) else {
+                require(false, "contested contact tile should be reachable")
+                return
+            }
+            let contestedRouteSteps = contestedZoneGame.routeStepPreviews(for: contestedRecon, route: contestedRoute)
+            require(contestedRouteSteps.map(\.movementCost).reduce(0, +) == contestedRoute.totalCost, "route step costs should sum to total movement cost")
+            require(contestedRouteSteps.map(\.controlZonePenalty).reduce(0, +) == contestedRoute.controlZonePenalty, "route step control-zone costs should sum to route penalty")
+            require(contestedRouteSteps.first?.threatNames == ["控制区守军"], "route step preview should expose threat source names")
             require(openZoneGame.reachableTiles(for: openRecon).contains(deepTile), "open ground should allow recon to reach the deep tile")
             require(!contestedZoneGame.reachableTiles(for: contestedRecon).contains(deepTile), "control zone cost should restrict deep movement")
             require(openZoneGame.threatenedReachableTiles(for: openRecon).isEmpty, "threat overlay should stay empty when no enemy covers reachable tiles")
