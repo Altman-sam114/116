@@ -11,9 +11,9 @@ flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand"]
   I --> S["GameState：核心状态机"]
-  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、补给、控制区、士气、AI、OBJ、THR"]
-  R --> W["状态写回：单位位置、HP、行动状态、据点归属、消息、攻击/战术/占领结果、战报、胜负"]
+  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview"] --> S
+  S --> R["规则判定：移动、攻击、战术命令、补给、控制区、士气、AI、OBJ计划、THR"]
+  R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、消息、攻击/战术/占领结果、战报、胜负"]
   W --> P["@Published 状态变化"]
   P --> V
   S --> T["测试层：GameStateTests / RulesSmokeTest"]
@@ -31,7 +31,8 @@ flowchart TD
   D --> E["生成地图预览 MapCommandPreview"]
   E --> R["路线情报：RouteStepPreview / PostMoveAttackPreview"]
   R --> X["火力风险：PostMoveFireExposurePreview / SafeEngagementOption"]
-  X --> F{"输入类型"}
+  X --> OP["OBJ计划摘要：ObjectiveAdvancePreview 最多 3 条"]
+  OP --> F{"输入类型"}
   F -->|左键/主点按聚焦| G["只显示预览消息，不消耗行动"]
   F -->|右键/执行按钮| H{"预览是否可执行？"}
   H -->|MOVE| I["move：移动、消耗移动、更新据点、必要时写入 CAP 结果"]
@@ -62,6 +63,7 @@ flowchart LR
   MV --> RP["RouteStepPreview 步序、消耗、控制区、敌火"]
   MV --> PM["PostMoveAttackPreview 移动后伤害、反击、击毁"]
   MV --> FP["PostMoveFireExposurePreview 潜在承伤、HP 后果、风险等级"]
+  MV --> OP["ObjectiveAdvancePreview 据点推进计划"]
   MV --> SE["SafeEngagementOption 安全接敌候选"]
   AT --> PM
   AT --> FP
@@ -70,6 +72,7 @@ flowchart LR
   RP --> CMD
   PM --> CMD
   FP --> CMD
+  OP --> CMD
   SE --> CMD
   CMD --> EX["executeMapCommand"]
   EX --> RES["更新单位、据点、消息、攻击/战术/占领结果、战报"]

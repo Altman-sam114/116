@@ -137,6 +137,11 @@ final class GameState: ObservableObject {
         focusedFireExposurePreview
     }
 
+    var focusedObjectiveAdvancePreviews: [ObjectiveAdvancePreview] {
+        guard let selectedUnit else { return [] }
+        return objectiveAdvancePreviews(for: selectedUnit)
+    }
+
     var focusedAttackPositionRoutes: [MovementRoute] {
         guard let selectedUnit,
               let focusedUnit,
@@ -422,7 +427,18 @@ final class GameState: ObservableObject {
               objective.owner != unit.faction,
               self.unit(at: objective.coordinate) == nil else { return nil }
 
-        return objectiveAdvancePlan(for: unit, objective: objective)?.route
+        return objectiveAdvancePlan(
+            for: unit,
+            objective: objective,
+            routes: movementRoutes(for: unit)
+        )?.route
+    }
+
+    func objectiveAdvancePreviews(for unit: BattleUnit, limit: Int = 3) -> [ObjectiveAdvancePreview] {
+        guard limit > 0 else { return [] }
+        return objectiveAdvancePlans(for: unit)
+            .prefix(limit)
+            .map { objectiveAdvancePreview(for: unit, plan: $0) }
     }
 
     func focusNearestObjectiveTarget() {
@@ -1551,18 +1567,23 @@ final class GameState: ObservableObject {
               unit.canMove,
               !unit.isDestroyed else { return [] }
 
+        let routes = movementRoutes(for: unit)
+
         return objectiveTiles
             .filter { objective in
                 objective.owner != unit.faction &&
                     self.unit(at: objective.coordinate) == nil
             }
-            .compactMap { objectiveAdvancePlan(for: unit, objective: $0) }
+            .compactMap { objectiveAdvancePlan(for: unit, objective: $0, routes: routes) }
             .sorted(by: objectiveAdvancePlanSort)
     }
 
-    private func objectiveAdvancePlan(for unit: BattleUnit, objective: TerrainTile) -> ObjectiveAdvancePlan? {
+    private func objectiveAdvancePlan(
+        for unit: BattleUnit,
+        objective: TerrainTile,
+        routes: [HexCoordinate: MovementRoute]
+    ) -> ObjectiveAdvancePlan? {
         let currentDistance = unit.position.distance(to: objective.coordinate)
-        let routes = movementRoutes(for: unit)
 
         if let directRoute = routes[objective.coordinate] {
             return ObjectiveAdvancePlan(
@@ -1619,6 +1640,19 @@ final class GameState: ObservableObject {
         }
 
         return left.currentDistance < right.currentDistance
+    }
+
+    private func objectiveAdvancePreview(for unit: BattleUnit, plan: ObjectiveAdvancePlan) -> ObjectiveAdvancePreview {
+        ObjectiveAdvancePreview(
+            objectiveName: plan.tile.objectiveName ?? "目标据点",
+            coordinate: plan.tile.coordinate,
+            owner: plan.tile.owner,
+            route: plan.route,
+            reachesObjective: plan.reachesObjective,
+            currentDistance: plan.currentDistance,
+            remainingDistance: plan.remainingDistance,
+            fireExposure: fireExposurePreview(for: unit, at: plan.route.destination)
+        )
     }
 
     func waitSelectedUnit() {

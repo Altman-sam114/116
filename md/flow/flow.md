@@ -24,7 +24,7 @@
 职责：
 
 - 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、安全接敌候选 `SafeEngagementOption`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary` 和据点占领后的 `ObjectiveCaptureResultSummary`。
+- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary` 和据点占领后的 `ObjectiveCaptureResultSummary`。
 - 生成阿登反击战、诺曼底突破等战役初始数据。
 
 输入：
@@ -47,7 +47,7 @@
 
 - 项目核心状态机。
 - 管理当前战役、选中单位、焦点坐标、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、胜负、指令点。
-- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、据点占领、据点占领结果摘要、目标推进、AI 行动、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
+- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
 
 输入：
 
@@ -143,11 +143,12 @@
 
 ### 3.5 OBJ 目标推进
 
-1. `focusNearestObjectiveTarget` 选择最近未占据、未归属己方的据点。
-2. 若可直达，聚焦据点并设置 `guidedObjectiveCoordinate`。
-3. 若不可直达，聚焦本回合推进格，同时保留最终目标据点。
-4. 普通聚焦、攻击、待命、回合切换等应清理目标引导，避免状态残留。
-5. 只有单位实际进入中立或敌方据点并改变归属时，才生成据点占领结果；远距离 OBJ 中继推进不会生成虚假占领摘要。
+1. `objectiveAdvancePlans(for:)` 选择未占据、未归属己方的据点，并按当前距离、是否直达、剩余距离、路线消耗、步数和名称稳定排序。
+2. `objectiveAdvancePreviews(for:limit:)` 将同一套计划转换为最多 3 条 `ObjectiveAdvancePreview`，附带路线、距离变化、直达/推进状态和终点火力风险；首项必须与 OBJ 快捷目标一致。
+3. `focusNearestObjectiveTarget` 复用同一套计划首项。若可直达，聚焦据点并设置 `guidedObjectiveCoordinate`。
+4. 若不可直达，聚焦本回合推进格，同时保留最终目标据点。
+5. 普通聚焦、攻击、待命、回合切换等应清理目标引导，避免状态残留。
+6. 只有单位实际进入中立或敌方据点并改变归属时，才生成据点占领结果；远距离 OBJ 中继推进不会生成虚假占领摘要。
 
 ### 3.6 THR 敌火覆盖
 
@@ -197,7 +198,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进和目标推进计划摘要：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

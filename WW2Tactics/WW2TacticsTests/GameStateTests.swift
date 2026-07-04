@@ -1873,6 +1873,49 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(summary.newOwner, .allies)
     }
 
+    func testObjectiveAdvancePreviewSummarizesDirectObjectivePlan() throws {
+        let game = GameState(scenario: Self.objectiveAdvanceScenario(includeOccupiedDecoy: true))
+        let tank = try XCTUnwrap(game.units.first { $0.name == "目标推进装甲" })
+        let occupiedObjective = try XCTUnwrap(game.objectiveTiles.first { $0.objectiveName == "占据村镇" })
+        let targetObjective = try XCTUnwrap(game.objectiveTiles.first { $0.objectiveName == "前线据点" })
+
+        game.handlePrimaryAction(on: tank.position)
+
+        let previews = game.objectiveAdvancePreviews(for: tank)
+        let preview = try XCTUnwrap(previews.first)
+        XCTAssertEqual(previews.count, 1)
+        XCTAssertEqual(preview.coordinate, targetObjective.coordinate)
+        XCTAssertEqual(preview.coordinate, game.nearestObjectiveTarget(for: tank)?.coordinate)
+        XCTAssertNotEqual(preview.coordinate, occupiedObjective.coordinate)
+        XCTAssertEqual(preview.objectiveName, "前线据点")
+        XCTAssertEqual(preview.owner, .axis)
+        XCTAssertEqual(preview.route.destination, targetObjective.coordinate)
+        XCTAssertTrue(preview.reachesObjective)
+        XCTAssertEqual(preview.currentDistance, 2)
+        XCTAssertEqual(preview.remainingDistance, 0)
+        XCTAssertEqual(preview.fireExposure?.coordinate, targetObjective.coordinate)
+        XCTAssertEqual(preview.fireExposure?.riskLevel, FireRiskLevel.none)
+        XCTAssertEqual(game.focusedObjectiveAdvancePreviews, previews)
+    }
+
+    func testObjectiveAdvancePreviewIncludesTerminalFireExposure() throws {
+        let game = GameState(scenario: Self.objectiveAdvanceFireRiskScenario())
+        let tank = try XCTUnwrap(game.units.first { $0.name == "冒险装甲" })
+        let targetObjective = try XCTUnwrap(game.objectiveTiles.first { $0.objectiveName == "炮火据点" })
+
+        game.handlePrimaryAction(on: tank.position)
+
+        let preview = try XCTUnwrap(game.objectiveAdvancePreviews(for: tank).first)
+        XCTAssertEqual(preview.coordinate, targetObjective.coordinate)
+        XCTAssertEqual(preview.route.destination, targetObjective.coordinate)
+
+        let exposure = try XCTUnwrap(preview.fireExposure)
+        XCTAssertEqual(exposure.coordinate, targetObjective.coordinate)
+        XCTAssertGreaterThan(exposure.totalPotentialDamage, 0)
+        XCTAssertNotEqual(exposure.riskLevel, FireRiskLevel.none)
+        XCTAssertEqual(exposure.sources.first?.sourceName, "火力警戒炮")
+    }
+
     func testObjectiveQuickFocusAdvancesTowardDistantObjective() throws {
         let game = GameState(scenario: Self.distantObjectiveAdvanceScenario())
         let tank = try XCTUnwrap(game.units.first { $0.name == "目标推进装甲" })
@@ -1910,6 +1953,44 @@ final class GameStateTests: XCTestCase {
         game.focus(coordinate: targetObjective.coordinate)
 
         XCTAssertNil(game.guidedObjectiveCoordinate)
+    }
+
+    func testObjectiveAdvancePreviewSummarizesDistantObjectivePlan() throws {
+        let game = GameState(scenario: Self.distantObjectiveAdvanceScenario())
+        let tank = try XCTUnwrap(game.units.first { $0.name == "目标推进装甲" })
+        let targetObjective = try XCTUnwrap(game.objectiveTiles.first { $0.objectiveName == "纵深据点" })
+        let expectedAdvance = HexCoordinate(q: 4, r: 0)
+
+        game.handlePrimaryAction(on: tank.position)
+
+        let preview = try XCTUnwrap(game.objectiveAdvancePreviews(for: tank).first)
+        XCTAssertEqual(preview.coordinate, targetObjective.coordinate)
+        XCTAssertEqual(preview.coordinate, game.nearestObjectiveTarget(for: tank)?.coordinate)
+        XCTAssertEqual(preview.route.destination, expectedAdvance)
+        XCTAssertFalse(preview.reachesObjective)
+        XCTAssertEqual(preview.currentDistance, 5)
+        XCTAssertEqual(preview.remainingDistance, 1)
+        XCTAssertEqual(preview.fireExposure?.coordinate, expectedAdvance)
+        XCTAssertEqual(preview.fireExposure?.riskLevel, FireRiskLevel.none)
+    }
+
+    func testObjectiveAdvancePreviewsLimitAndPreserveShortcutOrder() throws {
+        let game = GameState(scenario: Self.multipleObjectiveAdvancePreviewScenario())
+        let tank = try XCTUnwrap(game.units.first { $0.name == "计划装甲" })
+
+        game.handlePrimaryAction(on: tank.position)
+
+        let defaultPreviews = game.objectiveAdvancePreviews(for: tank)
+        XCTAssertEqual(defaultPreviews.map(\.objectiveName), ["一号据点", "二号据点", "三号据点"])
+        XCTAssertEqual(defaultPreviews.count, 3)
+        XCTAssertEqual(defaultPreviews.first?.coordinate, game.nearestObjectiveTarget(for: tank)?.coordinate)
+        XCTAssertEqual(game.focusedObjectiveAdvancePreviews, defaultPreviews)
+        XCTAssertEqual(game.objectiveAdvancePreviews(for: tank, limit: 10).map(\.objectiveName), ["一号据点", "二号据点", "三号据点", "四号据点"])
+        XCTAssertTrue(game.objectiveAdvancePreviews(for: tank, limit: 0).isEmpty)
+
+        game.focusNearestObjectiveTarget()
+        XCTAssertEqual(game.focusedCoordinate, HexCoordinate(q: 1, r: 0))
+        XCTAssertEqual(game.guidedObjectiveCoordinate, HexCoordinate(q: 1, r: 0))
     }
 
     func testObjectiveCaptureSummaryClearsOnRestartScenarioSwitchAndCombat() throws {
@@ -2483,6 +2564,110 @@ final class GameStateTests: XCTestCase {
             units: [
                 BattleUnit(
                     name: "目标推进装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func objectiveAdvanceFireRiskScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<4 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "出发据点"
+                tile.owner = .allies
+            } else if q == 2 {
+                tile.objectiveName = "炮火据点"
+                tile.owner = .axis
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "objective-advance-fire-risk-test",
+            name: "目标火力风险测试",
+            year: "1944",
+            briefing: "测试目标推进计划显示终点火力风险。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 4,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "冒险装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "火力警戒炮",
+                    kind: .artillery,
+                    faction: .axis,
+                    position: HexCoordinate(q: 3, r: 0),
+                    hp: UnitKind.artillery.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func multipleObjectiveAdvancePreviewScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<6 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            switch q {
+            case 0:
+                tile.objectiveName = "出发据点"
+                tile.owner = .allies
+            case 1:
+                tile.objectiveName = "一号据点"
+                tile.owner = .axis
+            case 2:
+                tile.objectiveName = "二号据点"
+                tile.owner = .axis
+            case 3:
+                tile.objectiveName = "三号据点"
+                tile.owner = nil
+            case 4:
+                tile.objectiveName = "四号据点"
+                tile.owner = .axis
+            default:
+                break
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "multiple-objective-advance-preview-test",
+            name: "多目标推进计划测试",
+            year: "1944",
+            briefing: "测试多个据点推进计划摘要。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 6,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "计划装甲",
                     kind: .tank,
                     faction: .allies,
                     position: HexCoordinate(q: 0, r: 0),

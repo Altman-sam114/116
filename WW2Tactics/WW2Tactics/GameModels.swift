@@ -842,6 +842,28 @@ struct PostMoveFireExposurePreview: Identifiable, Equatable {
     var id: String { coordinate.id }
 }
 
+struct ObjectiveAdvancePreview: Identifiable, Equatable {
+    let objectiveName: String
+    let coordinate: HexCoordinate
+    let owner: Faction?
+    let route: MovementRoute
+    let reachesObjective: Bool
+    let currentDistance: Int
+    let remainingDistance: Int
+    let fireExposure: PostMoveFireExposurePreview?
+
+    var id: String { coordinate.id }
+    var ownerTitle: String { owner?.title ?? "中立" }
+    var destinationText: String { "q\(route.destination.q),r\(route.destination.r)" }
+
+    var actionTitle: String {
+        if reachesObjective {
+            return owner == nil ? "占领" : "夺取"
+        }
+        return "推进"
+    }
+}
+
 struct SafeEngagementOption: Identifiable, Equatable {
     let route: MovementRoute
     let exposure: PostMoveFireExposurePreview

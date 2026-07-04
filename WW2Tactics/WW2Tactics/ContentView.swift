@@ -2741,6 +2741,7 @@ private struct UnitDetail: View {
             MoralePanel(unit: unit)
             ActionSummary(unit: unit)
             FocusedCommandPreviewPanel()
+            ObjectiveAdvancePlanPanel(unit: unit)
             AttackTargetsView(unit: unit)
             TacticalCommandPanel(unit: unit)
             ThreatSummary(unit: unit)
@@ -2784,6 +2785,126 @@ private struct UnitDetail: View {
                 .tint(.white)
             }
         }
+    }
+}
+
+private struct ObjectiveAdvancePlanPanel: View {
+    @EnvironmentObject private var game: GameState
+    let unit: BattleUnit
+
+    var body: some View {
+        let previews = game.objectiveAdvancePreviews(for: unit)
+
+        if !previews.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Label("目标计划", systemImage: "flag.checkered")
+                        .font(.subheadline.weight(.bold))
+
+                    Spacer(minLength: 8)
+
+                    Text("\(previews.count) 条")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(.green.opacity(0.88))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(.green)
+
+                VStack(spacing: 7) {
+                    ForEach(Array(previews.enumerated()), id: \.element.id) { index, preview in
+                        ObjectiveAdvancePlanRow(index: index, preview: preview)
+                    }
+                }
+            }
+            .padding(10)
+            .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(Color.green.opacity(0.24), lineWidth: 1)
+            )
+            .accessibilityElement(children: .contain)
+        }
+    }
+}
+
+private struct ObjectiveAdvancePlanRow: View {
+    let index: Int
+    let preview: ObjectiveAdvancePreview
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(index == 0 ? "OBJ" : "\(index + 1)")
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.black.opacity(0.82))
+                .frame(width: 34, height: 24)
+                .background(index == 0 ? Color.green.opacity(0.92) : Color.white.opacity(0.68), in: RoundedRectangle(cornerRadius: 6))
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Text(preview.objectiveName)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Spacer(minLength: 6)
+
+                    Text(preview.ownerTitle)
+                        .font(.caption2.weight(.black))
+                        .foregroundStyle(preview.owner?.accentColor ?? .white.opacity(0.72))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+
+                Text("\(preview.actionTitle) \(preview.destinationText) · 距离 \(preview.currentDistance)->\(preview.remainingDistance) · 消耗 \(preview.route.totalCost)")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.68))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+
+                HStack(spacing: 6) {
+                    ObjectiveAdvanceMetric(text: "\(preview.route.stepCount) 步", color: .cyan)
+                    ObjectiveAdvanceMetric(text: controlZoneText, color: preview.route.controlZonePenalty > 0 ? .orange : .white.opacity(0.62))
+                    ObjectiveAdvanceMetric(text: fireRiskText, color: fireRiskColor)
+                }
+            }
+        }
+        .padding(8)
+        .background(Color.white.opacity(index == 0 ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(index == 0 ? Color.green.opacity(0.34) : Color.white.opacity(0.10), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private var controlZoneText: String {
+        preview.route.controlZonePenalty > 0 ? "ZOC +\(preview.route.controlZonePenalty)" : "ZOC 0"
+    }
+
+    private var fireRiskText: String {
+        guard let fireExposure = preview.fireExposure else { return "SAFE" }
+        guard fireExposure.totalPotentialDamage > 0 else { return fireExposure.riskLevel.shortTitle }
+        return "\(fireExposure.riskLevel.shortTitle) -\(fireExposure.totalPotentialDamage)"
+    }
+
+    private var fireRiskColor: Color {
+        preview.fireExposure?.riskLevel.accentColor ?? FireRiskLevel.none.accentColor
+    }
+}
+
+private struct ObjectiveAdvanceMetric: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.black))
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
     }
 }
 

@@ -539,6 +539,42 @@ struct RulesSmokeTest {
                 objectiveAdvanceGame.objectiveAdvanceRoute(for: objectiveAdvanceTank, to: occupiedObjective) == nil,
                 "objective shortcut should not route into occupied objective tiles"
             )
+            let objectiveAdvancePreviews = objectiveAdvanceGame.objectiveAdvancePreviews(for: objectiveAdvanceTank)
+            guard let objectiveAdvancePreview = objectiveAdvancePreviews.first else {
+                require(false, "objective shortcut should expose a direct objective advance preview")
+                return
+            }
+            require(objectiveAdvancePreviews.count == 1, "objective advance preview should filter occupied and allied objectives")
+            require(objectiveAdvancePreview.coordinate == targetObjective.coordinate, "objective advance preview should match shortcut target")
+            require(objectiveAdvancePreview.coordinate == objectiveAdvanceGame.nearestObjectiveTarget(for: objectiveAdvanceTank)?.coordinate, "first objective advance preview should match OBJ shortcut")
+            require(objectiveAdvancePreview.route.destination == targetObjective.coordinate, "direct objective advance preview should end on the objective")
+            require(objectiveAdvancePreview.reachesObjective, "direct objective advance preview should mark reachable capture")
+            require(objectiveAdvancePreview.remainingDistance == 0, "direct objective advance preview should report zero remaining distance")
+            require(objectiveAdvancePreview.fireExposure?.riskLevel == FireRiskLevel.none, "direct objective advance preview should include terminal fire exposure")
+            require(
+                objectiveAdvanceGame.focusedObjectiveAdvancePreviews == objectiveAdvancePreviews,
+                "focused objective advance previews should mirror selected unit previews"
+            )
+            let objectiveFireRiskGame = GameState(scenario: objectiveAdvanceFireRiskScenario())
+            guard let riskyObjectiveTank = objectiveFireRiskGame.units.first(where: { $0.name == "冒险装甲" }),
+                  let riskyObjective = objectiveFireRiskGame.objectiveTiles.first(where: { $0.objectiveName == "炮火据点" }) else {
+                require(false, "objective fire risk preview targets should exist")
+                return
+            }
+            objectiveFireRiskGame.handlePrimaryAction(on: riskyObjectiveTank.position)
+            guard let riskyObjectivePreview = objectiveFireRiskGame.objectiveAdvancePreviews(for: riskyObjectiveTank).first,
+                  let riskyObjectiveExposure = riskyObjectivePreview.fireExposure else {
+                require(false, "objective advance preview should include fire exposure for threatened destinations")
+                return
+            }
+            require(riskyObjectivePreview.coordinate == riskyObjective.coordinate, "risky objective preview should target the threatened objective")
+            require(riskyObjectiveExposure.coordinate == riskyObjective.coordinate, "risky objective preview should evaluate exposure at the objective")
+            require(riskyObjectiveExposure.totalPotentialDamage > 0, "risky objective preview should report potential terminal damage")
+            require(riskyObjectiveExposure.riskLevel != FireRiskLevel.none, "risky objective preview should elevate fire risk above SAFE")
+            require(
+                riskyObjectiveExposure.sources.first?.sourceName == "火力警戒炮",
+                "risky objective preview should preserve terminal fire source names"
+            )
             guard let objectiveAdvanceRoute = objectiveAdvanceGame.objectiveAdvanceRoute(for: objectiveAdvanceTank, to: targetObjective) else {
                 require(false, "objective shortcut should expose a route to the target objective")
                 return
@@ -589,6 +625,15 @@ struct RulesSmokeTest {
                 distantObjectiveGame.nearestObjectiveTarget(for: distantAdvanceTank)?.coordinate == distantObjective.coordinate,
                 "objective shortcut should pick the nearest distant objective"
             )
+            guard let distantObjectivePreview = distantObjectiveGame.objectiveAdvancePreviews(for: distantAdvanceTank).first else {
+                require(false, "distant objective shortcut should expose an advance preview")
+                return
+            }
+            require(distantObjectivePreview.coordinate == distantObjective.coordinate, "distant objective preview should target the final objective")
+            require(distantObjectivePreview.route.destination == expectedAdvance, "distant objective preview should route to the best forward tile")
+            require(!distantObjectivePreview.reachesObjective, "distant objective preview should not mark capture this turn")
+            require(distantObjectivePreview.remainingDistance == 1, "distant objective preview should report remaining distance")
+            require(distantObjectivePreview.fireExposure?.coordinate == expectedAdvance, "distant objective preview should evaluate fire risk at the forward tile")
             guard let distantAdvanceRoute = distantObjectiveGame.objectiveAdvanceRoute(for: distantAdvanceTank, to: distantObjective) else {
                 require(false, "objective shortcut should expose an advance route toward distant objectives")
                 return
@@ -627,6 +672,30 @@ struct RulesSmokeTest {
             require(
                 distantObjectiveGame.guidedObjectiveCoordinate == nil,
                 "ordinary map focus should clear objective guidance"
+            )
+
+            let multipleObjectiveGame = GameState(scenario: multipleObjectiveAdvancePreviewScenario())
+            guard let multipleObjectiveTank = multipleObjectiveGame.units.first(where: { $0.name == "计划装甲" }) else {
+                require(false, "multiple objective preview test unit should exist")
+                return
+            }
+            multipleObjectiveGame.handlePrimaryAction(on: multipleObjectiveTank.position)
+            let defaultObjectivePreviews = multipleObjectiveGame.objectiveAdvancePreviews(for: multipleObjectiveTank)
+            require(
+                defaultObjectivePreviews.map(\.objectiveName) == ["一号据点", "二号据点", "三号据点"],
+                "objective advance previews should default to three sorted plans"
+            )
+            require(
+                defaultObjectivePreviews.first?.coordinate == multipleObjectiveGame.nearestObjectiveTarget(for: multipleObjectiveTank)?.coordinate,
+                "first sorted objective preview should match nearest objective shortcut"
+            )
+            require(
+                multipleObjectiveGame.objectiveAdvancePreviews(for: multipleObjectiveTank, limit: 10).map(\.objectiveName) == ["一号据点", "二号据点", "三号据点", "四号据点"],
+                "objective advance preview limit should allow callers to inspect all plans"
+            )
+            require(
+                multipleObjectiveGame.objectiveAdvancePreviews(for: multipleObjectiveTank, limit: 0).isEmpty,
+                "objective advance preview limit zero should return no plans"
             )
 
             let contestedZoneGame = GameState(scenario: zoneOfControlScenario(includeEnemy: true))
@@ -2339,6 +2408,110 @@ struct RulesSmokeTest {
             units: [
                 BattleUnit(
                     name: "目标推进装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func objectiveAdvanceFireRiskScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<4 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "出发据点"
+                tile.owner = .allies
+            } else if q == 2 {
+                tile.objectiveName = "炮火据点"
+                tile.owner = .axis
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "objective-advance-fire-risk-test",
+            name: "目标火力风险测试",
+            year: "1944",
+            briefing: "测试目标推进计划显示终点火力风险。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 4,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "冒险装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "火力警戒炮",
+                    kind: .artillery,
+                    faction: .axis,
+                    position: HexCoordinate(q: 3, r: 0),
+                    hp: UnitKind.artillery.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func multipleObjectiveAdvancePreviewScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<6 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            switch q {
+            case 0:
+                tile.objectiveName = "出发据点"
+                tile.owner = .allies
+            case 1:
+                tile.objectiveName = "一号据点"
+                tile.owner = .axis
+            case 2:
+                tile.objectiveName = "二号据点"
+                tile.owner = .axis
+            case 3:
+                tile.objectiveName = "三号据点"
+                tile.owner = nil
+            case 4:
+                tile.objectiveName = "四号据点"
+                tile.owner = .axis
+            default:
+                break
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "multiple-objective-advance-preview-test",
+            name: "多目标推进计划测试",
+            year: "1944",
+            briefing: "测试多个据点推进计划摘要。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 6,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "计划装甲",
                     kind: .tank,
                     faction: .allies,
                     position: HexCoordinate(q: 0, r: 0),
