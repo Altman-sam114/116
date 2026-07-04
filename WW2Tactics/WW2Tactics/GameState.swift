@@ -14,6 +14,7 @@ final class GameState: ObservableObject {
     @Published private(set) var guidedObjectiveCoordinate: HexCoordinate?
     @Published var commandPoints: [Faction: Int]
     @Published private(set) var latestCombatResult: CombatResultSummary?
+    @Published private(set) var latestTacticalCommandResult: TacticalCommandResultSummary?
 
     private enum MapCommandInputMode {
         case directTap
@@ -576,6 +577,7 @@ final class GameState: ObservableObject {
         }
 
         clearObjectiveGuidance()
+        let targetWasEntrenched = target.isEntrenched
         let damage = tacticalCommandDamage(command: command, caster: caster, target: target)
         spendCommandPoints(command.commandCost, for: activeFaction)
         scenario.units[targetIndex].hp = max(0, scenario.units[targetIndex].hp - damage)
@@ -593,17 +595,78 @@ final class GameState: ObservableObject {
         )
 
         if targetDestroyed {
-            message = "\(caster.name) \(command.actionVerb)\(command.title)，击毁 \(target.name)，造成 \(damage) 伤害。"
+            message = tacticalCommandResultMessage(
+                command: command,
+                casterName: caster.name,
+                targetName: target.name,
+                startingTargetHP: target.hp,
+                endingTargetHP: scenario.units[targetIndex].hp,
+                damage: damage,
+                statusEffect: nil,
+                didDestroyTarget: true,
+                didConsumeTargetEntrenchment: targetWasEntrenched
+            )
         } else {
             scenario.units[targetIndex].tacticalStatus = command.statusEffect
             adjustMorale(unitID: targetID, delta: -command.moraleDamage, reason: command.title)
-            message = "\(caster.name) \(command.actionVerb)\(command.title)压制 \(target.name)，造成 \(damage) 伤害，附加\(command.statusEffect.title)，消耗 \(command.commandCost) 指令点。"
+            message = tacticalCommandResultMessage(
+                command: command,
+                casterName: caster.name,
+                targetName: target.name,
+                startingTargetHP: target.hp,
+                endingTargetHP: scenario.units[targetIndex].hp,
+                damage: damage,
+                statusEffect: command.statusEffect,
+                didDestroyTarget: false,
+                didConsumeTargetEntrenchment: targetWasEntrenched
+            )
+        }
+
+        if let finalCaster = scenario.units.first(where: { $0.id == casterID }),
+           let finalTarget = scenario.units.first(where: { $0.id == targetID }) {
+            latestTacticalCommandResult = TacticalCommandResultSummary(
+                command: command,
+                caster: combatantResultSnapshot(starting: caster, ending: finalCaster),
+                target: combatantResultSnapshot(starting: target, ending: finalTarget),
+                damage: damage,
+                commandCost: command.commandCost,
+                moraleDamage: targetDestroyed ? 0 : command.moraleDamage,
+                statusEffect: targetDestroyed ? .normal : command.statusEffect,
+                didDestroyTarget: finalTarget.isDestroyed,
+                didConsumeTargetEntrenchment: targetWasEntrenched,
+                didAvoidCounterAttack: true
+            )
+            latestCombatResult = nil
         }
 
         appendLog(message)
         updateObjectiveControl()
         checkVictory()
         selectNextReadyUnit()
+    }
+
+    private func tacticalCommandResultMessage(
+        command: TacticalCommand,
+        casterName: String,
+        targetName: String,
+        startingTargetHP: Int,
+        endingTargetHP: Int,
+        damage: Int,
+        statusEffect: UnitTacticalStatus?,
+        didDestroyTarget: Bool,
+        didConsumeTargetEntrenchment: Bool
+    ) -> String {
+        let hpText = "\(targetName) \(startingTargetHP)->\(endingTargetHP)"
+        let defenseText = didConsumeTargetEntrenchment ? "，消耗防御姿态" : ""
+        let counterText = "，无反击"
+        let costText = "，消耗 \(command.commandCost) 指令点"
+
+        if didDestroyTarget {
+            return "\(casterName) \(command.actionVerb)\(command.title)，击毁 \(targetName)，造成 \(damage) 伤害（\(hpText)\(defenseText)\(counterText)\(costText)）。"
+        }
+
+        let statusText = statusEffect.map { "，士气 -\(command.moraleDamage)，\($0.title)" } ?? ""
+        return "\(casterName) \(command.actionVerb)\(command.title)压制 \(targetName)，造成 \(damage) 伤害（\(hpText)\(statusText)\(defenseText)\(counterText)\(costText)）。"
     }
 
     func threateningEnemies(against unit: BattleUnit) -> [BattleUnit] {
@@ -1618,6 +1681,7 @@ final class GameState: ObservableObject {
         focusedCoordinate = newScenario.initialFocus
         guidedObjectiveCoordinate = nil
         latestCombatResult = nil
+        latestTacticalCommandResult = nil
         commandPoints = [.allies: 6, .axis: 6]
         message = Self.openingMessage(for: newScenario)
         battleLog = [Self.openingLog(for: newScenario)]
@@ -1743,6 +1807,7 @@ final class GameState: ObservableObject {
                 didTriggerManeuverPursuit: keepsMovementAfterKill,
                 didConsumeDefenderEntrenchment: defenderWasEntrenched
             )
+            latestTacticalCommandResult = nil
         }
 
         appendLog(message)

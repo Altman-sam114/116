@@ -558,6 +558,12 @@ final class GameStateTests: XCTestCase {
             XCTAssertTrue(artilleryAfterAI.hasAttacked)
             XCTAssertLessThan(game.commandPoints(for: .axis), 8 + game.commandIncome(for: .axis))
             XCTAssertTrue(game.battleLog.contains { $0.contains("火炮弹幕") })
+            let summary = try XCTUnwrap(game.latestTacticalCommandResult)
+            XCTAssertEqual(summary.command, .artilleryBarrage)
+            XCTAssertEqual(summary.caster.unitID, axisArtillery.id)
+            XCTAssertEqual(summary.target.unitID, alliedTarget.id)
+            XCTAssertEqual(summary.caster.faction, .axis)
+            XCTAssertTrue(summary.didAvoidCounterAttack)
         }
     }
 
@@ -714,6 +720,7 @@ final class GameStateTests: XCTestCase {
 
         let artilleryAfterCommand = try XCTUnwrap(game.units.first { $0.id == artillery.id })
         let targetAfterCommand = try XCTUnwrap(game.units.first { $0.id == target.id })
+        let summary = try XCTUnwrap(game.latestTacticalCommandResult)
         XCTAssertEqual(game.commandPoints(for: .allies), 6 - TacticalCommand.artilleryBarrage.commandCost)
         XCTAssertEqual(targetAfterCommand.hp, target.hp - preview.damage)
         XCTAssertEqual(targetAfterCommand.morale, target.morale - TacticalCommand.artilleryBarrage.moraleDamage)
@@ -722,6 +729,26 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(artilleryAfterCommand.hasMoved)
         XCTAssertTrue(artilleryAfterCommand.hasAttacked)
         XCTAssertTrue(game.battleLog.contains { $0.contains("火炮弹幕") })
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertEqual(summary.command, .artilleryBarrage)
+        XCTAssertEqual(summary.caster.unitID, artillery.id)
+        XCTAssertEqual(summary.target.unitID, target.id)
+        XCTAssertEqual(summary.damage, preview.damage)
+        XCTAssertEqual(summary.commandCost, TacticalCommand.artilleryBarrage.commandCost)
+        XCTAssertEqual(summary.moraleDamage, TacticalCommand.artilleryBarrage.moraleDamage)
+        XCTAssertEqual(summary.statusEffect, .suppressed)
+        XCTAssertTrue(summary.didApplyStatusEffect)
+        XCTAssertFalse(summary.didDestroyTarget)
+        XCTAssertFalse(summary.didConsumeTargetEntrenchment)
+        XCTAssertTrue(summary.didAvoidCounterAttack)
+        XCTAssertEqual(summary.caster.startingHP, artillery.hp)
+        XCTAssertEqual(summary.caster.endingHP, artilleryAfterCommand.hp)
+        XCTAssertEqual(summary.target.startingHP, target.hp)
+        XCTAssertEqual(summary.target.endingHP, targetAfterCommand.hp)
+        XCTAssertEqual(summary.target.startingMorale, target.morale)
+        XCTAssertEqual(summary.target.endingMorale, targetAfterCommand.morale)
+        XCTAssertTrue(game.battleLog.contains { $0.contains("火炮弹幕") && $0.contains("无反击") })
+        XCTAssertTrue(game.battleLog.contains { $0.contains("火炮弹幕") && $0.contains("消耗 4 指令点") })
     }
 
     func testBreakthroughAssaultUsesCommandPointsAndAvoidsCounterattack() throws {
@@ -748,6 +775,7 @@ final class GameStateTests: XCTestCase {
 
         let tankAfterCommand = try XCTUnwrap(game.units.first { $0.id == tank.id })
         let targetAfterCommand = try XCTUnwrap(game.units.first { $0.id == target.id })
+        let summary = try XCTUnwrap(game.latestTacticalCommandResult)
         XCTAssertEqual(game.commandPoints(for: .allies), 6 - TacticalCommand.breakthroughAssault.commandCost)
         XCTAssertEqual(targetAfterCommand.hp, target.hp - preview.damage)
         XCTAssertEqual(targetAfterCommand.morale, target.morale - TacticalCommand.breakthroughAssault.moraleDamage)
@@ -756,6 +784,49 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(tankAfterCommand.hasMoved)
         XCTAssertTrue(tankAfterCommand.hasAttacked)
         XCTAssertTrue(game.battleLog.contains { $0.contains("突破突击") })
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertEqual(summary.command, .breakthroughAssault)
+        XCTAssertEqual(summary.caster.unitID, tank.id)
+        XCTAssertEqual(summary.target.unitID, target.id)
+        XCTAssertEqual(summary.damage, preview.damage)
+        XCTAssertEqual(summary.commandCost, TacticalCommand.breakthroughAssault.commandCost)
+        XCTAssertEqual(summary.moraleDamage, TacticalCommand.breakthroughAssault.moraleDamage)
+        XCTAssertEqual(summary.statusEffect, .disrupted)
+        XCTAssertTrue(summary.didApplyStatusEffect)
+        XCTAssertFalse(summary.didDestroyTarget)
+        XCTAssertTrue(summary.didAvoidCounterAttack)
+        XCTAssertEqual(summary.caster.endingHP, tank.hp)
+        XCTAssertEqual(summary.target.endingHP, targetAfterCommand.hp)
+        XCTAssertTrue(game.battleLog.contains { $0.contains("突破突击") && $0.contains("无反击") })
+    }
+
+    func testTacticalCommandResultRecordsDestroyedTargetWithoutStatusEffect() throws {
+        var scenario = Self.breakthroughAssaultScenario()
+        let targetIndex = try XCTUnwrap(scenario.units.firstIndex { $0.name == "突破目标" })
+        scenario.units[targetIndex].hp = 12
+        let game = GameState(
+            scenario: scenario,
+            commandPoints: [.allies: 6, .axis: 6]
+        )
+        let tank = try XCTUnwrap(game.units.first { $0.name == "突击装甲" })
+        let target = try XCTUnwrap(game.units.first { $0.name == "突破目标" })
+        let preview = try XCTUnwrap(game.tacticalCommandPreview(command: .breakthroughAssault, caster: tank, target: target))
+
+        XCTAssertTrue(preview.willDestroyTarget)
+
+        game.useTacticalCommand(.breakthroughAssault, casterID: tank.id, targetID: target.id)
+
+        let summary = try XCTUnwrap(game.latestTacticalCommandResult)
+        let targetAfterCommand = try XCTUnwrap(game.scenario.units.first { $0.id == target.id })
+
+        XCTAssertEqual(summary.command, .breakthroughAssault)
+        XCTAssertTrue(summary.didDestroyTarget)
+        XCTAssertEqual(summary.target.endingHP, 0)
+        XCTAssertEqual(targetAfterCommand.hp, 0)
+        XCTAssertEqual(summary.moraleDamage, 0)
+        XCTAssertEqual(summary.statusEffect, .normal)
+        XCTAssertFalse(summary.didApplyStatusEffect)
+        XCTAssertTrue(game.battleLog.contains { $0.contains("突破突击") && $0.contains("击毁") })
     }
 
     func testManeuverPursuitLetsMobileUnitMoveAfterDestroyingTarget() throws {
@@ -846,8 +917,11 @@ final class GameStateTests: XCTestCase {
         game.useTacticalCommand(.artilleryBarrage, casterID: artillery.id, targetID: target.id)
 
         let targetAfterCommand = try XCTUnwrap(game.units.first { $0.id == target.id })
+        let summary = try XCTUnwrap(game.latestTacticalCommandResult)
         XCTAssertEqual(targetAfterCommand.hp, target.hp - preview.damage)
         XCTAssertFalse(targetAfterCommand.isEntrenched)
+        XCTAssertTrue(summary.didConsumeTargetEntrenchment)
+        XCTAssertTrue(game.battleLog.contains { $0.contains("火炮弹幕") && $0.contains("防御姿态") })
     }
 
     func testTacticalCommandRequiresEnoughCommandPoints() throws {
@@ -866,6 +940,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.commandPoints(for: .allies), 2)
         XCTAssertEqual(targetAfterAttempt.hp, target.hp)
         XCTAssertTrue(game.message.contains("无法执行"))
+        XCTAssertNil(game.latestTacticalCommandResult)
     }
 
     func testCombatAwardsExperienceAndCanPromoteUnit() throws {
@@ -948,6 +1023,28 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(summary.defender.startingRank, defender.rank)
         XCTAssertEqual(summary.defender.endingRank, finalDefender.rank)
         XCTAssertFalse(finalDefender.isEntrenched)
+    }
+
+    func testCombatAndTacticalCommandResultsAreMutuallyExclusive() throws {
+        let commandGame = GameState(
+            scenario: Self.tacticalCommandScenario(),
+            commandPoints: [.allies: 6, .axis: 6]
+        )
+        let artillery = try XCTUnwrap(commandGame.units.first { $0.name == "弹幕炮兵" })
+        let commandTarget = try XCTUnwrap(commandGame.units.first { $0.name == "弹幕目标" })
+        commandGame.useTacticalCommand(.artilleryBarrage, casterID: artillery.id, targetID: commandTarget.id)
+
+        XCTAssertNotNil(commandGame.latestTacticalCommandResult)
+        XCTAssertNil(commandGame.latestCombatResult)
+
+        let attackGame = GameState(scenario: Self.combatResultScenario())
+        let attacker = try XCTUnwrap(attackGame.units.first { $0.name == "结果攻击方" })
+        let defender = try XCTUnwrap(attackGame.units.first { $0.name == "结果防守方" })
+        attackGame.handleTap(on: attacker.position)
+        attackGame.handleTap(on: defender.position)
+
+        XCTAssertNotNil(attackGame.latestCombatResult)
+        XCTAssertNil(attackGame.latestTacticalCommandResult)
     }
 
     func testLatestCombatResultRecordsAttackerDestroyedByCounter() throws {

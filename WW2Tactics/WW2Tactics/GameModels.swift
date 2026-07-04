@@ -631,6 +631,24 @@ struct TacticalCommandPreview: Equatable {
     }
 }
 
+struct TacticalCommandResultSummary: Identifiable, Equatable {
+    let id = UUID()
+    let command: TacticalCommand
+    let caster: CombatantResultSnapshot
+    let target: CombatantResultSnapshot
+    let damage: Int
+    let commandCost: Int
+    let moraleDamage: Int
+    let statusEffect: UnitTacticalStatus
+    let didDestroyTarget: Bool
+    let didConsumeTargetEntrenchment: Bool
+    let didAvoidCounterAttack: Bool
+
+    var didApplyStatusEffect: Bool {
+        statusEffect != .normal && !didDestroyTarget
+    }
+}
+
 struct DeploymentSite: Identifiable, Equatable {
     let coordinate: HexCoordinate
     let sourceObjectiveName: String

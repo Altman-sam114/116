@@ -12,8 +12,8 @@ flowchart TD
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand"]
   I --> S["GameState：核心状态机"]
   M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview"] --> S
-  S --> R["规则判定：移动、攻击、补给、控制区、士气、AI、OBJ、THR"]
-  R --> W["状态写回：单位位置、HP、行动状态、据点归属、消息、战斗结果、战报、胜负"]
+  S --> R["规则判定：移动、攻击、战术命令、补给、控制区、士气、AI、OBJ、THR"]
+  R --> W["状态写回：单位位置、HP、行动状态、据点归属、消息、攻击/战术命令结果、战报、胜负"]
   W --> P["@Published 状态变化"]
   P --> V
   S --> T["测试层：GameStateTests / RulesSmokeTest"]
@@ -72,7 +72,7 @@ flowchart LR
   FP --> CMD
   SE --> CMD
   CMD --> EX["executeMapCommand"]
-  EX --> RES["更新单位、据点、消息、战斗结果、战报"]
+  EX --> RES["更新单位、据点、消息、攻击/战术命令结果、战报"]
   RES --> WIN["checkVictory / checkTurnLimit"]
   RES --> AI["runAxisAI 轴心国回合"]
   AI --> RES

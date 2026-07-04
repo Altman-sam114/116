@@ -677,6 +677,21 @@ struct RulesSmokeTest {
             require(barrageTargetAfter.morale == barrageTarget.morale - TacticalCommand.artilleryBarrage.moraleDamage, "barrage should suppress morale")
             require(barrageArtilleryAfter.hp == barrageArtillery.hp, "barrage should not trigger counterattack damage")
             require(barrageArtilleryAfter.hasMoved && barrageArtilleryAfter.hasAttacked, "barrage should spend the artillery action")
+            guard let barrageSummary = commandGame.latestTacticalCommandResult else {
+                require(false, "barrage should publish tactical command result summary")
+                return
+            }
+            require(commandGame.latestCombatResult == nil, "barrage should clear ordinary combat result")
+            require(barrageSummary.command == .artilleryBarrage, "barrage summary should identify command")
+            require(barrageSummary.caster.unitID == barrageArtillery.id, "barrage summary should identify caster")
+            require(barrageSummary.target.unitID == barrageTarget.id, "barrage summary should identify target")
+            require(barrageSummary.damage == barragePreview.damage, "barrage summary should record damage")
+            require(barrageSummary.commandCost == TacticalCommand.artilleryBarrage.commandCost, "barrage summary should record command cost")
+            require(barrageSummary.moraleDamage == TacticalCommand.artilleryBarrage.moraleDamage, "barrage summary should record morale damage")
+            require(barrageSummary.statusEffect == .suppressed, "barrage summary should record suppression")
+            require(barrageSummary.didAvoidCounterAttack, "barrage summary should record no counterattack")
+            require(barrageSummary.target.startingHP == barrageTarget.hp && barrageSummary.target.endingHP == barrageTargetAfter.hp, "barrage summary should record HP before and after")
+            require(commandGame.battleLog.contains { $0.contains("火炮弹幕") && $0.contains("无反击") }, "barrage log should mention no counterattack")
 
             let lowCommandGame = GameState(
                 scenario: tacticalCommandScenario(),
@@ -695,6 +710,7 @@ struct RulesSmokeTest {
             }
             require(lowCommandGame.commandPoints(for: .allies) == 2, "blocked command should not spend points")
             require(lowCommandTargetAfter.hp == lowCommandTarget.hp, "blocked command should not damage target")
+            require(lowCommandGame.latestTacticalCommandResult == nil, "blocked command should not publish a tactical command result")
 
             let breakthroughGame = GameState(
                 scenario: breakthroughAssaultScenario(),
@@ -727,6 +743,46 @@ struct RulesSmokeTest {
             require(breakthroughTankAfter.hp == breakthroughTank.hp, "breakthrough assault should not trigger counterattack damage")
             require(breakthroughTankAfter.hasMoved && breakthroughTankAfter.hasAttacked, "breakthrough assault should spend the unit action")
             require(breakthroughGame.battleLog.contains { $0.contains("突破突击") }, "breakthrough assault should be logged")
+            guard let breakthroughSummary = breakthroughGame.latestTacticalCommandResult else {
+                require(false, "breakthrough assault should publish tactical command result summary")
+                return
+            }
+            require(breakthroughSummary.command == .breakthroughAssault, "breakthrough summary should identify command")
+            require(breakthroughSummary.caster.unitID == breakthroughTank.id, "breakthrough summary should identify caster")
+            require(breakthroughSummary.target.unitID == breakthroughTarget.id, "breakthrough summary should identify target")
+            require(breakthroughSummary.damage == breakthroughPreview.damage, "breakthrough summary should record damage")
+            require(breakthroughSummary.commandCost == TacticalCommand.breakthroughAssault.commandCost, "breakthrough summary should record command cost")
+            require(breakthroughSummary.statusEffect == .disrupted, "breakthrough summary should record disruption")
+            require(breakthroughSummary.didAvoidCounterAttack, "breakthrough summary should record no counterattack")
+
+            var lethalBreakthroughScenario = breakthroughAssaultScenario()
+            if let lethalTargetIndex = lethalBreakthroughScenario.units.firstIndex(where: { $0.name == "突破目标" }) {
+                lethalBreakthroughScenario.units[lethalTargetIndex].hp = 12
+            }
+            let lethalBreakthroughGame = GameState(
+                scenario: lethalBreakthroughScenario,
+                commandPoints: [.allies: 6, .axis: 6]
+            )
+            guard let lethalBreakthroughTank = lethalBreakthroughGame.units.first(where: { $0.name == "突击装甲" }),
+                  let lethalBreakthroughTarget = lethalBreakthroughGame.units.first(where: { $0.name == "突破目标" }),
+                  let lethalBreakthroughPreview = lethalBreakthroughGame.tacticalCommandPreview(command: .breakthroughAssault, caster: lethalBreakthroughTank, target: lethalBreakthroughTarget) else {
+                require(false, "lethal breakthrough units should exist")
+                return
+            }
+            require(lethalBreakthroughPreview.willDestroyTarget, "lethal breakthrough preview should mark target destruction")
+            lethalBreakthroughGame.useTacticalCommand(.breakthroughAssault, casterID: lethalBreakthroughTank.id, targetID: lethalBreakthroughTarget.id)
+            guard let lethalBreakthroughSummary = lethalBreakthroughGame.latestTacticalCommandResult,
+                  let lethalBreakthroughTargetAfter = lethalBreakthroughGame.scenario.units.first(where: { $0.id == lethalBreakthroughTarget.id }) else {
+                require(false, "lethal breakthrough should publish tactical command result summary")
+                return
+            }
+            require(lethalBreakthroughSummary.didDestroyTarget, "lethal breakthrough summary should record destroyed target")
+            require(lethalBreakthroughSummary.target.endingHP == 0, "lethal breakthrough summary should record zero target HP")
+            require(lethalBreakthroughTargetAfter.hp == 0, "lethal breakthrough should reduce target HP to zero")
+            require(lethalBreakthroughSummary.moraleDamage == 0, "lethal breakthrough summary should not report morale damage against destroyed target")
+            require(lethalBreakthroughSummary.statusEffect == .normal, "lethal breakthrough summary should not report status effect against destroyed target")
+            require(!lethalBreakthroughSummary.didApplyStatusEffect, "lethal breakthrough summary should not apply status effect")
+            require(lethalBreakthroughGame.battleLog.contains { $0.contains("突破突击") && $0.contains("击毁") }, "lethal breakthrough log should mention destroyed target")
 
             let pursuitGame = GameState(
                 scenario: maneuverPursuitScenario(attackerKind: .tank),
@@ -805,6 +861,14 @@ struct RulesSmokeTest {
                 "axis AI barrage should spend command points"
             )
             require(axisCommandGame.battleLog.contains { $0.contains("火炮弹幕") }, "axis AI barrage should be logged")
+            guard let axisCommandSummary = axisCommandGame.latestTacticalCommandResult else {
+                require(false, "axis AI barrage should publish tactical command result summary")
+                return
+            }
+            require(axisCommandSummary.command == .artilleryBarrage, "axis AI summary should identify barrage")
+            require(axisCommandSummary.caster.unitID == axisCommandArtillery.id, "axis AI summary should identify caster")
+            require(axisCommandSummary.target.unitID == axisCommandTarget.id, "axis AI summary should identify target")
+            require(axisCommandSummary.caster.faction == .axis, "axis AI summary should record caster faction")
             }
 
             let axisAdvanceGame = GameState(

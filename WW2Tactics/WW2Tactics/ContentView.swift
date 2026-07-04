@@ -2545,6 +2545,11 @@ private struct InspectorPanel: View {
 
                     Divider()
                         .overlay(Color.white.opacity(0.18))
+                } else if let tacticalResult = game.latestTacticalCommandResult {
+                    TacticalCommandResultSummaryView(summary: tacticalResult)
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.18))
                 }
 
                 BattleLogView()
@@ -3925,6 +3930,89 @@ private struct CombatResultDetailRow {
     let icon: String
     let text: String
     let color: Color
+}
+
+private struct TacticalCommandResultSummaryView: View {
+    let summary: TacticalCommandResultSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label(summary.command.title, systemImage: summary.command.systemImage)
+                    .font(.subheadline.weight(.bold))
+
+                Spacer(minLength: 8)
+
+                Text(summary.command.shortTitle)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(summary.command.accentColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundStyle(summary.command.accentColor)
+
+            VStack(alignment: .leading, spacing: 6) {
+                CombatantResultLine(title: "施放", snapshot: summary.caster, tint: summary.command.accentColor)
+                CombatantResultLine(title: "目标", snapshot: summary.target, tint: summary.didDestroyTarget ? .red : .cyan)
+            }
+
+            HStack(spacing: 7) {
+                CombatResultMetric(title: "伤害", value: "-\(summary.damage)", color: summary.command.accentColor)
+                CombatResultMetric(title: "指令", value: "-\(summary.commandCost)", color: .yellow)
+                CombatResultMetric(title: "反击", value: summary.didAvoidCounterAttack ? "无" : "--", color: .white.opacity(0.76))
+            }
+
+            let details = detailRows
+            if !details.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(Array(details.enumerated()), id: \.offset) { _, row in
+                        Label(row.text, systemImage: row.icon)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(row.color)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+        .padding(9)
+        .background(summary.command.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(summary.command.accentColor.opacity(0.24), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private var detailRows: [CombatResultDetailRow] {
+        var rows: [CombatResultDetailRow] = []
+
+        if summary.didDestroyTarget {
+            rows.append(.init(icon: "burst.fill", text: "\(summary.target.name) 被击毁", color: .red))
+        }
+
+        if summary.didApplyStatusEffect {
+            rows.append(.init(icon: "scope", text: "\(summary.target.name) \(summary.statusEffect.title)，士气 -\(summary.moraleDamage)", color: summary.command.accentColor))
+        }
+
+        if summary.didConsumeTargetEntrenchment {
+            rows.append(.init(icon: "shield.slash.fill", text: "防御姿态已被消耗", color: .cyan))
+        }
+
+        if summary.caster.experienceDelta > 0 {
+            let promotion = summary.caster.didPromote ? "，晋升为\(summary.caster.endingRank.title)" : ""
+            rows.append(.init(icon: "chevron.up.circle.fill", text: "\(summary.caster.name) 经验 +\(summary.caster.experienceDelta)\(promotion)", color: .yellow))
+        }
+
+        if summary.target.moraleDelta != 0 {
+            rows.append(.init(icon: "flag.checkered", text: "\(summary.target.name) 士气 \(signed(summary.target.moraleDelta))", color: summary.target.moraleDelta > 0 ? .green : .red))
+        }
+
+        return rows
+    }
+
+    private func signed(_ value: Int) -> String {
+        value > 0 ? "+\(value)" : "\(value)"
+    }
 }
 
 private struct BattleLogView: View {
