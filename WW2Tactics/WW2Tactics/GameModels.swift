@@ -733,6 +733,62 @@ struct AIPhaseSummary: Identifiable, Equatable {
     }
 }
 
+enum EnemyThreatIntentKind: String, Identifiable {
+    case directAttack
+    case approachAttack
+    case objectiveCapture
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .directAttack: "直接攻击"
+        case .approachAttack: "接敌攻击"
+        case .objectiveCapture: "据点威胁"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .directAttack: "ATK"
+        case .approachAttack: "POS"
+        case .objectiveCapture: "OBJ"
+        }
+    }
+}
+
+struct EnemyThreatIntentPreview: Identifiable, Equatable {
+    let kind: EnemyThreatIntentKind
+    let enemyUnitID: BattleUnit.ID
+    let enemyUnitName: String
+    let enemyUnitKind: UnitKind
+    let targetCoordinate: HexCoordinate
+    let targetUnitID: BattleUnit.ID?
+    let targetName: String
+    let targetFaction: Faction
+    let currentDistance: Int
+    let routeDestination: HexCoordinate?
+    let routeCost: Int?
+    let projectedDamage: Int
+    let projectedTargetHPAfterDamage: Int?
+    let willDestroyTarget: Bool
+    let objectiveOwner: Faction?
+    let score: Int
+
+    var id: String {
+        "\(kind.rawValue)-\(enemyUnitID.uuidString)-\(targetCoordinate.id)-\(routeDestination?.id ?? "direct")"
+    }
+
+    var isAttackThreat: Bool {
+        kind == .directAttack || kind == .approachAttack
+    }
+
+    var destinationText: String {
+        guard let routeDestination else { return "当前射程" }
+        return "q\(routeDestination.q),r\(routeDestination.r)"
+    }
+}
+
 struct DeploymentSite: Identifiable, Equatable {
     let coordinate: HexCoordinate
     let sourceObjectiveName: String

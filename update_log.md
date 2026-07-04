@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.9 正在推进 AI 回合行动摘要，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈和 OBJ/POS 操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.10 正在推进敌方威胁意图预判，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈和 OBJ/POS 操作可读性。
 
 ## 历史记录
 
@@ -604,3 +604,43 @@
 
 - AI 回合摘要仍是静态总览卡，不包含逐行动时间线、动画、音效或真实美术资产。
 - 本轮不改变 AI 优先级、路径选择、攻击目标选择、战斗数值、部署/整补成本、胜负条件或回合流程。
+
+### v1.10 / 敌方威胁意图预判
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `EnemyThreatIntentKind` 和 `EnemyThreatIntentPreview`，把敌方下一回合的直接攻击、机动接敌攻击和据点占领风险转换为结构化预判。
+- `GameState` 新增 `enemyThreatIntentPreviews(from:against:limit:)` 和 `visibleEnemyThreatIntentPreviews`，默认给玩家回合展示轴心国威胁盟军的最多 3 条意图。
+- 敌方预判使用只读预测路线 helper，按下一回合可行动状态评估轴心单位，不修改 `activeFaction`、单位行动状态、据点归属、消息、战报或任何 `latest*Result`。
+- 侧栏新增“敌方意图”面板，地图目标格新增 `INT` 标记，图例同步说明；UI 只展示 `GameState` 生成的字段，不计算规则。
+- 补充 XCTest 和规则 smoke test，覆盖直接攻击、接敌攻击、据点占领、`limit` 前缀和查询无副作用。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.10（敌方威胁意图预判）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions run、artifact 下载和 Agent C 核对待本轮最终提交推送后补记。
+
+遗留事项：
+
+- 敌方意图预判是静态摘要，不包含逐行动时间线、概率 AI、动画、音效或真实美术资产。
+- 本轮不改变 AI 优先级、路径选择、攻击目标选择、战术命令、后勤策略、战斗数值、胜负条件或回合流程。

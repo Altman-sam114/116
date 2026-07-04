@@ -897,6 +897,60 @@ struct RulesSmokeTest {
             require(openZoneGame.threatenedReachableTiles(for: openRecon).isEmpty, "threat overlay should stay empty when no enemy covers reachable tiles")
             require(contestedZoneGame.zoneOfControlSummary.contains("+1"), "control zone summary should describe movement penalty")
 
+            let enemyThreatGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
+            let startingEnemyThreatUnits = enemyThreatGame.scenario.units
+            let startingEnemyThreatTiles = enemyThreatGame.scenario.tiles
+            let startingEnemyThreatLog = enemyThreatGame.battleLog
+            let enemyThreats = enemyThreatGame.enemyThreatIntentPreviews(against: .allies, limit: 10)
+            require(enemyThreatGame.enemyThreatIntentPreviews(against: .allies, limit: 0).isEmpty, "enemy threat intent limit zero should return no previews")
+            require(enemyThreatGame.enemyThreatIntentPreviews(against: .allies, limit: 2) == Array(enemyThreats.prefix(2)), "enemy threat intent limit should preserve sorted prefix")
+            require(enemyThreatGame.visibleEnemyThreatIntentPreviews == enemyThreatGame.enemyThreatIntentPreviews(against: .allies), "visible enemy threat intents should expose the allied preview")
+            guard let directThreat = enemyThreats.first(where: {
+                $0.kind == .directAttack &&
+                    $0.enemyUnitName == "威胁炮兵" &&
+                    $0.targetName == "前线装甲"
+            }) else {
+                require(false, "enemy threat intents should include direct attack previews")
+                return
+            }
+            guard let directEnemy = enemyThreatGame.units.first(where: { $0.id == directThreat.enemyUnitID }),
+                  let directTarget = enemyThreatGame.units.first(where: { $0.id == directThreat.targetUnitID }),
+                  let directCombat = enemyThreatGame.combatPreview(attacker: directEnemy, defender: directTarget) else {
+                require(false, "direct enemy threat combat preview should be reproducible")
+                return
+            }
+            require(directThreat.routeDestination == nil, "direct enemy threat should not expose a route destination")
+            require(directThreat.projectedDamage == directCombat.damage, "direct enemy threat damage should match combat preview")
+            require(directThreat.projectedTargetHPAfterDamage == directCombat.defenderHPAfterAttack, "direct enemy threat HP projection should match combat preview")
+
+            guard let approachThreat = enemyThreats.first(where: {
+                $0.kind == .approachAttack &&
+                    $0.enemyUnitName == "突击侦察" &&
+                    $0.targetName == "后方步兵"
+            }) else {
+                require(false, "enemy threat intents should include approach attack previews")
+                return
+            }
+            require(approachThreat.routeDestination != nil, "approach enemy threat should include route destination")
+            require((approachThreat.routeCost ?? 0) > 0, "approach enemy threat should include route cost")
+            require(approachThreat.projectedDamage > 0, "approach enemy threat should include projected damage")
+
+            guard let objectiveThreat = enemyThreats.first(where: {
+                $0.kind == .objectiveCapture &&
+                    $0.enemyUnitName == "夺点步兵" &&
+                    $0.targetName == "后方油库"
+            }) else {
+                require(false, "enemy threat intents should include objective capture previews")
+                return
+            }
+            require(objectiveThreat.targetUnitID == nil, "objective enemy threat should not target a unit")
+            require(objectiveThreat.routeDestination == objectiveThreat.targetCoordinate, "objective enemy threat route should end on the objective")
+            require(objectiveThreat.objectiveOwner == .allies, "objective enemy threat should expose the current owner")
+            require(objectiveThreat.projectedDamage == 0, "objective enemy threat should not invent combat damage")
+            require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "enemy threat intents should not mutate units")
+            require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "enemy threat intents should not mutate objectives")
+            require(enemyThreatGame.battleLog == startingEnemyThreatLog, "enemy threat intents should not write battle log entries")
+
             let commandGame = GameState(
                 scenario: tacticalCommandScenario(),
                 commandPoints: [.allies: 6, .axis: 6]
@@ -2936,6 +2990,96 @@ struct RulesSmokeTest {
             mapRows: 2,
             tiles: tiles,
             units: units,
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func enemyThreatIntentScenario(axisSpent: Bool = false) -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<3 {
+            for q in 0..<5 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .road
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "盟军出发点"
+                    tile.owner = .allies
+                }
+                if q == 2 && r == 2 {
+                    tile.objectiveName = "后方油库"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        var artillery = BattleUnit(
+            name: "威胁炮兵",
+            kind: .artillery,
+            faction: .axis,
+            position: HexCoordinate(q: 4, r: 0),
+            hp: UnitKind.artillery.baseHP,
+            commander: nil
+        )
+        var recon = BattleUnit(
+            name: "突击侦察",
+            kind: .recon,
+            faction: .axis,
+            position: HexCoordinate(q: 4, r: 1),
+            hp: UnitKind.recon.baseHP,
+            commander: nil
+        )
+        var infantry = BattleUnit(
+            name: "夺点步兵",
+            kind: .infantry,
+            faction: .axis,
+            position: HexCoordinate(q: 4, r: 2),
+            hp: UnitKind.infantry.baseHP,
+            commander: nil
+        )
+
+        if axisSpent {
+            artillery.hasMoved = true
+            artillery.hasAttacked = true
+            recon.hasMoved = true
+            recon.hasAttacked = true
+            infantry.hasMoved = true
+            infantry.hasAttacked = true
+        }
+
+        return Scenario(
+            id: "enemy-threat-intent-test",
+            name: "敌方意图测试",
+            year: "1944",
+            briefing: "测试敌方直接攻击、接敌攻击和据点占领预判。",
+            initialFocus: HexCoordinate(q: 1, r: 0),
+            mapColumns: 5,
+            mapRows: 3,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "前线装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: 28,
+                    commander: .patton
+                ),
+                BattleUnit(
+                    name: "后方步兵",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 1, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                artillery,
+                recon,
+                infantry
+            ],
             turnLimit: 4,
             decisiveTurnLimit: 2,
             survivalStarThreshold: 1

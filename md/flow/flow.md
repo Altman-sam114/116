@@ -24,7 +24,7 @@
 职责：
 
 - 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary` 和敌方回合后的 `AIPhaseSummary`。
+- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、敌方威胁意图预判 `EnemyThreatIntentPreview`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary` 和敌方回合后的 `AIPhaseSummary`。
 - 生成阿登反击战、诺曼底突破等战役初始数据。
 
 输入：
@@ -47,7 +47,7 @@
 
 - 项目核心状态机。
 - 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、最新部署结果、最新整补结果、最新 AI 回合摘要、胜负、指令点。
-- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
+- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选和敌方威胁意图预判。
 
 输入：
 
@@ -73,7 +73,7 @@
 - 渲染 SwiftUI App 主界面。
 - 提供顶部状态栏、战区地图、地图工具栏、HUD、侧栏、图例、编队条、战报。
 - 将地图左键/点按/右键转换为 `GameState` 方法调用。
-- 显示 MOVE、ATK、POS、NEXT、OBJ、CAP、THR、补给线、控制区、攻击覆盖等标记。
+- 显示 MOVE、ATK、POS、NEXT、OBJ、CAP、THR、INT、补给线、控制区、攻击覆盖等标记。
 
 输入：
 
@@ -203,6 +203,16 @@
 4. 侧栏展示顺序仍以普通攻击、战术命令、据点占领、部署、整补等单项结果卡优先，其后显示 AI 回合摘要卡，再显示 battleLog。
 5. `loadScenario()`、重开和切换战役会清理 `latestAIPhaseSummary` 以及内部 AI phase 记录器。
 
+### 3.12 敌方威胁意图预判
+
+1. `EnemyThreatIntentPreview` 是玩家回合的只读态势预判模型，区分直接攻击、机动接敌攻击和据点占领三类威胁。
+2. `enemyThreatIntentPreviews(from:against:limit:)` 默认评估轴心国对盟军的威胁，返回稳定排序且去重后的最多 `limit` 条结果；`visibleEnemyThreatIntentPreviews` 供 `ContentView` 展示。
+3. 直接攻击用敌方当前位置复用 `combatPreview(attacker:defender:)`，记录预计伤害、目标剩余 HP 和击毁判断。
+4. 机动接敌攻击使用只读预测路线 helper，把敌方单位按下一回合可行动状态计算可达攻击位，再用临时位置复用 `combatPreview`；该路径不修改 `activeFaction`。
+5. 据点占领威胁只针对目标阵营拥有且未被占据的据点，记录目标据点、当前归属、路线终点和消耗，不生成虚假伤害。
+6. 预判查询不调用 `move`、`attack`、`deploy`、`reinforce`、`useTacticalCommand`、`appendLog` 或任何写状态方法，不改变单位行动状态、地图归属、消息、战报、指令点或 `latest*Result`。
+7. `ContentView` 在侧栏战报前显示“敌方意图”面板，并在目标坐标显示 `INT` 地图标记；UI 只展示 `GameState` 已生成的字段，不计算威胁评分或战斗结果。
+
 ## 4. 架构边界
 
 - 规则状态必须从 `GameState` 发起和落地。
@@ -220,7 +230,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、部署/整补结果摘要、AI 回合行动摘要：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、敌方威胁意图预判、部署/整补结果摘要、AI 回合行动摘要：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

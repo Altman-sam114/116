@@ -1398,6 +1398,84 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.focusedRouteStepPreviews, steps)
     }
 
+    func testEnemyThreatIntentPreviewsCoverDirectApproachObjectiveLimitAndReadOnly() throws {
+        let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let startingFaction = game.activeFaction
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+        let startingMessage = game.message
+
+        let previews = game.enemyThreatIntentPreviews(against: .allies, limit: 10)
+        let visiblePreviews = game.visibleEnemyThreatIntentPreviews
+
+        XCTAssertFalse(previews.isEmpty)
+        XCTAssertEqual(game.enemyThreatIntentPreviews(against: .allies, limit: 0), [])
+        XCTAssertEqual(game.enemyThreatIntentPreviews(against: .allies, limit: 2), Array(previews.prefix(2)))
+        XCTAssertEqual(visiblePreviews, game.enemyThreatIntentPreviews(against: .allies))
+        XCTAssertTrue(previews.contains { $0.kind == .directAttack })
+        XCTAssertTrue(previews.contains { $0.kind == .approachAttack })
+        XCTAssertTrue(previews.contains { $0.kind == .objectiveCapture })
+
+        let direct = try XCTUnwrap(previews.first {
+            $0.kind == .directAttack &&
+                $0.enemyUnitName == "威胁炮兵" &&
+                $0.targetName == "前线装甲"
+        })
+        let artillery = try XCTUnwrap(game.units.first { $0.id == direct.enemyUnitID })
+        let frontTank = try XCTUnwrap(game.units.first { $0.id == direct.targetUnitID })
+        let directCombat = try XCTUnwrap(game.combatPreview(attacker: artillery, defender: frontTank))
+        XCTAssertEqual(direct.targetCoordinate, frontTank.position)
+        XCTAssertEqual(direct.targetFaction, .allies)
+        XCTAssertNil(direct.routeDestination)
+        XCTAssertNil(direct.routeCost)
+        XCTAssertEqual(direct.projectedDamage, directCombat.damage)
+        XCTAssertEqual(direct.projectedTargetHPAfterDamage, directCombat.defenderHPAfterAttack)
+        XCTAssertEqual(direct.willDestroyTarget, directCombat.willDestroyDefender)
+
+        let approach = try XCTUnwrap(previews.first {
+            $0.kind == .approachAttack &&
+                $0.enemyUnitName == "突击侦察" &&
+                $0.targetName == "后方步兵"
+        })
+        let recon = try XCTUnwrap(game.units.first { $0.id == approach.enemyUnitID })
+        let rearInfantry = try XCTUnwrap(game.units.first { $0.id == approach.targetUnitID })
+        let approachDestination = try XCTUnwrap(approach.routeDestination)
+        let approachRouteCost = try XCTUnwrap(approach.routeCost)
+        var movedRecon = recon
+        movedRecon.position = approachDestination
+        let approachCombat = try XCTUnwrap(game.combatPreview(attacker: movedRecon, defender: rearInfantry))
+        XCTAssertLessThanOrEqual(approachDestination.distance(to: rearInfantry.position), recon.range)
+        XCTAssertGreaterThan(approachRouteCost, 0)
+        XCTAssertEqual(approach.projectedDamage, approachCombat.damage)
+        XCTAssertEqual(approach.projectedTargetHPAfterDamage, approachCombat.defenderHPAfterAttack)
+
+        let objective = try XCTUnwrap(previews.first {
+            $0.kind == .objectiveCapture &&
+                $0.enemyUnitName == "夺点步兵" &&
+                $0.targetName == "后方油库"
+        })
+        XCTAssertNil(objective.targetUnitID)
+        XCTAssertEqual(objective.targetCoordinate, HexCoordinate(q: 2, r: 2))
+        XCTAssertEqual(objective.routeDestination, objective.targetCoordinate)
+        XCTAssertEqual(objective.objectiveOwner, .allies)
+        XCTAssertEqual(objective.projectedDamage, 0)
+        XCTAssertNil(objective.projectedTargetHPAfterDamage)
+        XCTAssertFalse(objective.willDestroyTarget)
+
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertEqual(game.message, startingMessage)
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertNil(game.latestTacticalCommandResult)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNil(game.latestDeploymentResult)
+        XCTAssertNil(game.latestReinforcementResult)
+        XCTAssertNil(game.latestAIPhaseSummary)
+    }
+
     func testSelectingAndMovingUnitUpdatesBattlefieldState() throws {
         let game = GameState()
         let tank = try XCTUnwrap(game.units.first { $0.name == "第4装甲师" })
@@ -3247,6 +3325,96 @@ final class GameStateTests: XCTestCase {
             mapRows: 2,
             tiles: tiles,
             units: units,
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func enemyThreatIntentScenario(axisSpent: Bool = false) -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<3 {
+            for q in 0..<5 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .road
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "盟军出发点"
+                    tile.owner = .allies
+                }
+                if q == 2 && r == 2 {
+                    tile.objectiveName = "后方油库"
+                    tile.owner = .allies
+                }
+                tiles.append(tile)
+            }
+        }
+
+        var artillery = BattleUnit(
+            name: "威胁炮兵",
+            kind: .artillery,
+            faction: .axis,
+            position: HexCoordinate(q: 4, r: 0),
+            hp: UnitKind.artillery.baseHP,
+            commander: nil
+        )
+        var recon = BattleUnit(
+            name: "突击侦察",
+            kind: .recon,
+            faction: .axis,
+            position: HexCoordinate(q: 4, r: 1),
+            hp: UnitKind.recon.baseHP,
+            commander: nil
+        )
+        var infantry = BattleUnit(
+            name: "夺点步兵",
+            kind: .infantry,
+            faction: .axis,
+            position: HexCoordinate(q: 4, r: 2),
+            hp: UnitKind.infantry.baseHP,
+            commander: nil
+        )
+
+        if axisSpent {
+            artillery.hasMoved = true
+            artillery.hasAttacked = true
+            recon.hasMoved = true
+            recon.hasAttacked = true
+            infantry.hasMoved = true
+            infantry.hasAttacked = true
+        }
+
+        return Scenario(
+            id: "enemy-threat-intent-test",
+            name: "敌方意图测试",
+            year: "1944",
+            briefing: "测试敌方直接攻击、接敌攻击和据点占领预判。",
+            initialFocus: HexCoordinate(q: 1, r: 0),
+            mapColumns: 5,
+            mapRows: 3,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "前线装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: 28,
+                    commander: .patton
+                ),
+                BattleUnit(
+                    name: "后方步兵",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 1, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                artillery,
+                recon,
+                infantry
+            ],
             turnLimit: 4,
             decisiveTurnLimit: 2,
             survivalStarThreshold: 1

@@ -200,6 +200,10 @@ final class GameState: ObservableObject {
         return safeEngagementOptions(for: selectedUnit, against: focusedUnit)
     }
 
+    var visibleEnemyThreatIntentPreviews: [EnemyThreatIntentPreview] {
+        enemyThreatIntentPreviews(against: .allies)
+    }
+
     var objectiveTiles: [TerrainTile] {
         scenario.tiles.filter(\.isObjective)
     }
@@ -834,6 +838,34 @@ final class GameState: ObservableObject {
             .filter { !threateningEnemies(against: unit.faction, at: $0).isEmpty })
     }
 
+    func enemyThreatIntentPreviews(
+        from enemyFaction: Faction = .axis,
+        against targetFaction: Faction = .allies,
+        limit: Int = 3
+    ) -> [EnemyThreatIntentPreview] {
+        guard limit > 0 else { return [] }
+
+        let intents = units
+            .filter { $0.faction == enemyFaction && !$0.isDestroyed }
+            .flatMap { enemy in
+                enemyThreatIntentCandidates(
+                    for: readyThreatPreviewUnit(enemy),
+                    against: targetFaction
+                )
+            }
+            .sorted(by: enemyThreatIntentSort)
+
+        var seen: Set<String> = []
+        var uniqueIntents: [EnemyThreatIntentPreview] = []
+        for intent in intents {
+            let key = "\(intent.kind.rawValue)-\(intent.enemyUnitID.uuidString)-\(intent.targetCoordinate.id)-\(intent.targetUnitID?.uuidString ?? intent.targetName)"
+            guard seen.insert(key).inserted else { continue }
+            uniqueIntents.append(intent)
+            if uniqueIntents.count == limit { break }
+        }
+        return uniqueIntents
+    }
+
     func flankingSupportUnits(attacker: BattleUnit, defender: BattleUnit) -> [BattleUnit] {
         units
             .filter { support in
@@ -1466,7 +1498,19 @@ final class GameState: ObservableObject {
     }
 
     func movementRoutes(for unit: BattleUnit) -> [HexCoordinate: MovementRoute] {
-        guard unit.faction == activeFaction, unit.canMove else { return [:] }
+        movementRoutes(for: unit, requireActiveFaction: true)
+    }
+
+    private func predictedMovementRoutes(for unit: BattleUnit) -> [HexCoordinate: MovementRoute] {
+        movementRoutes(for: unit, requireActiveFaction: false)
+    }
+
+    private func movementRoutes(
+        for unit: BattleUnit,
+        requireActiveFaction: Bool
+    ) -> [HexCoordinate: MovementRoute] {
+        guard (!requireActiveFaction || unit.faction == activeFaction),
+              unit.canMove else { return [:] }
 
         let movementAllowance = effectiveMovement(for: unit)
         var bestCost: [HexCoordinate: Int] = [unit.position: 0]
@@ -1678,6 +1722,228 @@ final class GameState: ObservableObject {
             return left.route.stepCount < right.route.stepCount
         }
         return left.route.destination.id < right.route.destination.id
+    }
+
+    private func readyThreatPreviewUnit(_ unit: BattleUnit) -> BattleUnit {
+        var readyUnit = unit
+        readyUnit.hasMoved = false
+        readyUnit.hasAttacked = false
+        return readyUnit
+    }
+
+    private func enemyThreatIntentCandidates(
+        for enemy: BattleUnit,
+        against targetFaction: Faction
+    ) -> [EnemyThreatIntentPreview] {
+        guard !enemy.isDestroyed, enemy.canAttack else { return [] }
+        return directAttackThreatIntents(for: enemy, against: targetFaction) +
+            approachAttackThreatIntents(for: enemy, against: targetFaction) +
+            objectiveCaptureThreatIntents(for: enemy, against: targetFaction)
+    }
+
+    private func directAttackThreatIntents(
+        for enemy: BattleUnit,
+        against targetFaction: Faction
+    ) -> [EnemyThreatIntentPreview] {
+        units
+            .filter { target in
+                target.faction == targetFaction &&
+                    !target.isDestroyed &&
+                    enemy.position.distance(to: target.position) <= enemy.range
+            }
+            .compactMap { target in
+                guard let preview = combatPreview(attacker: enemy, defender: target) else { return nil }
+                return enemyThreatIntent(
+                    kind: .directAttack,
+                    enemy: enemy,
+                    target: target,
+                    targetCoordinate: target.position,
+                    targetName: target.name,
+                    targetFaction: target.faction,
+                    currentDistance: enemy.position.distance(to: target.position),
+                    route: nil,
+                    combatPreview: preview,
+                    objectiveOwner: nil
+                )
+            }
+    }
+
+    private func approachAttackThreatIntents(
+        for enemy: BattleUnit,
+        against targetFaction: Faction
+    ) -> [EnemyThreatIntentPreview] {
+        let routes = predictedMovementRoutes(for: enemy)
+        guard !routes.isEmpty else { return [] }
+
+        return units
+            .filter { target in
+                target.faction == targetFaction &&
+                    !target.isDestroyed &&
+                    enemy.position.distance(to: target.position) > enemy.range
+            }
+            .compactMap { target -> EnemyThreatIntentPreview? in
+                guard let route = routes.values
+                    .filter({ $0.destination.distance(to: target.position) <= enemy.range })
+                    .sorted(by: threatRouteSort)
+                    .first else { return nil }
+
+                var movedEnemy = enemy
+                movedEnemy.position = route.destination
+
+                guard let preview = combatPreview(attacker: movedEnemy, defender: target) else { return nil }
+                return enemyThreatIntent(
+                    kind: .approachAttack,
+                    enemy: enemy,
+                    target: target,
+                    targetCoordinate: target.position,
+                    targetName: target.name,
+                    targetFaction: target.faction,
+                    currentDistance: enemy.position.distance(to: target.position),
+                    route: route,
+                    combatPreview: preview,
+                    objectiveOwner: nil
+                )
+            }
+    }
+
+    private func objectiveCaptureThreatIntents(
+        for enemy: BattleUnit,
+        against targetFaction: Faction
+    ) -> [EnemyThreatIntentPreview] {
+        let routes = predictedMovementRoutes(for: enemy)
+        guard !routes.isEmpty else { return [] }
+
+        return objectiveTiles
+            .filter { objective in
+                objective.owner == targetFaction &&
+                    self.unit(at: objective.coordinate) == nil
+            }
+            .compactMap { objective -> EnemyThreatIntentPreview? in
+                guard let route = routes[objective.coordinate] else { return nil }
+                return enemyThreatIntent(
+                    kind: .objectiveCapture,
+                    enemy: enemy,
+                    target: nil,
+                    targetCoordinate: objective.coordinate,
+                    targetName: objective.objectiveName ?? "目标据点",
+                    targetFaction: targetFaction,
+                    currentDistance: enemy.position.distance(to: objective.coordinate),
+                    route: route,
+                    combatPreview: nil,
+                    objectiveOwner: objective.owner
+                )
+            }
+    }
+
+    private func enemyThreatIntent(
+        kind: EnemyThreatIntentKind,
+        enemy: BattleUnit,
+        target: BattleUnit?,
+        targetCoordinate: HexCoordinate,
+        targetName: String,
+        targetFaction: Faction,
+        currentDistance: Int,
+        route: MovementRoute?,
+        combatPreview: CombatPreview?,
+        objectiveOwner: Faction?
+    ) -> EnemyThreatIntentPreview {
+        let projectedDamage = combatPreview?.damage ?? 0
+        let projectedHPAfterDamage = combatPreview?.defenderHPAfterAttack
+        let willDestroyTarget = combatPreview?.willDestroyDefender ?? false
+        return EnemyThreatIntentPreview(
+            kind: kind,
+            enemyUnitID: enemy.id,
+            enemyUnitName: enemy.name,
+            enemyUnitKind: enemy.kind,
+            targetCoordinate: targetCoordinate,
+            targetUnitID: target?.id,
+            targetName: targetName,
+            targetFaction: targetFaction,
+            currentDistance: currentDistance,
+            routeDestination: route?.destination,
+            routeCost: route?.totalCost,
+            projectedDamage: projectedDamage,
+            projectedTargetHPAfterDamage: projectedHPAfterDamage,
+            willDestroyTarget: willDestroyTarget,
+            objectiveOwner: objectiveOwner,
+            score: enemyThreatIntentScore(
+                kind: kind,
+                target: target,
+                currentDistance: currentDistance,
+                route: route,
+                projectedDamage: projectedDamage,
+                willDestroyTarget: willDestroyTarget
+            )
+        )
+    }
+
+    private func enemyThreatIntentScore(
+        kind: EnemyThreatIntentKind,
+        target: BattleUnit?,
+        currentDistance: Int,
+        route: MovementRoute?,
+        projectedDamage: Int,
+        willDestroyTarget: Bool
+    ) -> Int {
+        let targetValue = target.map { unit in
+            unit.kind.commandCost * 14 +
+                (unit.commander == nil ? 0 : 40) +
+                max(0, unit.maxHP - unit.hp) / 3
+        } ?? 0
+        let kindValue: Int
+        switch kind {
+        case .directAttack:
+            kindValue = 260
+        case .approachAttack:
+            kindValue = 220
+        case .objectiveCapture:
+            kindValue = 250
+        }
+        let routePenalty = (route?.totalCost ?? 0) * 4 + (route?.stepCount ?? 0)
+        return (willDestroyTarget ? 1_000 : 0) +
+            kindValue +
+            targetValue +
+            projectedDamage * 6 -
+            routePenalty -
+            currentDistance
+    }
+
+    private func enemyThreatIntentSort(
+        _ left: EnemyThreatIntentPreview,
+        _ right: EnemyThreatIntentPreview
+    ) -> Bool {
+        if left.willDestroyTarget != right.willDestroyTarget {
+            return left.willDestroyTarget && !right.willDestroyTarget
+        }
+        if left.score != right.score {
+            return left.score > right.score
+        }
+        if left.routeCost != right.routeCost {
+            return (left.routeCost ?? 0) < (right.routeCost ?? 0)
+        }
+        if left.currentDistance != right.currentDistance {
+            return left.currentDistance < right.currentDistance
+        }
+        if left.enemyUnitName != right.enemyUnitName {
+            return left.enemyUnitName < right.enemyUnitName
+        }
+        if left.targetName != right.targetName {
+            return left.targetName < right.targetName
+        }
+        if left.targetCoordinate.id != right.targetCoordinate.id {
+            return left.targetCoordinate.id < right.targetCoordinate.id
+        }
+        return left.kind.rawValue < right.kind.rawValue
+    }
+
+    private func threatRouteSort(_ left: MovementRoute, _ right: MovementRoute) -> Bool {
+        if left.totalCost != right.totalCost {
+            return left.totalCost < right.totalCost
+        }
+        if left.stepCount != right.stepCount {
+            return left.stepCount < right.stepCount
+        }
+        return left.destination.id < right.destination.id
     }
 
     private func fireRiskLevel(

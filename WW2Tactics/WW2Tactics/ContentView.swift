@@ -1557,6 +1557,7 @@ private struct HexMapView: View {
         let focusedFireExposure = game.focusedFireExposurePreview
         let guidedObjectiveCoordinate = game.guidedObjectiveCoordinate
         let latestCaptureCoordinate = game.latestObjectiveCaptureResult?.coordinate
+        let enemyIntentTargets = Set(game.visibleEnemyThreatIntentPreviews.map(\.targetCoordinate))
         let contentWidth = CGFloat(game.scenario.mapColumns) * tileWidth * 0.78 + tileWidth
         let contentHeight = CGFloat(game.scenario.mapRows) * tileHeight * 0.78 + tileHeight
 
@@ -1598,7 +1599,8 @@ private struct HexMapView: View {
                     isThreatenedMoveTile: threatenedReachableTiles.contains(tile.coordinate),
                     fireExposurePreview: focusedFireExposure?.coordinate == tile.coordinate ? focusedFireExposure : nil,
                     isGuidedObjective: guidedObjectiveCoordinate == tile.coordinate,
-                    isLatestObjectiveCapture: latestCaptureCoordinate == tile.coordinate
+                    isLatestObjectiveCapture: latestCaptureCoordinate == tile.coordinate,
+                    isEnemyThreatIntentTarget: enemyIntentTargets.contains(tile.coordinate)
                 )
                 .frame(width: tileWidth, height: tileHeight)
                 .position(x: point.x, y: point.y)
@@ -1710,6 +1712,7 @@ private struct HexTileView: View {
     let fireExposurePreview: PostMoveFireExposurePreview?
     let isGuidedObjective: Bool
     let isLatestObjectiveCapture: Bool
+    let isEnemyThreatIntentTarget: Bool
 
     var body: some View {
         ZStack {
@@ -1746,6 +1749,12 @@ private struct HexTileView: View {
                 ObjectiveCaptureMarker()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, isGuidedObjective ? 38 : 22)
+            }
+
+            if isEnemyThreatIntentTarget {
+                EnemyThreatIntentMarker()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 5)
             }
 
             if isAttackCoverage {
@@ -1838,6 +1847,7 @@ private struct HexTileView: View {
         if let fireExposurePreview { return fireExposurePreview.riskLevel.accentColor.opacity(0.95) }
         if isLatestObjectiveCapture { return .yellow.opacity(0.96) }
         if isGuidedObjective { return .green.opacity(0.96) }
+        if isEnemyThreatIntentTarget { return .pink.opacity(0.92) }
         if isMovementRoute { return .cyan.opacity(0.88) }
         if isAttackCoverage { return .orange.opacity(0.58) }
         if isSupplyLine { return .green.opacity(0.9) }
@@ -1855,6 +1865,7 @@ private struct HexTileView: View {
         if fireExposurePreview?.riskLevel.sortRank ?? 0 >= FireRiskLevel.high.sortRank { return 3 }
         if isLatestObjectiveCapture { return 3 }
         if isGuidedObjective { return 3 }
+        if isEnemyThreatIntentTarget { return 2 }
         if isMovementRoute { return 2 }
         if isAttackCoverage { return 2 }
         if isSupplyLine { return 2 }
@@ -1884,12 +1895,13 @@ private struct HexTileView: View {
         let attackPositionText = isAttackPosition ? "可进入攻击位" : ""
         let guidedObjectiveText = isGuidedObjective ? "当前目标据点" : ""
         let latestCaptureText = isLatestObjectiveCapture ? "最新占领据点" : ""
+        let enemyThreatIntentText = isEnemyThreatIntentTarget ? "敌方意图目标" : ""
         let fireRiskText = fireExposurePreview.map { preview in
             let sourceText = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
             let sourceSummary = sourceText.isEmpty ? "无敌火来源" : "来源\(sourceText)"
             return "\(preview.riskLevel.title)，潜在伤害\(preview.totalPotentialDamage)，预计剩余\(preview.projectedHPAfterExposure)，\(sourceSummary)"
         } ?? ""
-        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(latestCaptureText) \(fireRiskText) \(unitText) \(actionAccessibilityText)"
+        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(latestCaptureText) \(enemyThreatIntentText) \(fireRiskText) \(unitText) \(actionAccessibilityText)"
     }
 
     private var routeAccessibilityText: String {
@@ -2182,6 +2194,27 @@ private struct ObjectiveCaptureMarker: View {
         .overlay(
             Capsule()
                 .stroke(Color.white.opacity(0.42), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct EnemyThreatIntentMarker: View {
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "eye.trianglebadge.exclamationmark.fill")
+                .font(.system(size: 7, weight: .black))
+            Text("INT")
+                .font(.system(size: 7, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(Color.pink.opacity(0.86), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.36), lineWidth: 1)
         )
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -2556,6 +2589,8 @@ private struct InspectorPanel: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                let enemyThreatIntents = game.visibleEnemyThreatIntentPreviews
+
                 if let winner = game.winner {
                     VictoryPanel(winner: winner)
                 } else if let unit = game.selectedUnit {
@@ -2602,6 +2637,13 @@ private struct InspectorPanel: View {
 
                 if let aiPhaseSummary = game.latestAIPhaseSummary {
                     AIPhaseSummaryView(summary: aiPhaseSummary)
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.18))
+                }
+
+                if !enemyThreatIntents.isEmpty {
+                    EnemyThreatIntentPanel(previews: enemyThreatIntents)
 
                     Divider()
                         .overlay(Color.white.opacity(0.18))
@@ -3982,6 +4024,7 @@ private struct MapLegendView: View {
                 LegendItem(color: .orange.opacity(0.86), label: "移动后目标", symbol: "NX")
                 LegendItem(color: .orange.opacity(0.76), label: "攻击位", symbol: "POS")
                 LegendItem(color: .red.opacity(0.78), label: "敌火覆盖", symbol: "TH")
+                LegendItem(color: .pink.opacity(0.86), label: "敌方意图", symbol: "INT")
                 LegendItem(color: .green.opacity(0.9), label: "补给线")
                 LegendItem(color: .red.opacity(0.92), label: "断补给", symbol: "CUT")
                 LegendItem(color: .white.opacity(0.85), label: "焦点")
@@ -4496,6 +4539,157 @@ private struct ReinforcementResultSummaryView: View {
                 .stroke(Color.green.opacity(0.24), lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
+    }
+}
+
+private struct EnemyThreatIntentPanel: View {
+    let previews: [EnemyThreatIntentPreview]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label("敌方意图", systemImage: "eye.trianglebadge.exclamationmark.fill")
+                    .font(.subheadline.weight(.bold))
+
+                Spacer(minLength: 8)
+
+                Text("\(min(previews.count, 3))")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.pink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundStyle(.pink)
+
+            ForEach(Array(previews.prefix(3))) { preview in
+                EnemyThreatIntentRow(preview: preview)
+            }
+        }
+        .padding(9)
+        .background(Color.pink.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.pink.opacity(0.22), lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct EnemyThreatIntentRow: View {
+    let preview: EnemyThreatIntentPreview
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(preview.kind.shortTitle)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(accentColor.opacity(0.84), in: RoundedRectangle(cornerRadius: 5))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(preview.enemyUnitName)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    Text("\(preview.enemyUnitKind.title) -> \(preview.targetName)")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.62))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+
+                Spacer(minLength: 8)
+
+                Text(outcomeText)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(outcomeColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            HStack(spacing: 7) {
+                CombatResultMetric(title: "距离", value: "\(preview.currentDistance)", color: .white.opacity(0.82))
+                CombatResultMetric(title: preview.kind == .objectiveCapture ? "占点" : "伤害", value: effectMetricText, color: outcomeColor)
+                CombatResultMetric(title: "路线", value: routeMetricText, color: preview.routeCost == nil ? .cyan : .orange)
+            }
+
+            Label(routeDetailText, systemImage: routeIcon)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.68))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(8)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(accentColor.opacity(0.22), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private var accentColor: Color {
+        switch preview.kind {
+        case .directAttack:
+            return .red
+        case .approachAttack:
+            return .orange
+        case .objectiveCapture:
+            return .yellow
+        }
+    }
+
+    private var outcomeColor: Color {
+        if preview.willDestroyTarget { return .red }
+        if preview.kind == .objectiveCapture { return .yellow }
+        return .orange
+    }
+
+    private var outcomeText: String {
+        switch preview.kind {
+        case .objectiveCapture:
+            return "占点"
+        case .directAttack, .approachAttack:
+            return preview.willDestroyTarget ? "击毁" : "-\(preview.projectedDamage)"
+        }
+    }
+
+    private var effectMetricText: String {
+        switch preview.kind {
+        case .objectiveCapture:
+            return preview.objectiveOwner?.shortTitle ?? "NEU"
+        case .directAttack, .approachAttack:
+            return "-\(preview.projectedDamage)"
+        }
+    }
+
+    private var routeMetricText: String {
+        guard let routeCost = preview.routeCost else { return "射程" }
+        return "\(routeCost)"
+    }
+
+    private var routeDetailText: String {
+        switch preview.kind {
+        case .directAttack:
+            return "当前位置可攻击 \(preview.targetName)，目标预计剩余 \(preview.projectedTargetHPAfterDamage ?? 0) 耐久。"
+        case .approachAttack:
+            let hpText = preview.projectedTargetHPAfterDamage.map { "，目标预计剩余 \($0) 耐久" } ?? ""
+            return "先到 \(preview.destinationText)，消耗 \(preview.routeCost ?? 0) 移动力后攻击\(hpText)。"
+        case .objectiveCapture:
+            return "可推进到 \(preview.destinationText)，夺取 \(preview.targetName)。"
+        }
+    }
+
+    private var routeIcon: String {
+        switch preview.kind {
+        case .directAttack:
+            return "target"
+        case .approachAttack:
+            return "scope"
+        case .objectiveCapture:
+            return "flag.fill"
+        }
     }
 }
 
