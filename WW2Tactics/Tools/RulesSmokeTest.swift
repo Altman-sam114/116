@@ -1423,6 +1423,53 @@ struct RulesSmokeTest {
             game.deploy(kind: .infantry, at: deploySite.coordinate)
             require(game.commandPoints(for: .allies) == commandPointsBeforeDeploy - UnitKind.infantry.commandCost, "deployment should spend command points")
             require(game.units(for: .allies).count == alliedCountBeforeDeploy + 1, "deployment should add a unit")
+            guard let deploymentResult = game.latestDeploymentResult,
+                  let deployedUnit = game.units.first(where: { $0.id == deploymentResult.unitID }) else {
+                require(false, "deployment should publish a logistics result")
+                return
+            }
+            require(deploymentResult.unitName == deployedUnit.name, "deployment result should record new unit name")
+            require(deploymentResult.unitKind == .infantry, "deployment result should record unit kind")
+            require(deploymentResult.faction == .allies, "deployment result should record faction")
+            require(deploymentResult.coordinate == deploySite.coordinate, "deployment result should record deployment coordinate")
+            require(deploymentResult.sourceObjectiveName == deploySite.sourceObjectiveName, "deployment result should record source objective")
+            require(deploymentResult.commandCost == UnitKind.infantry.commandCost, "deployment result should record command cost")
+            require(deploymentResult.commandPointsAfterDeployment == game.commandPoints(for: .allies), "deployment result should record remaining command points")
+            require(game.latestCombatResult == nil, "deployment result should clear combat result")
+            require(game.latestTacticalCommandResult == nil, "deployment result should clear tactical command result")
+            require(game.latestObjectiveCaptureResult == nil, "deployment result should clear objective capture result")
+            require(game.latestReinforcementResult == nil, "deployment result should clear reinforcement result")
+
+            let reinforcementGame = GameState(
+                scenario: objectiveRestScenario(),
+                commandPoints: [.allies: 6, .axis: 6]
+            )
+            guard let damagedUnit = reinforcementGame.units.first(where: { $0.name == "休整守军" }) else {
+                require(false, "reinforcement smoke unit should exist")
+                return
+            }
+            let reinforcementCost = reinforcementGame.reinforceCost(for: damagedUnit)
+            reinforcementGame.handleTap(on: damagedUnit.position)
+            reinforcementGame.reinforceSelectedUnit()
+            guard let reinforcementResult = reinforcementGame.latestReinforcementResult,
+                  let reinforcedUnit = reinforcementGame.units.first(where: { $0.id == damagedUnit.id }) else {
+                require(false, "reinforcement should publish a logistics result")
+                return
+            }
+            require(reinforcementResult.unitID == damagedUnit.id, "reinforcement result should record unit id")
+            require(reinforcementResult.unitName == damagedUnit.name, "reinforcement result should record unit name")
+            require(reinforcementResult.unitKind == damagedUnit.kind, "reinforcement result should record unit kind")
+            require(reinforcementResult.faction == .allies, "reinforcement result should record faction")
+            require(reinforcementResult.coordinate == damagedUnit.position, "reinforcement result should record coordinate")
+            require(reinforcementResult.startingHP == damagedUnit.hp, "reinforcement result should record starting HP")
+            require(reinforcementResult.endingHP == reinforcedUnit.hp, "reinforcement result should record ending HP")
+            require(reinforcementResult.recoveredHP == reinforcedUnit.hp - damagedUnit.hp, "reinforcement result should record recovered HP")
+            require(reinforcementResult.commandCost == reinforcementCost, "reinforcement result should record command cost")
+            require(reinforcementResult.commandPointsAfterReinforcement == reinforcementGame.commandPoints(for: .allies), "reinforcement result should record remaining command points")
+            require(reinforcementGame.latestCombatResult == nil, "reinforcement result should clear combat result")
+            require(reinforcementGame.latestTacticalCommandResult == nil, "reinforcement result should clear tactical command result")
+            require(reinforcementGame.latestObjectiveCaptureResult == nil, "reinforcement result should clear objective capture result")
+            require(reinforcementGame.latestDeploymentResult == nil, "reinforcement result should clear deployment result")
 
             let primaryInspectGame = GameState()
             primaryInspectGame.handlePrimaryAction(on: HexCoordinate(q: 0, r: 0))

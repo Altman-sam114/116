@@ -24,7 +24,7 @@
 职责：
 
 - 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary` 和据点占领后的 `ObjectiveCaptureResultSummary`。
+- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary` 和整补后的 `ReinforcementResultSummary`。
 - 生成阿登反击战、诺曼底突破等战役初始数据。
 
 输入：
@@ -46,8 +46,8 @@
 职责：
 
 - 项目核心状态机。
-- 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、胜负、指令点。
-- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
+- 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、最新部署结果、最新整补结果、胜负、指令点。
+- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
 
 输入：
 
@@ -174,7 +174,7 @@
 1. `tacticalCommandPreview` 只计算火炮弹幕和突破突击的执行前结果，不写回战役状态。
 2. `useTacticalCommand` 成功执行后扣除指令点、写入伤害、消耗防御姿态、更新施放者行动状态、授予经验、降低目标士气并写入战术状态。
 3. `latestTacticalCommandResult` 记录施放者/目标 HP、经验、士气、军衔前后、命令类型、伤害、指令点消耗、士气损失、状态效果、无反击、击毁和防御姿态消耗。
-4. 普通攻击结果和战术命令结果互斥展示：普通攻击写入 `latestCombatResult` 时清理战术命令结果；战术命令写入 `latestTacticalCommandResult` 时清理普通攻击结果。
+4. 普通攻击、战术命令、据点占领、部署和整补结果互斥展示：战术命令写入 `latestTacticalCommandResult` 时清理其他结果摘要。
 5. AI 使用战术命令时也通过同一 `useTacticalCommand` 路径写入结果摘要。
 
 ### 3.9 据点占领结果
@@ -182,8 +182,17 @@
 1. `updateObjectiveControl()` 是据点归属变化的唯一落点。
 2. 占领中立或敌方据点时，`applyObjectiveCaptureReward()` 发放指令点、经验和士气奖励，并写入 `latestObjectiveCaptureResult`。
 3. 据点占领结果记录据点名、坐标、占领单位、原归属、新归属、奖励值和占领后的据点进度。
-4. 据点占领结果与普通攻击结果、战术命令结果互斥展示；新的攻击或战术命令会清理旧占领结果，新的占领会清理旧战斗/战术命令结果。
+4. 据点占领结果与普通攻击结果、战术命令结果、部署结果、整补结果互斥展示；新的攻击、战术命令、部署或整补会清理旧占领结果，新的占领会清理旧战斗/战术/后勤结果。
 5. `ContentView` 在侧栏战报前显示占领结果卡，并在最新占领据点显示 `CAP` 地图标记。
+
+### 3.10 后勤结果
+
+1. `deploy(kind:at:)` 是部署增援的成功落点；部署前校验胜负、指令点和合法部署点，失败只更新提示，不生成或清理真实结果摘要。
+2. 成功部署会扣除指令点、新建已行动单位、选中新单位、聚焦部署坐标，并写入 `latestDeploymentResult`，记录来源据点、新单位 ID/名称/兵种/阵营、坐标、消耗和部署后剩余指令点。
+3. `reinforce(unitID:)` 是主动整补的成功落点；只允许受损单位在己方据点且指令点足够时执行，失败只更新提示，不生成或清理真实结果摘要。
+4. 成功整补会记录 HP 前后、恢复量、消耗和剩余指令点，重置该单位战术状态与防御姿态，并写入 `latestReinforcementResult`。
+5. 普通攻击、战术命令、据点占领、部署和整补结果五者互斥；任一成功结果会清理其他旧结果，确保侧栏只显示最近一次真实结果。
+6. AI 整补和部署复用同一路径，因此敌方回合的最新后勤动作也会生成同一类摘要；据点被动休整不写入主动整补摘要。
 
 ## 4. 架构边界
 
@@ -202,7 +211,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、部署/整补结果摘要：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

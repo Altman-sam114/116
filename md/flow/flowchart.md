@@ -11,9 +11,9 @@ flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget"]
   I --> S["GameState：核心状态机"]
-  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、补给、控制区、士气、AI、OBJ计划、THR"]
-  R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、消息、攻击/战术/占领结果、战报、胜负"]
+  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、Deployment/ReinforcementResultSummary"] --> S
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、OBJ计划、THR"]
+  R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、消息、攻击/战术/占领/后勤结果、战报、胜负"]
   W --> P["@Published 状态变化"]
   P --> V
   S --> T["测试层：GameStateTests / RulesSmokeTest"]
@@ -60,6 +60,8 @@ flowchart LR
   T --> AT
   U --> SUP["supplyLine / supplyState 补给"]
   T --> SUP
+  U --> LOG["deploy / reinforce 主动后勤"]
+  T --> LOG
   U --> ZOC["enemyControlZoneTiles 控制区"]
   U --> THR["threatenedReachableTiles 敌火覆盖"]
   MV --> RP["RouteStepPreview 步序、消耗、控制区、敌火"]
@@ -77,7 +79,8 @@ flowchart LR
   OP --> CMD
   SE --> CMD
   CMD --> EX["executeMapCommand"]
-  EX --> RES["更新单位、据点、消息、攻击/战术/占领结果、战报"]
+  EX --> RES["更新单位、据点、消息、攻击/战术/占领/后勤结果、战报"]
+  LOG --> RES
   RES --> WIN["checkVictory / checkTurnLimit"]
   RES --> AI["runAxisAI 轴心国回合"]
   AI --> RES

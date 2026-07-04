@@ -513,6 +513,21 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.selectedUnit?.kind, .infantry)
         XCTAssertTrue(game.selectedUnit?.hasMoved == true)
         XCTAssertTrue(game.selectedUnit?.hasAttacked == true)
+
+        let deployedUnit = try XCTUnwrap(game.selectedUnit)
+        let result = try XCTUnwrap(game.latestDeploymentResult)
+        XCTAssertEqual(result.unitID, deployedUnit.id)
+        XCTAssertEqual(result.unitName, deployedUnit.name)
+        XCTAssertEqual(result.unitKind, .infantry)
+        XCTAssertEqual(result.faction, .allies)
+        XCTAssertEqual(result.coordinate, site.coordinate)
+        XCTAssertEqual(result.sourceObjectiveName, site.sourceObjectiveName)
+        XCTAssertEqual(result.commandCost, UnitKind.infantry.commandCost)
+        XCTAssertEqual(result.commandPointsAfterDeployment, game.commandPoints(for: .allies))
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertNil(game.latestTacticalCommandResult)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNil(game.latestReinforcementResult)
     }
 
     func testReinforcingDamagedUnitAtOwnedObjectiveConsumesCommandPoints() throws {
@@ -532,9 +547,105 @@ final class GameStateTests: XCTestCase {
         game.reinforceSelectedUnit()
 
         XCTAssertEqual(game.commandPoints(for: .allies), startingPoints - cost)
-        XCTAssertGreaterThan(game.units.first { $0.id == infantry.id }?.hp ?? 0, 42)
-        XCTAssertTrue(game.units.first { $0.id == infantry.id }?.hasMoved == true)
-        XCTAssertTrue(game.units.first { $0.id == infantry.id }?.hasAttacked == true)
+        let reinforcedUnit = try XCTUnwrap(game.units.first { $0.id == infantry.id })
+        XCTAssertGreaterThan(reinforcedUnit.hp, 42)
+        XCTAssertTrue(reinforcedUnit.hasMoved)
+        XCTAssertTrue(reinforcedUnit.hasAttacked)
+
+        let result = try XCTUnwrap(game.latestReinforcementResult)
+        XCTAssertEqual(result.unitID, infantry.id)
+        XCTAssertEqual(result.unitName, infantry.name)
+        XCTAssertEqual(result.unitKind, infantry.kind)
+        XCTAssertEqual(result.faction, .allies)
+        XCTAssertEqual(result.coordinate, infantry.position)
+        XCTAssertEqual(result.startingHP, 42)
+        XCTAssertEqual(result.endingHP, reinforcedUnit.hp)
+        XCTAssertEqual(result.recoveredHP, reinforcedUnit.hp - 42)
+        XCTAssertEqual(result.commandCost, cost)
+        XCTAssertEqual(result.commandPointsAfterReinforcement, game.commandPoints(for: .allies))
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertNil(game.latestTacticalCommandResult)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNil(game.latestDeploymentResult)
+    }
+
+    func testFailedLogisticsOrdersDoNotCreateOrClearResults() throws {
+        let lowPointGame = GameState(commandPoints: [.allies: 0, .axis: 6])
+        let lowPointSite = try XCTUnwrap(lowPointGame.deploymentSites(for: .allies).first)
+
+        lowPointGame.deploy(kind: .infantry, at: lowPointSite.coordinate)
+
+        XCTAssertNil(lowPointGame.latestDeploymentResult)
+        XCTAssertEqual(lowPointGame.commandPoints(for: .allies), 0)
+
+        let game = GameState()
+        let site = try XCTUnwrap(game.deploymentSites(for: .allies).first)
+        game.deploy(kind: .tank, at: site.coordinate)
+        let previousResult = try XCTUnwrap(game.latestDeploymentResult)
+
+        game.deploy(kind: .infantry, at: site.coordinate)
+
+        XCTAssertEqual(game.latestDeploymentResult, previousResult)
+        XCTAssertEqual(game.commandPoints(for: .allies), 0)
+
+        let fullStrengthGame = GameState(scenario: Self.logisticsResultScenario())
+        let attacker = try XCTUnwrap(fullStrengthGame.units.first { $0.name == "后勤攻击方" })
+        let fullStrengthSite = try XCTUnwrap(fullStrengthGame.deploymentSites(for: .allies).first)
+        fullStrengthGame.deploy(kind: .infantry, at: fullStrengthSite.coordinate)
+        let previousDeploymentResult = try XCTUnwrap(fullStrengthGame.latestDeploymentResult)
+        fullStrengthGame.handlePrimaryAction(on: attacker.position)
+
+        fullStrengthGame.reinforceSelectedUnit()
+
+        XCTAssertNil(fullStrengthGame.latestReinforcementResult)
+        XCTAssertEqual(fullStrengthGame.latestDeploymentResult, previousDeploymentResult)
+    }
+
+    func testLogisticsResultsAreMutuallyExclusiveWithCombatResults() throws {
+        let game = GameState(
+            scenario: Self.logisticsResultScenario(),
+            commandPoints: [.allies: 12, .axis: 6]
+        )
+        let damagedUnit = try XCTUnwrap(game.units.first { $0.name == "后勤守军" })
+        game.handlePrimaryAction(on: damagedUnit.position)
+        game.reinforceSelectedUnit()
+
+        XCTAssertNotNil(game.latestReinforcementResult)
+        XCTAssertNil(game.latestDeploymentResult)
+
+        let site = try XCTUnwrap(game.deploymentSites(for: .allies).first)
+        game.deploy(kind: .infantry, at: site.coordinate)
+
+        XCTAssertNotNil(game.latestDeploymentResult)
+        XCTAssertNil(game.latestReinforcementResult)
+
+        let attacker = try XCTUnwrap(game.units.first { $0.name == "后勤攻击方" })
+        let target = try XCTUnwrap(game.units.first { $0.name == "后勤目标" })
+        game.handlePrimaryAction(on: attacker.position)
+        game.handleSecondaryAction(on: target.position)
+
+        XCTAssertNotNil(game.latestCombatResult)
+        XCTAssertNil(game.latestDeploymentResult)
+        XCTAssertNil(game.latestReinforcementResult)
+    }
+
+    func testAxisAIDeploymentRecordsLogisticsSummary() throws {
+        let game = GameState(
+            scenario: Self.axisDeploymentResultScenario(),
+            commandPoints: [.allies: 6, .axis: 1]
+        )
+
+        game.endTurn()
+
+        XCTAssertNil(game.winner)
+        let result = try XCTUnwrap(game.latestDeploymentResult)
+        let deployedUnit = try XCTUnwrap(game.units.first { $0.id == result.unitID })
+        XCTAssertEqual(result.faction, .axis)
+        XCTAssertEqual(result.unitKind, deployedUnit.kind)
+        XCTAssertEqual(result.coordinate, deployedUnit.position)
+        XCTAssertEqual(result.commandCost, deployedUnit.kind.commandCost)
+        XCTAssertEqual(result.commandPointsAfterDeployment, game.commandPoints(for: .axis))
+        XCTAssertNil(game.latestReinforcementResult)
     }
 
     func testAxisAIUsesCommandPointsToDeployReinforcement() {
@@ -2387,6 +2498,66 @@ final class GameStateTests: XCTestCase {
         )
     }
 
+    private static func logisticsResultScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in 0..<2 {
+            for q in 0..<4 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .plains
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "后勤基地"
+                    tile.owner = .allies
+                } else if q == 3 && r == 1 {
+                    tile.objectiveName = "后勤目标据点"
+                    tile.owner = .axis
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "logistics-result-test",
+            name: "后勤结果测试",
+            year: "1944",
+            briefing: "测试部署和整补结果摘要。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 4,
+            mapRows: 2,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "后勤守军",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: 42,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "后勤攻击方",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 2, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "后勤目标",
+                    kind: .tank,
+                    faction: .axis,
+                    position: HexCoordinate(q: 3, r: 1),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
     private static func matchupScenario() -> Scenario {
         var tiles: [TerrainTile] = []
         for r in 0..<3 {
@@ -3139,6 +3310,48 @@ final class GameStateTests: XCTestCase {
                     kind: .infantry,
                     faction: .axis,
                     position: HexCoordinate(q: 4, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func axisDeploymentResultScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<5 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "盟军后方"
+                tile.owner = .allies
+            } else if q == 4 {
+                tile.objectiveName = "轴心补给点"
+                tile.owner = .axis
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "axis-deployment-result-test",
+            name: "轴心部署结果测试",
+            year: "1944",
+            briefing: "测试轴心 AI 部署会写入后勤结果摘要。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "远离前线守军",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
                     hp: UnitKind.infantry.baseHP,
                     commander: nil
                 )

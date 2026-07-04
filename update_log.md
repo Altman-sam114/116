@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.7 正在推进安全接敌候选点选预览，已持续增强路线预判、火力风险、战斗/战术/据点结果反馈和 OBJ/POS 操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.8 正在推进整补与增援结果摘要，已持续增强路线预判、火力风险、战斗/战术/据点/后勤结果反馈和 OBJ/POS 操作可读性。
 
 ## 历史记录
 
@@ -517,3 +517,44 @@
 
 - 安全接敌候选仍是预览入口，不提供一键直接移动或攻击。
 - 本轮不改变安全候选排序、默认 POS 路线、移动/攻击数值、胜负条件或 AI 决策。
+
+### v1.8 / 整补与增援结果摘要
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 `DeploymentResultSummary` 和 `ReinforcementResultSummary`，记录部署来源据点、新单位、部署坐标、主动整补 HP 前后、恢复量、指令点消耗和剩余指令点。
+- `GameState` 新增 `latestDeploymentResult` 和 `latestReinforcementResult`，成功部署或整补通过规则层写入摘要；失败部署/整补只更新提示，不生成或清理既有真实结果。
+- 普通攻击、战术命令、据点占领、部署和整补结果五者互斥展示，成功写入任一结果时清理其他旧结果。
+- AI 后勤动作复用部署/整补路径，因此轴心国回合的主动部署或整补也会生成后勤结果摘要；据点被动休整不写入主动整补摘要。
+- 侧栏战报前新增部署结果卡和整补结果卡，展示单位、坐标、指令点消耗、剩余指令点和 HP 恢复等关键字段。
+- 补充 XCTest 和规则 smoke test，覆盖部署摘要、整补摘要、失败不写虚假摘要、结果互斥、AI 部署摘要和 smoke 字段断言。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.8（整补与增援结果摘要）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- 云端 GitHub Actions 和 Agent C artifact 验收：待本轮 `main` push 后执行。
+
+遗留事项：
+
+- 后勤结果摘要仍是静态回放，不包含动画、音效或真实美术资产。
+- 本轮不改变部署地点算法、部署成本、整补成本、恢复量、AI 后勤优先级或胜负条件。

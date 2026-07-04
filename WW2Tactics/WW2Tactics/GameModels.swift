@@ -677,6 +677,32 @@ struct ObjectiveCaptureResultSummary: Identifiable, Equatable {
     }
 }
 
+struct DeploymentResultSummary: Identifiable, Equatable {
+    let id = UUID()
+    let sourceObjectiveName: String
+    let coordinate: HexCoordinate
+    let unitID: BattleUnit.ID
+    let unitName: String
+    let unitKind: UnitKind
+    let faction: Faction
+    let commandCost: Int
+    let commandPointsAfterDeployment: Int
+}
+
+struct ReinforcementResultSummary: Identifiable, Equatable {
+    let id = UUID()
+    let unitID: BattleUnit.ID
+    let unitName: String
+    let unitKind: UnitKind
+    let faction: Faction
+    let coordinate: HexCoordinate
+    let startingHP: Int
+    let endingHP: Int
+    let recoveredHP: Int
+    let commandCost: Int
+    let commandPointsAfterReinforcement: Int
+}
+
 struct DeploymentSite: Identifiable, Equatable {
     let coordinate: HexCoordinate
     let sourceObjectiveName: String

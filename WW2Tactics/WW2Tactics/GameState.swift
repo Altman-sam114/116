@@ -17,6 +17,8 @@ final class GameState: ObservableObject {
     @Published private(set) var latestCombatResult: CombatResultSummary?
     @Published private(set) var latestTacticalCommandResult: TacticalCommandResultSummary?
     @Published private(set) var latestObjectiveCaptureResult: ObjectiveCaptureResultSummary?
+    @Published private(set) var latestDeploymentResult: DeploymentResultSummary?
+    @Published private(set) var latestReinforcementResult: ReinforcementResultSummary?
 
     private enum MapCommandInputMode {
         case directTap
@@ -732,6 +734,8 @@ final class GameState: ObservableObject {
             )
             latestCombatResult = nil
             latestObjectiveCaptureResult = nil
+            latestDeploymentResult = nil
+            latestReinforcementResult = nil
         }
 
         appendLog(message)
@@ -1197,6 +1201,20 @@ final class GameState: ObservableObject {
         scenario.units.append(unit)
         selectedUnitID = unit.id
         focusedCoordinate = coordinate
+        latestDeploymentResult = DeploymentResultSummary(
+            sourceObjectiveName: site.sourceObjectiveName,
+            coordinate: coordinate,
+            unitID: unit.id,
+            unitName: unit.name,
+            unitKind: unit.kind,
+            faction: unit.faction,
+            commandCost: kind.commandCost,
+            commandPointsAfterDeployment: commandPoints(for: unit.faction)
+        )
+        latestCombatResult = nil
+        latestTacticalCommandResult = nil
+        latestObjectiveCaptureResult = nil
+        latestReinforcementResult = nil
         message = "\(site.sourceObjectiveName) 部署 \(unit.name)，消耗 \(kind.commandCost) 指令点。"
         appendLog(message)
         checkVictory()
@@ -1808,6 +1826,8 @@ final class GameState: ObservableObject {
         latestCombatResult = nil
         latestTacticalCommandResult = nil
         latestObjectiveCaptureResult = nil
+        latestDeploymentResult = nil
+        latestReinforcementResult = nil
         commandPoints = [.allies: 6, .axis: 6]
         message = Self.openingMessage(for: newScenario)
         battleLog = [Self.openingLog(for: newScenario)]
@@ -1941,6 +1961,8 @@ final class GameState: ObservableObject {
             )
             latestTacticalCommandResult = nil
             latestObjectiveCaptureResult = nil
+            latestDeploymentResult = nil
+            latestReinforcementResult = nil
         }
 
         appendLog(message)
@@ -2033,6 +2055,7 @@ final class GameState: ObservableObject {
 
         clearObjectiveGuidance()
         let cost = reinforceCost(for: unit)
+        let startingHP = unit.hp
         spendCommandPoints(cost, for: activeFaction)
         let recovered = min(unit.kind.reinforceAmount, unit.maxHP - unit.hp)
         scenario.units[index].hp += recovered
@@ -2042,6 +2065,22 @@ final class GameState: ObservableObject {
         scenario.units[index].isEntrenched = false
         selectedUnitID = scenario.units[index].id
         focusedCoordinate = scenario.units[index].position
+        latestReinforcementResult = ReinforcementResultSummary(
+            unitID: scenario.units[index].id,
+            unitName: scenario.units[index].name,
+            unitKind: scenario.units[index].kind,
+            faction: scenario.units[index].faction,
+            coordinate: scenario.units[index].position,
+            startingHP: startingHP,
+            endingHP: scenario.units[index].hp,
+            recoveredHP: recovered,
+            commandCost: cost,
+            commandPointsAfterReinforcement: commandPoints(for: scenario.units[index].faction)
+        )
+        latestCombatResult = nil
+        latestTacticalCommandResult = nil
+        latestObjectiveCaptureResult = nil
+        latestDeploymentResult = nil
         message = "\(unit.name) 整补 +\(recovered) 耐久，消耗 \(cost) 指令点。"
         appendLog(message)
         selectNextReadyUnit()
@@ -2506,6 +2545,8 @@ final class GameState: ObservableObject {
         )
         latestCombatResult = nil
         latestTacticalCommandResult = nil
+        latestDeploymentResult = nil
+        latestReinforcementResult = nil
         appendLog("\(unit.name)\(action)\(objectiveName)，\(unit.faction.title)获得 \(Self.objectiveCaptureCommandReward) 指令点。")
     }
 

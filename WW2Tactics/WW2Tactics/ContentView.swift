@@ -2588,6 +2588,16 @@ private struct InspectorPanel: View {
 
                     Divider()
                         .overlay(Color.white.opacity(0.18))
+                } else if let deploymentResult = game.latestDeploymentResult {
+                    DeploymentResultSummaryView(summary: deploymentResult)
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.18))
+                } else if let reinforcementResult = game.latestReinforcementResult {
+                    ReinforcementResultSummaryView(summary: reinforcementResult)
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.18))
                 }
 
                 BattleLogView()
@@ -4373,6 +4383,110 @@ private struct ObjectiveCaptureResultSummaryView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 7)
                 .stroke(Color.yellow.opacity(0.24), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct DeploymentResultSummaryView: View {
+    let summary: DeploymentResultSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label("增援部署", systemImage: "plus.square.on.square.fill")
+                    .font(.subheadline.weight(.bold))
+
+                Spacer(minLength: 8)
+
+                Text(summary.unitKind.code)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.cyan)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundStyle(.cyan)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(summary.unitName)
+                    .font(.headline.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                Text("\(summary.faction.title) · \(summary.unitKind.title) · q\(summary.coordinate.q),r\(summary.coordinate.r)")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            HStack(spacing: 7) {
+                CombatResultMetric(title: "指令", value: "-\(summary.commandCost)", color: .yellow)
+                CombatResultMetric(title: "剩余", value: "\(summary.commandPointsAfterDeployment)", color: .white.opacity(0.82))
+                CombatResultMetric(title: "耐久", value: "\(summary.unitKind.baseHP)", color: .green)
+            }
+
+            Label("来源据点 \(summary.sourceObjectiveName)，新部队本回合已完成部署行动。", systemImage: "flag.fill")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(summary.faction.accentColor)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(9)
+        .background(Color.cyan.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.cyan.opacity(0.24), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct ReinforcementResultSummaryView: View {
+    let summary: ReinforcementResultSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label("整补结果", systemImage: "cross.case.fill")
+                    .font(.subheadline.weight(.bold))
+
+                Spacer(minLength: 8)
+
+                Text("+\(summary.recoveredHP)")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.green)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundStyle(.green)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(summary.unitName)
+                    .font(.headline.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                Text("\(summary.faction.title) · \(summary.unitKind.title) · q\(summary.coordinate.q),r\(summary.coordinate.r)")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            HStack(spacing: 7) {
+                CombatResultMetric(title: "耐久", value: "\(summary.startingHP)->\(summary.endingHP)", color: .green)
+                CombatResultMetric(title: "指令", value: "-\(summary.commandCost)", color: .yellow)
+                CombatResultMetric(title: "剩余", value: "\(summary.commandPointsAfterReinforcement)", color: .white.opacity(0.82))
+            }
+
+            Label("整补后本回合行动已消耗，战术状态与防御姿态重置。", systemImage: "checkmark.seal.fill")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.green.opacity(0.86))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(9)
+        .background(Color.green.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.green.opacity(0.24), lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
     }
