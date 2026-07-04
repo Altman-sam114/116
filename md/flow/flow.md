@@ -24,7 +24,7 @@
 职责：
 
 - 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、安全接敌候选 `SafeEngagementOption`、普通攻击后的 `CombatResultSummary` 和战术命令后的 `TacticalCommandResultSummary`。
+- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、安全接敌候选 `SafeEngagementOption`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary` 和据点占领后的 `ObjectiveCaptureResultSummary`。
 - 生成阿登反击战、诺曼底突破等战役初始数据。
 
 输入：
@@ -46,8 +46,8 @@
 职责：
 
 - 项目核心状态机。
-- 管理当前战役、选中单位、焦点坐标、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、胜负、指令点。
-- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、据点占领、目标推进、AI 行动、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
+- 管理当前战役、选中单位、焦点坐标、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、胜负、指令点。
+- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、据点占领、据点占领结果摘要、目标推进、AI 行动、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
 
 输入：
 
@@ -73,7 +73,7 @@
 - 渲染 SwiftUI App 主界面。
 - 提供顶部状态栏、战区地图、地图工具栏、HUD、侧栏、图例、编队条、战报。
 - 将地图左键/点按/右键转换为 `GameState` 方法调用。
-- 显示 MOVE、ATK、POS、NEXT、OBJ、THR、补给线、控制区、攻击覆盖等标记。
+- 显示 MOVE、ATK、POS、NEXT、OBJ、CAP、THR、补给线、控制区、攻击覆盖等标记。
 
 输入：
 
@@ -120,7 +120,7 @@
 4. `fireExposurePreview(for:at:)` 对合法 MOVE 目的地用临时移动后的单位复用 `combatPreview(enemy, movedUnit)`，估算敌火来源、潜在伤害、HP 后果和风险等级，不写回战役状态。
 5. 地图显示 `MOVE` 标记、步序/消耗、路线风险、终点火力风险和移动后可攻击目标。
 6. 右键或执行按钮触发 `executeMapCommand(.move)`。
-7. `move(unitID:to:)` 更新单位位置、消耗移动、清理防御姿态、更新据点控制。
+7. `move(unitID:to:)` 更新单位位置、消耗移动、清理防御姿态、更新据点控制；若真实占领或夺取据点，写入 `latestObjectiveCaptureResult`。
 8. 若移动后有可攻击目标，聚焦 NEXT 目标。
 
 ### 3.3 攻击
@@ -147,6 +147,7 @@
 2. 若可直达，聚焦据点并设置 `guidedObjectiveCoordinate`。
 3. 若不可直达，聚焦本回合推进格，同时保留最终目标据点。
 4. 普通聚焦、攻击、待命、回合切换等应清理目标引导，避免状态残留。
+5. 只有单位实际进入中立或敌方据点并改变归属时，才生成据点占领结果；远距离 OBJ 中继推进不会生成虚假占领摘要。
 
 ### 3.6 THR 敌火覆盖
 
@@ -170,6 +171,14 @@
 3. `latestTacticalCommandResult` 记录施放者/目标 HP、经验、士气、军衔前后、命令类型、伤害、指令点消耗、士气损失、状态效果、无反击、击毁和防御姿态消耗。
 4. 普通攻击结果和战术命令结果互斥展示：普通攻击写入 `latestCombatResult` 时清理战术命令结果；战术命令写入 `latestTacticalCommandResult` 时清理普通攻击结果。
 5. AI 使用战术命令时也通过同一 `useTacticalCommand` 路径写入结果摘要。
+
+### 3.9 据点占领结果
+
+1. `updateObjectiveControl()` 是据点归属变化的唯一落点。
+2. 占领中立或敌方据点时，`applyObjectiveCaptureReward()` 发放指令点、经验和士气奖励，并写入 `latestObjectiveCaptureResult`。
+3. 据点占领结果记录据点名、坐标、占领单位、原归属、新归属、奖励值和占领后的据点进度。
+4. 据点占领结果与普通攻击结果、战术命令结果互斥展示；新的攻击或战术命令会清理旧占领结果，新的占领会清理旧战斗/战术命令结果。
+5. `ContentView` 在侧栏战报前显示占领结果卡，并在最新占领据点显示 `CAP` 地图标记。
 
 ## 4. 架构边界
 

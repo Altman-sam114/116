@@ -349,3 +349,41 @@
 
 - 战术命令结果仍是静态回放，不包含动画、音效或美术资产。
 - 本轮不改变战术命令数值、AI 决策或普通攻击规则。
+
+### v1.4 / 据点占领结果摘要与 CAP 反馈
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 `ObjectiveCaptureResultSummary`，记录真实占领/夺取据点后的据点名、坐标、占领单位、原归属、新归属、奖励值和占领后据点进度。
+- `GameState` 新增 `latestObjectiveCaptureResult`，只在据点归属真实变化时写入；远距离 OBJ 中继推进、普通聚焦和预览不会生成虚假摘要。
+- 普通攻击结果、战术命令结果和据点占领结果互斥展示，避免侧栏显示过期的另一类结果。
+- 侧栏战报前新增据点占领结果卡，地图在最新占领据点显示 `CAP` 短码。
+- 补充 XCTest 和规则 smoke test，覆盖敌方/中立据点占领摘要、奖励和进度字段、OBJ 直取、远距离推进不生成摘要、重开/切战役/后续攻击和战术命令清理旧摘要。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v1（地图操作体验）/v1.4（据点占领结果摘要与CAP反馈）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions run、artifact 和 Agent C 云端结果包核对，以本轮 `origin/main` 推送后的最新验收结果为准。
+
+遗留事项：
+
+- 据点占领结果仍是静态回放，不包含动画、音效或真实美术资产。
+- 本轮不改变据点奖励数值、胜负条件、AI 决策或 OBJ 目标排序。

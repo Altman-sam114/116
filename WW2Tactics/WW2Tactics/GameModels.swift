@@ -649,6 +649,34 @@ struct TacticalCommandResultSummary: Identifiable, Equatable {
     }
 }
 
+struct ObjectiveCaptureResultSummary: Identifiable, Equatable {
+    let id = UUID()
+    let objectiveName: String
+    let coordinate: HexCoordinate
+    let capturingUnitName: String
+    let capturingUnitKind: UnitKind
+    let previousOwner: Faction?
+    let newOwner: Faction
+    let commandPointReward: Int
+    let moraleReward: Int
+    let experienceReward: Int
+    let alliedScoreAfterCapture: Int
+    let axisScoreAfterCapture: Int
+    let totalObjectiveCount: Int
+
+    var actionTitle: String {
+        previousOwner == nil ? "占领" : "夺取"
+    }
+
+    var ownerTransitionText: String {
+        "\(previousOwner?.title ?? "中立") -> \(newOwner.title)"
+    }
+
+    var progressText: String {
+        "\(alliedScoreAfterCapture)/\(totalObjectiveCount)"
+    }
+}
+
 struct DeploymentSite: Identifiable, Equatable {
     let coordinate: HexCoordinate
     let sourceObjectiveName: String

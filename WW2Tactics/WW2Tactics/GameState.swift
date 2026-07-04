@@ -15,6 +15,7 @@ final class GameState: ObservableObject {
     @Published var commandPoints: [Faction: Int]
     @Published private(set) var latestCombatResult: CombatResultSummary?
     @Published private(set) var latestTacticalCommandResult: TacticalCommandResultSummary?
+    @Published private(set) var latestObjectiveCaptureResult: ObjectiveCaptureResultSummary?
 
     private enum MapCommandInputMode {
         case directTap
@@ -637,6 +638,7 @@ final class GameState: ObservableObject {
                 didAvoidCounterAttack: true
             )
             latestCombatResult = nil
+            latestObjectiveCaptureResult = nil
         }
 
         appendLog(message)
@@ -1682,6 +1684,7 @@ final class GameState: ObservableObject {
         guidedObjectiveCoordinate = nil
         latestCombatResult = nil
         latestTacticalCommandResult = nil
+        latestObjectiveCaptureResult = nil
         commandPoints = [.allies: 6, .axis: 6]
         message = Self.openingMessage(for: newScenario)
         battleLog = [Self.openingLog(for: newScenario)]
@@ -1808,6 +1811,7 @@ final class GameState: ObservableObject {
                 didConsumeDefenderEntrenchment: defenderWasEntrenched
             )
             latestTacticalCommandResult = nil
+            latestObjectiveCaptureResult = nil
         }
 
         appendLog(message)
@@ -2330,6 +2334,7 @@ final class GameState: ObservableObject {
                 scenario.tiles[index].owner = occupyingUnit.faction
                 applyObjectiveCaptureReward(
                     to: occupyingUnit,
+                    coordinate: scenario.tiles[index].coordinate,
                     objectiveName: scenario.tiles[index].objectiveName ?? "据点",
                     previousOwner: previousOwner
                 )
@@ -2337,7 +2342,12 @@ final class GameState: ObservableObject {
         }
     }
 
-    private func applyObjectiveCaptureReward(to unit: BattleUnit, objectiveName: String, previousOwner: Faction?) {
+    private func applyObjectiveCaptureReward(
+        to unit: BattleUnit,
+        coordinate: HexCoordinate,
+        objectiveName: String,
+        previousOwner: Faction?
+    ) {
         commandPoints[unit.faction, default: 0] += Self.objectiveCaptureCommandReward
         awardExperience(
             to: unit.id,
@@ -2351,6 +2361,22 @@ final class GameState: ObservableObject {
         )
 
         let action = previousOwner == nil ? "占领" : "夺取"
+        latestObjectiveCaptureResult = ObjectiveCaptureResultSummary(
+            objectiveName: objectiveName,
+            coordinate: coordinate,
+            capturingUnitName: unit.name,
+            capturingUnitKind: unit.kind,
+            previousOwner: previousOwner,
+            newOwner: unit.faction,
+            commandPointReward: Self.objectiveCaptureCommandReward,
+            moraleReward: Self.objectiveCaptureMoraleReward,
+            experienceReward: Self.objectiveCaptureExperienceReward,
+            alliedScoreAfterCapture: alliedScore,
+            axisScoreAfterCapture: axisScore,
+            totalObjectiveCount: objectiveTiles.count
+        )
+        latestCombatResult = nil
+        latestTacticalCommandResult = nil
         appendLog("\(unit.name)\(action)\(objectiveName)，\(unit.faction.title)获得 \(Self.objectiveCaptureCommandReward) 指令点。")
     }
 

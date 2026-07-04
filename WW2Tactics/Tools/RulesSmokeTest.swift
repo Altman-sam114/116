@@ -568,6 +568,14 @@ struct RulesSmokeTest {
                 objectiveAdvanceGame.guidedObjectiveCoordinate == nil,
                 "capturing the guided objective should clear objective guidance"
             )
+            guard let objectiveAdvanceCapture = objectiveAdvanceGame.latestObjectiveCaptureResult else {
+                require(false, "capturing the guided objective should record capture summary")
+                return
+            }
+            require(objectiveAdvanceCapture.objectiveName == "前线据点", "guided objective capture summary should name the objective")
+            require(objectiveAdvanceCapture.coordinate == targetObjective.coordinate, "guided objective capture summary should record coordinate")
+            require(objectiveAdvanceCapture.previousOwner == .axis, "guided objective capture summary should record previous owner")
+            require(objectiveAdvanceCapture.newOwner == .allies, "guided objective capture summary should record new owner")
 
             let distantObjectiveGame = GameState(scenario: distantObjectiveAdvanceScenario())
             guard let distantAdvanceTank = distantObjectiveGame.units.first(where: { $0.name == "目标推进装甲" }),
@@ -610,6 +618,10 @@ struct RulesSmokeTest {
             require(
                 distantObjectiveGame.guidedObjectiveCoordinate == distantObjective.coordinate,
                 "advancing toward a distant objective should preserve final objective guidance"
+            )
+            require(
+                distantObjectiveGame.latestObjectiveCaptureResult == nil,
+                "advancing toward a distant objective should not record a capture summary"
             )
             distantObjectiveGame.focus(coordinate: distantObjective.coordinate)
             require(
@@ -938,6 +950,17 @@ struct RulesSmokeTest {
             require(objectiveRewardInfantryAfter.experience == objectiveRewardInfantry.experience + 10, "capturing objective should award experience")
             require(objectiveRewardGame.objectiveCaptureRewardSummary.contains("指令 +3"), "objective reward summary should describe command reward")
             require(objectiveRewardGame.battleLog.contains { $0.contains("夺取前线村镇") }, "capturing objective should be logged")
+            guard let objectiveRewardCapture = objectiveRewardGame.latestObjectiveCaptureResult else {
+                require(false, "capturing objective should record capture summary")
+                return
+            }
+            require(objectiveRewardCapture.objectiveName == "前线村镇", "capture summary should name the captured objective")
+            require(objectiveRewardCapture.coordinate == rewardObjective, "capture summary should record captured coordinate")
+            require(objectiveRewardCapture.capturingUnitName == "占点步兵", "capture summary should record capturing unit")
+            require(objectiveRewardCapture.commandPointReward == 3, "capture summary should record command reward")
+            require(objectiveRewardCapture.moraleReward == 8, "capture summary should record morale reward")
+            require(objectiveRewardCapture.experienceReward == 10, "capture summary should record experience reward")
+            require(objectiveRewardCapture.alliedScoreAfterCapture == objectiveRewardGame.alliedScore, "capture summary should record allied objective progress")
 
             let objectiveRestGame = GameState(
                 scenario: objectiveRestScenario(),

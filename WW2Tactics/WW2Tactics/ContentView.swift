@@ -1556,6 +1556,7 @@ private struct HexMapView: View {
         let focusedRouteSteps = Dictionary(uniqueKeysWithValues: game.focusedRouteStepPreviews.map { ($0.coordinate, $0) })
         let focusedFireExposure = game.focusedFireExposurePreview
         let guidedObjectiveCoordinate = game.guidedObjectiveCoordinate
+        let latestCaptureCoordinate = game.latestObjectiveCaptureResult?.coordinate
         let contentWidth = CGFloat(game.scenario.mapColumns) * tileWidth * 0.78 + tileWidth
         let contentHeight = CGFloat(game.scenario.mapRows) * tileHeight * 0.78 + tileHeight
 
@@ -1596,7 +1597,8 @@ private struct HexMapView: View {
                     isEnemyControlZone: enemyControlZones.contains(tile.coordinate),
                     isThreatenedMoveTile: threatenedReachableTiles.contains(tile.coordinate),
                     fireExposurePreview: focusedFireExposure?.coordinate == tile.coordinate ? focusedFireExposure : nil,
-                    isGuidedObjective: guidedObjectiveCoordinate == tile.coordinate
+                    isGuidedObjective: guidedObjectiveCoordinate == tile.coordinate,
+                    isLatestObjectiveCapture: latestCaptureCoordinate == tile.coordinate
                 )
                 .frame(width: tileWidth, height: tileHeight)
                 .position(x: point.x, y: point.y)
@@ -1707,6 +1709,7 @@ private struct HexTileView: View {
     let isThreatenedMoveTile: Bool
     let fireExposurePreview: PostMoveFireExposurePreview?
     let isGuidedObjective: Bool
+    let isLatestObjectiveCapture: Bool
 
     var body: some View {
         ZStack {
@@ -1737,6 +1740,12 @@ private struct HexTileView: View {
                 GuidedObjectiveMarker()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, 22)
+            }
+
+            if isLatestObjectiveCapture {
+                ObjectiveCaptureMarker()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, isGuidedObjective ? 38 : 22)
             }
 
             if isAttackCoverage {
@@ -1827,6 +1836,7 @@ private struct HexTileView: View {
         if isPostMoveAttackTarget { return .orange.opacity(0.9) }
         if isAttackPosition { return .orange.opacity(0.78) }
         if let fireExposurePreview { return fireExposurePreview.riskLevel.accentColor.opacity(0.95) }
+        if isLatestObjectiveCapture { return .yellow.opacity(0.96) }
         if isGuidedObjective { return .green.opacity(0.96) }
         if isMovementRoute { return .cyan.opacity(0.88) }
         if isAttackCoverage { return .orange.opacity(0.58) }
@@ -1843,6 +1853,7 @@ private struct HexTileView: View {
         if isPostMoveAttackTarget { return 3 }
         if isAttackPosition { return 3 }
         if fireExposurePreview?.riskLevel.sortRank ?? 0 >= FireRiskLevel.high.sortRank { return 3 }
+        if isLatestObjectiveCapture { return 3 }
         if isGuidedObjective { return 3 }
         if isMovementRoute { return 2 }
         if isAttackCoverage { return 2 }
@@ -1872,12 +1883,13 @@ private struct HexTileView: View {
         let postMoveAttackText = isPostMoveAttackTarget ? "移动后可攻击" : ""
         let attackPositionText = isAttackPosition ? "可进入攻击位" : ""
         let guidedObjectiveText = isGuidedObjective ? "当前目标据点" : ""
+        let latestCaptureText = isLatestObjectiveCapture ? "最新占领据点" : ""
         let fireRiskText = fireExposurePreview.map { preview in
             let sourceText = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
             let sourceSummary = sourceText.isEmpty ? "无敌火来源" : "来源\(sourceText)"
             return "\(preview.riskLevel.title)，潜在伤害\(preview.totalPotentialDamage)，预计剩余\(preview.projectedHPAfterExposure)，\(sourceSummary)"
         } ?? ""
-        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(fireRiskText) \(unitText) \(actionAccessibilityText)"
+        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(latestCaptureText) \(fireRiskText) \(unitText) \(actionAccessibilityText)"
     }
 
     private var routeAccessibilityText: String {
@@ -2149,6 +2161,27 @@ private struct GuidedObjectiveMarker: View {
         .overlay(
             Capsule()
                 .stroke(Color.white.opacity(0.38), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct ObjectiveCaptureMarker: View {
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "flag.fill")
+                .font(.system(size: 8, weight: .black))
+            Text("CAP")
+                .font(.system(size: 8, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.black.opacity(0.82))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(Color.yellow.opacity(0.88), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.42), lineWidth: 1)
         )
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -2547,6 +2580,11 @@ private struct InspectorPanel: View {
                         .overlay(Color.white.opacity(0.18))
                 } else if let tacticalResult = game.latestTacticalCommandResult {
                     TacticalCommandResultSummaryView(summary: tacticalResult)
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.18))
+                } else if let captureResult = game.latestObjectiveCaptureResult {
+                    ObjectiveCaptureResultSummaryView(summary: captureResult)
 
                     Divider()
                         .overlay(Color.white.opacity(0.18))
@@ -4012,6 +4050,65 @@ private struct TacticalCommandResultSummaryView: View {
 
     private func signed(_ value: Int) -> String {
         value > 0 ? "+\(value)" : "\(value)"
+    }
+}
+
+private struct ObjectiveCaptureResultSummaryView: View {
+    let summary: ObjectiveCaptureResultSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label("据点占领", systemImage: "flag.fill")
+                    .font(.subheadline.weight(.bold))
+
+                Spacer(minLength: 8)
+
+                Text(summary.actionTitle)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.yellow)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundStyle(.yellow)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(summary.objectiveName)
+                    .font(.headline.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                Text("\(summary.capturingUnitName) · \(summary.capturingUnitKind.title) · q\(summary.coordinate.q),r\(summary.coordinate.r)")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            HStack(spacing: 7) {
+                CombatResultMetric(title: "指令", value: "+\(summary.commandPointReward)", color: .yellow)
+                CombatResultMetric(title: "士气", value: "+\(summary.moraleReward)", color: .green)
+                CombatResultMetric(title: "经验", value: "+\(summary.experienceReward)", color: .cyan)
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Label(summary.ownerTransitionText, systemImage: "arrow.left.arrow.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(summary.newOwner.accentColor)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Label("据点进度 \(summary.progressText)，轴心 \(summary.axisScoreAfterCapture)/\(summary.totalObjectiveCount)", systemImage: "chart.bar.fill")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(9)
+        .background(Color.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.yellow.opacity(0.24), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
     }
 }
 

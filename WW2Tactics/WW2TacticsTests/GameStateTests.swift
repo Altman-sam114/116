@@ -443,6 +443,41 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(infantryAfterCapture.experience, infantry.experience + 10)
         XCTAssertTrue(game.objectiveCaptureRewardSummary.contains("指令 +3"))
         XCTAssertTrue(game.battleLog.contains { $0.contains("夺取前线村镇") })
+
+        let summary = try XCTUnwrap(game.latestObjectiveCaptureResult)
+        XCTAssertEqual(summary.objectiveName, "前线村镇")
+        XCTAssertEqual(summary.coordinate, objective)
+        XCTAssertEqual(summary.capturingUnitName, "占点步兵")
+        XCTAssertEqual(summary.capturingUnitKind, .infantry)
+        XCTAssertEqual(summary.previousOwner, .axis)
+        XCTAssertEqual(summary.newOwner, .allies)
+        XCTAssertEqual(summary.commandPointReward, 3)
+        XCTAssertEqual(summary.moraleReward, 8)
+        XCTAssertEqual(summary.experienceReward, 10)
+        XCTAssertEqual(summary.alliedScoreAfterCapture, game.alliedScore)
+        XCTAssertEqual(summary.axisScoreAfterCapture, game.axisScore)
+        XCTAssertEqual(summary.totalObjectiveCount, game.objectiveTiles.count)
+    }
+
+    func testCapturingNeutralObjectiveRecordsCaptureSummary() throws {
+        var scenario = Self.objectiveRewardScenario()
+        let objective = HexCoordinate(q: 2, r: 0)
+        let objectiveIndex = try XCTUnwrap(scenario.tiles.firstIndex { $0.coordinate == objective })
+        scenario.tiles[objectiveIndex].owner = nil
+
+        let game = GameState(
+            scenario: scenario,
+            commandPoints: [.allies: 4, .axis: 6]
+        )
+        let infantry = try XCTUnwrap(game.units.first { $0.name == "占点步兵" })
+
+        game.handleTap(on: infantry.position)
+        game.handleTap(on: objective)
+
+        let summary = try XCTUnwrap(game.latestObjectiveCaptureResult)
+        XCTAssertNil(summary.previousOwner)
+        XCTAssertEqual(summary.actionTitle, "占领")
+        XCTAssertEqual(summary.ownerTransitionText, "中立 -> 盟军")
     }
 
     func testOwnedObjectiveRestRecoversDamagedSuppliedUnitOnNewTurn() throws {
@@ -1830,6 +1865,12 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(tankAfterMove.position, targetObjective.coordinate)
         XCTAssertEqual(game.tile(at: targetObjective.coordinate)?.owner, .allies)
         XCTAssertNil(game.guidedObjectiveCoordinate)
+
+        let summary = try XCTUnwrap(game.latestObjectiveCaptureResult)
+        XCTAssertEqual(summary.objectiveName, "前线据点")
+        XCTAssertEqual(summary.coordinate, targetObjective.coordinate)
+        XCTAssertEqual(summary.previousOwner, .axis)
+        XCTAssertEqual(summary.newOwner, .allies)
     }
 
     func testObjectiveQuickFocusAdvancesTowardDistantObjective() throws {
@@ -1864,10 +1905,54 @@ final class GameStateTests: XCTestCase {
         let tankAfterAdvance = try XCTUnwrap(game.scenario.units.first { $0.id == tank.id })
         XCTAssertEqual(tankAfterAdvance.position, expectedAdvance)
         XCTAssertEqual(game.guidedObjectiveCoordinate, targetObjective.coordinate)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
 
         game.focus(coordinate: targetObjective.coordinate)
 
         XCTAssertNil(game.guidedObjectiveCoordinate)
+    }
+
+    func testObjectiveCaptureSummaryClearsOnRestartScenarioSwitchAndCombat() throws {
+        let game = GameState(
+            scenario: Self.captureThenAttackScenario(),
+            commandPoints: [.allies: 6, .axis: 6]
+        )
+        let infantry = try XCTUnwrap(game.units.first { $0.name == "占点突击队" })
+        let objective = HexCoordinate(q: 1, r: 0)
+        let target = try XCTUnwrap(game.units.first { $0.name == "反击守军" })
+
+        game.handleTap(on: infantry.position)
+        game.handleTap(on: objective)
+        XCTAssertNotNil(game.latestObjectiveCaptureResult)
+
+        game.handleTap(on: target.position)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNotNil(game.latestCombatResult)
+
+        game.restart()
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+
+        let alternateScenario = try XCTUnwrap(game.campaignCatalog.last)
+        game.selectScenario(id: alternateScenario.id)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+    }
+
+    func testObjectiveCaptureSummaryClearsOnTacticalCommand() throws {
+        let game = GameState(
+            scenario: Self.captureThenTacticalCommandScenario(),
+            commandPoints: [.allies: 8, .axis: 6]
+        )
+        let artillery = try XCTUnwrap(game.units.first { $0.name == "占点炮兵" })
+        let objective = HexCoordinate(q: 1, r: 0)
+        let target = try XCTUnwrap(game.units.first { $0.name == "纵深目标" })
+
+        game.handleTap(on: artillery.position)
+        game.handleTap(on: objective)
+        XCTAssertNotNil(game.latestObjectiveCaptureResult)
+
+        game.useTacticalCommand(.artilleryBarrage, casterID: artillery.id, targetID: target.id)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNotNil(game.latestTacticalCommandResult)
     }
 
     func testEndTurnRunsAxisAIAndReturnsToAllies() {
@@ -2970,6 +3055,112 @@ final class GameStateTests: XCTestCase {
                     faction: .axis,
                     position: HexCoordinate(q: 2, r: 0),
                     hp: 0,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func captureThenAttackScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<4 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "出发基地"
+                tile.owner = .allies
+            } else if q == 1 {
+                tile.objectiveName = "前沿村镇"
+                tile.owner = .axis
+            } else if q == 3 {
+                tile.objectiveName = "纵深据点"
+                tile.owner = .axis
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "capture-then-attack-test",
+            name: "占点后攻击测试",
+            year: "1944",
+            briefing: "测试占点结果被后续普通攻击清理。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 4,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "占点突击队",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "反击守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 2, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func captureThenTacticalCommandScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<5 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "炮兵阵地"
+                tile.owner = .allies
+            } else if q == 1 {
+                tile.objectiveName = "前沿观察所"
+                tile.owner = .axis
+            } else if q == 4 {
+                tile.objectiveName = "纵深据点"
+                tile.owner = .axis
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "capture-then-tactical-command-test",
+            name: "占点后战术命令测试",
+            year: "1944",
+            briefing: "测试占点结果被后续战术命令清理。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "占点炮兵",
+                    kind: .artillery,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.artillery.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "纵深目标",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 4, r: 0),
+                    hp: UnitKind.infantry.baseHP,
                     commander: nil
                 )
             ],
