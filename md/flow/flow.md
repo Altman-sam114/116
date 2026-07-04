@@ -46,7 +46,7 @@
 职责：
 
 - 项目核心状态机。
-- 管理当前战役、选中单位、焦点坐标、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、胜负、指令点。
+- 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、胜负、指令点。
 - 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
 
 输入：
@@ -137,9 +137,11 @@
 1. 敌军射程外但存在可进入攻击位时，`attackPositionRoutes` 返回路线。
 2. `focusedRouteStepPreviews` 对推荐 `focusedAttackPositionRoute` 同样生成路线风险，展示到攻击位的消耗、控制区和敌火来源。
 3. `focusedFireExposurePreview` 对推荐攻击位估算潜在承伤；`focusedSafeEngagementOptions` 从所有攻击位中按风险、潜在伤害、路线消耗和坐标稳定排序，给出更安全接敌建议，但不改变默认 POS 执行目的地。
-4. 地图显示 `POS`、路线步序/风险和终点风险短码。
-5. 右键敌军或执行按钮移动到攻击位。
-6. 移动后聚焦敌军，提示继续点按或右键攻击；POS 本身不直接执行攻击。
+4. 侧栏安全接敌候选点击只调用 `focusSafeEngagementOption(_:)` / `focusSafeEngagement(targetID:destination:)`，由 `GameState` 基于当前单位和目标敌军重新查候选路线，避免 UI 使用过期路线。
+5. 点选安全候选只切换 `focusedSafeEngagementDestination` 和当前 POS 预览路线，不消耗行动、不移动单位、不自动攻击、不生成结果摘要。
+6. 地图显示 `POS`、路线步序/风险和终点风险短码；安全候选聚焦后，路线和火力风险切到被点选的攻击位。
+7. 右键敌军或执行按钮移动到当前预览的攻击位。
+8. 移动后聚焦敌军，提示继续点按或右键攻击；POS 本身不直接执行攻击。
 
 ### 3.5 OBJ 目标推进
 
@@ -200,7 +202,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

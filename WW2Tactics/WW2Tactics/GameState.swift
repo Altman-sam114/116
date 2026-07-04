@@ -12,6 +12,7 @@ final class GameState: ObservableObject {
     @Published private(set) var earnedStars = 0
     @Published var focusedCoordinate: HexCoordinate?
     @Published private(set) var guidedObjectiveCoordinate: HexCoordinate?
+    @Published private(set) var focusedSafeEngagementDestination: HexCoordinate?
     @Published var commandPoints: [Faction: Int]
     @Published private(set) var latestCombatResult: CombatResultSummary?
     @Published private(set) var latestTacticalCommandResult: TacticalCommandResultSummary?
@@ -41,6 +42,8 @@ final class GameState: ObservableObject {
         let currentDistance: Int
         let remainingDistance: Int
     }
+
+    private var focusedSafeEngagementTargetID: BattleUnit.ID?
 
     private static let objectiveCaptureCommandReward = 3
     private static let objectiveCaptureMoraleReward = 8
@@ -151,7 +154,11 @@ final class GameState: ObservableObject {
     }
 
     var focusedAttackPositionRoute: MovementRoute? {
-        focusedAttackPositionRoutes.first
+        guard let selectedUnit,
+              let focusedUnit,
+              focusedUnit.faction != selectedUnit.faction,
+              !attackableTiles(for: selectedUnit).contains(focusedUnit.position) else { return nil }
+        return preferredAttackPositionRoute(for: selectedUnit, against: focusedUnit)
     }
 
     var focusedSafeEngagementOptions: [SafeEngagementOption] {
@@ -445,6 +452,47 @@ final class GameState: ObservableObject {
         focusObjectiveAdvanceTarget(coordinate: preview.coordinate)
     }
 
+    func focusSafeEngagementOption(_ option: SafeEngagementOption) {
+        focusSafeEngagement(targetID: option.targetID, destination: option.route.destination)
+    }
+
+    func focusSafeEngagement(targetID: BattleUnit.ID, destination: HexCoordinate) {
+        guard winner == nil else { return }
+        guard let selectedUnit else {
+            selectNextReadyUnitFromMap()
+            return
+        }
+
+        guard let target = units.first(where: {
+            $0.id == targetID &&
+                $0.faction != selectedUnit.faction &&
+                !$0.isDestroyed
+        }) else {
+            clearSafeEngagementFocus()
+            message = "安全接敌目标已不可用。"
+            return
+        }
+
+        guard let option = safeEngagementOptions(for: selectedUnit, against: target)
+            .first(where: { $0.route.destination == destination }) else {
+            clearSafeEngagementFocus()
+            focusedCoordinate = target.position
+            message = "\(selectedUnit.name) 当前无法切换到 q\(destination.q),r\(destination.r) 接敌位。"
+            return
+        }
+
+        guidedObjectiveCoordinate = nil
+        focusedSafeEngagementTargetID = target.id
+        focusedSafeEngagementDestination = option.route.destination
+        focusedCoordinate = target.position
+
+        let exposure = option.exposure
+        let penaltyText = option.route.controlZonePenalty > 0 ? "，含敌方控制区 +\(option.route.controlZonePenalty)" : ""
+        let sourceNames = exposure.sources.prefix(2).map(\.sourceName).joined(separator: "、")
+        let sourceText = sourceNames.isEmpty ? "" : "，主要敌火 \(sourceNames)"
+        message = "\(selectedUnit.name) 切换安全接敌：先到 q\(option.route.destination.q),r\(option.route.destination.r) 接近 \(target.name)，消耗 \(option.route.totalCost) 移动力\(penaltyText)，终点 \(exposure.riskLevel.shortTitle) 潜在承伤 \(exposure.totalPotentialDamage)\(sourceText)。执行命令后才会移动。"
+    }
+
     func focusObjectiveAdvanceTarget(coordinate: HexCoordinate) {
         guard winner == nil else { return }
         guard let selectedUnit else {
@@ -481,6 +529,7 @@ final class GameState: ObservableObject {
     }
 
     private func focusObjectiveAdvancePlan(_ plan: ObjectiveAdvancePlan, for unit: BattleUnit) {
+        clearSafeEngagementFocus()
         let objectiveName = plan.tile.objectiveName ?? "目标据点"
         let ownerText = plan.tile.owner?.title ?? "中立"
         let penaltyText = plan.route.controlZonePenalty > 0 ? "，含敌方控制区 +\(plan.route.controlZonePenalty)" : ""
@@ -1007,7 +1056,7 @@ final class GameState: ObservableObject {
                 )
             }
             if selectedUnit.canAttack {
-                if let route = attackPositionRoutes(for: selectedUnit, against: target).first {
+                if let route = preferredAttackPositionRoute(for: selectedUnit, against: target) {
                     return .approachAttack(
                         cost: route.totalCost,
                         controlZonePenalty: route.controlZonePenalty
@@ -1072,7 +1121,7 @@ final class GameState: ObservableObject {
         case .approachAttack:
             guard let selectedUnit,
                   let unit = unit(at: coordinate),
-                  let route = attackPositionRoutes(for: selectedUnit, against: unit).first else {
+                  let route = preferredAttackPositionRoute(for: selectedUnit, against: unit) else {
                 return .inspectTerrain(terrainName: tile.terrain.title)
             }
             return .approachAttack(
@@ -1493,6 +1542,17 @@ final class GameState: ObservableObject {
             }
     }
 
+    private func preferredAttackPositionRoute(for unit: BattleUnit, against target: BattleUnit) -> MovementRoute? {
+        let routes = attackPositionRoutes(for: unit, against: target)
+        if focusedSafeEngagementTargetID == target.id,
+           let destination = focusedSafeEngagementDestination,
+           let focusedRoute = routes.first(where: { $0.destination == destination }) {
+            return focusedRoute
+        }
+
+        return routes.first
+    }
+
     func nearestApproachTarget(for unit: BattleUnit) -> BattleUnit? {
         guard unit.faction == activeFaction,
               unit.canMove,
@@ -1744,6 +1804,7 @@ final class GameState: ObservableObject {
         earnedStars = 0
         focusedCoordinate = newScenario.initialFocus
         guidedObjectiveCoordinate = nil
+        clearSafeEngagementFocus()
         latestCombatResult = nil
         latestTacticalCommandResult = nil
         latestObjectiveCaptureResult = nil
@@ -1777,6 +1838,12 @@ final class GameState: ObservableObject {
 
     private func clearObjectiveGuidance() {
         guidedObjectiveCoordinate = nil
+        clearSafeEngagementFocus()
+    }
+
+    private func clearSafeEngagementFocus() {
+        focusedSafeEngagementTargetID = nil
+        focusedSafeEngagementDestination = nil
     }
 
     private func threatExposureText(for faction: Faction, at coordinate: HexCoordinate) -> String {

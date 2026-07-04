@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.6 正在推进目标计划候选预览，已持续增强路线预判、火力风险、战斗/战术/据点结果反馈和 OBJ 操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.7 正在推进安全接敌候选点选预览，已持续增强路线预判、火力风险、战斗/战术/据点结果反馈和 OBJ/POS 操作可读性。
 
 ## 历史记录
 
@@ -476,3 +476,41 @@
 
 - 目标计划候选仍是预览入口，不提供一键直接执行第二/第三目标。
 - 本轮不改变移动路径搜索、OBJ 排序、据点奖励、胜负条件或 AI 决策。
+
+### v1.7 / 安全接敌候选点选预览
+
+日期：2026-07-04
+
+核心变更：
+
+- `GameState` 新增 `focusSafeEngagementOption(_:)` 和 `focusSafeEngagement(targetID:destination:)`，安全接敌候选点击时由规则层按当前单位和目标敌军重新查候选路线，避免 UI 使用过期路线。
+- 新增安全接敌焦点状态，`focusedAttackPositionRoute`、路线步序和终点火力风险可切换到被点选的安全攻击位，同时默认 POS 路线和右键敌军行为保持不变。
+- 侧栏新增“安全接敌”候选面板，展示目的坐标、风险短码、潜在承伤、移动消耗和主要敌火来源；点击候选只切换地图预览，不移动、不攻击、不生成结果摘要。
+- 补充 XCTest 和规则 smoke test，覆盖安全候选聚焦、预览/执行分离、执行后回到目标敌军、不可用候选不保留过期可执行路线。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.7（安全接敌候选点选预览）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions run、artifact 和 manifest 核对：待本轮 Agent B push 后由 Agent C 下载并补记。
+
+遗留事项：
+
+- 安全接敌候选仍是预览入口，不提供一键直接移动或攻击。
+- 本轮不改变安全候选排序、默认 POS 路线、移动/攻击数值、胜负条件或 AI 决策。

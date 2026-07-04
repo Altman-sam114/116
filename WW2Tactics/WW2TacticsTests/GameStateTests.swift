@@ -1615,6 +1615,138 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.focusedCoordinate, target.position)
     }
 
+    func testSafeEngagementOptionFocusesPreviewBeforeExecuting() throws {
+        let game = GameState(scenario: Self.safeEngagementScenario())
+        let tank = try XCTUnwrap(game.units.first { $0.name == "接敌装甲" })
+        let target = try XCTUnwrap(game.units.first { $0.name == "主目标" })
+        let defaultDestination = HexCoordinate(q: 3, r: 0)
+        let saferDestination = HexCoordinate(q: 3, r: 1)
+
+        game.handlePrimaryAction(on: tank.position)
+        game.handlePrimaryAction(on: target.position)
+
+        XCTAssertEqual(game.focusedAttackPositionRoute?.destination, defaultDestination)
+
+        let safeOption = try XCTUnwrap(game.focusedSafeEngagementOptions.first)
+        XCTAssertEqual(safeOption.route.destination, saferDestination)
+
+        game.focusSafeEngagementOption(safeOption)
+
+        let tankAfterFocus = try XCTUnwrap(game.scenario.units.first { $0.id == tank.id })
+        XCTAssertEqual(tankAfterFocus.position, tank.position)
+        XCTAssertFalse(tankAfterFocus.hasMoved)
+        XCTAssertFalse(tankAfterFocus.hasAttacked)
+        XCTAssertEqual(game.focusedCoordinate, target.position)
+        XCTAssertEqual(game.focusedSafeEngagementDestination, saferDestination)
+        XCTAssertEqual(game.focusedAttackPositionRoute?.destination, saferDestination)
+        XCTAssertEqual(game.focusedFireExposurePreview?.coordinate, saferDestination)
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertNil(game.latestTacticalCommandResult)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+
+        guard case let .approachAttack(_, defenderName, route) = game.focusedCommandPreview else {
+            return XCTFail("safe engagement focus should keep an executable POS preview")
+        }
+        XCTAssertEqual(defenderName, target.name)
+        XCTAssertEqual(route.destination, saferDestination)
+
+        game.executeFocusedCommand()
+
+        let movedTank = try XCTUnwrap(game.scenario.units.first { $0.id == tank.id })
+        XCTAssertEqual(movedTank.position, saferDestination)
+        XCTAssertTrue(movedTank.hasMoved)
+        XCTAssertFalse(movedTank.hasAttacked)
+        XCTAssertEqual(game.focusedCoordinate, target.position)
+        XCTAssertNil(game.focusedSafeEngagementDestination)
+    }
+
+    func testSafeEngagementFocusRejectsUnavailableCandidateWithoutExecuting() throws {
+        var scenario = Self.safeEngagementScenario()
+        let tankIndex = try XCTUnwrap(scenario.units.firstIndex { $0.name == "接敌装甲" })
+        scenario.units[tankIndex].hasMoved = true
+        let game = GameState(scenario: scenario)
+        let tank = try XCTUnwrap(game.units.first { $0.name == "接敌装甲" })
+        let target = try XCTUnwrap(game.units.first { $0.name == "主目标" })
+        let saferDestination = HexCoordinate(q: 3, r: 1)
+
+        game.handlePrimaryAction(on: tank.position)
+        game.handlePrimaryAction(on: target.position)
+        game.focusSafeEngagement(targetID: target.id, destination: saferDestination)
+
+        let tankAfterFocus = try XCTUnwrap(game.scenario.units.first { $0.id == tank.id })
+        XCTAssertEqual(tankAfterFocus.position, tank.position)
+        XCTAssertTrue(tankAfterFocus.hasMoved)
+        XCTAssertFalse(tankAfterFocus.hasAttacked)
+        XCTAssertNil(game.focusedSafeEngagementDestination)
+        XCTAssertNil(game.focusedAttackPositionRoute)
+        XCTAssertNil(game.focusedFireExposurePreview)
+    }
+
+    func testSafeEngagementFocusRejectsStaleTargetAndOccupiedDestination() throws {
+        var destroyedScenario = Self.safeEngagementScenario()
+        let destroyedTargetIndex = try XCTUnwrap(destroyedScenario.units.firstIndex { $0.name == "主目标" })
+        let destroyedTargetID = destroyedScenario.units[destroyedTargetIndex].id
+        destroyedScenario.units[destroyedTargetIndex].hp = 0
+        let destroyedGame = GameState(scenario: destroyedScenario)
+        let destroyedTank = try XCTUnwrap(destroyedGame.units.first { $0.name == "接敌装甲" })
+
+        destroyedGame.handlePrimaryAction(on: destroyedTank.position)
+        destroyedGame.focusSafeEngagement(targetID: destroyedTargetID, destination: HexCoordinate(q: 3, r: 1))
+
+        XCTAssertNil(destroyedGame.focusedSafeEngagementDestination)
+        XCTAssertNil(destroyedGame.focusedAttackPositionRoute)
+
+        let alliedGame = GameState(scenario: Self.safeEngagementScenario())
+        let alliedTank = try XCTUnwrap(alliedGame.units.first { $0.name == "接敌装甲" })
+
+        alliedGame.handlePrimaryAction(on: alliedTank.position)
+        alliedGame.focusSafeEngagement(targetID: alliedTank.id, destination: HexCoordinate(q: 3, r: 1))
+
+        XCTAssertNil(alliedGame.focusedSafeEngagementDestination)
+        XCTAssertNil(alliedGame.focusedAttackPositionRoute)
+
+        var occupiedScenario = Self.safeEngagementScenario()
+        let occupiedTank = try XCTUnwrap(occupiedScenario.units.first { $0.name == "接敌装甲" })
+        let occupiedTarget = try XCTUnwrap(occupiedScenario.units.first { $0.name == "主目标" })
+        occupiedScenario.units.append(
+            BattleUnit(
+                name: "占位友军",
+                kind: .infantry,
+                faction: .allies,
+                position: HexCoordinate(q: 3, r: 1),
+                hp: UnitKind.infantry.baseHP,
+                commander: nil
+            )
+        )
+        let occupiedGame = GameState(scenario: occupiedScenario)
+
+        occupiedGame.handlePrimaryAction(on: occupiedTank.position)
+        occupiedGame.handlePrimaryAction(on: occupiedTarget.position)
+        occupiedGame.focusSafeEngagement(targetID: occupiedTarget.id, destination: HexCoordinate(q: 3, r: 1))
+
+        XCTAssertNil(occupiedGame.focusedSafeEngagementDestination)
+        XCTAssertNotEqual(occupiedGame.focusedAttackPositionRoute?.destination, HexCoordinate(q: 3, r: 1))
+        XCTAssertEqual(
+            occupiedGame.scenario.units.first { $0.id == occupiedTank.id }?.position,
+            occupiedTank.position
+        )
+    }
+
+    func testFocusedAttackPositionRouteIsNilWhenTargetAlreadyAttackable() throws {
+        let game = GameState(scenario: Self.postMoveAttackScenario())
+        let tank = try XCTUnwrap(game.units.first { $0.name == "机动装甲" })
+        let target = try XCTUnwrap(game.units.first { $0.name == "前方守军" })
+        let destination = HexCoordinate(q: 3, r: 0)
+
+        game.handlePrimaryAction(on: tank.position)
+        game.handleSecondaryAction(on: destination)
+
+        XCTAssertEqual(game.focusedCoordinate, target.position)
+        XCTAssertTrue(try XCTUnwrap(game.selectedUnit).position.distance(to: target.position) <= tank.range)
+        XCTAssertNil(game.focusedAttackPositionRoute)
+        XCTAssertNil(game.focusedFireExposurePreview)
+    }
+
     func testExecuteFocusedCommandRunsMoveAttackAndApproachOrders() throws {
         let moveGame = GameState(scenario: Self.postMoveAttackScenario())
         let moveTank = try XCTUnwrap(moveGame.units.first { $0.name == "机动装甲" })

@@ -31,7 +31,8 @@ flowchart TD
   D --> E["生成地图预览 MapCommandPreview"]
   E --> R["路线情报：RouteStepPreview / PostMoveAttackPreview"]
   R --> X["火力风险：PostMoveFireExposurePreview / SafeEngagementOption"]
-  X --> OP["OBJ计划摘要：ObjectiveAdvancePreview 最多 3 条"]
+  X --> SP["点击安全接敌候选：GameState 重新查候选并聚焦 POS 路线"]
+  SP --> OP["OBJ计划摘要：ObjectiveAdvancePreview 最多 3 条"]
   OP --> OC["点击目标计划：GameState 重新查计划并聚焦路线"]
   OC --> F{"输入类型"}
   F -->|左键/主点按聚焦| G["只显示预览消息，不消耗行动"]

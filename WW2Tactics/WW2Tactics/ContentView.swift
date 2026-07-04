@@ -2741,6 +2741,7 @@ private struct UnitDetail: View {
             MoralePanel(unit: unit)
             ActionSummary(unit: unit)
             FocusedCommandPreviewPanel()
+            SafeEngagementOptionsPanel()
             ObjectiveAdvancePlanPanel(unit: unit)
             AttackTargetsView(unit: unit)
             TacticalCommandPanel(unit: unit)
@@ -2933,6 +2934,122 @@ private struct ObjectiveAdvanceMetric: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
             .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+private struct SafeEngagementOptionsPanel: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        if shouldShowPanel {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 7) {
+                    Image(systemName: "shield.checkered")
+                        .font(.caption.weight(.bold))
+                        .frame(width: 16)
+                    Text("安全接敌")
+                        .font(.caption.weight(.bold))
+                    Spacer(minLength: 8)
+                    Text("点选预览")
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.68))
+                }
+                .foregroundStyle(.green.opacity(0.92))
+
+                ForEach(Array(game.focusedSafeEngagementOptions.prefix(3))) { option in
+                    let isFocused = game.focusedAttackPositionRoute?.destination == option.route.destination
+                    Button {
+                        game.focusSafeEngagementOption(option)
+                    } label: {
+                        SafeEngagementOptionRow(option: option, isFocused: isFocused)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(accessibilityLabel(for: option, isFocused: isFocused))
+                    .accessibilityHint("只切换接敌路线预览，不会移动或攻击")
+                }
+            }
+            .padding(9)
+            .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(Color.green.opacity(0.22), lineWidth: 1)
+            )
+        }
+    }
+
+    private var shouldShowPanel: Bool {
+        guard let selectedUnit = game.selectedUnit,
+              let focusedUnit = game.focusedUnit,
+              focusedUnit.faction != selectedUnit.faction,
+              !game.attackableTiles(for: selectedUnit).contains(focusedUnit.position) else { return false }
+        return !game.focusedSafeEngagementOptions.isEmpty
+    }
+
+    private func accessibilityLabel(for option: SafeEngagementOption, isFocused: Bool) -> String {
+        let focused = isFocused ? "，当前预览" : ""
+        let sourceText = option.exposure.sources.isEmpty
+            ? "无主要敌火"
+            : "主要敌火\(option.exposure.sources.prefix(2).map(\.sourceName).joined(separator: "、"))"
+        return "安全接敌\(focused)，目的地 q\(option.route.destination.q),r\(option.route.destination.r)，\(option.exposure.riskLevel.title)，潜在承伤\(option.exposure.totalPotentialDamage)，消耗\(option.route.totalCost)移动力，\(sourceText)"
+    }
+}
+
+private struct SafeEngagementOptionRow: View {
+    let option: SafeEngagementOption
+    let isFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 7) {
+                Text(isFocused ? "当前" : option.exposure.riskLevel.shortTitle)
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(minWidth: 38)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(badgeColor.opacity(0.82), in: Capsule())
+
+                Text("q\(option.route.destination.q),r\(option.route.destination.r)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.88))
+                    .lineLimit(1)
+
+                Spacer(minLength: 8)
+
+                Text("消耗 \(option.route.totalCost)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.64))
+                    .lineLimit(1)
+            }
+
+            Text(detailText)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.white.opacity(0.66))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 7)
+        .padding(.horizontal, 8)
+        .background(Color.white.opacity(isFocused ? 0.12 : 0.05), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(borderColor, lineWidth: isFocused ? 2 : 1)
+        )
+    }
+
+    private var detailText: String {
+        let penaltyText = option.route.controlZonePenalty > 0 ? "，控制区 +\(option.route.controlZonePenalty)" : ""
+        let sources = option.exposure.sources.prefix(2).map(\.sourceName).joined(separator: "、")
+        let sourceText = sources.isEmpty ? "无主要敌火" : "敌火 \(sources)"
+        return "\(option.exposure.riskLevel.title)，潜在承伤 \(option.exposure.totalPotentialDamage)，预计剩余 \(option.exposure.projectedHPAfterExposure)\(penaltyText)，\(sourceText)"
+    }
+
+    private var badgeColor: Color {
+        isFocused ? .yellow : option.exposure.riskLevel.accentColor
+    }
+
+    private var borderColor: Color {
+        isFocused ? Color.yellow.opacity(0.66) : option.exposure.riskLevel.accentColor.opacity(0.22)
     }
 }
 

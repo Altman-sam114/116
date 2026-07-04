@@ -319,6 +319,92 @@ struct RulesSmokeTest {
                     (safeOptionGame.focusedFireExposurePreview?.totalPotentialDamage ?? 0),
                 "safe engagement option should reduce projected exposure damage"
             )
+            guard let saferOption = safeOptionGame.focusedSafeEngagementOptions.first else {
+                require(false, "safe engagement option should exist")
+                return
+            }
+            safeOptionGame.focusSafeEngagementOption(saferOption)
+            require(safeOptionGame.focusedCoordinate == safeOptionTarget.position, "safe engagement focus should keep the target focused")
+            require(safeOptionGame.focusedSafeEngagementDestination == HexCoordinate(q: 3, r: 1), "safe engagement focus should remember the selected destination")
+            require(safeOptionGame.focusedAttackPositionRoute?.destination == HexCoordinate(q: 3, r: 1), "safe engagement focus should switch the POS route")
+            require(safeOptionGame.focusedFireExposurePreview?.coordinate == HexCoordinate(q: 3, r: 1), "safe engagement focus should switch fire exposure preview")
+            guard case let .approachAttack(_, _, saferRoute) = safeOptionGame.focusedCommandPreview else {
+                require(false, "safe engagement focus should keep an executable approach preview")
+                return
+            }
+            require(saferRoute.destination == HexCoordinate(q: 3, r: 1), "safe engagement focused command should use the selected route")
+            require(
+                safeOptionGame.units.first(where: { $0.id == safeOptionTank.id })?.position == safeOptionTank.position,
+                "safe engagement focus should not move before execution"
+            )
+            safeOptionGame.executeFocusedCommand()
+            guard let safeOptionTankAfter = safeOptionGame.units.first(where: { $0.id == safeOptionTank.id }) else {
+                require(false, "safe engagement tank should exist after execution")
+                return
+            }
+            require(safeOptionTankAfter.position == HexCoordinate(q: 3, r: 1), "safe engagement execution should move to selected safe position")
+            require(!safeOptionTankAfter.hasAttacked, "safe engagement execution should not auto-attack")
+            require(safeOptionGame.focusedCoordinate == safeOptionTarget.position, "safe engagement execution should focus target for follow-up attack")
+            var unavailableSafeScenario = safeEngagementScenario()
+            if let unavailableTankIndex = unavailableSafeScenario.units.firstIndex(where: { $0.name == "接敌装甲" }) {
+                unavailableSafeScenario.units[unavailableTankIndex].hasMoved = true
+            }
+            let unavailableSafeGame = GameState(scenario: unavailableSafeScenario)
+            guard let unavailableTank = unavailableSafeGame.units.first(where: { $0.name == "接敌装甲" }),
+                  let unavailableTarget = unavailableSafeGame.units.first(where: { $0.name == "主目标" }) else {
+                require(false, "unavailable safe engagement units should exist")
+                return
+            }
+            unavailableSafeGame.handlePrimaryAction(on: unavailableTank.position)
+            unavailableSafeGame.handlePrimaryAction(on: unavailableTarget.position)
+            unavailableSafeGame.focusSafeEngagement(targetID: unavailableTarget.id, destination: HexCoordinate(q: 3, r: 1))
+            require(unavailableSafeGame.focusedSafeEngagementDestination == nil, "unavailable safe engagement should not keep stale destination")
+            require(unavailableSafeGame.focusedAttackPositionRoute == nil, "unavailable safe engagement should not keep executable POS route")
+            var destroyedSafeScenario = safeEngagementScenario()
+            if let destroyedTargetIndex = destroyedSafeScenario.units.firstIndex(where: { $0.name == "主目标" }) {
+                let destroyedTargetID = destroyedSafeScenario.units[destroyedTargetIndex].id
+                destroyedSafeScenario.units[destroyedTargetIndex].hp = 0
+                let destroyedSafeGame = GameState(scenario: destroyedSafeScenario)
+                guard let destroyedSafeTank = destroyedSafeGame.units.first(where: { $0.name == "接敌装甲" }) else {
+                    require(false, "destroyed safe engagement tank should exist")
+                    return
+                }
+                destroyedSafeGame.handlePrimaryAction(on: destroyedSafeTank.position)
+                destroyedSafeGame.focusSafeEngagement(targetID: destroyedTargetID, destination: HexCoordinate(q: 3, r: 1))
+                require(destroyedSafeGame.focusedSafeEngagementDestination == nil, "destroyed safe target should not keep stale destination")
+                require(destroyedSafeGame.focusedAttackPositionRoute == nil, "destroyed safe target should not keep executable POS route")
+            }
+            let alliedSafeGame = GameState(scenario: safeEngagementScenario())
+            guard let alliedSafeTank = alliedSafeGame.units.first(where: { $0.name == "接敌装甲" }) else {
+                require(false, "allied safe engagement tank should exist")
+                return
+            }
+            alliedSafeGame.handlePrimaryAction(on: alliedSafeTank.position)
+            alliedSafeGame.focusSafeEngagement(targetID: alliedSafeTank.id, destination: HexCoordinate(q: 3, r: 1))
+            require(alliedSafeGame.focusedSafeEngagementDestination == nil, "allied safe target should not keep stale destination")
+            require(alliedSafeGame.focusedAttackPositionRoute == nil, "allied safe target should not keep executable POS route")
+            var occupiedSafeScenario = safeEngagementScenario()
+            guard let occupiedSafeTank = occupiedSafeScenario.units.first(where: { $0.name == "接敌装甲" }),
+                  let occupiedSafeTarget = occupiedSafeScenario.units.first(where: { $0.name == "主目标" }) else {
+                require(false, "occupied safe engagement units should exist")
+                return
+            }
+            occupiedSafeScenario.units.append(
+                BattleUnit(
+                    name: "占位友军",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 3, r: 1),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            )
+            let occupiedSafeGame = GameState(scenario: occupiedSafeScenario)
+            occupiedSafeGame.handlePrimaryAction(on: occupiedSafeTank.position)
+            occupiedSafeGame.handlePrimaryAction(on: occupiedSafeTarget.position)
+            occupiedSafeGame.focusSafeEngagement(targetID: occupiedSafeTarget.id, destination: HexCoordinate(q: 3, r: 1))
+            require(occupiedSafeGame.focusedSafeEngagementDestination == nil, "occupied safe destination should not keep stale destination")
+            require(occupiedSafeGame.focusedAttackPositionRoute?.destination != HexCoordinate(q: 3, r: 1), "occupied safe destination should not become the POS route")
             postMoveGame.handleSecondaryAction(on: postMoveDestination)
             guard let postMoveTankAfter = postMoveGame.units.first(where: { $0.id == postMoveTank.id }) else {
                 require(false, "post-move tank should exist after movement")
@@ -332,6 +418,7 @@ struct RulesSmokeTest {
             require(postMoveTankAfter.hasMoved && !postMoveTankAfter.hasAttacked, "moving should preserve attack when the unit has not attacked yet")
             require(postMoveGame.attackableTiles(for: postMoveTankAfter).contains(postMoveTarget.position), "target should be attackable after the planned move")
             require(postMoveGame.focusedCoordinate == postMoveTarget.position, "secondary move should focus the next attack target when one is available")
+            require(postMoveGame.focusedAttackPositionRoute == nil, "attackable follow-up target should not keep a POS route")
             guard let postMoveFollowUpPreview = postMoveGame.combatPreview(attacker: postMoveTankAfter, defender: postMoveTargetAfterMove) else {
                 require(false, "post-move focus should expose an immediate attack preview")
                 return
