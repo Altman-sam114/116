@@ -89,6 +89,36 @@ struct RulesSmokeTest {
             require(game.attackableUnits(for: testAttacker).contains { $0.id == axisTank.id }, "attackable unit query should find valid target")
             require(game.attackableTiles(for: testAttacker).isSubset(of: game.attackCoverageTiles(for: testAttacker)), "attackable target tiles should be inside attack coverage")
 
+            let combatResultGame = GameState(scenario: combatResultScenario())
+            guard let resultAttacker = combatResultGame.units.first(where: { $0.name == "结果攻击方" }),
+                  let resultDefender = combatResultGame.units.first(where: { $0.name == "结果防守方" }),
+                  let resultPreview = combatResultGame.combatPreview(attacker: resultAttacker, defender: resultDefender) else {
+                require(false, "combat result scenario should produce a combat preview")
+                return
+            }
+            require(combatResultGame.latestCombatResult == nil, "combat result should start empty")
+            _ = combatResultGame.fireExposurePreview(for: resultAttacker, at: resultAttacker.position)
+            require(combatResultGame.latestCombatResult == nil, "preview helpers should not write combat results")
+            combatResultGame.handleTap(on: resultAttacker.position)
+            combatResultGame.handleTap(on: resultDefender.position)
+            guard let resultSummary = combatResultGame.latestCombatResult,
+                  let finalResultAttacker = combatResultGame.scenario.units.first(where: { $0.id == resultAttacker.id }),
+                  let finalResultDefender = combatResultGame.scenario.units.first(where: { $0.id == resultDefender.id }) else {
+                require(false, "executed attack should publish combat result summary")
+                return
+            }
+            require(resultSummary.damage == resultPreview.damage, "combat result damage should match preview")
+            require(resultSummary.counterDamage > 0, "combat result should record actual counter damage")
+            require(resultSummary.attacker.startingHP == resultAttacker.hp, "combat result should record attacker starting HP")
+            require(resultSummary.attacker.endingHP == finalResultAttacker.hp, "combat result should record attacker ending HP")
+            require(resultSummary.defender.startingHP == resultDefender.hp, "combat result should record defender starting HP")
+            require(resultSummary.defender.endingHP == finalResultDefender.hp, "combat result should record defender ending HP")
+            require(resultSummary.didConsumeDefenderEntrenchment, "combat result should record consumed defense posture")
+            require(resultSummary.attacker.experienceDelta == finalResultAttacker.experience - resultAttacker.experience, "combat result should record attacker experience delta")
+            require(resultSummary.defender.moraleDelta == finalResultDefender.morale - resultDefender.morale, "combat result should record defender morale delta")
+            combatResultGame.restart()
+            require(combatResultGame.latestCombatResult == nil, "restart should clear latest combat result")
+
             let baselineAuraGame = GameState(scenario: commanderAuraScenario(includeCommander: false))
             let auraGame = GameState(scenario: commanderAuraScenario(includeCommander: true))
             guard let baselineAuraAttacker = baselineAuraGame.units.first(where: { $0.name == "受援步兵" }),
@@ -1453,6 +1483,59 @@ struct RulesSmokeTest {
                     commander: nil
                 )
             ]
+        )
+    }
+
+    private static func combatResultScenario() -> Scenario {
+        var objectiveTile = TerrainTile(
+            coordinate: HexCoordinate(q: 2, r: 0),
+            terrain: .city
+        )
+        objectiveTile.objectiveName = "结果据点"
+        objectiveTile.owner = nil
+
+        return Scenario(
+            id: "combat-result-smoke",
+            name: "战斗结果冒烟测试",
+            year: "1944",
+            briefing: "测试普通攻击后的战损摘要。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 3,
+            mapRows: 1,
+            tiles: [
+                TerrainTile(
+                    coordinate: HexCoordinate(q: 0, r: 0),
+                    terrain: .road
+                ),
+                TerrainTile(
+                    coordinate: HexCoordinate(q: 1, r: 0),
+                    terrain: .road
+                ),
+                objectiveTile
+            ],
+            units: [
+                BattleUnit(
+                    name: "结果攻击方",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil,
+                    experience: UnitRank.regular.minimumExperience - 1
+                ),
+                BattleUnit(
+                    name: "结果防守方",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil,
+                    isEntrenched: true
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
         )
     }
 

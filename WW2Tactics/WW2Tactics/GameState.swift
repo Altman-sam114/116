@@ -13,6 +13,7 @@ final class GameState: ObservableObject {
     @Published var focusedCoordinate: HexCoordinate?
     @Published private(set) var guidedObjectiveCoordinate: HexCoordinate?
     @Published var commandPoints: [Faction: Int]
+    @Published private(set) var latestCombatResult: CombatResultSummary?
 
     private enum MapCommandInputMode {
         case directTap
@@ -1616,6 +1617,7 @@ final class GameState: ObservableObject {
         earnedStars = 0
         focusedCoordinate = newScenario.initialFocus
         guidedObjectiveCoordinate = nil
+        latestCombatResult = nil
         commandPoints = [.allies: 6, .axis: 6]
         message = Self.openingMessage(for: newScenario)
         battleLog = [Self.openingLog(for: newScenario)]
@@ -1696,6 +1698,7 @@ final class GameState: ObservableObject {
         let supportBonus = flankingSupportDamageBonusPercent(attacker: attacker, defender: defender)
         let supportText = supportBonus > 0 ? "（夹击 +\(supportBonus)%）" : ""
         let damage = damageValue(attacker: attacker, defender: defender)
+        let defenderWasEntrenched = defender.isEntrenched
 
         scenario.units[targetIndex].hp = max(0, scenario.units[targetIndex].hp - damage)
         scenario.units[targetIndex].isEntrenched = false
@@ -1716,13 +1719,30 @@ final class GameState: ObservableObject {
             reason: targetDestroyed ? "击毁敌军" : "攻击奏效"
         )
 
+        let counterDamage: Int
         if targetDestroyed {
+            counterDamage = 0
             let pursuitText = keepsMovementAfterKill ? "，可继续机动" : ""
             message = "\(attacker.name) 击毁 \(defender.name)，造成 \(damage) 伤害\(supportText)\(pursuitText)。"
         } else {
             adjustMorale(unitID: targetID, delta: -10, reason: "遭受攻击")
             message = "\(attacker.name) 攻击 \(defender.name)，造成 \(damage) 伤害\(supportText)。"
-            counterAttackIfPossible(defenderID: targetID, attackerID: attackerID)
+            counterDamage = counterAttackIfPossible(defenderID: targetID, attackerID: attackerID)
+        }
+
+        if let finalAttacker = scenario.units.first(where: { $0.id == attackerID }),
+           let finalDefender = scenario.units.first(where: { $0.id == targetID }) {
+            latestCombatResult = CombatResultSummary(
+                attacker: combatantResultSnapshot(starting: attacker, ending: finalAttacker),
+                defender: combatantResultSnapshot(starting: defender, ending: finalDefender),
+                damage: damage,
+                counterDamage: counterDamage,
+                supportDamageBonusPercent: supportBonus,
+                didDestroyDefender: finalDefender.isDestroyed,
+                didDestroyAttacker: finalAttacker.isDestroyed,
+                didTriggerManeuverPursuit: keepsMovementAfterKill,
+                didConsumeDefenderEntrenchment: defenderWasEntrenched
+            )
         }
 
         appendLog(message)
@@ -1731,15 +1751,35 @@ final class GameState: ObservableObject {
         selectNextReadyUnit(preferredUnitID: keepsMovementAfterKill ? attackerID : nil)
     }
 
-    private func counterAttackIfPossible(defenderID: BattleUnit.ID, attackerID: BattleUnit.ID) {
+    private func combatantResultSnapshot(
+        starting: BattleUnit,
+        ending: BattleUnit
+    ) -> CombatantResultSnapshot {
+        CombatantResultSnapshot(
+            unitID: starting.id,
+            name: starting.name,
+            kind: starting.kind,
+            faction: starting.faction,
+            startingHP: starting.hp,
+            endingHP: ending.hp,
+            startingExperience: starting.experience,
+            endingExperience: ending.experience,
+            startingMorale: starting.morale,
+            endingMorale: ending.morale,
+            startingRank: starting.rank,
+            endingRank: ending.rank
+        )
+    }
+
+    private func counterAttackIfPossible(defenderID: BattleUnit.ID, attackerID: BattleUnit.ID) -> Int {
         guard let defenderIndex = scenario.units.firstIndex(where: { $0.id == defenderID }),
-              let attackerIndex = scenario.units.firstIndex(where: { $0.id == attackerID }) else { return }
+              let attackerIndex = scenario.units.firstIndex(where: { $0.id == attackerID }) else { return 0 }
 
         let defender = scenario.units[defenderIndex]
         let attacker = scenario.units[attackerIndex]
         guard !defender.isDestroyed,
               !attacker.isDestroyed,
-              defender.position.distance(to: attacker.position) <= defender.range else { return }
+              defender.position.distance(to: attacker.position) <= defender.range else { return 0 }
 
         let counterDamage = counterDamageValue(defender: defender, attacker: attacker)
         scenario.units[attackerIndex].hp = max(0, scenario.units[attackerIndex].hp - counterDamage)
@@ -1751,6 +1791,7 @@ final class GameState: ObservableObject {
         adjustMorale(unitID: defenderID, delta: 4, reason: "反击成功")
         adjustMorale(unitID: attackerID, delta: -5, reason: "遭到反击")
         appendLog("\(defender.name) 反击 \(attacker.name)，造成 \(counterDamage) 伤害。")
+        return counterDamage
     }
 
     private func counterDamageValue(defender: BattleUnit, attacker: BattleUnit) -> Int {

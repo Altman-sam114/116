@@ -774,12 +774,18 @@ final class GameStateTests: XCTestCase {
         game.handleTap(on: target.position)
 
         let tankAfterKill = try XCTUnwrap(game.units.first { $0.id == tank.id })
+        let summary = try XCTUnwrap(game.latestCombatResult)
         XCTAssertTrue(tankAfterKill.hasAttacked)
         XCTAssertFalse(tankAfterKill.hasMoved)
         XCTAssertEqual(game.selectedUnit?.id, tank.id)
         XCTAssertTrue(game.reachableTiles(for: tankAfterKill).contains(pursuitObjective))
         XCTAssertTrue(game.attackableTiles(for: tankAfterKill).isEmpty)
         XCTAssertTrue(game.battleLog.contains { $0.contains("可继续机动") })
+        XCTAssertEqual(summary.attacker.unitID, tank.id)
+        XCTAssertEqual(summary.defender.unitID, target.id)
+        XCTAssertTrue(summary.didDestroyDefender)
+        XCTAssertTrue(summary.didTriggerManeuverPursuit)
+        XCTAssertFalse(summary.didDestroyAttacker)
 
         game.handleTap(on: pursuitObjective)
 
@@ -804,9 +810,12 @@ final class GameStateTests: XCTestCase {
         game.handleTap(on: target.position)
 
         let infantryAfterKill = try XCTUnwrap(game.units.first { $0.id == infantry.id })
+        let summary = try XCTUnwrap(game.latestCombatResult)
         XCTAssertTrue(infantryAfterKill.hasMoved)
         XCTAssertTrue(infantryAfterKill.hasAttacked)
         XCTAssertFalse(game.battleLog.contains { $0.contains("可继续机动") })
+        XCTAssertTrue(summary.didDestroyDefender)
+        XCTAssertFalse(summary.didTriggerManeuverPursuit)
     }
 
     func testArtilleryBarrageConsumesEntrenchedTargetDefense() throws {
@@ -880,6 +889,94 @@ final class GameStateTests: XCTestCase {
         XCTAssertNotEqual(promoted.rank, .green)
         XCTAssertGreaterThan(promoted.maxHP, promoted.kind.baseHP)
         XCTAssertTrue(game.battleLog.contains { $0.contains("晋升") })
+    }
+
+    func testLatestCombatResultTracksDamageCounterAndProgression() throws {
+        let game = GameState(scenario: Self.combatResultScenario())
+        let attacker = try XCTUnwrap(game.units.first { $0.name == "结果攻击方" })
+        let defender = try XCTUnwrap(game.units.first { $0.name == "结果防守方" })
+        let preview = try XCTUnwrap(game.combatPreview(attacker: attacker, defender: defender))
+
+        XCTAssertNil(game.latestCombatResult)
+        game.handlePrimaryAction(on: attacker.position)
+        game.handlePrimaryAction(on: defender.position)
+        _ = game.postMoveAttackPreviews(for: attacker, to: attacker.position)
+        XCTAssertNil(game.latestCombatResult)
+
+        game.handleTap(on: attacker.position)
+        game.handleTap(on: defender.position)
+
+        let summary = try XCTUnwrap(game.latestCombatResult)
+        let finalAttacker = try XCTUnwrap(game.scenario.units.first { $0.id == attacker.id })
+        let finalDefender = try XCTUnwrap(game.scenario.units.first { $0.id == defender.id })
+
+        XCTAssertEqual(summary.attacker.unitID, attacker.id)
+        XCTAssertEqual(summary.defender.unitID, defender.id)
+        XCTAssertEqual(summary.damage, preview.damage)
+        XCTAssertGreaterThan(summary.counterDamage, 0)
+        XCTAssertEqual(summary.supportDamageBonusPercent, 0)
+        XCTAssertTrue(summary.didConsumeDefenderEntrenchment)
+        XCTAssertFalse(summary.didDestroyDefender)
+        XCTAssertFalse(summary.didDestroyAttacker)
+        XCTAssertFalse(summary.didTriggerManeuverPursuit)
+
+        XCTAssertEqual(summary.attacker.startingHP, attacker.hp)
+        XCTAssertEqual(summary.attacker.endingHP, finalAttacker.hp)
+        XCTAssertEqual(summary.attacker.startingExperience, attacker.experience)
+        XCTAssertEqual(summary.attacker.endingExperience, finalAttacker.experience)
+        XCTAssertEqual(summary.attacker.experienceDelta, finalAttacker.experience - attacker.experience)
+        XCTAssertEqual(summary.attacker.startingMorale, attacker.morale)
+        XCTAssertEqual(summary.attacker.endingMorale, finalAttacker.morale)
+        XCTAssertEqual(summary.attacker.startingRank, attacker.rank)
+        XCTAssertEqual(summary.attacker.endingRank, finalAttacker.rank)
+        XCTAssertTrue(summary.attacker.didPromote)
+        let attackerHPGain = summary.attacker.endingRank.hpBonus - summary.attacker.startingRank.hpBonus
+        let attackerHPBeforeCounter = min(
+            finalAttacker.maxHP,
+            attacker.hp + max(0, attackerHPGain)
+        )
+        XCTAssertEqual(summary.attacker.endingHP, max(0, attackerHPBeforeCounter - summary.counterDamage))
+
+        XCTAssertEqual(summary.defender.startingHP, defender.hp)
+        XCTAssertEqual(summary.defender.endingHP, finalDefender.hp)
+        XCTAssertEqual(summary.defender.endingHP, preview.defenderHPAfterAttack)
+        XCTAssertEqual(summary.defender.startingExperience, defender.experience)
+        XCTAssertEqual(summary.defender.endingExperience, finalDefender.experience)
+        XCTAssertEqual(summary.defender.experienceDelta, finalDefender.experience - defender.experience)
+        XCTAssertEqual(summary.defender.startingMorale, defender.morale)
+        XCTAssertEqual(summary.defender.endingMorale, finalDefender.morale)
+        XCTAssertEqual(summary.defender.startingRank, defender.rank)
+        XCTAssertEqual(summary.defender.endingRank, finalDefender.rank)
+        XCTAssertFalse(finalDefender.isEntrenched)
+    }
+
+    func testLatestCombatResultRecordsAttackerDestroyedByCounter() throws {
+        let game = GameState(
+            scenario: Self.combatResultScenario(
+                attackerKind: .infantry,
+                defenderKind: .tank,
+                attackerHP: 8,
+                defenderHP: UnitKind.tank.baseHP,
+                attackerExperience: 0,
+                defenderEntrenched: false
+            )
+        )
+        let attacker = try XCTUnwrap(game.units.first { $0.name == "结果攻击方" })
+        let defender = try XCTUnwrap(game.units.first { $0.name == "结果防守方" })
+        let preview = try XCTUnwrap(game.combatPreview(attacker: attacker, defender: defender))
+
+        game.handleTap(on: attacker.position)
+        game.handleTap(on: defender.position)
+
+        let summary = try XCTUnwrap(game.latestCombatResult)
+        let finalAttacker = try XCTUnwrap(game.scenario.units.first { $0.id == attacker.id })
+
+        XCTAssertGreaterThan(preview.counterDamage, 0)
+        XCTAssertGreaterThan(summary.counterDamage, 0)
+        XCTAssertTrue(summary.didDestroyAttacker)
+        XCTAssertEqual(summary.attacker.endingHP, 0)
+        XCTAssertTrue(finalAttacker.isDestroyed)
+        XCTAssertFalse(summary.didDestroyDefender)
     }
 
     func testThreateningEnemiesDetectsUnitsInRange() throws {
@@ -1320,6 +1417,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(exposure.highestSingleDamage, expectedCombat.damage)
         XCTAssertEqual(exposure.projectedHPAfterExposure, max(0, tank.hp - expectedCombat.damage))
         XCTAssertNotEqual(exposure.riskLevel, .none)
+        XCTAssertNil(game.latestCombatResult)
 
         let unchangedTank = try XCTUnwrap(game.units.first { $0.id == tank.id })
         XCTAssertEqual(unchangedTank.position, tank.position)
@@ -1941,6 +2039,66 @@ final class GameStateTests: XCTestCase {
                     commander: nil
                 )
             ]
+        )
+    }
+
+    private static func combatResultScenario(
+        attackerKind: UnitKind = .tank,
+        defenderKind: UnitKind = .infantry,
+        attackerHP: Int = UnitKind.tank.baseHP,
+        defenderHP: Int = UnitKind.infantry.baseHP,
+        attackerExperience: Int = UnitRank.regular.minimumExperience - 1,
+        defenderEntrenched: Bool = true
+    ) -> Scenario {
+        var objectiveTile = TerrainTile(
+            coordinate: HexCoordinate(q: 2, r: 0),
+            terrain: .city
+        )
+        objectiveTile.objectiveName = "结果据点"
+        objectiveTile.owner = nil
+
+        return Scenario(
+            id: "combat-result-test",
+            name: "战斗结果测试",
+            year: "1944",
+            briefing: "测试普通攻击后的战损摘要。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 3,
+            mapRows: 1,
+            tiles: [
+                TerrainTile(
+                    coordinate: HexCoordinate(q: 0, r: 0),
+                    terrain: .road
+                ),
+                TerrainTile(
+                    coordinate: HexCoordinate(q: 1, r: 0),
+                    terrain: .road
+                ),
+                objectiveTile
+            ],
+            units: [
+                BattleUnit(
+                    name: "结果攻击方",
+                    kind: attackerKind,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: attackerHP,
+                    commander: nil,
+                    experience: attackerExperience
+                ),
+                BattleUnit(
+                    name: "结果防守方",
+                    kind: defenderKind,
+                    faction: .axis,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: defenderHP,
+                    commander: nil,
+                    isEntrenched: defenderEntrenched
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
         )
     }
 

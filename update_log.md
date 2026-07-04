@@ -267,3 +267,40 @@
 
 - 火力暴露仍是静态风险估算，不代表敌军一定会攻击，也不触发反应射击。
 - 安全接敌建议只展示更低风险候选，尚未提供一键切换到安全路线的执行模式。
+
+### v1.2 / 战斗结果回放与战损对比
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 `CombatantResultSnapshot` 和 `CombatResultSummary`，用结构化字段记录普通攻击执行后的双方 HP、经验、士气、军衔、击毁、反击、夹击、防御姿态消耗和机动追击结果。
+- `GameState` 新增 `latestCombatResult`，只在真实普通攻击结算后写入，`combatPreview`、MOVE/POS 预览和火力暴露预览不会生成虚假结果；重开或切换战役会清空旧结果。
+- 侧栏战报前新增紧凑战斗结果面板，展示攻击/防守双方 HP 前后对比、伤害、实际反击、夹击、击毁/追击、经验、晋升和士气变化。
+- 补充 XCTest 和规则 smoke test，覆盖普通攻击结果摘要、实际反击、攻击者被反击击毁、机动追击、预览不写入结果和重开清理结果。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v1（地图操作体验）/v1.2（战斗结果回放与战损对比）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions run、artifact 和 Agent C 云端结果包核对，以本轮 `origin/main` 推送后的最新验收结果为准。
+
+遗留事项：
+
+- 本轮只记录普通攻击结果，不包含火炮弹幕、突破突击等战术命令的结果摘要。
+- 战斗结果面板是静态回放，不包含动画、音效或美术资产。

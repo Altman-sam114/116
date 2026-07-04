@@ -571,6 +571,43 @@ enum UnitTacticalStatus: String, Identifiable {
     }
 }
 
+struct CombatantResultSnapshot: Equatable {
+    let unitID: BattleUnit.ID
+    let name: String
+    let kind: UnitKind
+    let faction: Faction
+    let startingHP: Int
+    let endingHP: Int
+    let startingExperience: Int
+    let endingExperience: Int
+    let startingMorale: Int
+    let endingMorale: Int
+    let startingRank: UnitRank
+    let endingRank: UnitRank
+
+    var hpDelta: Int { endingHP - startingHP }
+    var experienceDelta: Int { endingExperience - startingExperience }
+    var moraleDelta: Int { endingMorale - startingMorale }
+    var didPromote: Bool { endingRank != startingRank }
+    var isDestroyed: Bool { endingHP <= 0 }
+}
+
+struct CombatResultSummary: Identifiable, Equatable {
+    let id = UUID()
+    let attacker: CombatantResultSnapshot
+    let defender: CombatantResultSnapshot
+    let damage: Int
+    let counterDamage: Int
+    let supportDamageBonusPercent: Int
+    let didDestroyDefender: Bool
+    let didDestroyAttacker: Bool
+    let didTriggerManeuverPursuit: Bool
+    let didConsumeDefenderEntrenchment: Bool
+
+    var hasCounterAttack: Bool { counterDamage > 0 }
+    var hasFlankingSupport: Bool { supportDamageBonusPercent > 0 }
+}
+
 struct TacticalCommandPreview: Equatable {
     let command: TacticalCommand
     let casterName: String

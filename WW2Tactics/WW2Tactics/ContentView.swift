@@ -2540,6 +2540,13 @@ private struct InspectorPanel: View {
                 Divider()
                     .overlay(Color.white.opacity(0.18))
 
+                if let combatResult = game.latestCombatResult {
+                    CombatResultSummaryView(summary: combatResult)
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.18))
+                }
+
                 BattleLogView()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -3738,6 +3745,186 @@ private struct CommanderView: View {
                 .stroke(Color.yellow.opacity(0.24), lineWidth: 1)
         )
     }
+}
+
+private struct CombatResultSummaryView: View {
+    let summary: CombatResultSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label("战斗结果", systemImage: "scope")
+                    .font(.subheadline.weight(.bold))
+
+                Spacer(minLength: 8)
+
+                Text(resultTitle)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(resultColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                CombatantResultLine(title: "攻击", snapshot: summary.attacker, tint: .orange)
+                CombatantResultLine(title: "防守", snapshot: summary.defender, tint: summary.didDestroyDefender ? .red : .cyan)
+            }
+
+            HStack(spacing: 7) {
+                CombatResultMetric(title: "伤害", value: "-\(summary.damage)", color: .orange)
+                CombatResultMetric(title: "反击", value: summary.counterDamage > 0 ? "-\(summary.counterDamage)" : "无", color: summary.counterDamage > 0 ? .red : .white.opacity(0.76))
+                CombatResultMetric(title: "夹击", value: summary.hasFlankingSupport ? "+\(summary.supportDamageBonusPercent)%" : "无", color: summary.hasFlankingSupport ? .green : .white.opacity(0.76))
+            }
+
+            let details = detailRows
+            if !details.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(Array(details.enumerated()), id: \.offset) { _, row in
+                        Label(row.text, systemImage: row.icon)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(row.color)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+        .padding(9)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(resultColor.opacity(0.22), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private var resultTitle: String {
+        if summary.didDestroyDefender {
+            return summary.didTriggerManeuverPursuit ? "击毁 · 追击" : "击毁"
+        }
+        if summary.hasCounterAttack {
+            return "交火"
+        }
+        return "压制"
+    }
+
+    private var resultColor: Color {
+        if summary.didDestroyDefender { return .red }
+        if summary.hasCounterAttack { return .orange }
+        return .yellow
+    }
+
+    private var detailRows: [CombatResultDetailRow] {
+        var rows: [CombatResultDetailRow] = []
+
+        if summary.didDestroyDefender {
+            rows.append(.init(icon: "burst.fill", text: "\(summary.defender.name) 被击毁", color: .red))
+        }
+
+        if summary.didDestroyAttacker {
+            rows.append(.init(icon: "exclamationmark.triangle.fill", text: "\(summary.attacker.name) 被反击击毁", color: .red))
+        }
+
+        if summary.didTriggerManeuverPursuit {
+            rows.append(.init(icon: "arrow.forward.circle.fill", text: "\(summary.attacker.name) 可继续机动", color: .orange))
+        }
+
+        if summary.didConsumeDefenderEntrenchment {
+            rows.append(.init(icon: "shield.slash.fill", text: "防御姿态已被消耗", color: .cyan))
+        }
+
+        if summary.attacker.experienceDelta > 0 {
+            let promotion = summary.attacker.didPromote ? "，晋升为\(summary.attacker.endingRank.title)" : ""
+            rows.append(.init(icon: "chevron.up.circle.fill", text: "\(summary.attacker.name) 经验 +\(summary.attacker.experienceDelta)\(promotion)", color: .yellow))
+        }
+
+        if summary.defender.experienceDelta > 0 {
+            let promotion = summary.defender.didPromote ? "，晋升为\(summary.defender.endingRank.title)" : ""
+            rows.append(.init(icon: "arrow.uturn.backward.circle.fill", text: "\(summary.defender.name) 反击经验 +\(summary.defender.experienceDelta)\(promotion)", color: .yellow))
+        }
+
+        if summary.attacker.moraleDelta != 0 {
+            rows.append(.init(icon: "flag.fill", text: "\(summary.attacker.name) 士气 \(signed(summary.attacker.moraleDelta))", color: summary.attacker.moraleDelta > 0 ? .green : .red))
+        }
+
+        if summary.defender.moraleDelta != 0 {
+            rows.append(.init(icon: "flag.checkered", text: "\(summary.defender.name) 士气 \(signed(summary.defender.moraleDelta))", color: summary.defender.moraleDelta > 0 ? .green : .red))
+        }
+
+        return rows
+    }
+
+    private func signed(_ value: Int) -> String {
+        value > 0 ? "+\(value)" : "\(value)"
+    }
+}
+
+private struct CombatantResultLine: View {
+    let title: String
+    let snapshot: CombatantResultSnapshot
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.black.opacity(0.82))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(tint.opacity(0.88), in: Capsule())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(snapshot.name)
+                    .font(.caption.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                Text("\(snapshot.faction.title) · \(snapshot.kind.title) · \(snapshot.endingRank.title)")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.58))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            Spacer(minLength: 8)
+
+            Text("\(snapshot.startingHP) -> \(snapshot.endingHP)")
+                .font(.caption.weight(.black))
+                .monospacedDigit()
+                .foregroundStyle(snapshot.hpDelta < 0 ? .orange : .white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct CombatResultMetric: View {
+    let title: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 3) {
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.58))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Text(value)
+                .font(.caption.weight(.black))
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+private struct CombatResultDetailRow {
+    let icon: String
+    let text: String
+    let color: Color
 }
 
 private struct BattleLogView: View {

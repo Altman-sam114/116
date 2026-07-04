@@ -13,7 +13,7 @@
   -> GameModels 中的 Scenario / BattleUnit / TerrainTile / HexCoordinate / MapCommandPreview
   -> GameState 规则判定与状态更新
   -> @Published 状态变化
-  -> ContentView 重新渲染地图、侧栏、HUD、图例、战报
+  -> ContentView 重新渲染地图、侧栏、HUD、图例、战斗结果、战报
   -> GameStateTests / RulesSmokeTest 验证行为
 ```
 
@@ -24,7 +24,7 @@
 职责：
 
 - 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview` 和安全接敌候选 `SafeEngagementOption`。
+- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、安全接敌候选 `SafeEngagementOption` 和普通攻击后的 `CombatResultSummary`。
 - 生成阿登反击战、诺曼底突破等战役初始数据。
 
 输入：
@@ -46,8 +46,8 @@
 职责：
 
 - 项目核心状态机。
-- 管理当前战役、选中单位、焦点坐标、当前阵营、回合、消息、战报、胜负、指令点。
-- 处理移动、攻击、反击、补给、士气、控制区、战术命令、增援、据点占领、目标推进、AI 行动、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
+- 管理当前战役、选中单位、焦点坐标、当前阵营、回合、消息、战报、最新普通攻击结果、胜负、指令点。
+- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、增援、据点占领、目标推进、AI 行动、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
 
 输入：
 
@@ -130,6 +130,7 @@
 3. 地图显示 `ATK`、伤害或 `KILL`。
 4. 右键或执行按钮触发 `attack(attackerID:targetID:)`。
 5. 攻击更新 HP、经验、士气、行动状态、战报、胜负。
+6. `latestCombatResult` 记录本次普通攻击的双方 HP 前后、伤害、反击、击毁、机动追击、夹击、防御姿态消耗、经验/士气/军衔变化；聚焦、`combatPreview`、MOVE/POS 预览不会写入该结果。
 
 ### 3.4 接敌 POS
 
@@ -246,7 +247,7 @@
 ## 9. 未来扩展点
 
 - 地图拖动/缩放手感、路线箭头、危险格更细粒度显示。
-- 战斗动画、战损弹窗、攻击前后对比。
+- 战斗动画、战斗结果回放动效、更多战术命令结果摘要。
 - 更完整 AI：据点优先级、补给、撤退、集中火力。
 - 更多战役、国家、科技、生产队列。
 - 保存进度和战役进度界面。
