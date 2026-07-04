@@ -235,13 +235,59 @@ struct RulesSmokeTest {
                 require(false, "future combat preview should be computable from the destination")
                 return
             }
+            var previewDefender = postMoveTank
+            previewDefender.position = postMoveDestination
+            previewDefender.tacticalStatus = .normal
+            previewDefender.isEntrenched = false
+            guard let expectedFireExposureCombat = postMoveGame.combatPreview(attacker: postMoveTarget, defender: previewDefender),
+                  let fireExposure = postMoveGame.focusedFireExposurePreview else {
+                require(false, "focused move preview should expose fire exposure numbers")
+                return
+            }
             require(postMoveAttackPreview.targetID == postMoveTarget.id, "focused post-move attack preview should name the future target")
             require(postMoveAttackPreview.damage == expectedPostMoveCombat.damage, "post-move attack preview damage should match combat preview")
             require(postMoveAttackPreview.counterDamage == expectedPostMoveCombat.counterDamage, "post-move attack preview counter damage should match combat preview")
             require(postMoveAttackPreview.willDestroy == expectedPostMoveCombat.willDestroyDefender, "post-move attack preview kill flag should match combat preview")
+            require(fireExposure.sources.map(\.sourceID) == [postMoveTarget.id], "fire exposure preview should identify the covering enemy")
+            require(fireExposure.totalPotentialDamage == expectedFireExposureCombat.damage, "fire exposure damage should match enemy combat preview")
+            require(fireExposure.highestSingleDamage == expectedFireExposureCombat.damage, "fire exposure highest damage should match the source damage")
+            require(fireExposure.projectedHPAfterExposure == max(0, postMoveTank.hp - expectedFireExposureCombat.damage), "fire exposure should project HP after possible enemy fire")
+            require(fireExposure.riskLevel != .none, "threatened destination should report a non-empty risk level")
             require(
                 postMoveGame.message.contains("移动后可攻击 \(postMoveTarget.name)"),
                 "primary focus on a move tile should describe post-move attack targets"
+            )
+
+            let safeTileGame = GameState(scenario: postMoveAttackScenario())
+            guard let safeTileTank = safeTileGame.units.first(where: { $0.name == "机动装甲" }),
+                  let safeExposure = safeTileGame.fireExposurePreview(for: safeTileTank, at: HexCoordinate(q: 1, r: 0)) else {
+                require(false, "safe move tile should still produce a fire exposure preview")
+                return
+            }
+            require(safeExposure.riskLevel == .none, "uncovered move tile should report SAFE risk")
+            require(safeExposure.sources.isEmpty, "uncovered move tile should have no fire sources")
+            require(safeExposure.projectedHPAfterExposure == safeTileTank.hp, "uncovered move tile should not project HP loss")
+
+            let safeOptionGame = GameState(scenario: safeEngagementScenario())
+            guard let safeOptionTank = safeOptionGame.units.first(where: { $0.name == "接敌装甲" }),
+                  let safeOptionTarget = safeOptionGame.units.first(where: { $0.name == "主目标" }) else {
+                require(false, "safe engagement units should exist")
+                return
+            }
+            safeOptionGame.handlePrimaryAction(on: safeOptionTank.position)
+            safeOptionGame.handlePrimaryAction(on: safeOptionTarget.position)
+            require(safeOptionGame.focusedAttackPositionRoute?.destination == HexCoordinate(q: 3, r: 0), "safe suggestions should not change the default POS route")
+            let optionDebug = safeOptionGame.focusedSafeEngagementOptions.map { option in
+                "\(option.route.destination.id):\(option.exposure.totalPotentialDamage):\(option.exposure.sources.map(\.sourceName))"
+            }
+            require(
+                safeOptionGame.focusedSafeEngagementOptions.first?.route.destination == HexCoordinate(q: 3, r: 1),
+                "safe engagement options should prefer the lower exposure attack position, got \(optionDebug)"
+            )
+            require(
+                (safeOptionGame.focusedSafeEngagementOptions.first?.exposure.totalPotentialDamage ?? Int.max) <
+                    (safeOptionGame.focusedFireExposurePreview?.totalPotentialDamage ?? 0),
+                "safe engagement option should reduce projected exposure damage"
             )
             postMoveGame.handleSecondaryAction(on: postMoveDestination)
             guard let postMoveTankAfter = postMoveGame.units.first(where: { $0.id == postMoveTank.id }) else {
@@ -1451,6 +1497,67 @@ struct RulesSmokeTest {
                     faction: .axis,
                     position: HexCoordinate(q: 4, r: 0),
                     hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func safeEngagementScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in -1..<2 {
+            for q in 0..<5 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .road
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "接敌出发点"
+                    tile.owner = .allies
+                } else if q == 4 && r == 0 {
+                    tile.objectiveName = "敌方阵地"
+                    tile.owner = .axis
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "safe-engagement-test",
+            name: "安全接敌测试",
+            year: "1944",
+            briefing: "测试接敌候选会按火力暴露风险排序。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 3,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "接敌装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil,
+                    morale: 80
+                ),
+                BattleUnit(
+                    name: "主目标",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 4, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "侧翼装甲",
+                    kind: .tank,
+                    faction: .axis,
+                    position: HexCoordinate(q: 4, r: -1),
+                    hp: UnitKind.tank.baseHP,
                     commander: nil
                 )
             ],

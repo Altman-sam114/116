@@ -24,7 +24,7 @@
 职责：
 
 - 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview` 和移动后攻击预判 `PostMoveAttackPreview`。
+- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview` 和安全接敌候选 `SafeEngagementOption`。
 - 生成阿登反击战、诺曼底突破等战役初始数据。
 
 输入：
@@ -47,7 +47,7 @@
 
 - 项目核心状态机。
 - 管理当前战役、选中单位、焦点坐标、当前阵营、回合、消息、战报、胜负、指令点。
-- 处理移动、攻击、反击、补给、士气、控制区、战术命令、增援、据点占领、目标推进、AI 行动、威胁覆盖、路线步骤情报和移动后攻击预判。
+- 处理移动、攻击、反击、补给、士气、控制区、战术命令、增援、据点占领、目标推进、AI 行动、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
 
 输入：
 
@@ -117,10 +117,11 @@
 1. 选中单位后，`movementRoutes(for:)` 基于地形、占位、敌方控制区和有效移动力计算可达路线。
 2. `routeStepPreviews(for:route:)` 从既有路线派生逐步路线情报：步序、坐标、实际进入消耗、控制区额外消耗、敌火威胁来源和终点标记。
 3. `postMoveAttackPreviews(for:to:)` 只对合法 MOVE 目的地生成移动后攻击预判，用临时 attacker 位置复用 `combatPreview`，不写回战役状态。
-4. 地图显示 `MOVE` 标记、步序/消耗、路线风险和移动后可攻击目标。
-5. 右键或执行按钮触发 `executeMapCommand(.move)`。
-6. `move(unitID:to:)` 更新单位位置、消耗移动、清理防御姿态、更新据点控制。
-7. 若移动后有可攻击目标，聚焦 NEXT 目标。
+4. `fireExposurePreview(for:at:)` 对合法 MOVE 目的地用临时移动后的单位复用 `combatPreview(enemy, movedUnit)`，估算敌火来源、潜在伤害、HP 后果和风险等级，不写回战役状态。
+5. 地图显示 `MOVE` 标记、步序/消耗、路线风险、终点火力风险和移动后可攻击目标。
+6. 右键或执行按钮触发 `executeMapCommand(.move)`。
+7. `move(unitID:to:)` 更新单位位置、消耗移动、清理防御姿态、更新据点控制。
+8. 若移动后有可攻击目标，聚焦 NEXT 目标。
 
 ### 3.3 攻击
 
@@ -134,9 +135,10 @@
 
 1. 敌军射程外但存在可进入攻击位时，`attackPositionRoutes` 返回路线。
 2. `focusedRouteStepPreviews` 对推荐 `focusedAttackPositionRoute` 同样生成路线风险，展示到攻击位的消耗、控制区和敌火来源。
-3. 地图显示 `POS` 和路线步序/风险。
-4. 右键敌军或执行按钮移动到攻击位。
-5. 移动后聚焦敌军，提示继续点按或右键攻击；POS 本身不直接执行攻击。
+3. `focusedFireExposurePreview` 对推荐攻击位估算潜在承伤；`focusedSafeEngagementOptions` 从所有攻击位中按风险、潜在伤害、路线消耗和坐标稳定排序，给出更安全接敌建议，但不改变默认 POS 执行目的地。
+4. 地图显示 `POS`、路线步序/风险和终点风险短码。
+5. 右键敌军或执行按钮移动到攻击位。
+6. 移动后聚焦敌军，提示继续点按或右键攻击；POS 本身不直接执行攻击。
 
 ### 3.5 OBJ 目标推进
 
@@ -150,7 +152,8 @@
 1. `threateningEnemies(against:at:)` 查询某坐标被哪些敌军射程覆盖。
 2. `threatenedTiles(for:)` 生成阵营威胁地图。
 3. `threatenedReachableTiles(for:)` 标记选中单位可达但危险的格子。
-4. `ContentView` 在 HUD 显示 THR 数量，在地图显示 THR 标记。
+4. MOVE/POS 聚焦时，`PostMoveFireExposurePreview` 将敌火覆盖转换为风险等级、潜在伤害和预计剩余耐久；这是纯预览，不触发反应射击或真实伤害。
+5. `ContentView` 在 HUD 显示 THR 数量，在地图显示 THR 和 SAFE/LOW/MED/HIGH/CRIT 风险标记。
 
 ### 3.7 回合和 AI
 

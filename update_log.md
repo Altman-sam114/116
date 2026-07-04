@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：Agent A 已创建 `md/prompt/v1（地图操作体验）/v1.0（路线与战斗预判强化）.md`；Agent B 已实现 v1.0，功能提交 `24bdac8` 已由 Agent C 核对 GitHub Actions artifact 并验收通过。
+- 近期规划已进入 `v1（地图操作体验）`：v1.0 已完成路线与战斗预判强化；v1.1 正在推进火力风险与安全接敌建议。
 
 ## 历史记录
 
@@ -227,3 +227,40 @@
 
 - 本轮仍未加入战斗动画、真实美术、更多战役、存档或完整生产队列。
 - 路线风险目前显示结构化威胁来源摘要，未来可继续扩展为更细的火力强度、撤退建议或多路线比较。
+
+### v1.1 / 火力风险与安全接敌建议
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 `FireRiskLevel`、`FireExposureSourcePreview`、`PostMoveFireExposurePreview` 和 `SafeEngagementOption`，把 MOVE/POS 终点敌火覆盖转换为潜在承伤、预计剩余耐久、击毁风险和 SAFE/LOW/MED/HIGH/CRIT 风险等级。
+- `GameState` 新增 `fireExposurePreview(for:at:)`、`focusedFireExposurePreview` 和 `focusedSafeEngagementOptions`，复用 `combatPreview(enemy, movedUnit)` 做纯预览，不写回战役状态。
+- POS 接敌保留原默认攻击位执行语义，同时给出更安全攻击位建议。
+- `ContentView` 在地图、内联命令预览、侧栏命令预览、图例和无障碍文案中显示火力风险短码、潜在伤害、预计 HP 和主要敌火来源。
+- 补充 XCTest 和规则 smoke test，覆盖火力暴露来源、伤害一致性、无风险/致命风险、安全接敌排序和不改变默认 POS 执行。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v1（地图操作体验）/v1.1（火力风险与安全接敌建议）.md`
+
+验证结果：
+
+- 规则 smoke 编译：通过。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过。
+- `GameStateTests.swift` 源码级 typecheck：通过。
+- GitHub Actions 云端 artifact 验收结果以本轮 Agent C 最终核对为准。
+
+遗留事项：
+
+- 火力暴露仍是静态风险估算，不代表敌军一定会攻击，也不触发反应射击。
+- 安全接敌建议只展示更低风险候选，尚未提供一键切换到安全路线的执行模式。

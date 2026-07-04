@@ -30,7 +30,8 @@ flowchart TD
   B -->|否| D["更新 focusedCoordinate"]
   D --> E["生成地图预览 MapCommandPreview"]
   E --> R["路线情报：RouteStepPreview / PostMoveAttackPreview"]
-  R --> F{"输入类型"}
+  R --> X["火力风险：PostMoveFireExposurePreview / SafeEngagementOption"]
+  X --> F{"输入类型"}
   F -->|左键/主点按聚焦| G["只显示预览消息，不消耗行动"]
   F -->|右键/执行按钮| H{"预览是否可执行？"}
   H -->|MOVE| I["move：移动、消耗移动、更新据点"]
@@ -60,11 +61,16 @@ flowchart LR
   U --> THR["threatenedReachableTiles 敌火覆盖"]
   MV --> RP["RouteStepPreview 步序、消耗、控制区、敌火"]
   MV --> PM["PostMoveAttackPreview 移动后伤害、反击、击毁"]
+  MV --> FP["PostMoveFireExposurePreview 潜在承伤、HP 后果、风险等级"]
+  MV --> SE["SafeEngagementOption 安全接敌候选"]
   AT --> PM
+  AT --> FP
   MV --> CMD["MapCommandPreview"]
   AT --> CMD
   RP --> CMD
   PM --> CMD
+  FP --> CMD
+  SE --> CMD
   CMD --> EX["executeMapCommand"]
   EX --> RES["更新单位、据点、消息、战报"]
   RES --> WIN["checkVictory / checkTurnLimit"]

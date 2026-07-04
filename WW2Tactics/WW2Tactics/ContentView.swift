@@ -976,7 +976,7 @@ private struct InlineMapCommandPreview: View {
             let counter = counterDamage > 0 ? "，反击 -\(counterDamage)" : "，无反击"
             return "\(attackerName) 攻击 \(defenderName)：-\(damage)，\(result)\(counter)。"
         case let .approachAttack(unitName, defenderName, route):
-            return "\(unitName) 接近 \(defenderName)：\(routeSummaryText(for: route))移动后目标进射程，不自动攻击。"
+            return "\(unitName) 接近 \(defenderName)：\(routeSummaryText(for: route))移动后目标进射程，不自动攻击。\(safeEngagementSuggestionText(currentRoute: route))"
         case let .selectedUnit(unitName):
             return "\(unitName) 已选中，地图已标出可执行命令。"
         case let .selectUnit(unitName, kind):
@@ -999,7 +999,7 @@ private struct InlineMapCommandPreview: View {
         let threatenedSteps = steps.filter(\.isThreatened)
         let zone = route.controlZonePenalty > 0 ? "，控区 +\(route.controlZonePenalty)" : ""
         let risk = routeRiskSummary(for: threatenedSteps)
-        return "\(route.stepCount) 步，总消耗 \(route.totalCost)\(zone)\(risk)。"
+        return "\(route.stepCount) 步，总消耗 \(route.totalCost)\(zone)\(risk)\(fireExposureSummaryText())。"
     }
 
     private func routeRiskSummary(for threatenedSteps: [RouteStepPreview]) -> String {
@@ -1026,6 +1026,22 @@ private struct InlineMapCommandPreview: View {
         let result = best.willDestroy ? "预计击毁" : "目标剩 \(best.defenderHPAfterAttack)"
         let counter = best.counterDamage > 0 ? "，反击 -\(best.counterDamage)" : "，无反击"
         return "最佳目标 \(best.targetName)：-\(best.damage)，\(result)\(counter)。"
+    }
+
+    private func fireExposureSummaryText() -> String {
+        guard let preview = game.focusedFireExposurePreview else { return "" }
+        guard preview.riskLevel != .none else {
+            return "，终点 \(preview.riskLevel.shortTitle)，无潜在伤害"
+        }
+        let sources = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
+        let sourceText = sources.isEmpty ? "" : "，来源 \(sources)"
+        return "，终点 \(preview.riskLevel.shortTitle) \(preview.riskLevel.title)，潜在 -\(preview.totalPotentialDamage)，预计剩 \(preview.projectedHPAfterExposure)\(sourceText)"
+    }
+
+    private func safeEngagementSuggestionText(currentRoute: MovementRoute) -> String {
+        guard let option = game.focusedSafeEngagementOptions.first,
+              option.route.destination != currentRoute.destination else { return "" }
+        return "更安全攻击位 q\(option.route.destination.q),r\(option.route.destination.r)：\(option.exposure.riskLevel.shortTitle)，潜在 -\(option.exposure.totalPotentialDamage)。"
     }
 
     private func accentColor(for preview: MapCommandPreview) -> Color {
@@ -1538,6 +1554,7 @@ private struct HexMapView: View {
         let focusedRoute = game.focusedMovementRoute ?? game.focusedAttackPositionRoute
         let focusedRouteCoordinates = Set(focusedRoute?.coordinates ?? [])
         let focusedRouteSteps = Dictionary(uniqueKeysWithValues: game.focusedRouteStepPreviews.map { ($0.coordinate, $0) })
+        let focusedFireExposure = game.focusedFireExposurePreview
         let guidedObjectiveCoordinate = game.guidedObjectiveCoordinate
         let contentWidth = CGFloat(game.scenario.mapColumns) * tileWidth * 0.78 + tileWidth
         let contentHeight = CGFloat(game.scenario.mapRows) * tileHeight * 0.78 + tileHeight
@@ -1578,6 +1595,7 @@ private struct HexMapView: View {
                     isAttackPosition: attackPositions.contains(tile.coordinate),
                     isEnemyControlZone: enemyControlZones.contains(tile.coordinate),
                     isThreatenedMoveTile: threatenedReachableTiles.contains(tile.coordinate),
+                    fireExposurePreview: focusedFireExposure?.coordinate == tile.coordinate ? focusedFireExposure : nil,
                     isGuidedObjective: guidedObjectiveCoordinate == tile.coordinate
                 )
                 .frame(width: tileWidth, height: tileHeight)
@@ -1687,6 +1705,7 @@ private struct HexTileView: View {
     let isAttackPosition: Bool
     let isEnemyControlZone: Bool
     let isThreatenedMoveTile: Bool
+    let fireExposurePreview: PostMoveFireExposurePreview?
     let isGuidedObjective: Bool
 
     var body: some View {
@@ -1752,6 +1771,12 @@ private struct HexTileView: View {
                     .padding(.trailing, 9)
             }
 
+            if let fireExposurePreview {
+                FireRiskMarker(preview: fireExposurePreview)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 22)
+            }
+
             if actionHint.isCommandable {
                 ActionMarker(actionHint: actionHint)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -1801,6 +1826,7 @@ private struct HexTileView: View {
         if actionHint.isMove { return .cyan }
         if isPostMoveAttackTarget { return .orange.opacity(0.9) }
         if isAttackPosition { return .orange.opacity(0.78) }
+        if let fireExposurePreview { return fireExposurePreview.riskLevel.accentColor.opacity(0.95) }
         if isGuidedObjective { return .green.opacity(0.96) }
         if isMovementRoute { return .cyan.opacity(0.88) }
         if isAttackCoverage { return .orange.opacity(0.58) }
@@ -1816,6 +1842,7 @@ private struct HexTileView: View {
         if isSelected || actionHint.isAttack || actionHint.isApproachAttack || actionHint.isMove { return 3 }
         if isPostMoveAttackTarget { return 3 }
         if isAttackPosition { return 3 }
+        if fireExposurePreview?.riskLevel.sortRank ?? 0 >= FireRiskLevel.high.sortRank { return 3 }
         if isGuidedObjective { return 3 }
         if isMovementRoute { return 2 }
         if isAttackCoverage { return 2 }
@@ -1845,7 +1872,12 @@ private struct HexTileView: View {
         let postMoveAttackText = isPostMoveAttackTarget ? "移动后可攻击" : ""
         let attackPositionText = isAttackPosition ? "可进入攻击位" : ""
         let guidedObjectiveText = isGuidedObjective ? "当前目标据点" : ""
-        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(unitText) \(actionAccessibilityText)"
+        let fireRiskText = fireExposurePreview.map { preview in
+            let sourceText = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
+            let sourceSummary = sourceText.isEmpty ? "无敌火来源" : "来源\(sourceText)"
+            return "\(preview.riskLevel.title)，潜在伤害\(preview.totalPotentialDamage)，预计剩余\(preview.projectedHPAfterExposure)，\(sourceSummary)"
+        } ?? ""
+        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(fireRiskText) \(unitText) \(actionAccessibilityText)"
     }
 
     private var routeAccessibilityText: String {
@@ -2073,6 +2105,29 @@ private struct ThreatenedMoveMarker: View {
         .overlay(
             Capsule()
                 .stroke(Color.white.opacity(0.34), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct FireRiskMarker: View {
+    let preview: PostMoveFireExposurePreview
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Image(systemName: preview.riskLevel.systemImage)
+                .font(.system(size: 7, weight: .black))
+            Text(preview.riskLevel.shortTitle)
+                .font(.system(size: 7, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(preview.riskLevel.accentColor.opacity(0.86), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.36), lineWidth: 1)
         )
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -3112,7 +3167,7 @@ private struct FocusedCommandPreviewPanel: View {
         case let .move(unitName, terrainName, route):
             return "右键命令 \(unitName) 进入\(terrainName)，\(routeSummaryText(for: route))\(postMoveAttackText())"
         case let .approachAttack(unitName, defenderName, route):
-            return "右键命令 \(unitName) 移动到 q\(route.destination.q),r\(route.destination.r) 接近 \(defenderName)，\(routeSummaryText(for: route))移动后目标进入射程，可继续右键攻击，不会自动攻击。"
+            return "右键命令 \(unitName) 移动到 q\(route.destination.q),r\(route.destination.r) 接近 \(defenderName)，\(routeSummaryText(for: route))移动后目标进入射程，可继续右键攻击，不会自动攻击。\(safeEngagementSuggestionText(currentRoute: route))"
         case let .attack(attackerName, defenderName, damage, counterDamage, defenderHPAfterAttack, willDestroy):
             let outcome = willDestroy ? "预计击毁目标" : "目标剩余 \(defenderHPAfterAttack) 耐久"
             let counter = counterDamage > 0 ? "，可能遭反击 -\(counterDamage)" : "，无反击"
@@ -3132,7 +3187,7 @@ private struct FocusedCommandPreviewPanel: View {
         let steps = game.focusedRouteStepPreviews
         let threatenedSteps = steps.filter(\.isThreatened)
         let penaltyText = route.controlZonePenalty > 0 ? "其中敌方控制区 +\(route.controlZonePenalty)，" : ""
-        return "路线 \(route.stepCount) 步，总消耗 \(route.totalCost) 移动力，\(penaltyText)\(routeRiskText(for: threatenedSteps))。"
+        return "路线 \(route.stepCount) 步，总消耗 \(route.totalCost) 移动力，\(penaltyText)\(routeRiskText(for: threatenedSteps))\(fireExposureText())。"
     }
 
     private func routeRiskText(for threatenedSteps: [RouteStepPreview]) -> String {
@@ -3165,6 +3220,23 @@ private struct FocusedCommandPreviewPanel: View {
         let extraCount = previews.count - 1
         let extraText = extraCount > 0 ? "，另有 \(extraCount) 个目标" : ""
         return "移动后最佳目标 \(best.targetName)：造成 \(best.damage) 伤害，\(result)\(counter)\(extraText)。"
+    }
+
+    private func fireExposureText() -> String {
+        guard let preview = game.focusedFireExposurePreview else { return "" }
+        guard preview.riskLevel != .none else {
+            return "，终点 \(preview.riskLevel.shortTitle)，无潜在伤害"
+        }
+        let sources = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
+        let sourceText = sources.isEmpty ? "" : "，主要来源 \(sources)"
+        let destroyedText = preview.canBeDestroyedByCombinedFire ? "，可能被合计火力击毁" : ""
+        return "，终点 \(preview.riskLevel.shortTitle) \(preview.riskLevel.title)，潜在承伤 \(preview.totalPotentialDamage)，预计剩余 \(preview.projectedHPAfterExposure)\(sourceText)\(destroyedText)"
+    }
+
+    private func safeEngagementSuggestionText(currentRoute: MovementRoute) -> String {
+        guard let option = game.focusedSafeEngagementOptions.first,
+              option.route.destination != currentRoute.destination else { return "" }
+        return "安全接敌建议：q\(option.route.destination.q),r\(option.route.destination.r)，\(option.exposure.riskLevel.shortTitle)，潜在承伤 \(option.exposure.totalPotentialDamage)。"
     }
 
     private func attackPositionText() -> String {
@@ -3572,6 +3644,7 @@ private struct MapLegendView: View {
                 LegendItem(color: .yellow, label: "选中")
                 LegendItem(color: .cyan, label: "步序/消耗", symbol: "1")
                 LegendItem(color: .red.opacity(0.82), label: "路线风险", symbol: "!")
+                LegendItem(color: FireRiskLevel.high.accentColor, label: "火力风险", symbol: "HIGH")
                 LegendItem(color: .red, label: "攻击预估", symbol: "A")
                 LegendItem(color: .orange.opacity(0.86), label: "移动后目标", symbol: "NX")
                 LegendItem(color: .orange.opacity(0.76), label: "攻击位", symbol: "POS")
@@ -3907,6 +3980,38 @@ private extension MissionObjectiveState {
             Color(red: 0.42, green: 0.78, blue: 0.40)
         case .failed:
             Color(red: 0.86, green: 0.28, blue: 0.22)
+        }
+    }
+}
+
+private extension FireRiskLevel {
+    var accentColor: Color {
+        switch self {
+        case .none:
+            Color(red: 0.42, green: 0.74, blue: 0.56)
+        case .low:
+            Color(red: 0.32, green: 0.68, blue: 0.86)
+        case .medium:
+            Color(red: 0.95, green: 0.68, blue: 0.24)
+        case .high:
+            Color(red: 0.88, green: 0.34, blue: 0.18)
+        case .critical:
+            Color(red: 0.78, green: 0.10, blue: 0.14)
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .none:
+            "shield.checkered"
+        case .low:
+            "shield"
+        case .medium:
+            "exclamationmark.triangle.fill"
+        case .high:
+            "flame.fill"
+        case .critical:
+            "burst.fill"
         }
     }
 }

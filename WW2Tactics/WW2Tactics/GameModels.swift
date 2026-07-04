@@ -694,6 +694,80 @@ struct PostMoveAttackPreview: Identifiable, Equatable {
     var id: BattleUnit.ID { targetID }
 }
 
+enum FireRiskLevel: String, CaseIterable, Identifiable {
+    case none
+    case low
+    case medium
+    case high
+    case critical
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .none: "无暴露"
+        case .low: "低风险"
+        case .medium: "中风险"
+        case .high: "高风险"
+        case .critical: "致命风险"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .none: "SAFE"
+        case .low: "LOW"
+        case .medium: "MED"
+        case .high: "HIGH"
+        case .critical: "CRIT"
+        }
+    }
+
+    var sortRank: Int {
+        switch self {
+        case .none: 0
+        case .low: 1
+        case .medium: 2
+        case .high: 3
+        case .critical: 4
+        }
+    }
+}
+
+struct FireExposureSourcePreview: Identifiable, Equatable {
+    let sourceID: BattleUnit.ID
+    let sourceName: String
+    let sourceKind: UnitKind
+    let distance: Int
+    let range: Int
+    let potentialDamage: Int
+
+    var id: BattleUnit.ID { sourceID }
+}
+
+struct PostMoveFireExposurePreview: Identifiable, Equatable {
+    let coordinate: HexCoordinate
+    let currentHP: Int
+    let projectedHPAfterExposure: Int
+    let totalPotentialDamage: Int
+    let highestSingleDamage: Int
+    let sources: [FireExposureSourcePreview]
+    let riskLevel: FireRiskLevel
+    let canBeDestroyedBySingleSource: Bool
+    let canBeDestroyedByCombinedFire: Bool
+
+    var id: String { coordinate.id }
+}
+
+struct SafeEngagementOption: Identifiable, Equatable {
+    let route: MovementRoute
+    let exposure: PostMoveFireExposurePreview
+    let targetID: BattleUnit.ID
+    let targetName: String
+
+    var id: String { "\(targetID.uuidString)-\(route.destination.id)" }
+}
+
 enum MapCommandPreview: Equatable {
     case inspectTerrain(terrainName: String)
     case selectedUnit(unitName: String)

@@ -1294,6 +1294,97 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(previews.first?.willDestroy, expectedCombat.willDestroyDefender)
     }
 
+    func testFireExposurePreviewMatchesEnemyCombatPreviewFromDestination() throws {
+        let game = GameState(scenario: Self.postMoveAttackScenario())
+        let tank = try XCTUnwrap(game.units.first { $0.name == "机动装甲" })
+        let target = try XCTUnwrap(game.units.first { $0.name == "前方守军" })
+        let destination = HexCoordinate(q: 3, r: 0)
+        let startingLogCount = game.battleLog.count
+
+        var movedDefender = tank
+        movedDefender.position = destination
+        movedDefender.tacticalStatus = .normal
+        movedDefender.isEntrenched = false
+        let expectedCombat = try XCTUnwrap(game.combatPreview(attacker: target, defender: movedDefender))
+        let exposure = try XCTUnwrap(game.fireExposurePreview(for: tank, at: destination))
+
+        XCTAssertEqual(exposure.coordinate, destination)
+        XCTAssertEqual(exposure.currentHP, tank.hp)
+        XCTAssertEqual(exposure.sources.map(\.sourceID), [target.id])
+        XCTAssertEqual(exposure.sources.first?.sourceName, target.name)
+        XCTAssertEqual(exposure.sources.first?.sourceKind, target.kind)
+        XCTAssertEqual(exposure.sources.first?.distance, 1)
+        XCTAssertEqual(exposure.sources.first?.range, target.range)
+        XCTAssertEqual(exposure.sources.first?.potentialDamage, expectedCombat.damage)
+        XCTAssertEqual(exposure.totalPotentialDamage, expectedCombat.damage)
+        XCTAssertEqual(exposure.highestSingleDamage, expectedCombat.damage)
+        XCTAssertEqual(exposure.projectedHPAfterExposure, max(0, tank.hp - expectedCombat.damage))
+        XCTAssertNotEqual(exposure.riskLevel, .none)
+
+        let unchangedTank = try XCTUnwrap(game.units.first { $0.id == tank.id })
+        XCTAssertEqual(unchangedTank.position, tank.position)
+        XCTAssertEqual(unchangedTank.hp, tank.hp)
+        XCTAssertFalse(unchangedTank.hasMoved)
+        XCTAssertFalse(unchangedTank.hasAttacked)
+        XCTAssertEqual(game.battleLog.count, startingLogCount)
+    }
+
+    func testFireExposurePreviewReportsNoRiskAndCriticalRisk() throws {
+        let safeGame = GameState(scenario: Self.postMoveAttackScenario())
+        let safeTank = try XCTUnwrap(safeGame.units.first { $0.name == "机动装甲" })
+        let safeExposure = try XCTUnwrap(safeGame.fireExposurePreview(for: safeTank, at: HexCoordinate(q: 1, r: 0)))
+
+        XCTAssertEqual(safeExposure.riskLevel, .none)
+        XCTAssertTrue(safeExposure.sources.isEmpty)
+        XCTAssertEqual(safeExposure.totalPotentialDamage, 0)
+        XCTAssertEqual(safeExposure.projectedHPAfterExposure, safeTank.hp)
+
+        var criticalScenario = Self.postMoveAttackScenario()
+        let tankIndex = try XCTUnwrap(criticalScenario.units.firstIndex { $0.name == "机动装甲" })
+        criticalScenario.units[tankIndex].hp = 10
+        let criticalGame = GameState(scenario: criticalScenario)
+        let criticalTank = try XCTUnwrap(criticalGame.units.first { $0.name == "机动装甲" })
+        let criticalExposure = try XCTUnwrap(criticalGame.fireExposurePreview(for: criticalTank, at: HexCoordinate(q: 3, r: 0)))
+
+        XCTAssertEqual(criticalExposure.riskLevel, .critical)
+        XCTAssertTrue(criticalExposure.canBeDestroyedByCombinedFire)
+        XCTAssertEqual(criticalExposure.projectedHPAfterExposure, 0)
+    }
+
+    func testSafeEngagementOptionsPreferLowerExposureWithoutChangingDefaultApproach() throws {
+        let game = GameState(scenario: Self.safeEngagementScenario())
+        let tank = try XCTUnwrap(game.units.first { $0.name == "接敌装甲" })
+        let target = try XCTUnwrap(game.units.first { $0.name == "主目标" })
+        let defaultDestination = HexCoordinate(q: 3, r: 0)
+        let saferDestination = HexCoordinate(q: 3, r: 1)
+
+        game.handlePrimaryAction(on: tank.position)
+        game.handlePrimaryAction(on: target.position)
+
+        let defaultRoute = try XCTUnwrap(game.focusedAttackPositionRoute)
+        XCTAssertEqual(defaultRoute.destination, defaultDestination)
+        XCTAssertEqual(game.focusedFireExposurePreview?.coordinate, defaultDestination)
+
+        let options = game.focusedSafeEngagementOptions
+        XCTAssertEqual(options.count, game.focusedAttackPositionRoutes.count)
+        XCTAssertEqual(options.first?.route.destination, saferDestination)
+        XCTAssertLessThan(
+            try XCTUnwrap(options.first?.exposure.totalPotentialDamage),
+            try XCTUnwrap(game.focusedFireExposurePreview?.totalPotentialDamage)
+        )
+        XCTAssertTrue(options.allSatisfy { option in
+            game.focusedAttackPositionRoutes.contains(option.route)
+        })
+
+        game.executeFocusedCommand()
+
+        let movedTank = try XCTUnwrap(game.units.first { $0.id == tank.id })
+        XCTAssertEqual(movedTank.position, defaultDestination)
+        XCTAssertNotEqual(movedTank.position, saferDestination)
+        XCTAssertFalse(movedTank.hasAttacked)
+        XCTAssertEqual(game.focusedCoordinate, target.position)
+    }
+
     func testExecuteFocusedCommandRunsMoveAttackAndApproachOrders() throws {
         let moveGame = GameState(scenario: Self.postMoveAttackScenario())
         let moveTank = try XCTUnwrap(moveGame.units.first { $0.name == "机动装甲" })
@@ -1894,6 +1985,67 @@ final class GameStateTests: XCTestCase {
                     faction: .axis,
                     position: HexCoordinate(q: 4, r: 0),
                     hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func safeEngagementScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for r in -1..<2 {
+            for q in 0..<5 {
+                var tile = TerrainTile(
+                    coordinate: HexCoordinate(q: q, r: r),
+                    terrain: .road
+                )
+                if q == 0 && r == 0 {
+                    tile.objectiveName = "接敌出发点"
+                    tile.owner = .allies
+                } else if q == 4 && r == 0 {
+                    tile.objectiveName = "敌方阵地"
+                    tile.owner = .axis
+                }
+                tiles.append(tile)
+            }
+        }
+
+        return Scenario(
+            id: "safe-engagement-test",
+            name: "安全接敌测试",
+            year: "1944",
+            briefing: "测试接敌候选会按火力暴露风险排序。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 3,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "接敌装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil,
+                    morale: 80
+                ),
+                BattleUnit(
+                    name: "主目标",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 4, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "侧翼装甲",
+                    kind: .tank,
+                    faction: .axis,
+                    position: HexCoordinate(q: 4, r: -1),
+                    hp: UnitKind.tank.baseHP,
                     commander: nil
                 )
             ],

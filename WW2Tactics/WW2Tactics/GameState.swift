@@ -121,6 +121,19 @@ final class GameState: ObservableObject {
         return postMoveAttackPreviews(for: selectedUnit, to: route.destination)
     }
 
+    var focusedFireExposurePreview: PostMoveFireExposurePreview? {
+        guard let selectedUnit else { return nil }
+        if let route = focusedMovementRoute {
+            return fireExposurePreview(for: selectedUnit, at: route.destination)
+        }
+        guard let route = focusedAttackPositionRoute else { return nil }
+        return fireExposurePreview(for: selectedUnit, at: route.destination)
+    }
+
+    var focusedThreatExposurePreview: PostMoveFireExposurePreview? {
+        focusedFireExposurePreview
+    }
+
     var focusedAttackPositionRoutes: [MovementRoute] {
         guard let selectedUnit,
               let focusedUnit,
@@ -131,6 +144,14 @@ final class GameState: ObservableObject {
 
     var focusedAttackPositionRoute: MovementRoute? {
         focusedAttackPositionRoutes.first
+    }
+
+    var focusedSafeEngagementOptions: [SafeEngagementOption] {
+        guard let selectedUnit,
+              let focusedUnit,
+              focusedUnit.faction != selectedUnit.faction,
+              !attackableTiles(for: selectedUnit).contains(focusedUnit.position) else { return [] }
+        return safeEngagementOptions(for: selectedUnit, against: focusedUnit)
     }
 
     var objectiveTiles: [TerrainTile] {
@@ -791,6 +812,66 @@ final class GameState: ObservableObject {
             .sorted(by: postMoveAttackPreviewSort)
     }
 
+    func fireExposurePreview(for unit: BattleUnit, at coordinate: HexCoordinate) -> PostMoveFireExposurePreview? {
+        guard unit.canMove,
+              movementRoute(for: unit, to: coordinate) != nil else { return nil }
+
+        var movedUnit = unit
+        movedUnit.position = coordinate
+        movedUnit.tacticalStatus = .normal
+        movedUnit.isEntrenched = false
+
+        let sources = threateningEnemies(against: unit.faction, at: coordinate)
+            .compactMap { source -> FireExposureSourcePreview? in
+                guard let preview = combatPreview(attacker: source, defender: movedUnit) else { return nil }
+                return FireExposureSourcePreview(
+                    sourceID: source.id,
+                    sourceName: source.name,
+                    sourceKind: source.kind,
+                    distance: source.position.distance(to: coordinate),
+                    range: source.range,
+                    potentialDamage: preview.damage
+                )
+            }
+            .sorted(by: fireExposureSourcePreviewSort)
+        let totalPotentialDamage = sources.map(\.potentialDamage).reduce(0, +)
+        let highestSingleDamage = sources.map(\.potentialDamage).max() ?? 0
+        let projectedHPAfterExposure = max(0, unit.hp - totalPotentialDamage)
+        let canBeDestroyedBySingleSource = highestSingleDamage >= unit.hp && !sources.isEmpty
+        let canBeDestroyedByCombinedFire = totalPotentialDamage >= unit.hp && !sources.isEmpty
+
+        return PostMoveFireExposurePreview(
+            coordinate: coordinate,
+            currentHP: unit.hp,
+            projectedHPAfterExposure: projectedHPAfterExposure,
+            totalPotentialDamage: totalPotentialDamage,
+            highestSingleDamage: highestSingleDamage,
+            sources: sources,
+            riskLevel: fireRiskLevel(
+                currentHP: unit.hp,
+                totalPotentialDamage: totalPotentialDamage,
+                highestSingleDamage: highestSingleDamage,
+                sourceCount: sources.count
+            ),
+            canBeDestroyedBySingleSource: canBeDestroyedBySingleSource,
+            canBeDestroyedByCombinedFire: canBeDestroyedByCombinedFire
+        )
+    }
+
+    func safeEngagementOptions(for unit: BattleUnit, against target: BattleUnit) -> [SafeEngagementOption] {
+        attackPositionRoutes(for: unit, against: target)
+            .compactMap { route in
+                guard let exposure = fireExposurePreview(for: unit, at: route.destination) else { return nil }
+                return SafeEngagementOption(
+                    route: route,
+                    exposure: exposure,
+                    targetID: target.id,
+                    targetName: target.name
+                )
+            }
+            .sorted(by: safeEngagementOptionSort)
+    }
+
     func mapActionHint(for coordinate: HexCoordinate) -> MapActionHint {
         guard winner == nil else { return .none }
 
@@ -1034,15 +1115,16 @@ final class GameState: ObservableObject {
             let terrainName = tile(at: coordinate)?.terrain.title ?? "目标格"
             let penaltyText = route.controlZonePenalty > 0 ? "，含敌方控制区 +\(route.controlZonePenalty)" : ""
             let threatText = threatExposureText(for: selectedUnit.faction, at: coordinate)
+            let fireRiskText = fireExposureBriefText(for: selectedUnit, at: coordinate)
             let opportunities = postMoveAttackOpportunities(for: selectedUnit, to: coordinate)
             if opportunities.isEmpty {
-                return "\(selectedUnit.name) 可进入 \(terrainName)，消耗 \(route.totalCost) 移动力\(penaltyText)\(threatText)。"
+                return "\(selectedUnit.name) 可进入 \(terrainName)，消耗 \(route.totalCost) 移动力\(penaltyText)\(threatText)\(fireRiskText)。"
             }
 
             let names = opportunities.prefix(2).map(\.name).joined(separator: "、")
             let extraCount = opportunities.count - min(opportunities.count, 2)
             let extraText = extraCount > 0 ? "等 \(opportunities.count) 个目标" : ""
-            return "\(selectedUnit.name) 可进入 \(terrainName)，消耗 \(route.totalCost) 移动力\(penaltyText)\(threatText)，移动后可攻击 \(names)\(extraText)。"
+            return "\(selectedUnit.name) 可进入 \(terrainName)，消耗 \(route.totalCost) 移动力\(penaltyText)\(threatText)\(fireRiskText)，移动后可攻击 \(names)\(extraText)。"
         }
 
         return tileMessage(for: coordinate)
@@ -1060,7 +1142,8 @@ final class GameState: ObservableObject {
         case let .approachAttack(unitName, defenderName, route):
             let penaltyText = route.controlZonePenalty > 0 ? "，含敌方控制区 +\(route.controlZonePenalty)" : ""
             let threatText = selectedUnit.map { threatExposureText(for: $0.faction, at: route.destination) } ?? ""
-            return "\(defenderName) 射程外，右键命令 \(unitName) 进入 q\(route.destination.q),r\(route.destination.r) 攻击位，消耗 \(route.totalCost) 移动力\(penaltyText)\(threatText)。"
+            let fireRiskText = selectedUnit.map { fireExposureBriefText(for: $0, at: route.destination) } ?? ""
+            return "\(defenderName) 射程外，右键命令 \(unitName) 进入 q\(route.destination.q),r\(route.destination.r) 攻击位，消耗 \(route.totalCost) 移动力\(penaltyText)\(threatText)\(fireRiskText)。"
         case let .enemyOutOfRange(defenderName, distance, range):
             return "\(defenderName) 距离 \(distance)，超出当前射程 \(range)。"
         case let .enemyUnavailable(defenderName, distance, range):
@@ -1343,6 +1426,60 @@ final class GameState: ObservableObject {
         return left.targetName < right.targetName
     }
 
+    private func fireExposureSourcePreviewSort(
+        _ left: FireExposureSourcePreview,
+        _ right: FireExposureSourcePreview
+    ) -> Bool {
+        if left.potentialDamage != right.potentialDamage {
+            return left.potentialDamage > right.potentialDamage
+        }
+        if left.distance != right.distance {
+            return left.distance < right.distance
+        }
+        if left.sourceKind != right.sourceKind {
+            return left.sourceKind.sortOrder < right.sourceKind.sortOrder
+        }
+        return left.sourceName < right.sourceName
+    }
+
+    private func safeEngagementOptionSort(_ left: SafeEngagementOption, _ right: SafeEngagementOption) -> Bool {
+        if left.exposure.riskLevel.sortRank != right.exposure.riskLevel.sortRank {
+            return left.exposure.riskLevel.sortRank < right.exposure.riskLevel.sortRank
+        }
+        if left.exposure.totalPotentialDamage != right.exposure.totalPotentialDamage {
+            return left.exposure.totalPotentialDamage < right.exposure.totalPotentialDamage
+        }
+        if left.exposure.highestSingleDamage != right.exposure.highestSingleDamage {
+            return left.exposure.highestSingleDamage < right.exposure.highestSingleDamage
+        }
+        if left.route.totalCost != right.route.totalCost {
+            return left.route.totalCost < right.route.totalCost
+        }
+        if left.route.stepCount != right.route.stepCount {
+            return left.route.stepCount < right.route.stepCount
+        }
+        return left.route.destination.id < right.route.destination.id
+    }
+
+    private func fireRiskLevel(
+        currentHP: Int,
+        totalPotentialDamage: Int,
+        highestSingleDamage: Int,
+        sourceCount: Int
+    ) -> FireRiskLevel {
+        guard sourceCount > 0, totalPotentialDamage > 0 else { return .none }
+        if highestSingleDamage >= currentHP || totalPotentialDamage >= currentHP {
+            return .critical
+        }
+        if totalPotentialDamage * 100 >= currentHP * 50 || sourceCount >= 3 {
+            return .high
+        }
+        if totalPotentialDamage * 100 >= currentHP * 25 {
+            return .medium
+        }
+        return .low
+    }
+
     private func objectiveAdvancePlans(for unit: BattleUnit) -> [ObjectiveAdvancePlan] {
         guard unit.faction == activeFaction,
               unit.canMove,
@@ -1519,6 +1656,12 @@ final class GameState: ObservableObject {
         let extraCount = threats.count - min(threats.count, 2)
         let extraText = extraCount > 0 ? "等 \(threats.count) 支敌军" : ""
         return "，暴露在 \(names)\(extraText) 火力下"
+    }
+
+    private func fireExposureBriefText(for unit: BattleUnit, at coordinate: HexCoordinate) -> String {
+        guard let preview = fireExposurePreview(for: unit, at: coordinate) else { return "" }
+        guard preview.riskLevel != .none else { return "，无敌火暴露" }
+        return "，\(preview.riskLevel.title)：潜在 -\(preview.totalPotentialDamage)，预计剩 \(preview.projectedHPAfterExposure)"
     }
 
     private func shouldPreserveObjectiveGuidance(for route: MovementRoute, unit: BattleUnit) -> Bool {
