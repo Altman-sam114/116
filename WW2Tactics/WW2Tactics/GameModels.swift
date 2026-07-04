@@ -703,6 +703,36 @@ struct ReinforcementResultSummary: Identifiable, Equatable {
     let commandPointsAfterReinforcement: Int
 }
 
+struct AIPhaseSummary: Identifiable, Equatable {
+    let id = UUID()
+    let faction: Faction
+    let turn: Int
+    let startingCommandPoints: Int
+    let endingCommandPoints: Int
+    let reinforcements: Int
+    let deployments: Int
+    let tacticalCommands: Int
+    let attacks: Int
+    let moves: Int
+    let objectivesCaptured: Int
+    let enemyUnitsDestroyed: Int
+    let friendlyUnitsDestroyed: Int
+    let damageDealt: Int
+    let damageTaken: Int
+
+    var totalActions: Int {
+        reinforcements + deployments + tacticalCommands + attacks + moves
+    }
+
+    var logisticsActions: Int {
+        reinforcements + deployments
+    }
+
+    var commandPointDelta: Int {
+        endingCommandPoints - startingCommandPoints
+    }
+}
+
 struct DeploymentSite: Identifiable, Equatable {
     let coordinate: HexCoordinate
     let sourceObjectiveName: String

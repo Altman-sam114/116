@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.8 正在推进整补与增援结果摘要，已持续增强路线预判、火力风险、战斗/战术/据点/后勤结果反馈和 OBJ/POS 操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.9 正在推进 AI 回合行动摘要，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈和 OBJ/POS 操作可读性。
 
 ## 历史记录
 
@@ -561,3 +561,43 @@
 
 - 后勤结果摘要仍是静态回放，不包含动画、音效或真实美术资产。
 - 本轮不改变部署地点算法、部署成本、整补成本、恢复量、AI 后勤优先级或胜负条件。
+
+### v1.9 / AI 回合行动摘要
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 `AIPhaseSummary`，记录 AI 回合的阵营、回合、AI 开始/结束指令点、主动整补、部署、战术命令、攻击、移动、占点、歼灭、损失、对敌伤害和己方承伤。
+- `GameState` 新增 `latestAIPhaseSummary` 和私有 AI phase 采样/计数器；`endTurn()` 在轴心国获得收入后采样 baseline，`runAxisAI()` 成功动作路径计数，AI 完成后用前后状态差异生成摘要。
+- 被动据点休整、玩家预览、聚焦和失败命令不会生成或计入 AI 回合摘要；重开/切战役会清理摘要和内部记录器。
+- 侧栏在普通攻击、战术命令、据点占领、部署、整补等单项结果卡之后显示 AI 回合摘要卡，再显示 battleLog，避免遮挡最新单项结果。
+- 补充 XCTest 和规则 smoke test，覆盖 AI 战术命令、全速接敌后攻击、部署、主动整补、占点、歼灭、损失、重开/切战役清理以及玩家预览/失败操作不生成摘要。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.9（AI回合行动摘要）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions 云端结果包：待本轮 `main` push 后由 Agent C 下载并核对。
+
+遗留事项：
+
+- AI 回合摘要仍是静态总览卡，不包含逐行动时间线、动画、音效或真实美术资产。
+- 本轮不改变 AI 优先级、路径选择、攻击目标选择、战斗数值、部署/整补成本、胜负条件或回合流程。

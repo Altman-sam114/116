@@ -1105,20 +1105,58 @@ struct RulesSmokeTest {
                 require(axisCommandTargetAfter.morale < axisCommandTarget.morale, "axis AI barrage should suppress target morale")
                 require(axisCommandArtilleryAfter.hp == axisCommandArtillery.hp, "axis AI barrage should not take counterattack damage")
                 require(axisCommandArtilleryAfter.hasMoved && axisCommandArtilleryAfter.hasAttacked, "axis AI barrage should spend artillery action")
-            require(
-                axisCommandGame.commandPoints(for: .axis) < 8 + axisCommandGame.commandIncome(for: .axis),
-                "axis AI barrage should spend command points"
+                require(
+                    axisCommandGame.commandPoints(for: .axis) < 8 + axisCommandGame.commandIncome(for: .axis),
+                    "axis AI barrage should spend command points"
+                )
+                require(axisCommandGame.battleLog.contains { $0.contains("火炮弹幕") }, "axis AI barrage should be logged")
+                guard let axisCommandSummary = axisCommandGame.latestTacticalCommandResult else {
+                    require(false, "axis AI barrage should publish tactical command result summary")
+                    return
+                }
+                require(axisCommandSummary.command == .artilleryBarrage, "axis AI summary should identify barrage")
+                require(axisCommandSummary.caster.unitID == axisCommandArtillery.id, "axis AI summary should identify caster")
+                require(axisCommandSummary.target.unitID == axisCommandTarget.id, "axis AI summary should identify target")
+                require(axisCommandSummary.caster.faction == .axis, "axis AI summary should record caster faction")
+                guard let axisCommandPhaseSummary = axisCommandGame.latestAIPhaseSummary else {
+                    require(false, "axis tactical command turn should publish AI phase summary")
+                    return
+                }
+                require(axisCommandPhaseSummary.faction == .axis, "AI phase summary should record axis faction")
+                require(axisCommandPhaseSummary.tacticalCommands >= 1, "AI phase summary should count tactical commands")
+                require(axisCommandPhaseSummary.damageDealt == axisCommandTarget.hp - axisCommandTargetAfter.hp, "AI phase summary should record tactical command damage")
+            }
+
+            let axisDeploymentPhaseGame = GameState(
+                scenario: axisDeploymentResultScenario(),
+                commandPoints: [.allies: 6, .axis: 1]
             )
-            require(axisCommandGame.battleLog.contains { $0.contains("火炮弹幕") }, "axis AI barrage should be logged")
-            guard let axisCommandSummary = axisCommandGame.latestTacticalCommandResult else {
-                require(false, "axis AI barrage should publish tactical command result summary")
+            axisDeploymentPhaseGame.endTurn()
+            guard let axisDeploymentPhaseSummary = axisDeploymentPhaseGame.latestAIPhaseSummary else {
+                require(false, "axis deployment turn should publish AI phase summary")
                 return
             }
-            require(axisCommandSummary.command == .artilleryBarrage, "axis AI summary should identify barrage")
-            require(axisCommandSummary.caster.unitID == axisCommandArtillery.id, "axis AI summary should identify caster")
-            require(axisCommandSummary.target.unitID == axisCommandTarget.id, "axis AI summary should identify target")
-            require(axisCommandSummary.caster.faction == .axis, "axis AI summary should record caster faction")
+            require(axisDeploymentPhaseSummary.faction == .axis, "deployment AI phase summary should record axis faction")
+            require(axisDeploymentPhaseSummary.deployments == 1, "deployment AI phase summary should count deployments")
+            require(axisDeploymentPhaseSummary.reinforcements == 0, "deployment AI phase summary should not count passive rest as reinforcement")
+            require(axisDeploymentPhaseSummary.startingCommandPoints == 6, "deployment AI phase summary should record post-income command points")
+            require(axisDeploymentPhaseSummary.endingCommandPoints == axisDeploymentPhaseGame.commandPoints(for: .axis), "deployment AI phase summary should record ending command points")
+            require(axisDeploymentPhaseSummary.damageDealt == 0, "deployment-only AI phase should not record damage")
+
+            let axisReinforcementPhaseGame = GameState(
+                scenario: axisReinforcementResultScenario(),
+                commandPoints: [.allies: 6, .axis: 0]
+            )
+            axisReinforcementPhaseGame.endTurn()
+            guard let axisReinforcementPhaseSummary = axisReinforcementPhaseGame.latestAIPhaseSummary else {
+                require(false, "axis reinforcement turn should publish AI phase summary")
+                return
             }
+            require(axisReinforcementPhaseSummary.faction == .axis, "reinforcement AI phase summary should record axis faction")
+            require(axisReinforcementPhaseSummary.reinforcements == 1, "reinforcement AI phase summary should count one active reinforcement")
+            require(axisReinforcementPhaseSummary.deployments == 0, "reinforcement AI phase summary should not count blocked deployment")
+            require(axisReinforcementPhaseSummary.damageDealt == 0, "reinforcement-only AI phase should not record damage dealt")
+            require(axisReinforcementPhaseSummary.damageTaken == 0, "reinforcement-only AI phase should not record damage taken")
 
             let axisAdvanceGame = GameState(
                 scenario: axisFullAdvanceScenario(),
@@ -1139,6 +1177,21 @@ struct RulesSmokeTest {
                 require(advanceReconAfter.position == HexCoordinate(q: 1, r: 0), "axis AI should use full movement to reach attack position")
                 require(advanceTargetAfter.hp < advanceTarget.hp, "axis AI should attack after full advance")
                 require(advanceReconAfter.hasMoved && advanceReconAfter.hasAttacked, "axis AI full advance should spend movement and attack")
+                guard let axisAdvanceCombatSummary = axisAdvanceGame.latestCombatResult else {
+                    require(false, "axis advance turn should publish combat result summary")
+                    return
+                }
+                guard let axisAdvancePhaseSummary = axisAdvanceGame.latestAIPhaseSummary else {
+                    require(false, "axis advance turn should publish AI phase summary")
+                    return
+                }
+                require(axisAdvancePhaseSummary.moves == 1, "AI phase summary should count full advance movement")
+                require(axisAdvancePhaseSummary.attacks == 1, "AI phase summary should count post-move attack")
+                require(
+                    axisAdvancePhaseSummary.damageDealt == axisAdvanceCombatSummary.damage,
+                    "AI phase summary should record move-attack damage: expected \(axisAdvanceCombatSummary.damage), got \(axisAdvancePhaseSummary.damageDealt)"
+                )
+                require(advanceTarget.hp - advanceTargetAfter.hp >= axisAdvancePhaseSummary.damageDealt, "AI phase damage should not exceed final target HP loss")
             }
 
             let axisPursuitGame = GameState(
@@ -1164,6 +1217,13 @@ struct RulesSmokeTest {
                 require(axisPursuitReserveAfterAI.hp == axisPursuitReserve.hp, "axis pursuit should not grant a second attack")
                 require(axisPursuitTankAfterAI.hasMoved && axisPursuitTankAfterAI.hasAttacked, "axis pursuit should spend remaining movement")
                 require(axisPursuitGame.battleLog.contains { $0.contains("可继续机动") }, "axis maneuver pursuit should be logged")
+                guard let axisPursuitPhaseSummary = axisPursuitGame.latestAIPhaseSummary else {
+                    require(false, "axis pursuit turn should publish AI phase summary")
+                    return
+                }
+                require(axisPursuitPhaseSummary.objectivesCaptured == 1, "AI phase summary should count captured objective")
+                require(axisPursuitPhaseSummary.enemyUnitsDestroyed == 1, "AI phase summary should count destroyed allied units")
+                require(axisPursuitPhaseSummary.friendlyUnitsDestroyed == 0, "AI phase summary should count zero axis losses")
             }
 
             let objectiveRewardGame = GameState(
@@ -2189,6 +2249,94 @@ struct RulesSmokeTest {
                     kind: .infantry,
                     faction: .axis,
                     position: HexCoordinate(q: 4, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func axisDeploymentResultScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<5 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "盟军后方"
+                tile.owner = .allies
+            } else if q == 4 {
+                tile.objectiveName = "轴心补给点"
+                tile.owner = .axis
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "axis-deployment-result-test",
+            name: "轴心部署结果测试",
+            year: "1944",
+            briefing: "测试轴心 AI 部署会写入后勤结果摘要。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "远离前线守军",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func axisReinforcementResultScenario() -> Scenario {
+        var axisObjective = TerrainTile(
+            coordinate: HexCoordinate(q: 0, r: 0),
+            terrain: .plains
+        )
+        axisObjective.objectiveName = "轴心整补点"
+        axisObjective.owner = .axis
+
+        let forwardTile = TerrainTile(
+            coordinate: HexCoordinate(q: 1, r: 0),
+            terrain: .plains
+        )
+
+        return Scenario(
+            id: "axis-reinforcement-result-test",
+            name: "轴心整补结果测试",
+            year: "1944",
+            briefing: "测试轴心 AI 主动整补会写入回合摘要。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 2,
+            mapRows: 1,
+            tiles: [axisObjective, forwardTile],
+            units: [
+                BattleUnit(
+                    name: "受损轴心守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.infantry.baseHP - 28,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "封锁盟军",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 1, r: 0),
                     hp: UnitKind.infantry.baseHP,
                     commander: nil
                 )

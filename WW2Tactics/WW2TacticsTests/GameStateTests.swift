@@ -754,7 +754,118 @@ final class GameStateTests: XCTestCase {
             XCTAssertTrue(axisTankAfterAI.hasMoved)
             XCTAssertTrue(axisTankAfterAI.hasAttacked)
             XCTAssertTrue(game.battleLog.contains { $0.contains("可继续机动") })
+            let summary = try XCTUnwrap(game.latestAIPhaseSummary)
+            XCTAssertEqual(summary.objectivesCaptured, 1)
+            XCTAssertEqual(summary.enemyUnitsDestroyed, 1)
+            XCTAssertEqual(summary.friendlyUnitsDestroyed, 0)
         }
+    }
+
+    func testAxisAIPhaseSummaryRecordsTacticalCommand() throws {
+        let game = GameState(
+            scenario: Self.axisTacticalCommandScenario(),
+            commandPoints: [.allies: 6, .axis: 8]
+        )
+        let alliedTarget = try XCTUnwrap(game.units.first { $0.name == "盟军指挥坦克" })
+        let startingAxisPoints = game.commandPoints(for: .axis) + game.commandIncome(for: .axis)
+
+        game.endTurn()
+
+        XCTAssertNil(game.winner)
+        let targetAfterAI = try XCTUnwrap(game.units.first { $0.id == alliedTarget.id })
+        let summary = try XCTUnwrap(game.latestAIPhaseSummary)
+        XCTAssertEqual(summary.faction, .axis)
+        XCTAssertEqual(summary.turn, 1)
+        XCTAssertEqual(summary.startingCommandPoints, startingAxisPoints)
+        XCTAssertEqual(summary.endingCommandPoints, game.commandPoints(for: .axis))
+        XCTAssertGreaterThanOrEqual(summary.tacticalCommands, 1)
+        XCTAssertEqual(summary.damageDealt, alliedTarget.hp - targetAfterAI.hp)
+        XCTAssertEqual(summary.damageTaken, 0)
+        XCTAssertEqual(summary.enemyUnitsDestroyed, 0)
+    }
+
+    func testAxisAIPhaseSummaryRecordsMoveAndAttack() throws {
+        let game = GameState(
+            scenario: Self.axisFullAdvanceScenario(),
+            commandPoints: [.allies: 6, .axis: 0]
+        )
+        let alliedInfantry = try XCTUnwrap(game.units.first { $0.name == "远端步兵" })
+
+        game.endTurn()
+
+        XCTAssertNil(game.winner)
+        let infantryAfterAI = try XCTUnwrap(game.units.first { $0.id == alliedInfantry.id })
+        let combatSummary = try XCTUnwrap(game.latestCombatResult)
+        let summary = try XCTUnwrap(game.latestAIPhaseSummary)
+        XCTAssertEqual(summary.faction, .axis)
+        XCTAssertEqual(summary.moves, 1)
+        XCTAssertEqual(summary.attacks, 1)
+        XCTAssertEqual(summary.tacticalCommands, 0)
+        XCTAssertEqual(summary.deployments, 0)
+        XCTAssertEqual(summary.reinforcements, 0)
+        XCTAssertEqual(summary.damageDealt, combatSummary.damage)
+        XCTAssertGreaterThanOrEqual(alliedInfantry.hp - infantryAfterAI.hp, summary.damageDealt)
+        XCTAssertEqual(summary.objectivesCaptured, 0)
+    }
+
+    func testAxisAIPhaseSummaryRecordsLogistics() throws {
+        let deploymentGame = GameState(
+            scenario: Self.axisDeploymentResultScenario(),
+            commandPoints: [.allies: 6, .axis: 1]
+        )
+        deploymentGame.endTurn()
+
+        XCTAssertNil(deploymentGame.winner)
+        let deploymentSummary = try XCTUnwrap(deploymentGame.latestAIPhaseSummary)
+        XCTAssertEqual(deploymentSummary.faction, .axis)
+        XCTAssertEqual(deploymentSummary.deployments, 1)
+        XCTAssertEqual(deploymentSummary.reinforcements, 0)
+        XCTAssertEqual(deploymentSummary.startingCommandPoints, 6)
+        XCTAssertEqual(deploymentSummary.endingCommandPoints, deploymentGame.commandPoints(for: .axis))
+
+        let reinforcementGame = GameState(
+            scenario: Self.axisReinforcementResultScenario(),
+            commandPoints: [.allies: 6, .axis: 0]
+        )
+        reinforcementGame.endTurn()
+
+        XCTAssertNil(reinforcementGame.winner)
+        let reinforcementSummary = try XCTUnwrap(reinforcementGame.latestAIPhaseSummary)
+        XCTAssertEqual(reinforcementSummary.reinforcements, 1)
+        XCTAssertEqual(reinforcementSummary.deployments, 0)
+        XCTAssertEqual(reinforcementSummary.damageDealt, 0)
+        XCTAssertEqual(reinforcementSummary.damageTaken, 0)
+    }
+
+    func testAIPhaseSummaryClearsOnScenarioReset() throws {
+        let game = GameState(
+            scenario: Self.axisDeploymentResultScenario(),
+            commandPoints: [.allies: 6, .axis: 1]
+        )
+        game.endTurn()
+        XCTAssertNotNil(game.latestAIPhaseSummary)
+
+        game.restart()
+
+        XCTAssertNil(game.latestAIPhaseSummary)
+        game.endTurn()
+        XCTAssertNotNil(game.latestAIPhaseSummary)
+
+        game.selectScenario(id: "normandy-1944")
+
+        XCTAssertNil(game.latestAIPhaseSummary)
+    }
+
+    func testPlayerPreviewAndFailedOrdersDoNotCreateAIPhaseSummary() throws {
+        let game = GameState()
+        game.handlePrimaryAction(on: HexCoordinate(q: 0, r: 0))
+        XCTAssertNil(game.latestAIPhaseSummary)
+
+        let lowPointGame = GameState(commandPoints: [.allies: 0, .axis: 6])
+        let site = try XCTUnwrap(lowPointGame.deploymentSites(for: .allies).first)
+        lowPointGame.deploy(kind: .infantry, at: site.coordinate)
+
+        XCTAssertNil(lowPointGame.latestAIPhaseSummary)
     }
 
     func testCombatPreviewAndTargetQueries() throws {
@@ -3352,6 +3463,52 @@ final class GameStateTests: XCTestCase {
                     kind: .infantry,
                     faction: .allies,
                     position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func axisReinforcementResultScenario() -> Scenario {
+        var axisObjective = TerrainTile(
+            coordinate: HexCoordinate(q: 0, r: 0),
+            terrain: .plains
+        )
+        axisObjective.objectiveName = "轴心整补点"
+        axisObjective.owner = .axis
+
+        let forwardTile = TerrainTile(
+            coordinate: HexCoordinate(q: 1, r: 0),
+            terrain: .plains
+        )
+
+        return Scenario(
+            id: "axis-reinforcement-result-test",
+            name: "轴心整补结果测试",
+            year: "1944",
+            briefing: "测试轴心 AI 主动整补会写入回合摘要。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 2,
+            mapRows: 1,
+            tiles: [axisObjective, forwardTile],
+            units: [
+                BattleUnit(
+                    name: "受损轴心守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.infantry.baseHP - 28,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "封锁盟军",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 1, r: 0),
                     hp: UnitKind.infantry.baseHP,
                     commander: nil
                 )

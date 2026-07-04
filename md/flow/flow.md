@@ -24,7 +24,7 @@
 职责：
 
 - 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary` 和整补后的 `ReinforcementResultSummary`。
+- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary` 和敌方回合后的 `AIPhaseSummary`。
 - 生成阿登反击战、诺曼底突破等战役初始数据。
 
 输入：
@@ -46,8 +46,8 @@
 职责：
 
 - 项目核心状态机。
-- 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、最新部署结果、最新整补结果、胜负、指令点。
-- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
+- 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、最新部署结果、最新整补结果、最新 AI 回合摘要、胜负、指令点。
+- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览和安全接敌候选。
 
 输入：
 
@@ -165,9 +165,10 @@
 ### 3.7 回合和 AI
 
 1. 玩家结束回合调用 `endTurn()`。
-2. 轴心国重置行动、获得指令点，执行 `runAxisAI()`。
-3. AI 优先整补/增援/战术命令，然后移动接敌或攻击。
-4. 盟军新回合重置行动、获得指令点，自动选择可行动单位。
+2. 轴心国重置行动、获得指令点，`beginAIPhaseRecording(for: .axis)` 采样 AI 行动前的指令点、单位 HP/存活和据点归属。
+3. 执行 `runAxisAI()`；AI 优先整补/增援/战术命令，然后移动接敌或攻击。成功整补、部署、战术命令、攻击和移动会在规则成功路径记录动作计数。
+4. `finishAIPhaseRecording()` 用前后状态差异生成 `latestAIPhaseSummary`：指令点变化、动作计数、占点、歼灭、己方损失、对敌伤害和己方承伤。被动据点休整、预览和失败动作不计入主动动作。
+5. 盟军新回合重置行动、获得指令点，自动选择可行动单位；AI 回合摘要保留在侧栏，直到重开/切战役或下一次 AI 回合覆盖。
 
 ### 3.8 战术命令结果
 
@@ -194,6 +195,14 @@
 5. 普通攻击、战术命令、据点占领、部署和整补结果五者互斥；任一成功结果会清理其他旧结果，确保侧栏只显示最近一次真实结果。
 6. AI 整补和部署复用同一路径，因此敌方回合的最新后勤动作也会生成同一类摘要；据点被动休整不写入主动整补摘要。
 
+### 3.11 AI 回合摘要
+
+1. `AIPhaseSummary` 是敌方回合总览模型，记录阵营、回合、AI 开始/结束指令点、主动整补、部署、战术命令、攻击、移动、占点、歼灭、损失、对敌伤害和己方承伤。
+2. `latestAIPhaseSummary` 只由 `GameState` 在 `endTurn()` 包裹 `runAxisAI()` 时生成；玩家聚焦、预览和失败命令不会生成摘要。
+3. 摘要的动作计数来自真实成功路径，战损和占点来自 AI phase 前后状态差异，避免 `ContentView` 二次推导规则。
+4. 侧栏展示顺序仍以普通攻击、战术命令、据点占领、部署、整补等单项结果卡优先，其后显示 AI 回合摘要卡，再显示 battleLog。
+5. `loadScenario()`、重开和切换战役会清理 `latestAIPhaseSummary` 以及内部 AI phase 记录器。
+
 ## 4. 架构边界
 
 - 规则状态必须从 `GameState` 发起和落地。
@@ -211,7 +220,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、部署/整补结果摘要：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、部署/整补结果摘要、AI 回合行动摘要：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

@@ -11,9 +11,9 @@ flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget"]
   I --> S["GameState：核心状态机"]
-  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、Deployment/ReinforcementResultSummary"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、OBJ计划、THR"]
-  R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、消息、攻击/战术/占领/后勤结果、战报、胜负"]
+  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、Deployment/ReinforcementResultSummary、AIPhaseSummary"] --> S
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、OBJ计划、THR"]
+  R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、消息、攻击/战术/占领/后勤结果、AI回合摘要、战报、胜负"]
   W --> P["@Published 状态变化"]
   P --> V
   S --> T["测试层：GameStateTests / RulesSmokeTest"]
@@ -83,7 +83,8 @@ flowchart LR
   LOG --> RES
   RES --> WIN["checkVictory / checkTurnLimit"]
   RES --> AI["runAxisAI 轴心国回合"]
-  AI --> RES
+  AI --> AIS["AIPhaseSummary：动作计数、指令点、占点、歼灭、伤害"]
+  AIS --> RES
 ```
 
 ## 4. Agent X 主控迭代流程图

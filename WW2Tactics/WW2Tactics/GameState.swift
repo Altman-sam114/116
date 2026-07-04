@@ -19,6 +19,7 @@ final class GameState: ObservableObject {
     @Published private(set) var latestObjectiveCaptureResult: ObjectiveCaptureResultSummary?
     @Published private(set) var latestDeploymentResult: DeploymentResultSummary?
     @Published private(set) var latestReinforcementResult: ReinforcementResultSummary?
+    @Published private(set) var latestAIPhaseSummary: AIPhaseSummary?
 
     private enum MapCommandInputMode {
         case directTap
@@ -37,6 +38,32 @@ final class GameState: ObservableObject {
         }
     }
 
+    private enum AIPhaseAction {
+        case reinforcement
+        case deployment
+        case tacticalCommand
+        case attack
+        case move
+    }
+
+    private struct AIPhaseActionCounts {
+        var reinforcements = 0
+        var deployments = 0
+        var tacticalCommands = 0
+        var attacks = 0
+        var moves = 0
+    }
+
+    private struct AIPhaseBaseline {
+        let faction: Faction
+        let turn: Int
+        let commandPoints: Int
+        let unitHPByID: [BattleUnit.ID: Int]
+        let unitFactionByID: [BattleUnit.ID: Faction]
+        let aliveUnitIDs: Set<BattleUnit.ID>
+        let objectiveOwnersByCoordinate: [HexCoordinate: Faction]
+    }
+
     private struct ObjectiveAdvancePlan {
         let tile: TerrainTile
         let route: MovementRoute
@@ -46,6 +73,8 @@ final class GameState: ObservableObject {
     }
 
     private var focusedSafeEngagementTargetID: BattleUnit.ID?
+    private var activeAIPhaseBaseline: AIPhaseBaseline?
+    private var activeAIPhaseActionCounts = AIPhaseActionCounts()
 
     private static let objectiveCaptureCommandReward = 3
     private static let objectiveCaptureMoraleReward = 8
@@ -739,6 +768,7 @@ final class GameState: ObservableObject {
         }
 
         appendLog(message)
+        recordAIPhaseAction(.tacticalCommand)
         updateObjectiveControl()
         checkVictory()
         selectNextReadyUnit()
@@ -1217,6 +1247,7 @@ final class GameState: ObservableObject {
         latestReinforcementResult = nil
         message = "\(site.sourceObjectiveName) 部署 \(unit.name)，消耗 \(kind.commandCost) 指令点。"
         appendLog(message)
+        recordAIPhaseAction(.deployment)
         checkVictory()
     }
 
@@ -1790,7 +1821,9 @@ final class GameState: ObservableObject {
         addCommandIncome(for: .axis)
         message = "轴心国回合开始。"
         appendLog("第 \(turn) 回合：轴心国行动。")
+        beginAIPhaseRecording(for: .axis)
         runAxisAI()
+        finishAIPhaseRecording()
 
         if winner == nil {
             resetUnits(for: .allies)
@@ -1828,6 +1861,9 @@ final class GameState: ObservableObject {
         latestObjectiveCaptureResult = nil
         latestDeploymentResult = nil
         latestReinforcementResult = nil
+        latestAIPhaseSummary = nil
+        activeAIPhaseBaseline = nil
+        activeAIPhaseActionCounts = AIPhaseActionCounts()
         commandPoints = [.allies: 6, .axis: 6]
         message = Self.openingMessage(for: newScenario)
         battleLog = [Self.openingLog(for: newScenario)]
@@ -1853,6 +1889,7 @@ final class GameState: ObservableObject {
         }
         message = "\(unit.name) 进入 \(tile(at: coordinate)?.terrain.title ?? "未知地形")\(threatExposureText(for: unit.faction, at: coordinate))。"
         appendLog(message)
+        recordAIPhaseAction(.move)
         checkVictory()
     }
 
@@ -1966,6 +2003,7 @@ final class GameState: ObservableObject {
         }
 
         appendLog(message)
+        recordAIPhaseAction(.attack)
         updateObjectiveControl()
         checkVictory()
         selectNextReadyUnit(preferredUnitID: keepsMovementAfterKill ? attackerID : nil)
@@ -2083,6 +2121,7 @@ final class GameState: ObservableObject {
         latestDeploymentResult = nil
         message = "\(unit.name) 整补 +\(recovered) 耐久，消耗 \(cost) 指令点。"
         appendLog(message)
+        recordAIPhaseAction(.reinforcement)
         selectNextReadyUnit()
     }
 
@@ -2092,6 +2131,114 @@ final class GameState: ObservableObject {
 
     private func spendCommandPoints(_ amount: Int, for faction: Faction) {
         commandPoints[faction, default: 0] = max(0, commandPoints[faction, default: 0] - amount)
+    }
+
+    private func beginAIPhaseRecording(for faction: Faction) {
+        let objectiveOwners = Dictionary(uniqueKeysWithValues: objectiveTiles.compactMap { tile -> (HexCoordinate, Faction)? in
+            guard let owner = tile.owner else { return nil }
+            return (tile.coordinate, owner)
+        })
+        activeAIPhaseBaseline = AIPhaseBaseline(
+            faction: faction,
+            turn: turn,
+            commandPoints: commandPoints(for: faction),
+            unitHPByID: Dictionary(uniqueKeysWithValues: scenario.units.map { ($0.id, max(0, $0.hp)) }),
+            unitFactionByID: Dictionary(uniqueKeysWithValues: scenario.units.map { ($0.id, $0.faction) }),
+            aliveUnitIDs: Set(scenario.units.filter { !$0.isDestroyed }.map(\.id)),
+            objectiveOwnersByCoordinate: objectiveOwners
+        )
+        activeAIPhaseActionCounts = AIPhaseActionCounts()
+    }
+
+    private func finishAIPhaseRecording() {
+        guard let baseline = activeAIPhaseBaseline else { return }
+        latestAIPhaseSummary = aiPhaseSummary(
+            from: baseline,
+            counts: activeAIPhaseActionCounts
+        )
+        activeAIPhaseBaseline = nil
+        activeAIPhaseActionCounts = AIPhaseActionCounts()
+    }
+
+    private func recordAIPhaseAction(_ action: AIPhaseAction) {
+        guard let baseline = activeAIPhaseBaseline,
+              baseline.faction == activeFaction else { return }
+
+        switch action {
+        case .reinforcement:
+            activeAIPhaseActionCounts.reinforcements += 1
+        case .deployment:
+            activeAIPhaseActionCounts.deployments += 1
+        case .tacticalCommand:
+            activeAIPhaseActionCounts.tacticalCommands += 1
+        case .attack:
+            activeAIPhaseActionCounts.attacks += 1
+        case .move:
+            activeAIPhaseActionCounts.moves += 1
+        }
+    }
+
+    private func aiPhaseSummary(
+        from baseline: AIPhaseBaseline,
+        counts: AIPhaseActionCounts
+    ) -> AIPhaseSummary {
+        let endingHPByID = Dictionary(uniqueKeysWithValues: scenario.units.map { ($0.id, max(0, $0.hp)) })
+        let enemyUnitIDs = baseline.aliveUnitIDs.filter {
+            baseline.unitFactionByID[$0] != baseline.faction
+        }
+        let friendlyUnitIDs = baseline.aliveUnitIDs.filter {
+            baseline.unitFactionByID[$0] == baseline.faction
+        }
+
+        let damageDealt = totalDamage(
+            for: enemyUnitIDs,
+            baselineHPByID: baseline.unitHPByID,
+            endingHPByID: endingHPByID
+        )
+        let damageTaken = totalDamage(
+            for: friendlyUnitIDs,
+            baselineHPByID: baseline.unitHPByID,
+            endingHPByID: endingHPByID
+        )
+        let enemyUnitsDestroyed = enemyUnitIDs.filter {
+            (endingHPByID[$0] ?? 0) <= 0
+        }.count
+        let friendlyUnitsDestroyed = friendlyUnitIDs.filter {
+            (endingHPByID[$0] ?? 0) <= 0
+        }.count
+        let objectivesCaptured = objectiveTiles.filter { tile in
+            tile.owner == baseline.faction &&
+                baseline.objectiveOwnersByCoordinate[tile.coordinate] != baseline.faction
+        }.count
+
+        return AIPhaseSummary(
+            faction: baseline.faction,
+            turn: baseline.turn,
+            startingCommandPoints: baseline.commandPoints,
+            endingCommandPoints: commandPoints(for: baseline.faction),
+            reinforcements: counts.reinforcements,
+            deployments: counts.deployments,
+            tacticalCommands: counts.tacticalCommands,
+            attacks: counts.attacks,
+            moves: counts.moves,
+            objectivesCaptured: objectivesCaptured,
+            enemyUnitsDestroyed: enemyUnitsDestroyed,
+            friendlyUnitsDestroyed: friendlyUnitsDestroyed,
+            damageDealt: damageDealt,
+            damageTaken: damageTaken
+        )
+    }
+
+    private func totalDamage<S: Sequence>(
+        for unitIDs: S,
+        baselineHPByID: [BattleUnit.ID: Int],
+        endingHPByID: [BattleUnit.ID: Int]
+    ) -> Int where S.Element == BattleUnit.ID {
+        unitIDs.reduce(0) { total, unitID in
+            let startingHP = baselineHPByID[unitID] ?? 0
+            let endingHP = endingHPByID[unitID] ?? 0
+            return total + max(0, startingHP - endingHP)
+        }
     }
 
     private func applySupplyAttrition(for faction: Faction) {

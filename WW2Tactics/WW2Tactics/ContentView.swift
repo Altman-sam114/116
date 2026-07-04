@@ -2600,6 +2600,13 @@ private struct InspectorPanel: View {
                         .overlay(Color.white.opacity(0.18))
                 }
 
+                if let aiPhaseSummary = game.latestAIPhaseSummary {
+                    AIPhaseSummaryView(summary: aiPhaseSummary)
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.18))
+                }
+
                 BattleLogView()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -4487,6 +4494,62 @@ private struct ReinforcementResultSummaryView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 7)
                 .stroke(Color.green.opacity(0.24), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct AIPhaseSummaryView: View {
+    let summary: AIPhaseSummary
+
+    private var commandPointChangeText: String {
+        summary.commandPointDelta >= 0 ? "+\(summary.commandPointDelta)" : "\(summary.commandPointDelta)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label("\(summary.faction.title)回合摘要", systemImage: "clock.arrow.circlepath")
+                    .font(.subheadline.weight(.bold))
+
+                Spacer(minLength: 8)
+
+                Text("T\(summary.turn)")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(summary.faction.accentColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundStyle(summary.faction.accentColor)
+
+            HStack(spacing: 7) {
+                CombatResultMetric(title: "行动", value: "\(summary.totalActions)", color: .white.opacity(0.86))
+                CombatResultMetric(title: "伤害", value: "-\(summary.damageDealt)", color: .orange)
+                CombatResultMetric(title: "承伤", value: summary.damageTaken > 0 ? "-\(summary.damageTaken)" : "0", color: summary.damageTaken > 0 ? .red : .white.opacity(0.76))
+            }
+
+            HStack(spacing: 7) {
+                CombatResultMetric(title: "移动", value: "\(summary.moves)", color: .cyan)
+                CombatResultMetric(title: "攻击", value: "\(summary.attacks)", color: .orange)
+                CombatResultMetric(title: "战术", value: "\(summary.tacticalCommands)", color: .purple)
+            }
+
+            HStack(spacing: 7) {
+                CombatResultMetric(title: "后勤", value: "\(summary.logisticsActions)", color: .green)
+                CombatResultMetric(title: "占点", value: "\(summary.objectivesCaptured)", color: .yellow)
+                CombatResultMetric(title: "指令", value: commandPointChangeText, color: summary.commandPointDelta < 0 ? .yellow : .white.opacity(0.82))
+            }
+
+            Label("歼灭 \(summary.enemyUnitsDestroyed) 支，损失 \(summary.friendlyUnitsDestroyed) 支，指令点 \(summary.startingCommandPoints)->\(summary.endingCommandPoints)。", systemImage: "flag.checkered")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.72))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(9)
+        .background(summary.faction.accentColor.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(summary.faction.accentColor.opacity(0.24), lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
     }
