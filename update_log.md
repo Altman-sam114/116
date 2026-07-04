@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.0 已完成路线与战斗预判强化；v1.1 正在推进火力风险与安全接敌建议。
+- 近期规划已进入 `v1（地图操作体验）`：v1.0 已完成路线与战斗预判强化；v1.1 已完成火力风险与安全接敌建议，并由 Agent C 核对 GitHub Actions artifact 验收通过。
 
 ## 历史记录
 
@@ -258,7 +258,10 @@
 - `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
 - iOS app 源码级 typecheck：通过。
 - `GameStateTests.swift` 源码级 typecheck：通过。
-- GitHub Actions 云端 artifact 验收结果以本轮 Agent C 最终核对为准。
+- GitHub Actions `WW2Tactics CI Results` run `28701311907` / attempt `1`：completed / success。
+- Artifact `ww2tactics-ci-v1.1-main-8200be0-run28701311907-attempt1`：Agent C 已下载到 `/private/tmp/ww2tactics-c-review-28701311907/`，目录大小 `1.4M`。
+- Manifest `commitSha=8200be034dff8b659ec0e70e30785b717f85a949`、`branch=main`、`runId=28701311907`、`runAttempt=1` 与 `origin/main` 当时最新功能提交一致。
+- `ci-failure-summary.md`、`junit.xml`、`rules-smoke.log`、`xcodebuild.log` 和 `WW2Tactics.xcresult` 均已核对；静态检查、规则 smoke 和 Xcode build-for-testing 均为 success，XCTest 执行按当前 CI 策略为 skipped。
 
 遗留事项：
 
