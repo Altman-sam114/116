@@ -145,10 +145,12 @@
 
 1. `objectiveAdvancePlans(for:)` 选择未占据、未归属己方的据点，并按当前距离、是否直达、剩余距离、路线消耗、步数和名称稳定排序。
 2. `objectiveAdvancePreviews(for:limit:)` 将同一套计划转换为最多 3 条 `ObjectiveAdvancePreview`，附带路线、距离变化、直达/推进状态和终点火力风险；首项必须与 OBJ 快捷目标一致。
-3. `focusNearestObjectiveTarget` 复用同一套计划首项。若可直达，聚焦据点并设置 `guidedObjectiveCoordinate`。
-4. 若不可直达，聚焦本回合推进格，同时保留最终目标据点。
-5. 普通聚焦、攻击、待命、回合切换等应清理目标引导，避免状态残留。
-6. 只有单位实际进入中立或敌方据点并改变归属时，才生成据点占领结果；远距离 OBJ 中继推进不会生成虚假占领摘要。
+3. 侧栏目标计划行点击只调用 `focusObjectiveAdvancePreview(_:)` / `focusObjectiveAdvanceTarget(coordinate:)`，由 `GameState` 重新查当前计划，避免 UI 使用过期路线。
+4. `focusNearestObjectiveTarget` 复用同一套计划首项；候选计划点击也复用同一私有聚焦 helper。若可直达，聚焦据点并设置 `guidedObjectiveCoordinate`。
+5. 若不可直达，聚焦本回合推进格，同时保留最终目标据点。
+6. 点选计划只更新 `focusedCoordinate`、`guidedObjectiveCoordinate` 和消息，不消耗行动、不移动单位、不生成结果摘要；右键或执行按钮才通过既有 MOVE 链执行。
+7. 普通聚焦、攻击、待命、回合切换等应清理目标引导，避免状态残留。
+8. 只有单位实际进入中立或敌方据点并改变归属时，才生成据点占领结果；远距离 OBJ 中继推进不会生成虚假占领摘要。
 
 ### 3.6 THR 敌火覆盖
 
@@ -198,7 +200,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进和目标推进计划摘要：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

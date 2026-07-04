@@ -1993,6 +1993,110 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.guidedObjectiveCoordinate, HexCoordinate(q: 1, r: 0))
     }
 
+    func testObjectiveAdvancePreviewFocusesSecondPlanWithoutExecuting() throws {
+        let game = GameState(scenario: Self.multipleObjectiveAdvancePreviewScenario())
+        let tank = try XCTUnwrap(game.units.first { $0.name == "计划装甲" })
+
+        game.handlePrimaryAction(on: tank.position)
+        let previews = game.objectiveAdvancePreviews(for: tank)
+        let secondPreview = try XCTUnwrap(previews.dropFirst().first)
+
+        game.focusObjectiveAdvancePreview(secondPreview)
+
+        let tankAfterFocus = try XCTUnwrap(game.scenario.units.first { $0.id == tank.id })
+        XCTAssertEqual(tankAfterFocus.position, tank.position)
+        XCTAssertFalse(tankAfterFocus.hasMoved)
+        XCTAssertEqual(game.focusedCoordinate, secondPreview.route.destination)
+        XCTAssertEqual(game.guidedObjectiveCoordinate, secondPreview.coordinate)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertTrue(game.message.contains("二号据点"))
+        XCTAssertEqual(
+            game.focusedCommandPreview,
+            .move(
+                unitName: tank.name,
+                terrainName: try XCTUnwrap(game.tile(at: secondPreview.route.destination)?.terrain.title),
+                route: secondPreview.route
+            )
+        )
+
+        game.executeFocusedCommand()
+
+        let tankAfterMove = try XCTUnwrap(game.scenario.units.first { $0.id == tank.id })
+        XCTAssertEqual(tankAfterMove.position, secondPreview.route.destination)
+        XCTAssertTrue(tankAfterMove.hasMoved)
+        XCTAssertEqual(game.tile(at: secondPreview.coordinate)?.owner, .allies)
+        XCTAssertNil(game.guidedObjectiveCoordinate)
+        XCTAssertEqual(game.latestObjectiveCaptureResult?.objectiveName, "二号据点")
+
+        game.focusObjectiveAdvanceTarget(coordinate: HexCoordinate(q: 3, r: 0))
+
+        XCTAssertEqual(game.focusedCoordinate, tankAfterMove.position)
+        XCTAssertNil(game.guidedObjectiveCoordinate)
+        XCTAssertTrue(game.message.contains("当前无法推进"))
+    }
+
+    func testObjectiveAdvanceTargetFocusRejectsAlliedAndOccupiedObjectives() throws {
+        let game = GameState(scenario: Self.objectiveAdvanceScenario(includeOccupiedDecoy: true))
+        let tank = try XCTUnwrap(game.units.first { $0.name == "目标推进装甲" })
+        let alliedObjective = try XCTUnwrap(game.objectiveTiles.first { $0.objectiveName == "出发据点" })
+        let occupiedObjective = try XCTUnwrap(game.objectiveTiles.first { $0.objectiveName == "占据村镇" })
+        let validPreview = try XCTUnwrap(game.objectiveAdvancePreviews(for: tank).first)
+
+        game.handlePrimaryAction(on: tank.position)
+        game.focusObjectiveAdvancePreview(validPreview)
+        XCTAssertEqual(game.guidedObjectiveCoordinate, validPreview.coordinate)
+
+        game.focusObjectiveAdvanceTarget(coordinate: occupiedObjective.coordinate)
+
+        let tankAfterOccupiedFocus = try XCTUnwrap(game.scenario.units.first { $0.id == tank.id })
+        XCTAssertEqual(tankAfterOccupiedFocus.position, tank.position)
+        XCTAssertFalse(tankAfterOccupiedFocus.hasMoved)
+        XCTAssertEqual(game.focusedCoordinate, tank.position)
+        XCTAssertNil(game.guidedObjectiveCoordinate)
+        XCTAssertTrue(game.message.contains("当前无法推进"))
+
+        game.focusObjectiveAdvancePreview(validPreview)
+        XCTAssertEqual(game.guidedObjectiveCoordinate, validPreview.coordinate)
+
+        game.focusObjectiveAdvanceTarget(coordinate: alliedObjective.coordinate)
+
+        let tankAfterAlliedFocus = try XCTUnwrap(game.scenario.units.first { $0.id == tank.id })
+        XCTAssertEqual(tankAfterAlliedFocus.position, tank.position)
+        XCTAssertFalse(tankAfterAlliedFocus.hasMoved)
+        XCTAssertEqual(game.focusedCoordinate, tank.position)
+        XCTAssertNil(game.guidedObjectiveCoordinate)
+        XCTAssertTrue(game.message.contains("当前无法推进"))
+    }
+
+    func testObjectiveAdvancePreviewFocusesDistantPlanAndExecutionPreservesGuidance() throws {
+        let game = GameState(scenario: Self.distantObjectiveAdvanceScenario())
+        let tank = try XCTUnwrap(game.units.first { $0.name == "目标推进装甲" })
+        let targetObjective = try XCTUnwrap(game.objectiveTiles.first { $0.objectiveName == "纵深据点" })
+        let preview = try XCTUnwrap(game.objectiveAdvancePreviews(for: tank).first)
+
+        game.handlePrimaryAction(on: tank.position)
+        game.focusObjectiveAdvancePreview(preview)
+
+        XCTAssertEqual(game.focusedCoordinate, preview.route.destination)
+        XCTAssertEqual(game.guidedObjectiveCoordinate, targetObjective.coordinate)
+        XCTAssertNotEqual(preview.route.destination, targetObjective.coordinate)
+        XCTAssertEqual(
+            game.focusedCommandPreview,
+            .move(
+                unitName: tank.name,
+                terrainName: try XCTUnwrap(game.tile(at: preview.route.destination)?.terrain.title),
+                route: preview.route
+            )
+        )
+
+        game.executeFocusedCommand()
+
+        let tankAfterMove = try XCTUnwrap(game.scenario.units.first { $0.id == tank.id })
+        XCTAssertEqual(tankAfterMove.position, preview.route.destination)
+        XCTAssertEqual(game.guidedObjectiveCoordinate, targetObjective.coordinate)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+    }
+
     func testObjectiveCaptureSummaryClearsOnRestartScenarioSwitchAndCombat() throws {
         let game = GameState(
             scenario: Self.captureThenAttackScenario(),

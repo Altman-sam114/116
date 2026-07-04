@@ -525,6 +525,7 @@ struct RulesSmokeTest {
 
             let objectiveAdvanceGame = GameState(scenario: objectiveAdvanceScenario(includeOccupiedDecoy: true))
             guard let objectiveAdvanceTank = objectiveAdvanceGame.units.first(where: { $0.name == "目标推进装甲" }),
+                  let alliedObjective = objectiveAdvanceGame.objectiveTiles.first(where: { $0.objectiveName == "出发据点" }),
                   let occupiedObjective = objectiveAdvanceGame.objectiveTiles.first(where: { $0.objectiveName == "占据村镇" }),
                   let targetObjective = objectiveAdvanceGame.objectiveTiles.first(where: { $0.objectiveName == "前线据点" }) else {
                 require(false, "objective advance test targets should exist")
@@ -554,6 +555,24 @@ struct RulesSmokeTest {
             require(
                 objectiveAdvanceGame.focusedObjectiveAdvancePreviews == objectiveAdvancePreviews,
                 "focused objective advance previews should mirror selected unit previews"
+            )
+            objectiveAdvanceGame.focusObjectiveAdvancePreview(objectiveAdvancePreview)
+            require(
+                objectiveAdvanceGame.guidedObjectiveCoordinate == targetObjective.coordinate,
+                "direct objective preview click should mark the valid objective"
+            )
+            objectiveAdvanceGame.focusObjectiveAdvanceTarget(coordinate: occupiedObjective.coordinate)
+            require(
+                objectiveAdvanceGame.focusedCoordinate == objectiveAdvanceTank.position &&
+                    objectiveAdvanceGame.guidedObjectiveCoordinate == nil,
+                "occupied objective preview clicks should clear stale objective guidance without moving"
+            )
+            objectiveAdvanceGame.focusObjectiveAdvancePreview(objectiveAdvancePreview)
+            objectiveAdvanceGame.focusObjectiveAdvanceTarget(coordinate: alliedObjective.coordinate)
+            require(
+                objectiveAdvanceGame.focusedCoordinate == objectiveAdvanceTank.position &&
+                    objectiveAdvanceGame.guidedObjectiveCoordinate == nil,
+                "allied objective preview clicks should clear stale objective guidance without moving"
             )
             let objectiveFireRiskGame = GameState(scenario: objectiveAdvanceFireRiskScenario())
             guard let riskyObjectiveTank = objectiveFireRiskGame.units.first(where: { $0.name == "冒险装甲" }),
@@ -639,6 +658,24 @@ struct RulesSmokeTest {
                 return
             }
             require(distantAdvanceRoute.destination == expectedAdvance, "distant objective shortcut should route to the best forward tile")
+            distantObjectiveGame.focusObjectiveAdvancePreview(distantObjectivePreview)
+            require(distantObjectiveGame.focusedCoordinate == expectedAdvance, "distant objective preview click should focus the forward tile")
+            require(
+                distantObjectiveGame.guidedObjectiveCoordinate == distantObjective.coordinate,
+                "distant objective preview click should mark the final objective"
+            )
+            require(
+                distantObjectiveGame.focusedCommandPreview == .move(
+                    unitName: distantAdvanceTank.name,
+                    terrainName: distantObjectiveGame.tile(at: expectedAdvance)?.terrain.title ?? "",
+                    route: distantAdvanceRoute
+                ),
+                "distant objective preview click should create a MOVE preview without executing it"
+            )
+            require(
+                distantObjectiveGame.scenario.units.first(where: { $0.id == distantAdvanceTank.id })?.position == distantAdvanceTank.position,
+                "distant objective preview click should not move the unit"
+            )
             distantObjectiveGame.focusNearestObjectiveTarget()
             require(distantObjectiveGame.focusedCoordinate == expectedAdvance, "distant objective shortcut should focus the forward tile")
             require(
@@ -696,6 +733,50 @@ struct RulesSmokeTest {
             require(
                 multipleObjectiveGame.objectiveAdvancePreviews(for: multipleObjectiveTank, limit: 0).isEmpty,
                 "objective advance preview limit zero should return no plans"
+            )
+            guard defaultObjectivePreviews.count >= 2 else {
+                require(false, "multiple objective previews should include a second candidate")
+                return
+            }
+            let secondObjectivePreview = defaultObjectivePreviews[1]
+            multipleObjectiveGame.focusObjectiveAdvancePreview(secondObjectivePreview)
+            require(
+                multipleObjectiveGame.focusedCoordinate == secondObjectivePreview.route.destination,
+                "second objective preview click should focus its route destination"
+            )
+            require(
+                multipleObjectiveGame.guidedObjectiveCoordinate == secondObjectivePreview.coordinate,
+                "second objective preview click should mark the selected final objective"
+            )
+            require(
+                multipleObjectiveGame.scenario.units.first(where: { $0.id == multipleObjectiveTank.id })?.position == multipleObjectiveTank.position,
+                "second objective preview click should not move the unit"
+            )
+            require(
+                multipleObjectiveGame.focusedCommandPreview == .move(
+                    unitName: multipleObjectiveTank.name,
+                    terrainName: multipleObjectiveGame.tile(at: secondObjectivePreview.route.destination)?.terrain.title ?? "",
+                    route: secondObjectivePreview.route
+                ),
+                "second objective preview click should expose an executable MOVE preview"
+            )
+            multipleObjectiveGame.executeFocusedCommand()
+            require(
+                multipleObjectiveGame.scenario.units.first(where: { $0.id == multipleObjectiveTank.id })?.position == secondObjectivePreview.route.destination,
+                "executing focused second objective preview should move through the existing MOVE chain"
+            )
+            require(
+                multipleObjectiveGame.tile(at: secondObjectivePreview.coordinate)?.owner == .allies,
+                "executing focused second objective preview should capture direct objectives"
+            )
+            require(
+                multipleObjectiveGame.latestObjectiveCaptureResult?.objectiveName == "二号据点",
+                "executing focused second objective preview should record capture summary"
+            )
+            multipleObjectiveGame.focusObjectiveAdvanceTarget(coordinate: HexCoordinate(q: 3, r: 0))
+            require(
+                multipleObjectiveGame.guidedObjectiveCoordinate == nil,
+                "invalid objective preview after movement should clear stale objective guidance"
             )
 
             let contestedZoneGame = GameState(scenario: zoneOfControlScenario(includeEnemy: true))

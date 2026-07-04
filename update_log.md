@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.5 正在推进据点目标计划摘要，已持续增强路线预判、火力风险、战斗/战术/据点结果反馈和 OBJ 操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.6 正在推进目标计划候选预览，已持续增强路线预判、火力风险、战斗/战术/据点结果反馈和 OBJ 操作可读性。
 
 ## 历史记录
 
@@ -433,4 +433,43 @@
 遗留事项：
 
 - 目标计划摘要仍是静态列表，不提供一键切换第二/第三目标执行。
+- 本轮不改变移动路径搜索、OBJ 排序、据点奖励、胜负条件或 AI 决策。
+
+### v1.6 / 目标计划候选预览
+
+日期：2026-07-04
+
+核心变更：
+
+- `GameState` 新增 `focusObjectiveAdvancePreview(_:)` 和 `focusObjectiveAdvanceTarget(coordinate:)`，目标计划行点击时由规则层重新查当前计划，避免 UI 使用过期路线。
+- `focusNearestObjectiveTarget()` 和候选计划点击共用同一私有聚焦 helper，确保 OBJ 首项和侧栏候选计划行为一致。
+- 侧栏目标计划行改为可点选 Button，点击后只投射路线、目的格、最终目标和火力风险到地图预览，并用“当前”标记展示聚焦态。
+- 点选目标计划不移动单位、不消耗行动、不生成战斗/战术/占领结果；实际移动仍通过右键或执行按钮的既有 MOVE 链路。
+- 补充 XCTest 和规则 smoke test，覆盖第二候选聚焦、远距候选聚焦、执行链路、过期/不可推进候选清理旧目标引导。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.6（目标计划候选预览）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions run、artifact 和 manifest 核对：待本轮 Agent B push 后由 Agent C 下载并补记。
+
+遗留事项：
+
+- 目标计划候选仍是预览入口，不提供一键直接执行第二/第三目标。
 - 本轮不改变移动路径搜索、OBJ 排序、据点奖励、胜负条件或 AI 决策。

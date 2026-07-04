@@ -2812,7 +2812,16 @@ private struct ObjectiveAdvancePlanPanel: View {
 
                 VStack(spacing: 7) {
                     ForEach(Array(previews.enumerated()), id: \.element.id) { index, preview in
-                        ObjectiveAdvancePlanRow(index: index, preview: preview)
+                        let isFocused = game.guidedObjectiveCoordinate == preview.coordinate &&
+                            game.focusedCoordinate == preview.route.destination
+                        Button {
+                            game.focusObjectiveAdvancePreview(preview)
+                        } label: {
+                            ObjectiveAdvancePlanRow(index: index, preview: preview, isFocused: isFocused)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(accessibilityLabel(for: preview, index: index, isFocused: isFocused))
+                        .accessibilityHint("聚焦该目标计划，不执行移动")
                     }
                 }
             }
@@ -2825,19 +2834,28 @@ private struct ObjectiveAdvancePlanPanel: View {
             .accessibilityElement(children: .contain)
         }
     }
+
+    private func accessibilityLabel(for preview: ObjectiveAdvancePreview, index: Int, isFocused: Bool) -> String {
+        let slot = index == 0 ? "OBJ 首选" : "目标计划 \(index + 1)"
+        let focused = isFocused ? "，当前预览" : ""
+        return "\(slot)，\(preview.objectiveName)\(focused)，\(preview.actionTitle) \(preview.destinationText)，消耗 \(preview.route.totalCost) 移动力。"
+    }
 }
 
 private struct ObjectiveAdvancePlanRow: View {
     let index: Int
     let preview: ObjectiveAdvancePreview
+    let isFocused: Bool
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Text(index == 0 ? "OBJ" : "\(index + 1)")
+            Text(isFocused ? "当前" : (index == 0 ? "OBJ" : "\(index + 1)"))
                 .font(.caption2.weight(.black))
                 .foregroundStyle(.black.opacity(0.82))
+                .lineLimit(1)
+                .minimumScaleFactor(0.68)
                 .frame(width: 34, height: 24)
-                .background(index == 0 ? Color.green.opacity(0.92) : Color.white.opacity(0.68), in: RoundedRectangle(cornerRadius: 6))
+                .background(markerColor, in: RoundedRectangle(cornerRadius: 6))
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
@@ -2869,12 +2887,22 @@ private struct ObjectiveAdvancePlanRow: View {
             }
         }
         .padding(8)
-        .background(Color.white.opacity(index == 0 ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 7))
+        .background(Color.white.opacity(isFocused ? 0.14 : (index == 0 ? 0.10 : 0.06)), in: RoundedRectangle(cornerRadius: 7))
         .overlay(
             RoundedRectangle(cornerRadius: 7)
-                .stroke(index == 0 ? Color.green.opacity(0.34) : Color.white.opacity(0.10), lineWidth: 1)
+                .stroke(borderColor, lineWidth: isFocused ? 2 : 1)
         )
         .accessibilityElement(children: .combine)
+    }
+
+    private var markerColor: Color {
+        if isFocused { return Color.yellow.opacity(0.92) }
+        return index == 0 ? Color.green.opacity(0.92) : Color.white.opacity(0.68)
+    }
+
+    private var borderColor: Color {
+        if isFocused { return Color.yellow.opacity(0.62) }
+        return index == 0 ? Color.green.opacity(0.34) : Color.white.opacity(0.10)
     }
 
     private var controlZoneText: String {

@@ -9,7 +9,7 @@
 ```mermaid
 flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
-  V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand"]
+  V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget"]
   I --> S["GameState：核心状态机"]
   M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview"] --> S
   S --> R["规则判定：移动、攻击、战术命令、补给、控制区、士气、AI、OBJ计划、THR"]
@@ -32,7 +32,8 @@ flowchart TD
   E --> R["路线情报：RouteStepPreview / PostMoveAttackPreview"]
   R --> X["火力风险：PostMoveFireExposurePreview / SafeEngagementOption"]
   X --> OP["OBJ计划摘要：ObjectiveAdvancePreview 最多 3 条"]
-  OP --> F{"输入类型"}
+  OP --> OC["点击目标计划：GameState 重新查计划并聚焦路线"]
+  OC --> F{"输入类型"}
   F -->|左键/主点按聚焦| G["只显示预览消息，不消耗行动"]
   F -->|右键/执行按钮| H{"预览是否可执行？"}
   H -->|MOVE| I["move：移动、消耗移动、更新据点、必要时写入 CAP 结果"]

@@ -441,6 +441,28 @@ final class GameState: ObservableObject {
             .map { objectiveAdvancePreview(for: unit, plan: $0) }
     }
 
+    func focusObjectiveAdvancePreview(_ preview: ObjectiveAdvancePreview) {
+        focusObjectiveAdvanceTarget(coordinate: preview.coordinate)
+    }
+
+    func focusObjectiveAdvanceTarget(coordinate: HexCoordinate) {
+        guard winner == nil else { return }
+        guard let selectedUnit else {
+            selectNextReadyUnitFromMap()
+            return
+        }
+
+        guard let plan = objectiveAdvancePlans(for: selectedUnit).first(where: { $0.tile.coordinate == coordinate }) else {
+            clearObjectiveGuidance()
+            focusedCoordinate = selectedUnit.position
+            let objectiveName = tile(at: coordinate)?.objectiveName ?? "该目标"
+            message = "\(selectedUnit.name) 当前无法推进 \(objectiveName)。"
+            return
+        }
+
+        focusObjectiveAdvancePlan(plan, for: selectedUnit)
+    }
+
     func focusNearestObjectiveTarget() {
         guard winner == nil else { return }
         guard let selectedUnit else {
@@ -449,10 +471,16 @@ final class GameState: ObservableObject {
         }
 
         guard let plan = objectiveAdvancePlans(for: selectedUnit).first else {
+            clearObjectiveGuidance()
+            focusedCoordinate = selectedUnit.position
             message = "\(selectedUnit.name) 本回合没有可推进的空置目标据点。"
             return
         }
 
+        focusObjectiveAdvancePlan(plan, for: selectedUnit)
+    }
+
+    private func focusObjectiveAdvancePlan(_ plan: ObjectiveAdvancePlan, for unit: BattleUnit) {
         let objectiveName = plan.tile.objectiveName ?? "目标据点"
         let ownerText = plan.tile.owner?.title ?? "中立"
         let penaltyText = plan.route.controlZonePenalty > 0 ? "，含敌方控制区 +\(plan.route.controlZonePenalty)" : ""
@@ -461,11 +489,11 @@ final class GameState: ObservableObject {
             focusedCoordinate = plan.tile.coordinate
             guidedObjectiveCoordinate = plan.tile.coordinate
             let action = plan.tile.owner == nil ? "占领" : "夺取"
-            message = "\(selectedUnit.name) 可\(action)\(objectiveName)（\(ownerText)），执行 MOVE 消耗 \(plan.route.totalCost) 移动力\(penaltyText)。"
+            message = "\(unit.name) 可\(action)\(objectiveName)（\(ownerText)），执行 MOVE 消耗 \(plan.route.totalCost) 移动力\(penaltyText)。"
         } else {
             focusedCoordinate = plan.route.destination
             guidedObjectiveCoordinate = plan.tile.coordinate
-            message = "\(selectedUnit.name) 向\(objectiveName)（\(ownerText)）推进：先到 q\(plan.route.destination.q),r\(plan.route.destination.r)，消耗 \(plan.route.totalCost) 移动力\(penaltyText)，距目标剩 \(plan.remainingDistance) 格。"
+            message = "\(unit.name) 向\(objectiveName)（\(ownerText)）推进：先到 q\(plan.route.destination.q),r\(plan.route.destination.r)，消耗 \(plan.route.totalCost) 移动力\(penaltyText)，距目标剩 \(plan.remainingDistance) 格。"
         }
     }
 
