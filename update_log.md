@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.16 正在推进反制建议排序对比解释，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.17 正在推进反制建议执行前后对照，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
 
 ## 历史记录
 
@@ -900,3 +900,43 @@
 
 - 排序对比解释是只读参谋提示，不改变反制建议排序、score 公式或执行桥接。
 - 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件或回合流程。
+
+### v1.17 / 反制建议执行前后对照
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `EnemyThreatCountermeasureImpactKind` 和 `EnemyThreatCountermeasureImpactComparison`，让反制建议携带“当前 / 采纳 / 改善”的执行前后预计对照。
+- `GameState` 在抢先打击、撤出危险区、据点防守和整补支撑四类建议构造时填充只读对照：威胁伤害、撤退后生存、守点动作、整补后承受威胁预计 HP 和路线信息。
+- 整补支撑的主对照优先展示“当前威胁后 HP -> 整补后再承受威胁 HP”，避免把承受威胁前的整补 HP 误读为最终结果。
+- `ContentView` 在反制建议行显示紧凑的当前/采纳/改善指标，并把完整 `impactSummary` 加入行内摘要和无障碍 label；UI 只展示 `GameState`/`GameModels` 字段，不计算战斗、路线、整补或排序。
+- 补充 XCTest 和规则 smoke test，覆盖四类反制建议的非空对照、抢先打击当前威胁文案、撤退 HP 改善、据点守点动作、整补后承受威胁 HP 改善和只读无副作用。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.17（反制建议执行前后对照）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions 云端结果包：待 Agent B push 后由 Agent C 下载并核对。
+
+遗留事项：
+
+- 执行前后对照是预计参谋提示，不代表真实执行后的记录；真实执行后的反制结果回放可作为后续 v1.18 方向。
+- 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件、排序或执行桥接语义。

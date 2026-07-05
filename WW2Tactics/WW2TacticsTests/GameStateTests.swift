@@ -1518,7 +1518,8 @@ final class GameStateTests: XCTestCase {
                 projectedRecoveredHP: 0,
                 canExecuteNow: canExecuteNow,
                 reason: "合成排序测试",
-                score: score
+                score: score,
+                impactComparisons: []
             )
         }
 
@@ -1631,6 +1632,8 @@ final class GameStateTests: XCTestCase {
             XCTAssertTrue(countermeasure.priorityFactors.contains {
                 $0.kind == .priorityScore && $0.value == "\(countermeasure.score)"
             })
+            XCTAssertFalse(countermeasure.impactComparisons.isEmpty)
+            XCTAssertFalse(countermeasure.impactSummary.isEmpty)
         }
 
         let firstStrike = try XCTUnwrap(countermeasures.first {
@@ -1638,6 +1641,7 @@ final class GameStateTests: XCTestCase {
                 $0.actingUnitName == "反击炮兵" &&
                 $0.threatEnemyUnitName == "威胁炮兵"
         })
+        let firstStrikeThreat = try XCTUnwrap(threats.first { $0.id == firstStrike.threatID })
         let counterBattery = try XCTUnwrap(game.units.first { $0.id == firstStrike.actingUnitID })
         let enemyArtillery = try XCTUnwrap(game.units.first { $0.id == firstStrike.targetUnitID })
         let firstStrikeCombat = try XCTUnwrap(game.combatPreview(attacker: counterBattery, defender: enemyArtillery))
@@ -1650,11 +1654,17 @@ final class GameStateTests: XCTestCase {
         let firstStrikeDamageBenefit = try XCTUnwrap(firstStrike.benefitMetrics.first { $0.kind == .damage })
         XCTAssertEqual(firstStrikeDamageBenefit.value, firstStrike.willDestroyEnemy ? "击毁" : "-\(firstStrike.projectedDamage)")
         XCTAssertTrue(firstStrike.prioritySummary.contains(firstStrike.willDestroyEnemy ? "可击毁威胁" : firstStrike.kind.title))
+        let firstStrikeImpact = try XCTUnwrap(firstStrike.impactComparisons.first { $0.kind == .threatDamage })
+        XCTAssertEqual(firstStrikeImpact.before, firstStrikeThreat.willDestroyTarget ? "击毁风险" : "-\(firstStrikeThreat.projectedDamage)")
+        XCTAssertFalse(firstStrikeImpact.after.isEmpty)
+        XCTAssertTrue(firstStrikeImpact.impact.contains(firstStrike.willDestroyEnemy ? "击毁" : "削弱"))
 
         let withdraw = try XCTUnwrap(countermeasures.first {
             $0.kind == .withdraw &&
                 $0.actingUnitName == "前线装甲"
         })
+        let withdrawThreat = try XCTUnwrap(threats.first { $0.id == withdraw.threatID })
+        let withdrawBeforeHP = try XCTUnwrap(withdrawThreat.projectedTargetHPAfterDamage)
         let withdrawDestination = try XCTUnwrap(withdraw.destination)
         let withdrawRouteCost = try XCTUnwrap(withdraw.routeCost)
         let threatenedTank = try XCTUnwrap(game.units.first { $0.id == withdraw.actingUnitID })
@@ -1667,6 +1677,11 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(withdrawSurvivalBenefit.value.contains("\(withdraw.projectedFriendlyHPAfterAction ?? 0)"))
         XCTAssertEqual(withdrawRouteBenefit.value, "\(withdrawRouteCost)")
         XCTAssertTrue(withdraw.prioritySummary.contains("路线 \(withdrawRouteCost)"))
+        let withdrawImpact = try XCTUnwrap(withdraw.impactComparisons.first { $0.kind == .survival })
+        XCTAssertEqual(withdrawImpact.before, "HP \(withdrawBeforeHP)")
+        XCTAssertEqual(withdrawImpact.after, "HP \(withdraw.projectedFriendlyHPAfterAction ?? 0)")
+        XCTAssertTrue(withdrawImpact.impact.contains("+"))
+        XCTAssertGreaterThan(withdraw.projectedFriendlyHPAfterAction ?? 0, withdrawBeforeHP)
 
         let objectiveDefense = try XCTUnwrap(countermeasures.first {
             $0.kind == .objectiveDefense &&
@@ -1681,11 +1696,17 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(objectiveBenefit.value, objectiveDestination == objectiveDefense.threatTargetCoordinate ? "进驻" : "封堵")
         XCTAssertEqual(objectiveRouteBenefit.value, "\(objectiveDefense.routeCost ?? 0)")
         XCTAssertTrue(objectiveDefense.prioritySummary.contains(objectiveDefense.kind.title))
+        let objectiveImpact = try XCTUnwrap(objectiveDefense.impactComparisons.first { $0.kind == .objective })
+        XCTAssertEqual(objectiveImpact.before, "被夺风险")
+        XCTAssertTrue(objectiveImpact.after == "进驻" || objectiveImpact.after == "封堵")
+        XCTAssertTrue(objectiveImpact.impact.contains(objectiveDefense.targetName))
 
         let reinforce = try XCTUnwrap(countermeasures.first {
             $0.kind == .reinforce &&
                 $0.actingUnitName == "前线装甲"
         })
+        let reinforceThreat = try XCTUnwrap(threats.first { $0.id == reinforce.threatID })
+        let reinforceBeforeHP = try XCTUnwrap(reinforceThreat.projectedTargetHPAfterDamage)
         XCTAssertEqual(reinforce.projectedRecoveredHP, UnitKind.tank.reinforceAmount)
         XCTAssertEqual(reinforce.projectedFriendlyHPAfterAction, threatenedTank.hp + UnitKind.tank.reinforceAmount)
         XCTAssertEqual(reinforce.destination, threatenedTank.position)
@@ -1696,6 +1717,16 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(reinforceRecoveryBenefit.value, "+\(reinforce.projectedRecoveredHP)")
         XCTAssertTrue(reinforceSurvivalBenefit.value.contains("\(reinforce.projectedFriendlyHPAfterAction ?? 0)"))
         XCTAssertTrue(reinforce.prioritySummary.contains("当前位置"))
+        let reinforceRecoveryImpact = try XCTUnwrap(reinforce.impactComparisons.first { $0.kind == .recovery })
+        let reinforceSurvivalImpact = try XCTUnwrap(reinforce.impactComparisons.first { $0.kind == .survival })
+        let reinforceExpectedHPAfterThreat = max(0, (reinforce.projectedFriendlyHPAfterAction ?? 0) - reinforceThreat.projectedDamage)
+        XCTAssertEqual(reinforce.impactComparisons.first?.kind, .survival)
+        XCTAssertEqual(reinforceSurvivalImpact.before, reinforceThreat.willDestroyTarget ? "被击毁" : "HP \(reinforceBeforeHP)")
+        XCTAssertEqual(reinforceSurvivalImpact.after, "HP \(reinforceExpectedHPAfterThreat)")
+        XCTAssertGreaterThan(reinforceExpectedHPAfterThreat, reinforceBeforeHP)
+        XCTAssertTrue(reinforceSurvivalImpact.impact.contains("+"))
+        XCTAssertEqual(reinforceRecoveryImpact.before, "HP \(reinforceBeforeHP)")
+        XCTAssertEqual(reinforceRecoveryImpact.after, "HP \(reinforce.projectedFriendlyHPAfterAction ?? 0)")
 
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
@@ -1852,7 +1883,8 @@ final class GameStateTests: XCTestCase {
             projectedRecoveredHP: 0,
             canExecuteNow: false,
             reason: "测试过期建议",
-            score: 0
+            score: 0,
+            impactComparisons: []
         )
         game.focusEnemyThreatCountermeasure(stale)
         XCTAssertTrue(game.message.contains("已不可用"))

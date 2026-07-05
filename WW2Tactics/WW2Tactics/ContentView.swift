@@ -4837,7 +4837,7 @@ private struct EnemyThreatCountermeasurePanel: View {
     ) -> String {
         let focused = isFocused ? "，当前预览" : ""
         let routeText = preview.routeCost.map { "，路线消耗 \($0)" } ?? ""
-        return "\(preview.kind.title)\(focused)，\(preview.actingUnitName) 对 \(preview.targetName)\(routeText)，排序：\(preview.prioritySummary)，收益：\(preview.benefitSummary)，\(preview.reason)"
+        return "\(preview.kind.title)\(focused)，\(preview.actingUnitName) 对 \(preview.targetName)\(routeText)，对照：\(preview.impactSummary)，排序：\(preview.prioritySummary)，收益：\(preview.benefitSummary)，\(preview.reason)"
     }
 }
 
@@ -5020,6 +5020,22 @@ private struct EnemyThreatCountermeasureRow: View {
                     CombatResultMetric(title: metric.title, value: metric.value, color: benefitColor(for: metric.kind))
                         .accessibilityLabel("\(metric.title)\(metric.value)，\(metric.detail)")
                 }
+            }
+
+            if let impact = preview.impactComparisons.first {
+                HStack(spacing: 7) {
+                    CombatResultMetric(title: "当前", value: impact.before, color: .pink)
+                    CombatResultMetric(title: "采纳", value: impact.after, color: accentColor)
+                    CombatResultMetric(title: "改善", value: impact.impact, color: .green)
+                }
+                .accessibilityLabel("\(impact.title)，当前\(impact.before)，采纳后\(impact.after)，改善\(impact.impact)")
+            }
+
+            if !preview.impactSummary.isEmpty {
+                Label(preview.impactSummary, systemImage: "arrow.left.arrow.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.64))
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Label(preview.prioritySummary, systemImage: "list.number")

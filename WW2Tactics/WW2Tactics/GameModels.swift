@@ -896,6 +896,7 @@ struct EnemyThreatCountermeasurePreview: Identifiable, Equatable {
     let canExecuteNow: Bool
     let reason: String
     let score: Int
+    let impactComparisons: [EnemyThreatCountermeasureImpactComparison]
 
     var id: String {
         [
@@ -915,6 +916,12 @@ struct EnemyThreatCountermeasurePreview: Identifiable, Equatable {
     var benefitSummary: String {
         benefitMetrics
             .map { "\($0.title)：\($0.value)" }
+            .joined(separator: "，")
+    }
+
+    var impactSummary: String {
+        impactComparisons
+            .map { "\($0.title)：\($0.before) -> \($0.after)，\($0.impact)" }
             .joined(separator: "，")
     }
 
@@ -1133,6 +1140,29 @@ struct EnemyThreatCountermeasureBenefitMetric: Identifiable, Equatable {
 
     var id: String {
         "\(kind.rawValue)-\(title)-\(value)"
+    }
+}
+
+enum EnemyThreatCountermeasureImpactKind: String, Identifiable {
+    case threatDamage
+    case survival
+    case enemyHP
+    case objective
+    case recovery
+    case route
+
+    var id: String { rawValue }
+}
+
+struct EnemyThreatCountermeasureImpactComparison: Identifiable, Equatable {
+    let kind: EnemyThreatCountermeasureImpactKind
+    let title: String
+    let before: String
+    let after: String
+    let impact: String
+
+    var id: String {
+        "\(kind.rawValue)-\(title)-\(before)-\(after)-\(impact)"
     }
 }
 

@@ -2462,6 +2462,7 @@ final class GameState: ObservableObject {
             willDestroyEnemy: best.preview.willDestroyDefender,
             projectedFriendlyHPAfterAction: best.preview.attackerHPAfterCounter,
             projectedRecoveredHP: 0,
+            impactComparisons: firstStrikeImpactComparisons(threat: threat, preview: best.preview),
             reason: best.preview.willDestroyDefender ?
                 "当前射程内可先击毁 \(enemy.name)，解除 \(threat.targetName) 威胁。" :
                 "当前射程内可先压低 \(enemy.name) 耐久，削弱 \(threat.targetName) 威胁。",
@@ -2537,6 +2538,13 @@ final class GameState: ObservableObject {
             willDestroyEnemy: false,
             projectedFriendlyHPAfterAction: best.projectedHP,
             projectedRecoveredHP: 0,
+            impactComparisons: withdrawImpactComparisons(
+                threat: threat,
+                beforeHP: startingHPAfterThreat,
+                afterHP: best.projectedHP,
+                destination: best.route.destination,
+                routeCost: best.route.totalCost
+            ),
             reason: "转移到 \(coordinateText(best.route.destination)) 可降低 \(threat.threatLabel) 对 \(target.name) 的火力风险。",
             score: best.score
         )
@@ -2632,6 +2640,12 @@ final class GameState: ObservableObject {
             willDestroyEnemy: false,
             projectedFriendlyHPAfterAction: best.unit.hp,
             projectedRecoveredHP: 0,
+            impactComparisons: objectiveDefenseImpactComparisons(
+                threat: threat,
+                destination: best.route.destination,
+                routeCost: best.route.totalCost,
+                reachesObjective: best.reachesObjective
+            ),
             reason: "\(best.unit.name) 可\(actionText)\(threat.targetName)，阻止 \(threat.threatLabel) 抢点。",
             score: best.score
         )
@@ -2669,6 +2683,13 @@ final class GameState: ObservableObject {
             willDestroyEnemy: false,
             projectedFriendlyHPAfterAction: hpAfterRecovery,
             projectedRecoveredHP: recoveredHP,
+            impactComparisons: reinforceImpactComparisons(
+                threat: threat,
+                beforeHP: threat.projectedTargetHPAfterDamage ?? max(0, target.hp - threat.projectedDamage),
+                afterRecoveryHP: hpAfterRecovery,
+                afterThreatHP: projectedHPAfterThreat,
+                recoveredHP: recoveredHP
+            ),
             reason: "在己方据点整补 \(target.name) +\(recoveredHP) 耐久，提高承受 \(threat.threatLabel) 的能力。",
             score: score
         )
@@ -2687,6 +2708,7 @@ final class GameState: ObservableObject {
         willDestroyEnemy: Bool,
         projectedFriendlyHPAfterAction: Int?,
         projectedRecoveredHP: Int,
+        impactComparisons: [EnemyThreatCountermeasureImpactComparison],
         reason: String,
         score: Int
     ) -> EnemyThreatCountermeasurePreview {
@@ -2710,8 +2732,112 @@ final class GameState: ObservableObject {
             projectedRecoveredHP: projectedRecoveredHP,
             canExecuteNow: actingUnit.faction == activeFaction && !actingUnit.isDestroyed,
             reason: reason,
-            score: score
+            score: score,
+            impactComparisons: impactComparisons
         )
+    }
+
+    private func firstStrikeImpactComparisons(
+        threat: EnemyThreatIntentPreview,
+        preview: CombatPreview
+    ) -> [EnemyThreatCountermeasureImpactComparison] {
+        let beforeHPText = threat.projectedTargetHPAfterDamage.map { "HP \($0)" } ?? "据点风险"
+        let afterThreatText = preview.willDestroyDefender ?
+            "威胁解除" :
+            "敌 HP \(preview.defenderHPAfterAttack)"
+        return [
+            EnemyThreatCountermeasureImpactComparison(
+                kind: .threatDamage,
+                title: "当前",
+                before: threat.willDestroyTarget ? "击毁风险" : "-\(threat.projectedDamage)",
+                after: afterThreatText,
+                impact: preview.willDestroyDefender ? "先手击毁威胁源" : "先手削弱威胁源"
+            ),
+            EnemyThreatCountermeasureImpactComparison(
+                kind: .survival,
+                title: "目标",
+                before: beforeHPText,
+                after: preview.willDestroyDefender ? "不再受该威胁" : beforeHPText,
+                impact: preview.willDestroyDefender ? "避免本条威胁" : "降低后续威胁强度"
+            )
+        ]
+    }
+
+    private func withdrawImpactComparisons(
+        threat: EnemyThreatIntentPreview,
+        beforeHP: Int,
+        afterHP: Int,
+        destination: HexCoordinate,
+        routeCost: Int
+    ) -> [EnemyThreatCountermeasureImpactComparison] {
+        let preservedHP = max(0, afterHP - beforeHP)
+        return [
+            EnemyThreatCountermeasureImpactComparison(
+                kind: .survival,
+                title: "耐久",
+                before: "HP \(beforeHP)",
+                after: "HP \(afterHP)",
+                impact: "+\(preservedHP) 生存"
+            ),
+            EnemyThreatCountermeasureImpactComparison(
+                kind: .route,
+                title: "位置",
+                before: threat.destinationText,
+                after: coordinateText(destination),
+                impact: "路线 \(routeCost)"
+            )
+        ]
+    }
+
+    private func objectiveDefenseImpactComparisons(
+        threat: EnemyThreatIntentPreview,
+        destination: HexCoordinate,
+        routeCost: Int,
+        reachesObjective: Bool
+    ) -> [EnemyThreatCountermeasureImpactComparison] {
+        let actionText = reachesObjective ? "进驻" : "封堵"
+        return [
+            EnemyThreatCountermeasureImpactComparison(
+                kind: .objective,
+                title: "据点",
+                before: "被夺风险",
+                after: actionText,
+                impact: "\(actionText)\(threat.targetName)"
+            ),
+            EnemyThreatCountermeasureImpactComparison(
+                kind: .route,
+                title: "位置",
+                before: threat.destinationText,
+                after: coordinateText(destination),
+                impact: "路线 \(routeCost)"
+            )
+        ]
+    }
+
+    private func reinforceImpactComparisons(
+        threat: EnemyThreatIntentPreview,
+        beforeHP: Int,
+        afterRecoveryHP: Int,
+        afterThreatHP: Int,
+        recoveredHP: Int
+    ) -> [EnemyThreatCountermeasureImpactComparison] {
+        let preservedHP = max(0, afterThreatHP - beforeHP)
+        return [
+            EnemyThreatCountermeasureImpactComparison(
+                kind: .survival,
+                title: "承受",
+                before: threat.willDestroyTarget ? "被击毁" : "HP \(beforeHP)",
+                after: "HP \(afterThreatHP)",
+                impact: "+\(preservedHP) 生存"
+            ),
+            EnemyThreatCountermeasureImpactComparison(
+                kind: .recovery,
+                title: "整补",
+                before: "HP \(beforeHP)",
+                after: "HP \(afterRecoveryHP)",
+                impact: "+\(recoveredHP) 耐久"
+            )
+        ]
     }
 
     private func enemyThreatCountermeasureComparisonPreview(

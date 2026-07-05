@@ -996,7 +996,8 @@ struct RulesSmokeTest {
                     projectedRecoveredHP: 0,
                     canExecuteNow: canExecuteNow,
                     reason: "合成排序测试",
-                    score: score
+                    score: score,
+                    impactComparisons: []
                 )
             }
             @MainActor
@@ -1082,6 +1083,8 @@ struct RulesSmokeTest {
                 require(!countermeasure.priorityFactors.isEmpty, "countermeasure should expose priority factors")
                 require(countermeasure.prioritySummary.contains("优先值 \(countermeasure.score)"), "countermeasure priority summary should include score")
                 require(countermeasure.priorityFactors.contains { $0.kind == .priorityScore && $0.value == "\(countermeasure.score)" }, "countermeasure priority factors should expose score")
+                require(!countermeasure.impactComparisons.isEmpty, "countermeasure should expose before-after impact comparisons")
+                require(!countermeasure.impactSummary.isEmpty, "countermeasure should expose before-after impact summary")
             }
 
             guard let firstStrike = enemyCountermeasures.first(where: {
@@ -1092,7 +1095,8 @@ struct RulesSmokeTest {
                 require(false, "enemy threat countermeasures should include first strike advice")
                 return
             }
-            guard let counterBattery = enemyThreatGame.units.first(where: { $0.id == firstStrike.actingUnitID }),
+            guard let firstStrikeThreat = enemyThreats.first(where: { $0.id == firstStrike.threatID }),
+                  let counterBattery = enemyThreatGame.units.first(where: { $0.id == firstStrike.actingUnitID }),
                   let firstStrikeTarget = enemyThreatGame.units.first(where: { $0.id == firstStrike.targetUnitID }),
                   let firstStrikeCombat = enemyThreatGame.combatPreview(attacker: counterBattery, defender: firstStrikeTarget) else {
                 require(false, "first strike countermeasure combat preview should be reproducible")
@@ -1104,12 +1108,24 @@ struct RulesSmokeTest {
             require(!firstStrike.benefitSummary.isEmpty, "first strike should expose benefit summary")
             require(firstStrike.benefitMetrics.contains { $0.kind == .damage }, "first strike should expose damage benefit")
             require(firstStrike.prioritySummary.contains(firstStrike.willDestroyEnemy ? "可击毁威胁" : firstStrike.kind.title), "first strike should explain its priority basis")
+            guard let firstStrikeImpact = firstStrike.impactComparisons.first(where: { $0.kind == .threatDamage }) else {
+                require(false, "first strike should expose threat damage impact")
+                return
+            }
+            let firstStrikeBefore = firstStrikeThreat.willDestroyTarget ? "击毁风险" : "-\(firstStrikeThreat.projectedDamage)"
+            require(firstStrikeImpact.before == firstStrikeBefore, "first strike impact should expose the current threat")
+            require(!firstStrikeImpact.after.isEmpty, "first strike impact should expose the post-action threat source state")
 
             guard let withdraw = enemyCountermeasures.first(where: {
                 $0.kind == .withdraw &&
                     $0.actingUnitName == "前线装甲"
             }) else {
                 require(false, "enemy threat countermeasures should include withdraw advice")
+                return
+            }
+            guard let withdrawThreat = enemyThreats.first(where: { $0.id == withdraw.threatID }),
+                  let withdrawBeforeHP = withdrawThreat.projectedTargetHPAfterDamage else {
+                require(false, "withdraw countermeasure should link to an attack threat with before HP")
                 return
             }
             guard let withdrawDestination = withdraw.destination,
@@ -1123,6 +1139,13 @@ struct RulesSmokeTest {
             require(withdraw.benefitMetrics.contains { $0.kind == .survival }, "withdraw should expose survival benefit")
             require(withdraw.benefitMetrics.contains { $0.kind == .route && $0.value == "\(withdrawRoute.totalCost)" }, "withdraw should expose route benefit")
             require(withdraw.prioritySummary.contains("路线 \(withdrawRoute.totalCost)"), "withdraw should explain route priority")
+            guard let withdrawImpact = withdraw.impactComparisons.first(where: { $0.kind == .survival }) else {
+                require(false, "withdraw should expose survival impact")
+                return
+            }
+            require(withdrawImpact.before == "HP \(withdrawBeforeHP)", "withdraw impact should expose before HP")
+            require(withdrawImpact.after == "HP \(withdraw.projectedFriendlyHPAfterAction ?? 0)", "withdraw impact should expose projected after HP")
+            require((withdraw.projectedFriendlyHPAfterAction ?? 0) > withdrawBeforeHP, "withdraw impact should improve projected HP")
 
             guard let objectiveDefense = enemyCountermeasures.first(where: {
                 $0.kind == .objectiveDefense &&
@@ -1135,6 +1158,12 @@ struct RulesSmokeTest {
             require(objectiveDefense.benefitMetrics.contains { $0.kind == .objective }, "objective defense should expose objective benefit")
             require(objectiveDefense.benefitMetrics.contains { $0.kind == .route }, "objective defense should expose route benefit")
             require(objectiveDefense.prioritySummary.contains(objectiveDefense.kind.title), "objective defense should explain its priority basis")
+            guard let objectiveImpact = objectiveDefense.impactComparisons.first(where: { $0.kind == .objective }) else {
+                require(false, "objective defense should expose objective impact")
+                return
+            }
+            require(objectiveImpact.before == "被夺风险", "objective impact should expose capture risk")
+            require(objectiveImpact.after == "进驻" || objectiveImpact.after == "封堵", "objective impact should expose defense action")
 
             guard let reinforce = enemyCountermeasures.first(where: {
                 $0.kind == .reinforce &&
@@ -1143,10 +1172,28 @@ struct RulesSmokeTest {
                 require(false, "enemy threat countermeasures should include reinforce advice")
                 return
             }
+            guard let reinforceThreat = enemyThreats.first(where: { $0.id == reinforce.threatID }),
+                  let reinforceBeforeHP = reinforceThreat.projectedTargetHPAfterDamage else {
+                require(false, "reinforce countermeasure should link to an attack threat with before HP")
+                return
+            }
             require(reinforce.projectedRecoveredHP == UnitKind.tank.reinforceAmount, "reinforce countermeasure should project recovery amount")
             require(reinforce.destination == withdrawUnit.position, "reinforce countermeasure should stay on the threatened objective")
             require(reinforce.benefitMetrics.contains { $0.kind == .recovery && $0.value.contains("\(reinforce.projectedRecoveredHP)") }, "reinforce should expose recovery benefit")
             require(reinforce.prioritySummary.contains("当前位置"), "reinforce should explain current-position priority")
+            guard let reinforceRecoveryImpact = reinforce.impactComparisons.first(where: { $0.kind == .recovery }),
+                  let reinforceSurvivalImpact = reinforce.impactComparisons.first(where: { $0.kind == .survival }) else {
+                require(false, "reinforce should expose recovery and survival impact")
+                return
+            }
+            let reinforceExpectedHPAfterThreat = max(0, (reinforce.projectedFriendlyHPAfterAction ?? 0) - reinforceThreat.projectedDamage)
+            let reinforceBeforeText = reinforceThreat.willDestroyTarget ? "被击毁" : "HP \(reinforceBeforeHP)"
+            require(reinforce.impactComparisons.first?.kind == .survival, "reinforce should lead with survival after the projected threat")
+            require(reinforceSurvivalImpact.before == reinforceBeforeText, "reinforce survival impact should expose current threat outcome")
+            require(reinforceSurvivalImpact.after == "HP \(reinforceExpectedHPAfterThreat)", "reinforce survival impact should expose projected HP after the threat")
+            require(reinforceExpectedHPAfterThreat > reinforceBeforeHP, "reinforce survival impact should improve projected HP after the threat")
+            require(reinforceRecoveryImpact.before == "HP \(reinforceBeforeHP)", "reinforce impact should expose before HP")
+            require(reinforceRecoveryImpact.after == "HP \(reinforce.projectedFriendlyHPAfterAction ?? 0)", "reinforce impact should expose recovery HP")
             require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "enemy threat countermeasures should not spend command points")
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "enemy threat countermeasures should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "enemy threat countermeasures should not mutate objectives")
@@ -1296,7 +1343,8 @@ struct RulesSmokeTest {
                 projectedRecoveredHP: 0,
                 canExecuteNow: false,
                 reason: "测试过期建议",
-                score: 0
+                score: 0,
+                impactComparisons: []
             )
             enemyThreatGame.focusEnemyThreatCountermeasure(staleCountermeasure)
             require(enemyThreatGame.message.contains("已不可用"), "stale countermeasure focus should explain that the advice expired")
