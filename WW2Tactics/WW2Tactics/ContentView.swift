@@ -1558,6 +1558,10 @@ private struct HexMapView: View {
         let guidedObjectiveCoordinate = game.guidedObjectiveCoordinate
         let latestCaptureCoordinate = game.latestObjectiveCaptureResult?.coordinate
         let enemyIntentTargets = Set(game.visibleEnemyThreatIntentPreviews.map(\.targetCoordinate))
+        let countermeasureMarkersByCoordinate = Dictionary(
+            grouping: game.focusedEnemyThreatCountermeasureMapMarkers,
+            by: \.coordinate
+        )
         let contentWidth = CGFloat(game.scenario.mapColumns) * tileWidth * 0.78 + tileWidth
         let contentHeight = CGFloat(game.scenario.mapRows) * tileHeight * 0.78 + tileHeight
 
@@ -1600,7 +1604,8 @@ private struct HexMapView: View {
                     fireExposurePreview: focusedFireExposure?.coordinate == tile.coordinate ? focusedFireExposure : nil,
                     isGuidedObjective: guidedObjectiveCoordinate == tile.coordinate,
                     isLatestObjectiveCapture: latestCaptureCoordinate == tile.coordinate,
-                    isEnemyThreatIntentTarget: enemyIntentTargets.contains(tile.coordinate)
+                    isEnemyThreatIntentTarget: enemyIntentTargets.contains(tile.coordinate),
+                    enemyThreatCountermeasureMarkers: countermeasureMarkersByCoordinate[tile.coordinate] ?? []
                 )
                 .frame(width: tileWidth, height: tileHeight)
                 .position(x: point.x, y: point.y)
@@ -1713,6 +1718,7 @@ private struct HexTileView: View {
     let isGuidedObjective: Bool
     let isLatestObjectiveCapture: Bool
     let isEnemyThreatIntentTarget: Bool
+    let enemyThreatCountermeasureMarkers: [EnemyThreatCountermeasureMapMarker]
 
     var body: some View {
         ZStack {
@@ -1755,6 +1761,12 @@ private struct HexTileView: View {
                 EnemyThreatIntentMarker()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, 5)
+            }
+
+            if !enemyThreatCountermeasureMarkers.isEmpty {
+                EnemyThreatCountermeasureFocusMarker(markers: enemyThreatCountermeasureMarkers)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, countermeasureMarkerTopPadding)
             }
 
             if isAttackCoverage {
@@ -1847,6 +1859,7 @@ private struct HexTileView: View {
         if let fireExposurePreview { return fireExposurePreview.riskLevel.accentColor.opacity(0.95) }
         if isLatestObjectiveCapture { return .yellow.opacity(0.96) }
         if isGuidedObjective { return .green.opacity(0.96) }
+        if !enemyThreatCountermeasureMarkers.isEmpty { return .mint.opacity(0.96) }
         if isEnemyThreatIntentTarget { return .pink.opacity(0.92) }
         if isMovementRoute { return .cyan.opacity(0.88) }
         if isAttackCoverage { return .orange.opacity(0.58) }
@@ -1865,6 +1878,7 @@ private struct HexTileView: View {
         if fireExposurePreview?.riskLevel.sortRank ?? 0 >= FireRiskLevel.high.sortRank { return 3 }
         if isLatestObjectiveCapture { return 3 }
         if isGuidedObjective { return 3 }
+        if !enemyThreatCountermeasureMarkers.isEmpty { return 3 }
         if isEnemyThreatIntentTarget { return 2 }
         if isMovementRoute { return 2 }
         if isAttackCoverage { return 2 }
@@ -1885,6 +1899,20 @@ private struct HexTileView: View {
         }
     }
 
+    private var countermeasureMarkerTopPadding: CGFloat {
+        var occupiedTopSlots = 0
+        if isEnemyThreatIntentTarget {
+            occupiedTopSlots += 1
+        }
+        if isGuidedObjective || isLatestObjectiveCapture || fireExposurePreview != nil {
+            occupiedTopSlots += 1
+        }
+        if isGuidedObjective && isLatestObjectiveCapture {
+            occupiedTopSlots += 1
+        }
+        return 5 + CGFloat(occupiedTopSlots) * 18
+    }
+
     private var accessibilityLabel: String {
         let unitText = unit.map { "\($0.faction.title)\($0.kind.title)\($0.name)" } ?? "空地"
         let objectiveText = tile.objectiveName.map { "据点\($0)" } ?? ""
@@ -1896,12 +1924,18 @@ private struct HexTileView: View {
         let guidedObjectiveText = isGuidedObjective ? "当前目标据点" : ""
         let latestCaptureText = isLatestObjectiveCapture ? "最新占领据点" : ""
         let enemyThreatIntentText = isEnemyThreatIntentTarget ? "敌方意图目标" : ""
+        let countermeasureText = enemyThreatCountermeasureMarkers.isEmpty
+            ? ""
+            : enemyThreatCountermeasureMarkers
+                .sorted { $0.role.sortOrder < $1.role.sortOrder }
+                .map(\.role.title)
+                .joined(separator: "，")
         let fireRiskText = fireExposurePreview.map { preview in
             let sourceText = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
             let sourceSummary = sourceText.isEmpty ? "无敌火来源" : "来源\(sourceText)"
             return "\(preview.riskLevel.title)，潜在伤害\(preview.totalPotentialDamage)，预计剩余\(preview.projectedHPAfterExposure)，\(sourceSummary)"
         } ?? ""
-        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(latestCaptureText) \(enemyThreatIntentText) \(fireRiskText) \(unitText) \(actionAccessibilityText)"
+        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(latestCaptureText) \(enemyThreatIntentText) \(countermeasureText) \(fireRiskText) \(unitText) \(actionAccessibilityText)"
     }
 
     private var routeAccessibilityText: String {
@@ -2218,6 +2252,49 @@ private struct EnemyThreatIntentMarker: View {
         )
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+private struct EnemyThreatCountermeasureFocusMarker: View {
+    let markers: [EnemyThreatCountermeasureMapMarker]
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "scope")
+                .font(.system(size: 7, weight: .black))
+            Text(displayText)
+                .font(.system(size: 7, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.black.opacity(0.84))
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(Color.mint.opacity(0.9), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.42), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var displayText: String {
+        let roles = uniqueRoles
+        if roles.count == 1 {
+            return roles[0].shortTitle
+        }
+        return roles.map(\.compactTitle).joined(separator: "+")
+    }
+
+    private var uniqueRoles: [EnemyThreatCountermeasureMapMarkerRole] {
+        var seen: Set<EnemyThreatCountermeasureMapMarkerRole> = []
+        return markers
+            .map(\.role)
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .filter { role in
+                if seen.contains(role) { return false }
+                seen.insert(role)
+                return true
+            }
     }
 }
 
@@ -4030,6 +4107,7 @@ private struct MapLegendView: View {
                 LegendItem(color: .orange.opacity(0.76), label: "攻击位", symbol: "POS")
                 LegendItem(color: .red.opacity(0.78), label: "敌火覆盖", symbol: "TH")
                 LegendItem(color: .pink.opacity(0.86), label: "敌方意图", symbol: "INT")
+                LegendItem(color: .mint.opacity(0.9), label: "反制聚焦", symbol: "ACT")
                 LegendItem(color: .green.opacity(0.9), label: "补给线")
                 LegendItem(color: .red.opacity(0.92), label: "断补给", symbol: "CUT")
                 LegendItem(color: .white.opacity(0.85), label: "焦点")

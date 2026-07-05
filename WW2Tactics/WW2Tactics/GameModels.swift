@@ -820,6 +820,61 @@ enum EnemyThreatCountermeasureKind: String, Identifiable {
     }
 }
 
+enum EnemyThreatCountermeasureMapMarkerRole: String, CaseIterable, Identifiable {
+    case actingUnit
+    case threatSource
+    case counterTarget
+    case threatenedTarget
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .actingUnit: "反制执行单位"
+        case .threatSource: "威胁来源"
+        case .counterTarget: "反制目标"
+        case .threatenedTarget: "受威胁目标"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .actingUnit: "ACT"
+        case .threatSource: "SRC"
+        case .counterTarget: "CTR"
+        case .threatenedTarget: "TGT"
+        }
+    }
+
+    var compactTitle: String {
+        switch self {
+        case .actingUnit: "A"
+        case .threatSource: "S"
+        case .counterTarget: "C"
+        case .threatenedTarget: "T"
+        }
+    }
+
+    var sortOrder: Int {
+        switch self {
+        case .actingUnit: 0
+        case .threatSource: 1
+        case .counterTarget: 2
+        case .threatenedTarget: 3
+        }
+    }
+}
+
+struct EnemyThreatCountermeasureMapMarker: Identifiable, Equatable {
+    let role: EnemyThreatCountermeasureMapMarkerRole
+    let coordinate: HexCoordinate
+    let countermeasureKind: EnemyThreatCountermeasureKind
+
+    var id: String {
+        "\(role.rawValue)-\(coordinate.id)-\(countermeasureKind.rawValue)"
+    }
+}
+
 struct EnemyThreatCountermeasurePreview: Identifiable, Equatable {
     let kind: EnemyThreatCountermeasureKind
     let threatID: String

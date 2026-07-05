@@ -39,7 +39,8 @@ flowchart TD
   SP --> OP["OBJ计划摘要：ObjectiveAdvancePreview 最多 3 条"]
   OP --> OC["点击目标计划：GameState 重新查计划并聚焦路线"]
   OC --> CM["点击反制建议：GameState 重新校验并聚焦单位、敌军或目的格"]
-  CM --> F{"输入类型"}
+  CM --> MK["地图反制标记：ACT 执行 / SRC 威胁 / CTR 目标 / TGT 受威胁"]
+  MK --> F{"输入类型"}
   F -->|左键/主点按聚焦| G["只显示预览消息，不消耗行动"]
   F -->|右键/执行按钮| H{"预览是否可执行？"}
   H -->|MOVE| I["move：移动、消耗移动、更新据点、必要时写入 CAP 结果"]
@@ -98,7 +99,7 @@ flowchart LR
   AI --> AIS["AIPhaseSummary：动作计数、指令点、占点、歼灭、伤害"]
   AIS --> RES
   INT --> UI["侧栏敌方意图面板 / 地图 INT 标记"]
-  CTR --> UI2["侧栏反制建议面板"]
+  CTR --> UI2["侧栏反制建议面板 / 地图 ACT-SRC-CTR-TGT 标记"]
 ```
 
 ## 4. Agent X 主控迭代流程图

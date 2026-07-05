@@ -73,6 +73,7 @@ final class GameState: ObservableObject {
     }
 
     private var focusedSafeEngagementTargetID: BattleUnit.ID?
+    private var focusedEnemyThreatCountermeasurePreview: EnemyThreatCountermeasurePreview?
     private var activeAIPhaseBaseline: AIPhaseBaseline?
     private var activeAIPhaseActionCounts = AIPhaseActionCounts()
 
@@ -206,6 +207,13 @@ final class GameState: ObservableObject {
 
     var visibleEnemyThreatCountermeasurePreviews: [EnemyThreatCountermeasurePreview] {
         enemyThreatCountermeasurePreviews(for: visibleEnemyThreatIntentPreviews)
+    }
+
+    var focusedEnemyThreatCountermeasureMapMarkers: [EnemyThreatCountermeasureMapMarker] {
+        guard let preview = focusedEnemyThreatCountermeasurePreview,
+              isEnemyThreatCountermeasureFocused(preview),
+              isEnemyThreatCountermeasureValidForMapMarkers(preview) else { return [] }
+        return enemyThreatCountermeasureMapMarkers(for: preview)
     }
 
     var objectiveTiles: [TerrainTile] {
@@ -521,6 +529,8 @@ final class GameState: ObservableObject {
         case .reinforce:
             focusReinforceCountermeasure(preview, actingUnit: actingUnit)
         }
+
+        focusedEnemyThreatCountermeasurePreview = isEnemyThreatCountermeasureFocused(preview) ? preview : nil
     }
 
     func isEnemyThreatCountermeasureFocused(_ preview: EnemyThreatCountermeasurePreview) -> Bool {
@@ -567,6 +577,7 @@ final class GameState: ObservableObject {
         }
 
         guidedObjectiveCoordinate = nil
+        focusedEnemyThreatCountermeasurePreview = nil
         focusedSafeEngagementTargetID = target.id
         focusedSafeEngagementDestination = option.route.destination
         focusedCoordinate = target.position
@@ -670,6 +681,89 @@ final class GameState: ObservableObject {
         let recoveredHP = min(actingUnit.kind.reinforceAmount, actingUnit.maxHP - actingUnit.hp)
         let cost = reinforceCost(for: actingUnit)
         message = "\(actingUnit.name) 聚焦整补支撑：可恢复 \(recoveredHP) 耐久，消耗 \(cost) 指令点。点整补才会执行。"
+    }
+
+    private func enemyThreatCountermeasureMapMarkers(
+        for preview: EnemyThreatCountermeasurePreview
+    ) -> [EnemyThreatCountermeasureMapMarker] {
+        var markers: [EnemyThreatCountermeasureMapMarker] = []
+
+        if let actingUnitID = preview.actingUnitID,
+           let actingUnit = units.first(where: { $0.id == actingUnitID && !$0.isDestroyed }) {
+            markers.append(
+                EnemyThreatCountermeasureMapMarker(
+                    role: .actingUnit,
+                    coordinate: actingUnit.position,
+                    countermeasureKind: preview.kind
+                )
+            )
+        }
+
+        if let enemy = units.first(where: { $0.id == preview.threatEnemyUnitID && !$0.isDestroyed }) {
+            markers.append(
+                EnemyThreatCountermeasureMapMarker(
+                    role: .threatSource,
+                    coordinate: enemy.position,
+                    countermeasureKind: preview.kind
+                )
+            )
+
+            if preview.kind == .firstStrike {
+                markers.append(
+                    EnemyThreatCountermeasureMapMarker(
+                        role: .counterTarget,
+                        coordinate: enemy.position,
+                        countermeasureKind: preview.kind
+                    )
+                )
+            }
+        }
+
+        if let destination = preview.destination {
+            markers.append(
+                EnemyThreatCountermeasureMapMarker(
+                    role: .counterTarget,
+                    coordinate: destination,
+                    countermeasureKind: preview.kind
+                )
+            )
+        }
+
+        markers.append(
+            EnemyThreatCountermeasureMapMarker(
+                role: .threatenedTarget,
+                coordinate: preview.threatTargetCoordinate,
+                countermeasureKind: preview.kind
+            )
+        )
+
+        return markers
+    }
+
+    private func isEnemyThreatCountermeasureValidForMapMarkers(
+        _ preview: EnemyThreatCountermeasurePreview
+    ) -> Bool {
+        guard let actingUnitID = preview.actingUnitID,
+              let actingUnit = units.first(where: {
+                  $0.id == actingUnitID &&
+                      $0.faction == activeFaction &&
+                      !$0.isDestroyed
+              }) else { return false }
+
+        switch preview.kind {
+        case .firstStrike:
+            guard let enemy = units.first(where: {
+                $0.id == preview.threatEnemyUnitID &&
+                    $0.faction != actingUnit.faction &&
+                    !$0.isDestroyed
+            }) else { return false }
+            return actingUnit.canAttack && combatPreview(attacker: actingUnit, defender: enemy) != nil
+        case .withdraw, .objectiveDefense:
+            guard let destination = preview.destination else { return false }
+            return actingUnit.canMove && movementRoute(for: actingUnit, to: destination) != nil
+        case .reinforce:
+            return canReinforce(actingUnit)
+        }
     }
 
     func focusObjectiveAdvanceTarget(coordinate: HexCoordinate) {
@@ -2642,6 +2736,7 @@ final class GameState: ObservableObject {
         earnedStars = 0
         focusedCoordinate = newScenario.initialFocus
         guidedObjectiveCoordinate = nil
+        focusedEnemyThreatCountermeasurePreview = nil
         clearSafeEngagementFocus()
         latestCombatResult = nil
         latestTacticalCommandResult = nil
@@ -2662,6 +2757,7 @@ final class GameState: ObservableObject {
         preservingObjectiveGuidance: Bool = false
     ) {
         guard let index = scenario.units.firstIndex(where: { $0.id == unitID }) else { return }
+        focusedEnemyThreatCountermeasurePreview = nil
         scenario.units[index].position = coordinate
         scenario.units[index].hasMoved = true
         scenario.units[index].tacticalStatus = .normal
@@ -2682,6 +2778,7 @@ final class GameState: ObservableObject {
 
     private func clearObjectiveGuidance() {
         guidedObjectiveCoordinate = nil
+        focusedEnemyThreatCountermeasurePreview = nil
         clearSafeEngagementFocus()
     }
 

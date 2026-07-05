@@ -732,3 +732,41 @@
 
 - 反制建议点选仍只是预览聚焦，不会自动执行移动、攻击、整补或战术命令。
 - 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件或回合流程。
+
+### v1.13 / 反制建议地图聚焦标记
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `EnemyThreatCountermeasureMapMarkerRole` 和 `EnemyThreatCountermeasureMapMarker`，把当前点选的反制建议投射为 ACT 执行单位、SRC 威胁来源、CTR 反制目标和 TGT 受威胁目标。
+- `GameState` 新增 `focusedEnemyThreatCountermeasureMapMarkers`，保存被点选建议快照并在读取时重新校验单位、敌军、路线或整补条件；普通聚焦、真实移动、重开和切战役会清理旧反制聚焦。
+- `ContentView` 在地图格显示反制聚焦标记、边框强化和无障碍说明，图例新增“反制聚焦”；UI 只消费 `GameState` 标记，不计算建议有效性。
+- 补充 XCTest 和规则 smoke test，覆盖抢先打击、撤退、据点防守、整补四类建议的 ACT/SRC/CTR/TGT 标记，以及普通聚焦和过期建议不残留标记。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.13（反制建议地图聚焦标记）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+
+遗留事项：
+
+- 反制建议地图标记仍是只读态势辅助，不会自动执行移动、攻击、整补或战术命令。
+- 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件或回合流程。

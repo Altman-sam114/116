@@ -1015,15 +1015,31 @@ struct RulesSmokeTest {
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "enemy threat countermeasures should not mutate objectives")
             require(enemyThreatGame.battleLog == startingEnemyThreatLog, "enemy threat countermeasures should not write battle log entries")
 
+            @MainActor
+            func countermeasureMarkerRoles(at coordinate: HexCoordinate) -> Set<EnemyThreatCountermeasureMapMarkerRole> {
+                Set(
+                    enemyThreatGame.focusedEnemyThreatCountermeasureMapMarkers
+                        .filter { $0.coordinate == coordinate }
+                        .map(\.role)
+                )
+            }
+
             enemyThreatGame.focusEnemyThreatCountermeasure(firstStrike)
             guard let firstStrikeEnemy = enemyThreatGame.units.first(where: { $0.id == firstStrike.threatEnemyUnitID }) else {
                 require(false, "first strike focus should still have a threat source")
+                return
+            }
+            guard let firstStrikeUnit = enemyThreatGame.units.first(where: { $0.id == firstStrike.actingUnitID }) else {
+                require(false, "first strike focus should still have an acting unit")
                 return
             }
             require(enemyThreatGame.selectedUnit?.id == firstStrike.actingUnitID, "first strike focus should select the acting unit")
             require(enemyThreatGame.focusedCoordinate == firstStrikeEnemy.position, "first strike focus should target the enemy")
             require(enemyThreatGame.guidedObjectiveCoordinate == nil, "first strike focus should clear objective guidance")
             require(enemyThreatGame.isEnemyThreatCountermeasureFocused(firstStrike), "first strike focus state should be detectable")
+            require(countermeasureMarkerRoles(at: firstStrikeUnit.position).contains(.actingUnit), "first strike marker should identify the acting unit")
+            require(countermeasureMarkerRoles(at: firstStrikeEnemy.position).contains(.threatSource), "first strike marker should identify the threat source")
+            require(countermeasureMarkerRoles(at: firstStrikeEnemy.position).contains(.counterTarget), "first strike marker should identify the counter target")
 
             enemyThreatGame.focusEnemyThreatCountermeasure(withdraw)
             guard let withdrawFocusDestination = withdraw.destination,
@@ -1031,11 +1047,19 @@ struct RulesSmokeTest {
                 require(false, "withdraw focus should keep unit and destination")
                 return
             }
+            guard let withdrawEnemy = enemyThreatGame.units.first(where: { $0.id == withdraw.threatEnemyUnitID }) else {
+                require(false, "withdraw focus should keep the threat source")
+                return
+            }
             require(enemyThreatGame.selectedUnit?.id == withdraw.actingUnitID, "withdraw focus should select the threatened unit")
             require(enemyThreatGame.focusedCoordinate == withdrawFocusDestination, "withdraw focus should target the retreat destination")
             require(enemyThreatGame.guidedObjectiveCoordinate == nil, "withdraw focus should not set objective guidance")
             require(enemyThreatGame.movementRoute(for: withdrawFocusUnit, to: withdrawFocusDestination) != nil, "withdraw focus route should be reproducible")
             require(enemyThreatGame.isEnemyThreatCountermeasureFocused(withdraw), "withdraw focus state should be detectable")
+            require(countermeasureMarkerRoles(at: withdrawFocusUnit.position).contains(.actingUnit), "withdraw marker should identify the acting unit")
+            require(countermeasureMarkerRoles(at: withdrawEnemy.position).contains(.threatSource), "withdraw marker should identify the threat source")
+            require(countermeasureMarkerRoles(at: withdrawFocusDestination).contains(.counterTarget), "withdraw marker should identify the retreat destination")
+            require(countermeasureMarkerRoles(at: withdraw.threatTargetCoordinate).contains(.threatenedTarget), "withdraw marker should identify the threatened target")
 
             enemyThreatGame.focusEnemyThreatCountermeasure(objectiveDefense)
             guard let defenseDestination = objectiveDefense.destination,
@@ -1043,21 +1067,40 @@ struct RulesSmokeTest {
                 require(false, "objective defense focus should keep unit and destination")
                 return
             }
+            guard let defenseEnemy = enemyThreatGame.units.first(where: { $0.id == objectiveDefense.threatEnemyUnitID }) else {
+                require(false, "objective defense focus should keep the threat source")
+                return
+            }
             require(enemyThreatGame.selectedUnit?.id == objectiveDefense.actingUnitID, "objective defense focus should select the acting unit")
             require(enemyThreatGame.focusedCoordinate == defenseDestination, "objective defense focus should target the defense destination")
             require(enemyThreatGame.guidedObjectiveCoordinate == objectiveDefense.threatTargetCoordinate, "objective defense focus should guide the threatened objective")
             require(enemyThreatGame.movementRoute(for: defenseUnit, to: defenseDestination) != nil, "objective defense focus route should be reproducible")
             require(enemyThreatGame.isEnemyThreatCountermeasureFocused(objectiveDefense), "objective defense focus state should be detectable")
+            require(countermeasureMarkerRoles(at: defenseUnit.position).contains(.actingUnit), "objective defense marker should identify the acting unit")
+            require(countermeasureMarkerRoles(at: defenseEnemy.position).contains(.threatSource), "objective defense marker should identify the threat source")
+            require(countermeasureMarkerRoles(at: defenseDestination).contains(.counterTarget), "objective defense marker should identify the defense destination")
+            require(countermeasureMarkerRoles(at: objectiveDefense.threatTargetCoordinate).contains(.threatenedTarget), "objective defense marker should identify the threatened objective")
 
             enemyThreatGame.focusEnemyThreatCountermeasure(reinforce)
             guard let reinforceUnit = enemyThreatGame.units.first(where: { $0.id == reinforce.actingUnitID }) else {
                 require(false, "reinforce focus should keep the acting unit")
                 return
             }
+            guard let reinforceEnemy = enemyThreatGame.units.first(where: { $0.id == reinforce.threatEnemyUnitID }) else {
+                require(false, "reinforce focus should keep the threat source")
+                return
+            }
             require(enemyThreatGame.selectedUnit?.id == reinforce.actingUnitID, "reinforce focus should select the acting unit")
             require(enemyThreatGame.focusedCoordinate == reinforceUnit.position, "reinforce focus should stay on the unit")
             require(enemyThreatGame.guidedObjectiveCoordinate == nil, "reinforce focus should clear objective guidance")
             require(enemyThreatGame.isEnemyThreatCountermeasureFocused(reinforce), "reinforce focus state should be detectable")
+            require(countermeasureMarkerRoles(at: reinforceUnit.position).contains(.actingUnit), "reinforce marker should identify the acting unit")
+            require(countermeasureMarkerRoles(at: reinforceEnemy.position).contains(.threatSource), "reinforce marker should identify the threat source")
+            require(countermeasureMarkerRoles(at: reinforceUnit.position).contains(.counterTarget), "reinforce marker should identify the counter target")
+            require(countermeasureMarkerRoles(at: reinforce.threatTargetCoordinate).contains(.threatenedTarget), "reinforce marker should identify the threatened target")
+
+            enemyThreatGame.focus(coordinate: reinforceUnit.position)
+            require(enemyThreatGame.focusedEnemyThreatCountermeasureMapMarkers.isEmpty, "plain focus should clear countermeasure map markers")
 
             let staleCountermeasure = EnemyThreatCountermeasurePreview(
                 kind: .firstStrike,
@@ -1083,6 +1126,7 @@ struct RulesSmokeTest {
             )
             enemyThreatGame.focusEnemyThreatCountermeasure(staleCountermeasure)
             require(enemyThreatGame.message.contains("已不可用"), "stale countermeasure focus should explain that the advice expired")
+            require(enemyThreatGame.focusedEnemyThreatCountermeasureMapMarkers.isEmpty, "stale countermeasure focus should not keep map markers")
             require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "countermeasure focus should not spend command points")
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "countermeasure focus should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "countermeasure focus should not mutate objectives")
