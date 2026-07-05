@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.20 正在推进 AI 回合行动时间线，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.23 正在推进 AI 移动后火炮弹幕，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
 
 ## 历史记录
 
@@ -1158,3 +1158,40 @@
 
 - 本轮只增加本回合可达据点的直接优先级，不新增全局目标分配、概率 AI、撤退 AI、生产队列或复杂战略规划。
 - 本轮不改变伤害、移动、补给、士气、战术命令、部署、整补、胜负和反制建议语义。
+
+### v1.23 / AI 移动后火炮弹幕
+
+日期：2026-07-05
+
+核心变更：
+
+- `resolveAxisPostMoveAction(unitID:)` 在移动后普通攻击不可用时，会继续检查 `bestTacticalCommandPlan(for:)`；若战术命令可用，则复用 `useTacticalCommand` 执行命令。
+- 移动后普通攻击仍优先于移动后战术命令，既有移动后攻击和直取据点规则不改变。
+- 新增轴心火炮移动后弹幕测试场景：火炮初始不在普通射程或弹幕射程内，移动后进入 `artilleryBarrage` 射程但仍不在普通射程内，AI 会形成 `move -> tacticalCommand`。
+- 补充 XCTest 和规则 smoke test，覆盖移动后弹幕的战术命令结果、AI summary、timeline、地图复盘标记，以及普通移动后攻击优先级不退化。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.23（AI移动后火炮弹幕）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- 云端 GitHub Actions artifact：待本轮 push 后由 Agent C 下载并核对。
+
+遗留事项：
+
+- 本轮只增加移动后普通攻击不可用时的战术命令收尾，不新增概率 AI、全局炮兵站位规划、撤退 AI、生产队列或复杂战略搜索。
+- 本轮不改变战术命令数值、普通攻击、反击、移动、补给、士气、部署、整补、胜负和反制建议语义。

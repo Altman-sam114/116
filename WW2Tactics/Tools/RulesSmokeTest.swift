@@ -1799,6 +1799,91 @@ struct RulesSmokeTest {
                 )
             }
 
+            let axisPostMoveBarrageGame = GameState(
+                scenario: axisPostMoveBarrageScenario(),
+                commandPoints: [.allies: 6, .axis: 1]
+            )
+            guard let axisPostMoveBarrageTarget = axisPostMoveBarrageGame.units.first(where: { $0.name == "远距指挥坦克" }),
+                  let axisPostMoveArtillery = axisPostMoveBarrageGame.units.first(where: { $0.name == "机动轴心炮兵" }) else {
+                require(false, "axis post-move barrage test units should exist")
+                return
+            }
+            let axisPostMoveBarragePosition = HexCoordinate(q: 4, r: 0)
+            require(
+                !axisPostMoveBarrageGame.attackableTiles(for: axisPostMoveArtillery).contains(axisPostMoveBarrageTarget.position),
+                "axis post-move barrage target should start outside ordinary artillery range"
+            )
+            require(
+                axisPostMoveBarrageGame.tacticalCommandTargets(for: axisPostMoveArtillery, command: .artilleryBarrage).isEmpty,
+                "axis post-move barrage target should start outside barrage range before AI moves"
+            )
+            axisPostMoveBarrageGame.endTurn()
+            if axisPostMoveBarrageGame.winner == nil {
+                guard let axisPostMoveBarrageTargetAfterAI = axisPostMoveBarrageGame.units.first(where: { $0.id == axisPostMoveBarrageTarget.id }),
+                      let axisPostMoveArtilleryAfterAI = axisPostMoveBarrageGame.units.first(where: { $0.id == axisPostMoveArtillery.id }) else {
+                    require(false, "axis post-move barrage units should survive AI turn")
+                    return
+                }
+                require(axisPostMoveArtilleryAfterAI.position == axisPostMoveBarragePosition, "axis artillery should move into barrage range")
+                require(axisPostMoveBarrageTargetAfterAI.hp < axisPostMoveBarrageTarget.hp, "axis post-move barrage should damage target")
+                require(axisPostMoveBarrageTargetAfterAI.morale < axisPostMoveBarrageTarget.morale, "axis post-move barrage should suppress target morale")
+                require(axisPostMoveArtilleryAfterAI.hasMoved && axisPostMoveArtilleryAfterAI.hasAttacked, "post-move barrage should spend artillery action")
+                guard let axisPostMoveBarrageCommandSummary = axisPostMoveBarrageGame.latestTacticalCommandResult else {
+                    require(false, "axis post-move barrage should publish tactical command result")
+                    return
+                }
+                require(axisPostMoveBarrageCommandSummary.command == .artilleryBarrage, "axis post-move command should be artillery barrage")
+                require(axisPostMoveBarrageCommandSummary.caster.unitID == axisPostMoveArtillery.id, "axis post-move barrage should bind caster")
+                require(axisPostMoveBarrageCommandSummary.target.unitID == axisPostMoveBarrageTarget.id, "axis post-move barrage should bind target")
+                require(axisPostMoveBarrageCommandSummary.didAvoidCounterAttack, "axis post-move barrage should avoid counterattack")
+                require(axisPostMoveBarrageGame.latestCombatResult == nil, "axis post-move barrage should not publish ordinary combat result")
+                guard let axisPostMoveBarragePhaseSummary = axisPostMoveBarrageGame.latestAIPhaseSummary else {
+                    require(false, "axis post-move barrage turn should publish AI phase summary")
+                    return
+                }
+                require(axisPostMoveBarragePhaseSummary.moves == 1, "axis post-move barrage summary should count one move")
+                require(axisPostMoveBarragePhaseSummary.tacticalCommands == 1, "axis post-move barrage summary should count one tactical command")
+                require(axisPostMoveBarragePhaseSummary.attacks == 0, "axis post-move barrage summary should not count ordinary attacks")
+                require(axisPostMoveBarragePhaseSummary.damageDealt == axisPostMoveBarrageCommandSummary.damage, "axis post-move barrage summary should record command damage")
+                require(axisPostMoveBarragePhaseSummary.startingCommandPoints == TacticalCommand.artilleryBarrage.commandCost, "axis post-move barrage should start AI phase with barrage cost")
+                require(axisPostMoveBarragePhaseSummary.endingCommandPoints == 0, "axis post-move barrage should spend all available command points")
+                requireSequentialTimelineOrders(axisPostMoveBarragePhaseSummary.timeline, "axis post-move barrage timeline should use sequential orders")
+                require(axisPostMoveBarragePhaseSummary.timeline.count >= 2, "axis post-move barrage timeline should include move and tactical command")
+                require(axisPostMoveBarragePhaseSummary.timeline[0].kind == .move, "axis post-move barrage timeline should record move first")
+                require(axisPostMoveBarragePhaseSummary.timeline[0].from == HexCoordinate(q: 5, r: 0), "axis post-move barrage timeline should record move origin")
+                require(axisPostMoveBarragePhaseSummary.timeline[0].to == axisPostMoveBarragePosition, "axis post-move barrage timeline should record move destination")
+                require(axisPostMoveBarragePhaseSummary.timeline[1].kind == .tacticalCommand, "axis post-move barrage timeline should record tactical command second")
+                require(axisPostMoveBarragePhaseSummary.timeline[1].tacticalCommand == .artilleryBarrage, "axis post-move barrage timeline should identify barrage")
+                require(axisPostMoveBarragePhaseSummary.timeline[1].from == axisPostMoveBarragePosition, "axis post-move barrage timeline should record caster coordinate")
+                require(axisPostMoveBarragePhaseSummary.timeline[1].to == axisPostMoveBarrageTarget.position, "axis post-move barrage timeline should record target coordinate")
+                let axisPostMoveBarrageMarkers = axisPostMoveBarrageGame.latestAIPhaseMapMarkers
+                requireAIPhaseMapMarkersMatchSummary(axisPostMoveBarrageMarkers, axisPostMoveBarragePhaseSummary, "axis post-move barrage map replay markers")
+                requireAIPhaseMapMarker(
+                    axisPostMoveBarrageMarkers,
+                    kind: .move,
+                    role: .destination,
+                    coordinate: axisPostMoveBarragePosition,
+                    order: axisPostMoveBarragePhaseSummary.timeline[0].order,
+                    "axis post-move barrage map replay should mark move destination"
+                )
+                requireAIPhaseMapMarker(
+                    axisPostMoveBarrageMarkers,
+                    kind: .tacticalCommand,
+                    role: .actor,
+                    coordinate: axisPostMoveBarragePosition,
+                    order: axisPostMoveBarragePhaseSummary.timeline[1].order,
+                    "axis post-move barrage map replay should mark caster"
+                )
+                requireAIPhaseMapMarker(
+                    axisPostMoveBarrageMarkers,
+                    kind: .tacticalCommand,
+                    role: .target,
+                    coordinate: axisPostMoveBarrageTarget.position,
+                    order: axisPostMoveBarragePhaseSummary.timeline[1].order,
+                    "axis post-move barrage map replay should mark target"
+                )
+            }
+
             let axisPursuitGame = GameState(
                 scenario: axisManeuverPursuitScenario(),
                 commandPoints: [.allies: 6, .axis: 0]
@@ -3462,6 +3547,48 @@ struct RulesSmokeTest {
             ],
             turnLimit: 4,
             decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func axisPostMoveBarrageScenario() -> Scenario {
+        let tiles = (0..<6).map { q in
+            TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+        }
+
+        return Scenario(
+            id: "axis-post-move-barrage-test",
+            name: "轴心移动后弹幕测试",
+            year: "1944",
+            briefing: "测试轴心火炮移动后进入弹幕射程并压制目标。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 6,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "远距指挥坦克",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: .patton,
+                    morale: 82
+                ),
+                BattleUnit(
+                    name: "机动轴心炮兵",
+                    kind: .artillery,
+                    faction: .axis,
+                    position: HexCoordinate(q: 5, r: 0),
+                    hp: UnitKind.artillery.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 5,
+            decisiveTurnLimit: 3,
             survivalStarThreshold: 1
         )
     }

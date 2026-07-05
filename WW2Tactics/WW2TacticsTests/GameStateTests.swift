@@ -777,6 +777,92 @@ final class GameStateTests: XCTestCase {
         }
     }
 
+    func testAxisAIMovesThenUsesArtilleryBarrageWhenOnlyBarrageIsInRange() throws {
+        let game = GameState(
+            scenario: Self.axisPostMoveBarrageScenario(),
+            commandPoints: [.allies: 6, .axis: 1]
+        )
+        let alliedTarget = try XCTUnwrap(game.units.first { $0.name == "远距指挥坦克" })
+        let axisArtillery = try XCTUnwrap(game.units.first { $0.name == "机动轴心炮兵" })
+        let barragePosition = HexCoordinate(q: 4, r: 0)
+
+        XCTAssertFalse(game.attackableTiles(for: axisArtillery).contains(alliedTarget.position))
+        XCTAssertTrue(game.tacticalCommandTargets(for: axisArtillery, command: .artilleryBarrage).isEmpty)
+
+        game.endTurn()
+
+        XCTAssertNil(game.winner)
+        let targetAfterAI = try XCTUnwrap(game.units.first { $0.id == alliedTarget.id })
+        let artilleryAfterAI = try XCTUnwrap(game.units.first { $0.id == axisArtillery.id })
+        XCTAssertEqual(artilleryAfterAI.position, barragePosition)
+        XCTAssertLessThan(targetAfterAI.hp, alliedTarget.hp)
+        XCTAssertLessThan(targetAfterAI.morale, alliedTarget.morale)
+        XCTAssertTrue(artilleryAfterAI.hasMoved)
+        XCTAssertTrue(artilleryAfterAI.hasAttacked)
+
+        let commandResult = try XCTUnwrap(game.latestTacticalCommandResult)
+        XCTAssertEqual(commandResult.command, .artilleryBarrage)
+        XCTAssertEqual(commandResult.caster.unitID, axisArtillery.id)
+        XCTAssertEqual(commandResult.target.unitID, alliedTarget.id)
+        XCTAssertEqual(commandResult.damage, alliedTarget.hp - targetAfterAI.hp)
+        XCTAssertTrue(commandResult.didAvoidCounterAttack)
+        XCTAssertNil(game.latestCombatResult)
+
+        let summary = try XCTUnwrap(game.latestAIPhaseSummary)
+        XCTAssertEqual(summary.moves, 1)
+        XCTAssertEqual(summary.tacticalCommands, 1)
+        XCTAssertEqual(summary.attacks, 0)
+        XCTAssertEqual(summary.deployments, 0)
+        XCTAssertEqual(summary.reinforcements, 0)
+        XCTAssertEqual(summary.damageDealt, commandResult.damage)
+        XCTAssertEqual(summary.startingCommandPoints, TacticalCommand.artilleryBarrage.commandCost)
+        XCTAssertEqual(summary.endingCommandPoints, 0)
+        XCTAssertGreaterThanOrEqual(summary.timeline.count, 2)
+        XCTAssertEqual(summary.timeline[0].kind, .move)
+        XCTAssertEqual(summary.timeline[0].actorName, "机动轴心炮兵")
+        XCTAssertEqual(summary.timeline[0].from, HexCoordinate(q: 5, r: 0))
+        XCTAssertEqual(summary.timeline[0].to, barragePosition)
+        XCTAssertEqual(summary.timeline[1].kind, .tacticalCommand)
+        XCTAssertEqual(summary.timeline[1].actorName, "机动轴心炮兵")
+        XCTAssertEqual(summary.timeline[1].targetName, "远距指挥坦克")
+        XCTAssertEqual(summary.timeline[1].from, barragePosition)
+        XCTAssertEqual(summary.timeline[1].to, alliedTarget.position)
+        XCTAssertEqual(summary.timeline[1].tacticalCommand, .artilleryBarrage)
+        XCTAssertEqual(summary.timeline[1].damage, commandResult.damage)
+        XCTAssertEqual(summary.timeline[1].commandPointCost, TacticalCommand.artilleryBarrage.commandCost)
+
+        let markers = game.latestAIPhaseMapMarkers
+        assertAIPhaseMapMarkers(markers, match: summary)
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .move,
+            role: .origin,
+            coordinate: HexCoordinate(q: 5, r: 0),
+            order: summary.timeline[0].order
+        )
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .move,
+            role: .destination,
+            coordinate: barragePosition,
+            order: summary.timeline[0].order
+        )
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .tacticalCommand,
+            role: .actor,
+            coordinate: barragePosition,
+            order: summary.timeline[1].order
+        )
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .tacticalCommand,
+            role: .target,
+            coordinate: alliedTarget.position,
+            order: summary.timeline[1].order
+        )
+    }
+
     func testAxisAIUsesManeuverPursuitAfterDestroyingAdjacentTarget() throws {
         let game = GameState(
             scenario: Self.axisManeuverPursuitScenario(),
@@ -4712,6 +4798,48 @@ final class GameStateTests: XCTestCase {
                     faction: .axis,
                     position: HexCoordinate(q: 4, r: 1),
                     hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 5,
+            decisiveTurnLimit: 3,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func axisPostMoveBarrageScenario() -> Scenario {
+        let tiles = (0..<6).map { q in
+            TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+        }
+
+        return Scenario(
+            id: "axis-post-move-barrage-test",
+            name: "轴心移动后弹幕测试",
+            year: "1944",
+            briefing: "测试轴心火炮移动后进入弹幕射程并压制目标。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 6,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "远距指挥坦克",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: .patton,
+                    morale: 82
+                ),
+                BattleUnit(
+                    name: "机动轴心炮兵",
+                    kind: .artillery,
+                    faction: .axis,
+                    position: HexCoordinate(q: 5, r: 0),
+                    hp: UnitKind.artillery.baseHP,
                     commander: nil
                 )
             ],

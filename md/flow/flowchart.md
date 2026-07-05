@@ -121,7 +121,7 @@ flowchart LR
   LOG --> RES
   RES --> CMR["latestEnemyThreatCountermeasureExecutionResult 预计/实际/结果"]
   RES --> WIN["checkVictory / checkTurnLimit"]
-  RES --> AI["runAxisAI：后勤 -> 可击毁 -> 战术 -> 直取据点 -> 普通攻击/推进"]
+  RES --> AI["runAxisAI：后勤 -> 可击毁 -> 战术 -> 直取据点 -> 普通攻击/推进 -> 移动后攻击/战术"]
   AI --> AIS["AIPhaseSummary：动作计数、指令点、占点、歼灭、伤害、行动时间线"]
   AIS --> TL["AIPhaseTimelineEvent：整补 / 部署 / 战术 / 攻击 / 移动 / 占点"]
   TL --> AIM["latestAIPhaseMapMarkers：起点 / 终点 / 行动单位 / 目标 / 据点"]

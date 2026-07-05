@@ -4561,6 +4561,9 @@ final class GameState: ObservableObject {
            let target = bestAttackTarget(for: refreshed) {
             attack(attackerID: refreshed.id, targetID: target.id)
             advanceAfterManeuverPursuitIfPossible(unitID: refreshed.id)
+        } else if let refreshed = scenario.units.first(where: { $0.id == unitID }),
+                  let plan = bestTacticalCommandPlan(for: refreshed) {
+            useTacticalCommand(plan.command, casterID: refreshed.id, targetID: plan.target.id)
         } else {
             updateUnit(id: unitID) { axisUnit in
                 axisUnit.hasMoved = true
