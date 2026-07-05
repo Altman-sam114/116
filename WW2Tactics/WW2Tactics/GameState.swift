@@ -98,6 +98,7 @@ final class GameState: ObservableObject {
     private var focusedEnemyThreatCountermeasurePreview: EnemyThreatCountermeasurePreview?
     private var activeAIPhaseBaseline: AIPhaseBaseline?
     private var activeAIPhaseActionCounts = AIPhaseActionCounts()
+    private var activeAIPhaseTimeline: [AIPhaseTimelineEvent] = []
     private var pendingEnemyThreatCountermeasureFollowUpBaseline: EnemyThreatCountermeasureFollowUpBaseline?
 
     private static let objectiveCaptureCommandReward = 3
@@ -1653,6 +1654,22 @@ final class GameState: ObservableObject {
             latestReinforcementResult = nil
             latestEnemyThreatCountermeasureExecutionResult = nil
             latestEnemyThreatCountermeasureFollowUpResult = nil
+            recordAIPhaseTimelineEvent(
+                kind: .tacticalCommand,
+                actorUnitID: finalCaster.id,
+                actorName: finalCaster.name,
+                actorKind: finalCaster.kind,
+                targetUnitID: finalTarget.id,
+                targetName: finalTarget.name,
+                targetKind: finalTarget.kind,
+                to: finalTarget.position,
+                tacticalCommand: command,
+                damage: damage,
+                commandPointCost: command.commandCost,
+                commandPointsAfter: commandPoints(for: finalCaster.faction),
+                didDestroyTarget: finalTarget.isDestroyed,
+                detail: "\(command.title) \(finalTarget.name) -\(damage)"
+            )
         }
 
         appendLog(message)
@@ -2209,6 +2226,18 @@ final class GameState: ObservableObject {
         latestReinforcementResult = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
         latestEnemyThreatCountermeasureFollowUpResult = nil
+        recordAIPhaseTimelineEvent(
+            kind: .deployment,
+            actorUnitID: unit.id,
+            actorName: unit.name,
+            actorKind: unit.kind,
+            to: coordinate,
+            deployedUnitKind: kind,
+            objectiveName: site.sourceObjectiveName,
+            commandPointCost: kind.commandCost,
+            commandPointsAfter: commandPoints(for: unit.faction),
+            detail: "\(site.sourceObjectiveName) 部署 \(unit.kind.title)"
+        )
         message = "\(site.sourceObjectiveName) 部署 \(unit.name)，消耗 \(kind.commandCost) 指令点。"
         appendLog(message)
         recordAIPhaseAction(.deployment)
@@ -3688,6 +3717,7 @@ final class GameState: ObservableObject {
         latestAIPhaseSummary = nil
         activeAIPhaseBaseline = nil
         activeAIPhaseActionCounts = AIPhaseActionCounts()
+        activeAIPhaseTimeline = []
         pendingEnemyThreatCountermeasureFollowUpBaseline = nil
         commandPoints = [.allies: 6, .axis: 6]
         message = Self.openingMessage(for: newScenario)
@@ -3700,6 +3730,7 @@ final class GameState: ObservableObject {
         preservingObjectiveGuidance: Bool = false
     ) {
         guard let index = scenario.units.firstIndex(where: { $0.id == unitID }) else { return }
+        let origin = scenario.units[index].position
         focusedEnemyThreatCountermeasurePreview = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
         latestEnemyThreatCountermeasureFollowUpResult = nil
@@ -3707,9 +3738,18 @@ final class GameState: ObservableObject {
         scenario.units[index].hasMoved = true
         scenario.units[index].tacticalStatus = .normal
         scenario.units[index].isEntrenched = false
-        updateObjectiveControl()
 
         let unit = scenario.units[index]
+        recordAIPhaseTimelineEvent(
+            kind: .move,
+            actorUnitID: unit.id,
+            actorName: unit.name,
+            actorKind: unit.kind,
+            from: origin,
+            to: coordinate,
+            detail: "\(unit.name) \(origin.q),\(origin.r)->\(coordinate.q),\(coordinate.r)"
+        )
+        updateObjectiveControl()
         selectedUnitID = unit.id
         focusedCoordinate = coordinate
         if shouldClearObjectiveGuidance(afterMoving: unit, to: coordinate, preserving: preservingObjectiveGuidance) {
@@ -3831,6 +3871,21 @@ final class GameState: ObservableObject {
             latestReinforcementResult = nil
             latestEnemyThreatCountermeasureExecutionResult = nil
             latestEnemyThreatCountermeasureFollowUpResult = nil
+            recordAIPhaseTimelineEvent(
+                kind: .attack,
+                actorUnitID: finalAttacker.id,
+                actorName: finalAttacker.name,
+                actorKind: finalAttacker.kind,
+                targetUnitID: finalDefender.id,
+                targetName: finalDefender.name,
+                targetKind: finalDefender.kind,
+                from: finalAttacker.position,
+                to: finalDefender.position,
+                damage: damage,
+                counterDamage: counterDamage,
+                didDestroyTarget: finalDefender.isDestroyed,
+                detail: "\(finalAttacker.name) 攻击 \(finalDefender.name) -\(damage)"
+            )
         }
 
         appendLog(message)
@@ -3952,6 +4007,17 @@ final class GameState: ObservableObject {
         latestDeploymentResult = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
         latestEnemyThreatCountermeasureFollowUpResult = nil
+        recordAIPhaseTimelineEvent(
+            kind: .reinforcement,
+            actorUnitID: scenario.units[index].id,
+            actorName: scenario.units[index].name,
+            actorKind: scenario.units[index].kind,
+            to: scenario.units[index].position,
+            recoveredHP: recovered,
+            commandPointCost: cost,
+            commandPointsAfter: commandPoints(for: scenario.units[index].faction),
+            detail: "\(scenario.units[index].name) +\(recovered)"
+        )
         message = "\(unit.name) 整补 +\(recovered) 耐久，消耗 \(cost) 指令点。"
         appendLog(message)
         recordAIPhaseAction(.reinforcement)
@@ -3981,6 +4047,7 @@ final class GameState: ObservableObject {
             objectiveOwnersByCoordinate: objectiveOwners
         )
         activeAIPhaseActionCounts = AIPhaseActionCounts()
+        activeAIPhaseTimeline = []
     }
 
     private func finishAIPhaseRecording() {
@@ -3991,6 +4058,7 @@ final class GameState: ObservableObject {
         )
         activeAIPhaseBaseline = nil
         activeAIPhaseActionCounts = AIPhaseActionCounts()
+        activeAIPhaseTimeline = []
     }
 
     private func recordAIPhaseAction(_ action: AIPhaseAction) {
@@ -4009,6 +4077,71 @@ final class GameState: ObservableObject {
         case .move:
             activeAIPhaseActionCounts.moves += 1
         }
+    }
+
+    private func recordAIPhaseTimelineEvent(
+        kind: AIPhaseTimelineEventKind,
+        actorUnitID: BattleUnit.ID?,
+        actorName: String,
+        actorKind: UnitKind?,
+        targetUnitID: BattleUnit.ID? = nil,
+        targetName: String? = nil,
+        targetKind: UnitKind? = nil,
+        from: HexCoordinate? = nil,
+        to: HexCoordinate? = nil,
+        tacticalCommand: TacticalCommand? = nil,
+        deployedUnitKind: UnitKind? = nil,
+        objectiveName: String? = nil,
+        previousOwner: Faction? = nil,
+        newOwner: Faction? = nil,
+        damage: Int = 0,
+        counterDamage: Int = 0,
+        recoveredHP: Int = 0,
+        commandPointCost: Int = 0,
+        commandPointReward: Int = 0,
+        commandPointsAfter: Int? = nil,
+        didDestroyTarget: Bool = false,
+        didCaptureObjective: Bool = false,
+        detail: String = ""
+    ) {
+        guard let baseline = activeAIPhaseBaseline,
+              baseline.faction == activeFaction else { return }
+        if kind == .objectiveCapture,
+           let newOwner,
+           newOwner != baseline.faction {
+            return
+        }
+
+        activeAIPhaseTimeline.append(
+            AIPhaseTimelineEvent(
+                order: activeAIPhaseTimeline.count + 1,
+                faction: baseline.faction,
+                turn: baseline.turn,
+                kind: kind,
+                actorUnitID: actorUnitID,
+                actorName: actorName,
+                actorKind: actorKind,
+                targetUnitID: targetUnitID,
+                targetName: targetName,
+                targetKind: targetKind,
+                from: from,
+                to: to,
+                tacticalCommand: tacticalCommand,
+                deployedUnitKind: deployedUnitKind,
+                objectiveName: objectiveName,
+                previousOwner: previousOwner,
+                newOwner: newOwner,
+                damage: damage,
+                counterDamage: counterDamage,
+                recoveredHP: recoveredHP,
+                commandPointCost: commandPointCost,
+                commandPointReward: commandPointReward,
+                commandPointsAfter: commandPointsAfter,
+                didDestroyTarget: didDestroyTarget,
+                didCaptureObjective: didCaptureObjective,
+                detail: detail
+            )
+        )
     }
 
     private func aiPhaseSummary(
@@ -4058,7 +4191,8 @@ final class GameState: ObservableObject {
             enemyUnitsDestroyed: enemyUnitsDestroyed,
             friendlyUnitsDestroyed: friendlyUnitsDestroyed,
             damageDealt: damageDealt,
-            damageTaken: damageTaken
+            damageTaken: damageTaken,
+            timeline: activeAIPhaseTimeline
         )
     }
 
@@ -4529,6 +4663,20 @@ final class GameState: ObservableObject {
         latestReinforcementResult = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
         latestEnemyThreatCountermeasureFollowUpResult = nil
+        recordAIPhaseTimelineEvent(
+            kind: .objectiveCapture,
+            actorUnitID: unit.id,
+            actorName: unit.name,
+            actorKind: unit.kind,
+            to: coordinate,
+            objectiveName: objectiveName,
+            previousOwner: previousOwner,
+            newOwner: unit.faction,
+            commandPointReward: Self.objectiveCaptureCommandReward,
+            commandPointsAfter: commandPoints(for: unit.faction),
+            didCaptureObjective: true,
+            detail: "\(objectiveName) \(previousOwner?.title ?? "中立")->\(unit.faction.title)"
+        )
         appendLog("\(unit.name)\(action)\(objectiveName)，\(unit.faction.title)获得 \(Self.objectiveCaptureCommandReward) 指令点。")
     }
 

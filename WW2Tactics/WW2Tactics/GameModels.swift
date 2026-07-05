@@ -719,6 +719,7 @@ struct AIPhaseSummary: Identifiable, Equatable {
     let friendlyUnitsDestroyed: Int
     let damageDealt: Int
     let damageTaken: Int
+    let timeline: [AIPhaseTimelineEvent]
 
     var totalActions: Int {
         reinforcements + deployments + tacticalCommands + attacks + moves
@@ -730,6 +731,108 @@ struct AIPhaseSummary: Identifiable, Equatable {
 
     var commandPointDelta: Int {
         endingCommandPoints - startingCommandPoints
+    }
+}
+
+enum AIPhaseTimelineEventKind: String, Identifiable {
+    case reinforcement
+    case deployment
+    case tacticalCommand
+    case attack
+    case move
+    case objectiveCapture
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .reinforcement: "整补"
+        case .deployment: "部署"
+        case .tacticalCommand: "战术"
+        case .attack: "攻击"
+        case .move: "移动"
+        case .objectiveCapture: "占点"
+        }
+    }
+
+    var shortCode: String {
+        switch self {
+        case .reinforcement: "REP"
+        case .deployment: "DEP"
+        case .tacticalCommand: "CMD"
+        case .attack: "ATK"
+        case .move: "MOV"
+        case .objectiveCapture: "CAP"
+        }
+    }
+}
+
+struct AIPhaseTimelineEvent: Identifiable, Equatable {
+    var id: Int { order }
+
+    let order: Int
+    let faction: Faction
+    let turn: Int
+    let kind: AIPhaseTimelineEventKind
+    let actorUnitID: BattleUnit.ID?
+    let actorName: String
+    let actorKind: UnitKind?
+    let targetUnitID: BattleUnit.ID?
+    let targetName: String?
+    let targetKind: UnitKind?
+    let from: HexCoordinate?
+    let to: HexCoordinate?
+    let tacticalCommand: TacticalCommand?
+    let deployedUnitKind: UnitKind?
+    let objectiveName: String?
+    let previousOwner: Faction?
+    let newOwner: Faction?
+    let damage: Int
+    let counterDamage: Int
+    let recoveredHP: Int
+    let commandPointCost: Int
+    let commandPointReward: Int
+    let commandPointsAfter: Int?
+    let didDestroyTarget: Bool
+    let didCaptureObjective: Bool
+    let detail: String
+
+    var shortCode: String {
+        kind.shortCode
+    }
+
+    var summary: String {
+        switch kind {
+        case .reinforcement:
+            return "\(actorName) 整补 +\(recoveredHP) 耐久\(commandPointText)。"
+        case .deployment:
+            let coordinateText = to.map { " q\($0.q),r\($0.r)" } ?? ""
+            let kindText = deployedUnitKind?.title ?? actorKind?.title ?? "部队"
+            return "\(actorName) 部署\(kindText)\(coordinateText)\(commandPointText)。"
+        case .tacticalCommand:
+            let commandTitle = tacticalCommand?.title ?? "战术命令"
+            let target = targetName ?? "目标"
+            let destroyText = didDestroyTarget ? "，击毁" : ""
+            return "\(actorName) 对 \(target) 使用\(commandTitle)，伤害 \(damage)\(destroyText)\(commandPointText)。"
+        case .attack:
+            let target = targetName ?? "目标"
+            let counterText = counterDamage > 0 ? "，反击 \(counterDamage)" : ""
+            let destroyText = didDestroyTarget ? "，击毁" : ""
+            return "\(actorName) 攻击 \(target)，伤害 \(damage)\(counterText)\(destroyText)。"
+        case .move:
+            let startText = from.map { "q\($0.q),r\($0.r)" } ?? "未知"
+            let endText = to.map { "q\($0.q),r\($0.r)" } ?? "未知"
+            return "\(actorName) 从 \(startText) 机动到 \(endText)。"
+        case .objectiveCapture:
+            let objective = objectiveName ?? targetName ?? "据点"
+            let ownerText = newOwner?.title ?? "中立"
+            let rewardText = commandPointReward > 0 ? "，指令 +\(commandPointReward)" : ""
+            return "\(actorName) 占领\(objective)，归属 \(ownerText)\(rewardText)。"
+        }
+    }
+
+    private var commandPointText: String {
+        commandPointCost > 0 ? "，指令 -\(commandPointCost)" : ""
     }
 }
 

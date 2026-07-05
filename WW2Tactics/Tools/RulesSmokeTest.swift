@@ -7,6 +7,12 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     }
 }
 
+func requireSequentialTimelineOrders(_ timeline: [AIPhaseTimelineEvent], _ message: String) {
+    for (index, event) in timeline.enumerated() {
+        require(event.order == index + 1, "\(message): expected order \(index + 1), got \(event.order)")
+    }
+}
+
 @main
 struct RulesSmokeTest {
     static func main() async {
@@ -1587,6 +1593,15 @@ struct RulesSmokeTest {
                 require(axisCommandPhaseSummary.faction == .axis, "AI phase summary should record axis faction")
                 require(axisCommandPhaseSummary.tacticalCommands >= 1, "AI phase summary should count tactical commands")
                 require(axisCommandPhaseSummary.damageDealt == axisCommandTarget.hp - axisCommandTargetAfter.hp, "AI phase summary should record tactical command damage")
+                requireSequentialTimelineOrders(axisCommandPhaseSummary.timeline, "axis command timeline should use sequential orders")
+                guard let axisCommandEvent = axisCommandPhaseSummary.timeline.first(where: { $0.kind == .tacticalCommand }) else {
+                    require(false, "axis command timeline should include tactical command event")
+                    return
+                }
+                require(axisCommandEvent.actorName == "轴心炮兵", "axis command timeline should identify actor")
+                require(axisCommandEvent.targetName == "盟军指挥坦克", "axis command timeline should identify target")
+                require(axisCommandEvent.damage == axisCommandSummary.damage, "axis command timeline should match result damage")
+                require(axisCommandEvent.commandPointCost == TacticalCommand.artilleryBarrage.commandCost, "axis command timeline should record command cost")
             }
 
             let axisDeploymentPhaseGame = GameState(
@@ -1604,6 +1619,15 @@ struct RulesSmokeTest {
             require(axisDeploymentPhaseSummary.startingCommandPoints == 6, "deployment AI phase summary should record post-income command points")
             require(axisDeploymentPhaseSummary.endingCommandPoints == axisDeploymentPhaseGame.commandPoints(for: .axis), "deployment AI phase summary should record ending command points")
             require(axisDeploymentPhaseSummary.damageDealt == 0, "deployment-only AI phase should not record damage")
+            requireSequentialTimelineOrders(axisDeploymentPhaseSummary.timeline, "axis deployment timeline should use sequential orders")
+            guard let axisDeploymentEvent = axisDeploymentPhaseSummary.timeline.first(where: { $0.kind == .deployment }) else {
+                require(false, "axis deployment timeline should include deployment event")
+                return
+            }
+            require(axisDeploymentEvent.deployedUnitKind != nil, "axis deployment timeline should record deployed kind")
+            require(axisDeploymentEvent.to != nil, "axis deployment timeline should record destination")
+            require(axisDeploymentEvent.commandPointCost > 0, "axis deployment timeline should record command point cost")
+            require(axisDeploymentEvent.commandPointsAfter == axisDeploymentPhaseGame.commandPoints(for: .axis), "axis deployment timeline should record ending command points")
 
             let axisReinforcementPhaseGame = GameState(
                 scenario: axisReinforcementResultScenario(),
@@ -1619,6 +1643,14 @@ struct RulesSmokeTest {
             require(axisReinforcementPhaseSummary.deployments == 0, "reinforcement AI phase summary should not count blocked deployment")
             require(axisReinforcementPhaseSummary.damageDealt == 0, "reinforcement-only AI phase should not record damage dealt")
             require(axisReinforcementPhaseSummary.damageTaken == 0, "reinforcement-only AI phase should not record damage taken")
+            requireSequentialTimelineOrders(axisReinforcementPhaseSummary.timeline, "axis reinforcement timeline should use sequential orders")
+            guard let axisReinforcementEvent = axisReinforcementPhaseSummary.timeline.first(where: { $0.kind == .reinforcement }) else {
+                require(false, "axis reinforcement timeline should include reinforcement event")
+                return
+            }
+            require(axisReinforcementEvent.actorName == "受损轴心守军", "axis reinforcement timeline should identify unit")
+            require(axisReinforcementEvent.recoveredHP > 0, "axis reinforcement timeline should record recovery")
+            require(axisReinforcementEvent.commandPointCost > 0, "axis reinforcement timeline should record command point cost")
 
             let axisAdvanceGame = GameState(
                 scenario: axisFullAdvanceScenario(),
@@ -1654,6 +1686,13 @@ struct RulesSmokeTest {
                     "AI phase summary should record move-attack damage: expected \(axisAdvanceCombatSummary.damage), got \(axisAdvancePhaseSummary.damageDealt)"
                 )
                 require(advanceTarget.hp - advanceTargetAfter.hp >= axisAdvancePhaseSummary.damageDealt, "AI phase damage should not exceed final target HP loss")
+                requireSequentialTimelineOrders(axisAdvancePhaseSummary.timeline, "axis advance timeline should use sequential orders")
+                require(axisAdvancePhaseSummary.timeline.count >= 2, "axis advance timeline should include move and attack")
+                require(axisAdvancePhaseSummary.timeline[0].kind == .move, "axis advance timeline should record move before attack")
+                require(axisAdvancePhaseSummary.timeline[0].from == HexCoordinate(q: 4, r: 0), "axis advance timeline should record move origin")
+                require(axisAdvancePhaseSummary.timeline[0].to == HexCoordinate(q: 1, r: 0), "axis advance timeline should record move destination")
+                require(axisAdvancePhaseSummary.timeline[1].kind == .attack, "axis advance timeline should record attack second")
+                require(axisAdvancePhaseSummary.timeline[1].damage == axisAdvanceCombatSummary.damage, "axis advance timeline should match combat damage")
             }
 
             let axisPursuitGame = GameState(
@@ -1686,6 +1725,22 @@ struct RulesSmokeTest {
                 require(axisPursuitPhaseSummary.objectivesCaptured == 1, "AI phase summary should count captured objective")
                 require(axisPursuitPhaseSummary.enemyUnitsDestroyed == 1, "AI phase summary should count destroyed allied units")
                 require(axisPursuitPhaseSummary.friendlyUnitsDestroyed == 0, "AI phase summary should count zero axis losses")
+                requireSequentialTimelineOrders(axisPursuitPhaseSummary.timeline, "axis pursuit timeline should use sequential orders")
+                guard let axisPursuitAttackIndex = axisPursuitPhaseSummary.timeline.firstIndex(where: { $0.kind == .attack }),
+                      let axisPursuitMoveIndex = axisPursuitPhaseSummary.timeline.firstIndex(where: { $0.kind == .move }),
+                      let axisPursuitCaptureIndex = axisPursuitPhaseSummary.timeline.firstIndex(where: { $0.kind == .objectiveCapture }) else {
+                    require(false, "axis pursuit timeline should include attack, move, and capture")
+                    return
+                }
+                require(axisPursuitAttackIndex < axisPursuitMoveIndex, "axis pursuit timeline should attack before maneuver move")
+                require(axisPursuitMoveIndex < axisPursuitCaptureIndex, "axis pursuit timeline should capture after move")
+                require(axisPursuitPhaseSummary.timeline[axisPursuitAttackIndex].didDestroyTarget, "axis pursuit timeline should record destroyed target")
+                require(axisPursuitPhaseSummary.timeline[axisPursuitCaptureIndex].objectiveName == "前线据点", "axis pursuit timeline should record objective name")
+                require(axisPursuitPhaseSummary.timeline[axisPursuitCaptureIndex].commandPointReward == 3, "axis pursuit timeline should record capture reward")
+                require(
+                    axisPursuitPhaseSummary.timeline.filter { $0.kind == .objectiveCapture }.count == axisPursuitPhaseSummary.objectivesCaptured,
+                    "axis pursuit timeline capture count should match AI phase summary"
+                )
             }
 
             let objectiveRewardGame = GameState(

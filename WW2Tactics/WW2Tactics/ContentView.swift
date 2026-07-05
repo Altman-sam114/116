@@ -5377,6 +5377,14 @@ private struct AIPhaseSummaryView: View {
         summary.commandPointDelta >= 0 ? "+\(summary.commandPointDelta)" : "\(summary.commandPointDelta)"
     }
 
+    private var visibleTimeline: [AIPhaseTimelineEvent] {
+        Array(summary.timeline.prefix(5))
+    }
+
+    private var hiddenTimelineCount: Int {
+        max(0, summary.timeline.count - visibleTimeline.count)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -5411,6 +5419,26 @@ private struct AIPhaseSummaryView: View {
                 CombatResultMetric(title: "指令", value: commandPointChangeText, color: summary.commandPointDelta < 0 ? .yellow : .white.opacity(0.82))
             }
 
+            if !visibleTimeline.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    Label("行动时间线", systemImage: "list.number")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white.opacity(0.78))
+
+                    ForEach(visibleTimeline) { event in
+                        AIPhaseTimelineEventRow(event: event)
+                    }
+
+                    if hiddenTimelineCount > 0 {
+                        Text("另有 \(hiddenTimelineCount) 条行动")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.58))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.top, 2)
+            }
+
             Label("歼灭 \(summary.enemyUnitsDestroyed) 支，损失 \(summary.friendlyUnitsDestroyed) 支，指令点 \(summary.startingCommandPoints)->\(summary.endingCommandPoints)。", systemImage: "flag.checkered")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.72))
@@ -5422,7 +5450,33 @@ private struct AIPhaseSummaryView: View {
             RoundedRectangle(cornerRadius: 7)
                 .stroke(summary.faction.accentColor.opacity(0.24), lineWidth: 1)
         )
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct AIPhaseTimelineEventRow: View {
+    let event: AIPhaseTimelineEvent
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("#\(event.order)")
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.white.opacity(0.72))
+                .monospacedDigit()
+                .frame(width: 24, alignment: .leading)
+
+            Text(event.shortCode)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white.opacity(0.84))
+                .frame(width: 28, alignment: .leading)
+
+            Text(event.summary)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.68))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("AI 行动 \(event.order)，\(event.kind.title)，\(event.summary)")
     }
 }
 

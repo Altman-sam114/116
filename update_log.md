@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.19 正在推进反制建议敌方回合复核，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.20 正在推进 AI 回合行动时间线，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
 
 ## 历史记录
 
@@ -1030,3 +1030,44 @@
 
 - 敌方回合复核是基于 HP、位置、据点归属、威胁源存活和 AI 总览的保守验证，不包含逐行动 attacker/target 事件归因。
 - 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件、排序或执行桥接语义。
+
+### v1.20 / AI 回合行动时间线
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `AIPhaseTimelineEventKind` 和 `AIPhaseTimelineEvent`，把敌方 AI 回合的整补、部署、战术命令、攻击、移动和占点记录成结构化时间线。
+- `AIPhaseSummary` 新增 `timeline`，由 `GameState` 在 AI phase 成功路径内填充；时间线与摘要一起发布，避免独立状态失步。
+- `GameState` 在 `reinforce`、`deploy`、`useTacticalCommand`、`attack`、`move` 和 `applyObjectiveCaptureReward` 的真实成功路径记录事件；玩家预览、失败命令和被动据点休整不生成时间线事件。
+- 移动事件先于 `updateObjectiveControl()` 写入，因此移动占点会稳定显示为 `move -> objectiveCapture`；机动追击场景会显示 `attack -> move -> objectiveCapture`，占点作为结果事件不增加 `AIPhaseSummary.totalActions`。
+- `ContentView` 在 AI 回合摘要卡内展示最多 5 条行动时间线，包含顺序、短码、摘要和 VoiceOver 可读标签。
+- 补充 XCTest 和规则 smoke test，覆盖战术命令、移动+攻击、部署、整补、机动追击占点、重开/切战役清理和时间线顺序号。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.20（AI回合行动时间线）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions 云端 run 和 artifact：等待本轮 `git push origin main` 后由 Agent C 下载核对。
+
+遗留事项：
+
+- 本轮只展示侧栏时间线，不新增地图 AI 动作标记、动画、音效、镜头播放、暂停/回放控制或真实美术资产。
+- 本轮不改变 AI 决策、战斗数值、移动规则、整补成本、部署逻辑、战术命令、胜负条件或反制建议语义。

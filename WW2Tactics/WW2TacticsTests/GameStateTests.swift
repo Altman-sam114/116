@@ -782,6 +782,16 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(summary.damageDealt, alliedTarget.hp - targetAfterAI.hp)
         XCTAssertEqual(summary.damageTaken, 0)
         XCTAssertEqual(summary.enemyUnitsDestroyed, 0)
+        let tacticalResult = try XCTUnwrap(game.latestTacticalCommandResult)
+        let commandEvent = try XCTUnwrap(summary.timeline.first { $0.kind == .tacticalCommand })
+        XCTAssertEqual(commandEvent.faction, .axis)
+        XCTAssertEqual(commandEvent.turn, 1)
+        XCTAssertEqual(commandEvent.actorName, "轴心炮兵")
+        XCTAssertEqual(commandEvent.targetName, "盟军指挥坦克")
+        XCTAssertEqual(commandEvent.tacticalCommand, .artilleryBarrage)
+        XCTAssertEqual(commandEvent.damage, tacticalResult.damage)
+        XCTAssertEqual(commandEvent.commandPointCost, TacticalCommand.artilleryBarrage.commandCost)
+        XCTAssertTrue(commandEvent.summary.contains("火炮弹幕"))
     }
 
     func testAxisAIPhaseSummaryRecordsMoveAndAttack() throws {
@@ -806,6 +816,15 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(summary.damageDealt, combatSummary.damage)
         XCTAssertGreaterThanOrEqual(alliedInfantry.hp - infantryAfterAI.hp, summary.damageDealt)
         XCTAssertEqual(summary.objectivesCaptured, 0)
+        XCTAssertGreaterThanOrEqual(summary.timeline.count, 2)
+        XCTAssertEqual(summary.timeline[0].kind, .move)
+        XCTAssertEqual(summary.timeline[0].actorName, "突进侦察")
+        XCTAssertEqual(summary.timeline[0].from, HexCoordinate(q: 4, r: 0))
+        XCTAssertEqual(summary.timeline[0].to, HexCoordinate(q: 1, r: 0))
+        XCTAssertEqual(summary.timeline[1].kind, .attack)
+        XCTAssertEqual(summary.timeline[1].actorName, "突进侦察")
+        XCTAssertEqual(summary.timeline[1].targetName, "远端步兵")
+        XCTAssertEqual(summary.timeline[1].damage, combatSummary.damage)
     }
 
     func testAxisAIPhaseSummaryRecordsLogistics() throws {
@@ -822,6 +841,13 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(deploymentSummary.reinforcements, 0)
         XCTAssertEqual(deploymentSummary.startingCommandPoints, 6)
         XCTAssertEqual(deploymentSummary.endingCommandPoints, deploymentGame.commandPoints(for: .axis))
+        let deploymentResult = try XCTUnwrap(deploymentGame.latestDeploymentResult)
+        let deploymentEvent = try XCTUnwrap(deploymentSummary.timeline.first { $0.kind == .deployment })
+        XCTAssertEqual(deploymentEvent.faction, .axis)
+        XCTAssertEqual(deploymentEvent.to, deploymentResult.coordinate)
+        XCTAssertEqual(deploymentEvent.deployedUnitKind, deploymentResult.unitKind)
+        XCTAssertEqual(deploymentEvent.commandPointCost, deploymentResult.commandCost)
+        XCTAssertEqual(deploymentEvent.commandPointsAfter, deploymentGame.commandPoints(for: .axis))
 
         let reinforcementGame = GameState(
             scenario: Self.axisReinforcementResultScenario(),
@@ -835,6 +861,49 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(reinforcementSummary.deployments, 0)
         XCTAssertEqual(reinforcementSummary.damageDealt, 0)
         XCTAssertEqual(reinforcementSummary.damageTaken, 0)
+        let reinforcementResult = try XCTUnwrap(reinforcementGame.latestReinforcementResult)
+        let reinforcementEvent = try XCTUnwrap(reinforcementSummary.timeline.first { $0.kind == .reinforcement })
+        XCTAssertEqual(reinforcementEvent.actorName, "受损轴心守军")
+        XCTAssertEqual(reinforcementEvent.to, HexCoordinate(q: 0, r: 0))
+        XCTAssertEqual(reinforcementEvent.recoveredHP, reinforcementResult.recoveredHP)
+        XCTAssertEqual(reinforcementEvent.commandPointCost, reinforcementResult.commandCost)
+    }
+
+    func testAxisAIPhaseTimelineRecordsManeuverPursuitCaptureOrder() throws {
+        let game = GameState(
+            scenario: Self.axisManeuverPursuitScenario(),
+            commandPoints: [.allies: 6, .axis: 0]
+        )
+
+        game.endTurn()
+
+        XCTAssertNil(game.winner)
+        let summary = try XCTUnwrap(game.latestAIPhaseSummary)
+        XCTAssertEqual(summary.attacks, 1)
+        XCTAssertEqual(summary.moves, 1)
+        XCTAssertEqual(summary.totalActions, 2)
+        XCTAssertEqual(summary.objectivesCaptured, 1)
+
+        let attackIndex = try XCTUnwrap(summary.timeline.firstIndex { $0.kind == .attack })
+        let moveIndex = try XCTUnwrap(summary.timeline.firstIndex { $0.kind == .move })
+        let captureIndex = try XCTUnwrap(summary.timeline.firstIndex { $0.kind == .objectiveCapture })
+        XCTAssertLessThan(attackIndex, moveIndex)
+        XCTAssertLessThan(moveIndex, captureIndex)
+
+        let attackEvent = summary.timeline[attackIndex]
+        XCTAssertEqual(attackEvent.actorName, "追击装甲群")
+        XCTAssertEqual(attackEvent.targetName, "薄弱前哨")
+        XCTAssertTrue(attackEvent.didDestroyTarget)
+
+        let captureEvent = summary.timeline[captureIndex]
+        XCTAssertEqual(captureEvent.actorName, "追击装甲群")
+        XCTAssertEqual(captureEvent.objectiveName, "前线据点")
+        XCTAssertEqual(captureEvent.previousOwner, .allies)
+        XCTAssertEqual(captureEvent.newOwner, .axis)
+        XCTAssertTrue(captureEvent.didCaptureObjective)
+        XCTAssertEqual(captureEvent.commandPointReward, 3)
+        XCTAssertEqual(captureEvent.commandPointsAfter, game.commandPoints(for: .axis))
+        XCTAssertGreaterThan(summary.timeline.count, summary.totalActions)
     }
 
     func testAIPhaseSummaryClearsOnScenarioReset() throws {
@@ -844,6 +913,7 @@ final class GameStateTests: XCTestCase {
         )
         game.endTurn()
         XCTAssertNotNil(game.latestAIPhaseSummary)
+        XCTAssertFalse(try XCTUnwrap(game.latestAIPhaseSummary).timeline.isEmpty)
 
         game.restart()
 
