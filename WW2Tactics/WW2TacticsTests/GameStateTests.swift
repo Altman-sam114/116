@@ -1473,6 +1473,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.latestObjectiveCaptureResult)
         XCTAssertNil(game.latestDeploymentResult)
         XCTAssertNil(game.latestReinforcementResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
         XCTAssertNil(game.latestAIPhaseSummary)
     }
 
@@ -1774,6 +1775,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.focusedCoordinate, firstStrikeEnemy.position)
         XCTAssertNil(game.guidedObjectiveCoordinate)
         XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(firstStrike))
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
         XCTAssertTrue(markerRoles(at: firstStrikeUnit.position).contains(.actingUnit))
         XCTAssertTrue(markerRoles(at: firstStrikeEnemy.position).contains(.threatSource))
         XCTAssertTrue(markerRoles(at: firstStrikeEnemy.position).contains(.counterTarget))
@@ -1799,6 +1801,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.guidedObjectiveCoordinate)
         XCTAssertNotNil(game.movementRoute(for: withdrawUnit, to: withdrawDestination))
         XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(withdraw))
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
         XCTAssertTrue(markerRoles(at: withdrawUnit.position).contains(.actingUnit))
         XCTAssertTrue(markerRoles(at: withdrawEnemy.position).contains(.threatSource))
         XCTAssertTrue(markerRoles(at: withdraw.threatTargetCoordinate).contains(.threatenedTarget))
@@ -1824,6 +1827,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.guidedObjectiveCoordinate, objectiveDefense.threatTargetCoordinate)
         XCTAssertNotNil(game.movementRoute(for: objectiveDefender, to: objectiveDestination))
         XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(objectiveDefense))
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
         XCTAssertTrue(markerRoles(at: objectiveDefender.position).contains(.actingUnit))
         XCTAssertTrue(markerRoles(at: objectiveEnemy.position).contains(.threatSource))
         XCTAssertTrue(markerRoles(at: objectiveDestination).contains(.counterTarget))
@@ -1847,6 +1851,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.focusedCoordinate, reinforcedUnit.position)
         XCTAssertNil(game.guidedObjectiveCoordinate)
         XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(reinforce))
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
         XCTAssertTrue(markerRoles(at: reinforcedUnit.position).contains(.actingUnit))
         XCTAssertTrue(markerRoles(at: reinforceEnemy.position).contains(.threatSource))
         XCTAssertTrue(markerRoles(at: reinforcedUnit.position).contains(.counterTarget))
@@ -1890,6 +1895,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(game.message.contains("已不可用"))
         XCTAssertTrue(game.focusedEnemyThreatCountermeasureMapMarkers.isEmpty)
         XCTAssertFalse(game.focusedEnemyThreatCountermeasureExecutionPreview?.isExecutable == true)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
 
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
         XCTAssertEqual(game.scenario.units, startingUnits)
@@ -1900,7 +1906,119 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.latestObjectiveCaptureResult)
         XCTAssertNil(game.latestDeploymentResult)
         XCTAssertNil(game.latestReinforcementResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
         XCTAssertNil(game.latestAIPhaseSummary)
+    }
+
+    func testEnemyThreatCountermeasureExecutionPublishesReplay() throws {
+        func countermeasures(in game: GameState) -> [EnemyThreatCountermeasurePreview] {
+            game.enemyThreatCountermeasurePreviews(
+                for: game.enemyThreatIntentPreviews(against: .allies, limit: 10),
+                limit: 10
+            )
+        }
+
+        let firstStrikeGame = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let firstStrike = try XCTUnwrap(countermeasures(in: firstStrikeGame).first {
+            $0.kind == .firstStrike &&
+                $0.actingUnitName == "反击炮兵" &&
+                $0.threatEnemyUnitName == "威胁炮兵"
+        })
+        firstStrikeGame.focusEnemyThreatCountermeasure(firstStrike)
+        firstStrikeGame.executeFocusedCommand()
+        let firstStrikeReplay = try XCTUnwrap(firstStrikeGame.latestEnemyThreatCountermeasureExecutionResult)
+        let firstStrikeCombat = try XCTUnwrap(firstStrikeGame.latestCombatResult)
+        let firstStrikeDamageReplay = try XCTUnwrap(firstStrikeReplay.comparisons.first { $0.kind == .damage })
+        let firstStrikeEnemyHPReplay = try XCTUnwrap(firstStrikeReplay.comparisons.first { $0.kind == .enemyHP })
+        XCTAssertEqual(firstStrikeReplay.countermeasureID, firstStrike.id)
+        XCTAssertEqual(firstStrikeReplay.countermeasureKind, .firstStrike)
+        XCTAssertEqual(firstStrikeReplay.executionKind, .attack)
+        XCTAssertEqual(firstStrikeDamageReplay.expected, "-\(firstStrike.projectedDamage)")
+        XCTAssertEqual(firstStrikeDamageReplay.actual, "-\(firstStrikeCombat.damage)")
+        XCTAssertEqual(firstStrikeCombat.damage, firstStrike.projectedDamage)
+        XCTAssertEqual(firstStrikeCombat.defender.endingHP, firstStrike.projectedEnemyHPAfterDamage)
+        XCTAssertEqual(firstStrikeCombat.didDestroyDefender, firstStrike.willDestroyEnemy)
+        XCTAssertEqual(firstStrikeEnemyHPReplay.actual, firstStrikeCombat.didDestroyDefender ? "击毁" : "HP \(firstStrikeCombat.defender.endingHP)")
+
+        firstStrikeGame.selectScenario(id: "ardennes-1944")
+        XCTAssertNil(firstStrikeGame.latestEnemyThreatCountermeasureExecutionResult)
+
+        let withdrawGame = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let withdraw = try XCTUnwrap(countermeasures(in: withdrawGame).first {
+            $0.kind == .withdraw &&
+                $0.actingUnitName == "前线装甲"
+        })
+        let withdrawDestination = try XCTUnwrap(withdraw.destination)
+        let withdrawUnitBefore = try XCTUnwrap(withdrawGame.units.first { $0.id == withdraw.actingUnitID })
+        let withdrawRoute = try XCTUnwrap(withdrawGame.movementRoute(for: withdrawUnitBefore, to: withdrawDestination))
+        withdrawGame.focusEnemyThreatCountermeasure(withdraw)
+        withdrawGame.executeFocusedCommand()
+        let withdrawReplay = try XCTUnwrap(withdrawGame.latestEnemyThreatCountermeasureExecutionResult)
+        let withdrawUnitAfter = try XCTUnwrap(withdrawGame.units.first { $0.id == withdraw.actingUnitID })
+        let withdrawPositionReplay = try XCTUnwrap(withdrawReplay.comparisons.first { $0.title == "位置" })
+        let withdrawRouteReplay = try XCTUnwrap(withdrawReplay.comparisons.first { $0.title == "路线" })
+        XCTAssertEqual(withdrawReplay.countermeasureID, withdraw.id)
+        XCTAssertEqual(withdrawReplay.countermeasureKind, .withdraw)
+        XCTAssertEqual(withdrawReplay.executionKind, .move)
+        XCTAssertEqual(withdrawReplay.coordinate, withdrawDestination)
+        XCTAssertEqual(withdrawUnitAfter.position, withdrawDestination)
+        XCTAssertEqual(withdrawPositionReplay.actual, "q\(withdrawDestination.q),r\(withdrawDestination.r)")
+        XCTAssertEqual(withdrawRouteReplay.actual, "\(withdrawRoute.totalCost)")
+        XCTAssertNil(withdrawGame.latestCombatResult)
+        XCTAssertNil(withdrawGame.latestReinforcementResult)
+
+        let objectiveDefenseGame = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let objectiveDefense = try XCTUnwrap(countermeasures(in: objectiveDefenseGame).first {
+            $0.kind == .objectiveDefense &&
+                $0.targetName == "后方油库"
+        })
+        let objectiveDestination = try XCTUnwrap(objectiveDefense.destination)
+        objectiveDefenseGame.focusEnemyThreatCountermeasure(objectiveDefense)
+        objectiveDefenseGame.executeFocusedCommand()
+        let objectiveReplay = try XCTUnwrap(objectiveDefenseGame.latestEnemyThreatCountermeasureExecutionResult)
+        let objectiveUnitAfter = try XCTUnwrap(objectiveDefenseGame.units.first { $0.id == objectiveDefense.actingUnitID })
+        let objectiveReplayRow = try XCTUnwrap(objectiveReplay.comparisons.first { $0.kind == .objective })
+        let expectedObjectiveAction = objectiveDestination == objectiveDefense.threatTargetCoordinate ? "进驻" : "封堵"
+        XCTAssertEqual(objectiveReplay.countermeasureKind, .objectiveDefense)
+        XCTAssertEqual(objectiveReplay.executionKind, .move)
+        XCTAssertEqual(objectiveReplay.coordinate, objectiveDestination)
+        XCTAssertEqual(objectiveUnitAfter.position, objectiveDestination)
+        XCTAssertEqual(objectiveReplayRow.expected, expectedObjectiveAction)
+        XCTAssertTrue(objectiveReplayRow.result.contains(objectiveDefense.targetName))
+
+        let reinforceGame = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let reinforce = try XCTUnwrap(countermeasures(in: reinforceGame).first {
+            $0.kind == .reinforce &&
+                $0.actingUnitName == "前线装甲"
+        })
+        let commandPointsBeforeReinforce = reinforceGame.activeCommandPoints
+        reinforceGame.focusEnemyThreatCountermeasure(reinforce)
+        reinforceGame.reinforceSelectedUnit()
+        let reinforceReplay = try XCTUnwrap(reinforceGame.latestEnemyThreatCountermeasureExecutionResult)
+        let reinforceResult = try XCTUnwrap(reinforceGame.latestReinforcementResult)
+        let reinforceRecoveryReplay = try XCTUnwrap(reinforceReplay.comparisons.first { $0.kind == .recovery })
+        let reinforceSurvivalReplay = try XCTUnwrap(reinforceReplay.comparisons.first { $0.kind == .survival })
+        XCTAssertEqual(reinforceReplay.countermeasureID, reinforce.id)
+        XCTAssertEqual(reinforceReplay.countermeasureKind, .reinforce)
+        XCTAssertEqual(reinforceReplay.executionKind, .reinforce)
+        XCTAssertEqual(reinforceRecoveryReplay.expected, "+\(reinforce.projectedRecoveredHP)")
+        XCTAssertEqual(reinforceRecoveryReplay.actual, "+\(reinforceResult.recoveredHP)")
+        XCTAssertEqual(reinforceResult.recoveredHP, reinforce.projectedRecoveredHP)
+        XCTAssertEqual(reinforceResult.endingHP, reinforce.projectedFriendlyHPAfterAction)
+        XCTAssertEqual(reinforceSurvivalReplay.actual, "HP \(reinforceResult.endingHP)")
+        XCTAssertEqual(reinforceGame.activeCommandPoints, commandPointsBeforeReinforce - reinforceResult.commandCost)
+
+        reinforceGame.restart()
+        XCTAssertNil(reinforceGame.latestEnemyThreatCountermeasureExecutionResult)
+
+        let ordinaryGame = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let ordinaryTank = try XCTUnwrap(ordinaryGame.units.first { $0.name == "前线装甲" })
+        let ordinaryDestination = HexCoordinate(q: 0, r: 0)
+        XCTAssertNotNil(ordinaryGame.movementRoute(for: ordinaryTank, to: ordinaryDestination))
+        ordinaryGame.handleTap(on: ordinaryTank.position)
+        ordinaryGame.focus(coordinate: ordinaryDestination)
+        ordinaryGame.executeFocusedCommand()
+        XCTAssertNil(ordinaryGame.latestEnemyThreatCountermeasureExecutionResult)
     }
 
     func testSelectingAndMovingUnitUpdatesBattlefieldState() throws {

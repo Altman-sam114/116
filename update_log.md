@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.17 正在推进反制建议执行前后对照，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.18 正在推进反制建议执行回放，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
 
 ## 历史记录
 
@@ -942,4 +942,44 @@
 遗留事项：
 
 - 执行前后对照是预计参谋提示，不代表真实执行后的记录；真实执行后的反制结果回放可作为后续 v1.18 方向。
+- 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件、排序或执行桥接语义。
+
+### v1.18 / 反制建议执行回放
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `EnemyThreatCountermeasureExecutionResultKind`、`EnemyThreatCountermeasureExecutionResultComparison` 和 `EnemyThreatCountermeasureExecutionResultSummary`，记录反制建议真实执行后的预计、实际和结果说明。
+- `GameState` 新增 `latestEnemyThreatCountermeasureExecutionResult`，在当前聚焦反制建议通过既有 ATK、MOVE 或整补入口成功执行后发布回放；抢先打击读取 `latestCombatResult`，撤退和守点读取移动后单位/据点状态，整补读取 `latestReinforcementResult`。
+- 普通聚焦、预览和点选建议不生成回放；重开、切战役、回合切换和无关普通移动、攻击、整补、部署、战术命令或占点成功路径会清理旧回放。
+- `ContentView` 在结果区域显示“反制回放”卡片，列出建议类型、执行单位、目标、坐标、前三项预计/实际对照和无障碍说明；UI 只展示 `GameState`/`GameModels` 字段。
+- 补充 XCTest 和规则 smoke test，覆盖抢先打击、撤退、据点防守、整补支撑四类执行回放，以及普通行动不生成或清理、重开/切战役清理边界。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.18（反制建议执行回放）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions 结果：待 Agent B push 后由 Agent C 下载 artifact 核对。
+
+遗留事项：
+
+- 执行回放只记录玩家采纳建议后走既有入口产生的最近一次结果，不新增一键执行、动画、音效或自动战术代理。
 - 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件、排序或执行桥接语义。

@@ -1350,10 +1350,13 @@ struct RulesSmokeTest {
             require(enemyThreatGame.message.contains("已不可用"), "stale countermeasure focus should explain that the advice expired")
             require(enemyThreatGame.focusedEnemyThreatCountermeasureMapMarkers.isEmpty, "stale countermeasure focus should not keep map markers")
             require(!(enemyThreatGame.focusedEnemyThreatCountermeasureExecutionPreview?.isExecutable == true), "stale countermeasure focus should not keep an executable bridge preview")
+            require(enemyThreatGame.latestEnemyThreatCountermeasureExecutionResult == nil, "countermeasure focus should not publish execution replay")
             require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "countermeasure focus should not spend command points")
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "countermeasure focus should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "countermeasure focus should not mutate objectives")
             require(enemyThreatGame.battleLog == startingEnemyThreatLog, "countermeasure focus should not write battle log entries")
+
+            verifyCountermeasureExecutionReplay()
 
             let commandGame = GameState(
                 scenario: tacticalCommandScenario(),
@@ -2056,6 +2059,175 @@ struct RulesSmokeTest {
 
             print("Rules smoke test passed")
         }
+    }
+
+    @MainActor
+    private static func verifyCountermeasureExecutionReplay() {
+        func countermeasures(in game: GameState) -> [EnemyThreatCountermeasurePreview] {
+            game.enemyThreatCountermeasurePreviews(
+                for: game.enemyThreatIntentPreviews(against: .allies, limit: 10),
+                limit: 10
+            )
+        }
+
+        let firstStrikeExecutionGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
+        guard let firstStrikeExecutionAdvice = countermeasures(in: firstStrikeExecutionGame).first(where: {
+            $0.kind == .firstStrike &&
+                $0.actingUnitName == "反击炮兵" &&
+                $0.threatEnemyUnitName == "威胁炮兵"
+        }) else {
+            require(false, "execution replay should find first strike advice")
+            return
+        }
+        firstStrikeExecutionGame.focusEnemyThreatCountermeasure(firstStrikeExecutionAdvice)
+        require(firstStrikeExecutionGame.latestEnemyThreatCountermeasureExecutionResult == nil, "first strike focus should not publish replay before execution")
+        firstStrikeExecutionGame.executeFocusedCommand()
+        guard let firstStrikeReplay = firstStrikeExecutionGame.latestEnemyThreatCountermeasureExecutionResult,
+              let firstStrikeResult = firstStrikeExecutionGame.latestCombatResult,
+              let firstStrikeDamageReplay = firstStrikeReplay.comparisons.first(where: { $0.kind == .damage }),
+              let firstStrikeEnemyHPReplay = firstStrikeReplay.comparisons.first(where: { $0.kind == .enemyHP }) else {
+            require(false, "first strike execution should publish combat replay")
+            return
+        }
+        require(firstStrikeReplay.countermeasureID == firstStrikeExecutionAdvice.id, "first strike replay should keep advice id")
+        require(firstStrikeReplay.countermeasureKind == .firstStrike, "first strike replay should keep advice kind")
+        require(firstStrikeReplay.executionKind == .attack, "first strike replay should record attack execution")
+        require(firstStrikeDamageReplay.expected == "-\(firstStrikeExecutionAdvice.projectedDamage)", "first strike replay should keep expected damage")
+        require(firstStrikeDamageReplay.actual == "-\(firstStrikeResult.damage)", "first strike replay should use actual damage")
+        require(firstStrikeResult.damage == firstStrikeExecutionAdvice.projectedDamage, "first strike actual damage should match preview in smoke scenario")
+        require(firstStrikeEnemyHPReplay.actual == (firstStrikeResult.didDestroyDefender ? "击毁" : "HP \(firstStrikeResult.defender.endingHP)"), "first strike replay should use actual defender HP")
+
+        let withdrawExecutionGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
+        guard let withdrawExecutionAdvice = countermeasures(in: withdrawExecutionGame).first(where: {
+            $0.kind == .withdraw &&
+                $0.actingUnitName == "前线装甲"
+        }),
+              let withdrawExecutionDestination = withdrawExecutionAdvice.destination,
+              let withdrawExecutionUnit = withdrawExecutionGame.units.first(where: { $0.id == withdrawExecutionAdvice.actingUnitID }),
+              let withdrawExecutionRoute = withdrawExecutionGame.movementRoute(for: withdrawExecutionUnit, to: withdrawExecutionDestination) else {
+            require(false, "execution replay should find withdraw advice and route")
+            return
+        }
+        withdrawExecutionGame.focusEnemyThreatCountermeasure(withdrawExecutionAdvice)
+        withdrawExecutionGame.executeFocusedCommand()
+        guard let withdrawReplay = withdrawExecutionGame.latestEnemyThreatCountermeasureExecutionResult,
+              let withdrawUnitAfter = withdrawExecutionGame.units.first(where: { $0.id == withdrawExecutionAdvice.actingUnitID }),
+              let withdrawPositionReplay = withdrawReplay.comparisons.first(where: { $0.title == "位置" }),
+              let withdrawRouteReplay = withdrawReplay.comparisons.first(where: { $0.title == "路线" }) else {
+            require(false, "withdraw execution should publish move replay")
+            return
+        }
+        require(withdrawReplay.countermeasureID == withdrawExecutionAdvice.id, "withdraw replay should keep advice id")
+        require(withdrawReplay.countermeasureKind == .withdraw, "withdraw replay should keep advice kind")
+        require(withdrawReplay.executionKind == .move, "withdraw replay should record move execution")
+        require(withdrawReplay.coordinate == withdrawExecutionDestination, "withdraw replay should point to actual destination")
+        require(withdrawUnitAfter.position == withdrawExecutionDestination, "withdraw execution should move to advice destination")
+        require(withdrawPositionReplay.actual == "q\(withdrawExecutionDestination.q),r\(withdrawExecutionDestination.r)", "withdraw replay should record actual destination")
+        require(withdrawRouteReplay.actual == "\(withdrawExecutionRoute.totalCost)", "withdraw replay should record actual route cost")
+        require(withdrawExecutionGame.latestCombatResult == nil, "withdraw move should not publish combat result")
+        require(withdrawExecutionGame.latestReinforcementResult == nil, "withdraw move should not publish reinforcement result")
+        withdrawExecutionGame.selectScenario(id: "ardennes-1944")
+        require(withdrawExecutionGame.latestEnemyThreatCountermeasureExecutionResult == nil, "scenario switch should clear latest countermeasure replay")
+
+        let objectiveExecutionGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
+        guard let objectiveExecutionAdvice = countermeasures(in: objectiveExecutionGame).first(where: {
+            $0.kind == .objectiveDefense &&
+                $0.targetName == "后方油库"
+        }),
+              let objectiveExecutionDestination = objectiveExecutionAdvice.destination else {
+            require(false, "execution replay should find objective defense advice")
+            return
+        }
+        objectiveExecutionGame.focusEnemyThreatCountermeasure(objectiveExecutionAdvice)
+        objectiveExecutionGame.executeFocusedCommand()
+        guard let objectiveReplay = objectiveExecutionGame.latestEnemyThreatCountermeasureExecutionResult,
+              let objectiveUnitAfter = objectiveExecutionGame.units.first(where: { $0.id == objectiveExecutionAdvice.actingUnitID }),
+              let objectiveActionReplay = objectiveReplay.comparisons.first(where: { $0.kind == .objective }) else {
+            require(false, "objective defense execution should publish move replay")
+            return
+        }
+        let expectedObjectiveAction = objectiveExecutionDestination == objectiveExecutionAdvice.threatTargetCoordinate ? "进驻" : "封堵"
+        require(objectiveReplay.countermeasureKind == .objectiveDefense, "objective replay should keep advice kind")
+        require(objectiveReplay.executionKind == .move, "objective replay should record move execution")
+        require(objectiveReplay.coordinate == objectiveExecutionDestination, "objective replay should point to actual destination")
+        require(objectiveUnitAfter.position == objectiveExecutionDestination, "objective defense execution should move to advice destination")
+        require(objectiveActionReplay.expected == expectedObjectiveAction, "objective replay should record expected defense action")
+        require(objectiveActionReplay.result.contains(objectiveExecutionAdvice.targetName), "objective replay should name the defended objective")
+
+        let reinforceExecutionGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
+        guard let reinforceExecutionAdvice = countermeasures(in: reinforceExecutionGame).first(where: {
+            $0.kind == .reinforce &&
+                $0.actingUnitName == "前线装甲"
+        }) else {
+            require(false, "execution replay should find reinforce advice")
+            return
+        }
+        let commandPointsBeforeReinforce = reinforceExecutionGame.activeCommandPoints
+        reinforceExecutionGame.focusEnemyThreatCountermeasure(reinforceExecutionAdvice)
+        reinforceExecutionGame.reinforceSelectedUnit()
+        guard let reinforceReplay = reinforceExecutionGame.latestEnemyThreatCountermeasureExecutionResult,
+              let reinforceResult = reinforceExecutionGame.latestReinforcementResult,
+              let reinforceRecoveryReplay = reinforceReplay.comparisons.first(where: { $0.kind == .recovery }),
+              let reinforceSurvivalReplay = reinforceReplay.comparisons.first(where: { $0.kind == .survival }) else {
+            require(false, "reinforce execution should publish reinforcement replay")
+            return
+        }
+        require(reinforceReplay.countermeasureID == reinforceExecutionAdvice.id, "reinforce replay should keep advice id")
+        require(reinforceReplay.countermeasureKind == .reinforce, "reinforce replay should keep advice kind")
+        require(reinforceReplay.executionKind == .reinforce, "reinforce replay should record reinforce execution")
+        require(reinforceRecoveryReplay.expected == "+\(reinforceExecutionAdvice.projectedRecoveredHP)", "reinforce replay should keep expected recovery")
+        require(reinforceRecoveryReplay.actual == "+\(reinforceResult.recoveredHP)", "reinforce replay should use actual recovery")
+        require(reinforceResult.recoveredHP == reinforceExecutionAdvice.projectedRecoveredHP, "reinforce actual recovery should match preview")
+        require(reinforceSurvivalReplay.actual == "HP \(reinforceResult.endingHP)", "reinforce replay should use actual ending HP")
+        require(reinforceExecutionGame.activeCommandPoints == commandPointsBeforeReinforce - reinforceResult.commandCost, "reinforce execution should spend command points")
+        guard let clearingAttackUnit = reinforceExecutionGame.units.first(where: { $0.name == "反击炮兵" }),
+              let clearingAttackTarget = reinforceExecutionGame.units.first(where: { $0.name == "威胁炮兵" }) else {
+            require(false, "clearing attack should find attacker and target")
+            return
+        }
+        reinforceExecutionGame.handleTap(on: clearingAttackUnit.position)
+        reinforceExecutionGame.focus(unitID: clearingAttackTarget.id)
+        reinforceExecutionGame.executeFocusedCommand()
+        require(reinforceExecutionGame.latestCombatResult != nil, "ordinary attack after replay should still publish combat result")
+        require(reinforceExecutionGame.latestEnemyThreatCountermeasureExecutionResult == nil, "ordinary attack should clear latest countermeasure replay")
+        reinforceExecutionGame.restart()
+        require(reinforceExecutionGame.latestEnemyThreatCountermeasureExecutionResult == nil, "restart should clear latest countermeasure replay")
+
+        let ordinaryMoveGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
+        guard let ordinaryTank = ordinaryMoveGame.units.first(where: { $0.name == "前线装甲" }),
+              let ordinaryRoute = ordinaryMoveGame.movementRoutes(for: ordinaryTank)
+                .values
+                .sorted(by: { $0.destination.id < $1.destination.id })
+                .first else {
+            require(false, "ordinary move should find a reachable destination")
+            return
+        }
+        ordinaryMoveGame.handleTap(on: ordinaryTank.position)
+        ordinaryMoveGame.focus(coordinate: ordinaryRoute.destination)
+        ordinaryMoveGame.executeFocusedCommand()
+        require(ordinaryMoveGame.latestEnemyThreatCountermeasureExecutionResult == nil, "ordinary move without focused countermeasure should not publish replay")
+
+        let ordinaryAttackGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
+        guard let ordinaryArtillery = ordinaryAttackGame.units.first(where: { $0.name == "反击炮兵" }),
+              let ordinaryTarget = ordinaryAttackGame.units.first(where: { $0.name == "威胁炮兵" }) else {
+            require(false, "ordinary attack should find attacker and target")
+            return
+        }
+        ordinaryAttackGame.handleTap(on: ordinaryArtillery.position)
+        ordinaryAttackGame.focus(unitID: ordinaryTarget.id)
+        ordinaryAttackGame.executeFocusedCommand()
+        require(ordinaryAttackGame.latestCombatResult != nil, "ordinary attack should still publish combat result")
+        require(ordinaryAttackGame.latestEnemyThreatCountermeasureExecutionResult == nil, "ordinary attack without focused countermeasure should not publish replay")
+
+        let ordinaryReinforceGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
+        guard let ordinaryReinforceUnit = ordinaryReinforceGame.units.first(where: { $0.name == "前线装甲" }) else {
+            require(false, "ordinary reinforce should find damaged unit")
+            return
+        }
+        ordinaryReinforceGame.handleTap(on: ordinaryReinforceUnit.position)
+        ordinaryReinforceGame.reinforceSelectedUnit()
+        require(ordinaryReinforceGame.latestReinforcementResult != nil, "ordinary reinforce should still publish reinforcement result")
+        require(ordinaryReinforceGame.latestEnemyThreatCountermeasureExecutionResult == nil, "ordinary reinforce without focused countermeasure should not publish replay")
     }
 
     private static func isolatedSupplyScenario() -> Scenario {

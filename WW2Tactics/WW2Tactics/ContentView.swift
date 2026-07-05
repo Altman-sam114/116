@@ -2713,6 +2713,13 @@ private struct InspectorPanel: View {
                         .overlay(Color.white.opacity(0.18))
                 }
 
+                if let countermeasureResult = game.latestEnemyThreatCountermeasureExecutionResult {
+                    EnemyThreatCountermeasureExecutionResultSummaryView(summary: countermeasureResult)
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.18))
+                }
+
                 if let aiPhaseSummary = game.latestAIPhaseSummary {
                     AIPhaseSummaryView(summary: aiPhaseSummary)
 
@@ -4917,6 +4924,120 @@ private struct EnemyThreatCountermeasureExecutionHint: View {
             return "cross.case.fill"
         case .unavailable:
             return "exclamationmark.triangle.fill"
+        }
+    }
+}
+
+private struct EnemyThreatCountermeasureExecutionResultSummaryView: View {
+    let summary: EnemyThreatCountermeasureExecutionResultSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label("反制回放", systemImage: iconName)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(color)
+
+                Spacer(minLength: 8)
+
+                Text(summary.executionKind.shortTitle)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(color.opacity(0.88), in: RoundedRectangle(cornerRadius: 5))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(summary.countermeasureKind.title)
+                    .font(.headline.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                Text(locationText)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 7) {
+                ForEach(Array(summary.comparisons.prefix(3))) { comparison in
+                    CombatResultMetric(
+                        title: comparison.title,
+                        value: comparison.actual,
+                        color: metricColor(for: comparison.kind)
+                    )
+                    .accessibilityLabel("\(comparison.title)，预计\(comparison.expected)，实际\(comparison.actual)，\(comparison.result)")
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                if !summary.expectedSummary.isEmpty {
+                    Label("预计：\(summary.expectedSummary)", systemImage: "arrow.left.arrow.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.66))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Label("实际：\(summary.actualSummary)", systemImage: "checkmark.seal.fill")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(9)
+        .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(color.opacity(0.24), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("反制回放，\(summary.countermeasureKind.title)，\(locationText)，预计\(summary.expectedSummary)，实际\(summary.actualSummary)")
+    }
+
+    private var locationText: String {
+        let coordinateText = summary.coordinate.map { "，q\($0.q),r\($0.r)" } ?? ""
+        return "\(summary.actingUnitName) -> \(summary.targetName)，威胁来源 \(summary.threatEnemyUnitName)\(coordinateText)"
+    }
+
+    private var color: Color {
+        switch summary.countermeasureKind {
+        case .firstStrike:
+            return .red
+        case .withdraw:
+            return .cyan
+        case .objectiveDefense:
+            return .yellow
+        case .reinforce:
+            return .green
+        }
+    }
+
+    private var iconName: String {
+        switch summary.executionKind {
+        case .attack:
+            return "target"
+        case .move:
+            return "arrow.up.right.circle.fill"
+        case .reinforce:
+            return "cross.case.fill"
+        case .unavailable:
+            return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private func metricColor(for kind: EnemyThreatCountermeasureExecutionResultKind) -> Color {
+        switch kind {
+        case .damage, .enemyHP:
+            return .orange
+        case .survival, .recovery:
+            return .green
+        case .objective:
+            return .yellow
+        case .route:
+            return .cyan
         }
     }
 }

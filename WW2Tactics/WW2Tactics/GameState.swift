@@ -19,6 +19,7 @@ final class GameState: ObservableObject {
     @Published private(set) var latestObjectiveCaptureResult: ObjectiveCaptureResultSummary?
     @Published private(set) var latestDeploymentResult: DeploymentResultSummary?
     @Published private(set) var latestReinforcementResult: ReinforcementResultSummary?
+    @Published private(set) var latestEnemyThreatCountermeasureExecutionResult: EnemyThreatCountermeasureExecutionResultSummary?
     @Published private(set) var latestAIPhaseSummary: AIPhaseSummary?
 
     private enum MapCommandInputMode {
@@ -947,6 +948,190 @@ final class GameState: ObservableObject {
         )
     }
 
+    private func focusedEnemyThreatCountermeasureForExecution(
+        kind: EnemyThreatCountermeasureKind? = nil,
+        executionKind: EnemyThreatCountermeasureExecutionKind,
+        coordinate: HexCoordinate? = nil
+    ) -> EnemyThreatCountermeasurePreview? {
+        guard let preview = focusedEnemyThreatCountermeasurePreview,
+              isEnemyThreatCountermeasureFocused(preview) else { return nil }
+        if let kind, preview.kind != kind { return nil }
+
+        let executionPreview = enemyThreatCountermeasureExecutionPreview(for: preview)
+        guard executionPreview.isExecutable,
+              executionPreview.kind == executionKind else { return nil }
+        if let coordinate, executionPreview.coordinate != coordinate { return nil }
+        return preview
+    }
+
+    private func publishCountermeasureAttackExecutionResult(
+        for preview: EnemyThreatCountermeasurePreview
+    ) {
+        guard preview.kind == .firstStrike,
+              let combatResult = latestCombatResult else { return }
+
+        let enemyCoordinate = scenario.units.first { $0.id == preview.threatEnemyUnitID }?.position
+        let expectedEnemyHP = preview.willDestroyEnemy ?
+            "击毁" :
+            preview.projectedEnemyHPAfterDamage.map { "HP \($0)" } ?? "压制"
+        let actualEnemyHP = combatResult.didDestroyDefender ?
+            "击毁" :
+            "HP \(combatResult.defender.endingHP)"
+
+        var comparisons: [EnemyThreatCountermeasureExecutionResultComparison] = [
+            EnemyThreatCountermeasureExecutionResultComparison(
+                kind: .damage,
+                title: "伤害",
+                expected: "-\(preview.projectedDamage)",
+                actual: "-\(combatResult.damage)",
+                result: combatResult.damage == preview.projectedDamage ? "符合预期" : "伤害偏差"
+            ),
+            EnemyThreatCountermeasureExecutionResultComparison(
+                kind: .enemyHP,
+                title: "敌耐久",
+                expected: expectedEnemyHP,
+                actual: actualEnemyHP,
+                result: combatResult.didDestroyDefender == preview.willDestroyEnemy ? "符合预期" : "击毁结果偏差"
+            )
+        ]
+
+        if let projectedFriendlyHPAfterAction = preview.projectedFriendlyHPAfterAction {
+            comparisons.append(
+                EnemyThreatCountermeasureExecutionResultComparison(
+                    kind: .survival,
+                    title: "执行单位",
+                    expected: "HP \(projectedFriendlyHPAfterAction)",
+                    actual: "HP \(combatResult.attacker.endingHP)",
+                    result: combatResult.attacker.endingHP == projectedFriendlyHPAfterAction ? "符合预期" : "反击后耐久偏差"
+                )
+            )
+        }
+
+        latestEnemyThreatCountermeasureExecutionResult = countermeasureExecutionResultSummary(
+            for: preview,
+            executionKind: .attack,
+            coordinate: enemyCoordinate,
+            comparisons: comparisons
+        )
+    }
+
+    private func publishCountermeasureMoveExecutionResult(
+        for preview: EnemyThreatCountermeasurePreview,
+        route: MovementRoute
+    ) {
+        guard preview.kind == .withdraw || preview.kind == .objectiveDefense,
+              let actingUnitID = preview.actingUnitID,
+              let movedUnit = scenario.units.first(where: { $0.id == actingUnitID }) else { return }
+
+        let expectedDestination = preview.destination.map(coordinateText) ?? "未知"
+        let actualDestination = coordinateText(movedUnit.position)
+        var comparisons: [EnemyThreatCountermeasureExecutionResultComparison] = [
+            EnemyThreatCountermeasureExecutionResultComparison(
+                kind: .route,
+                title: "位置",
+                expected: expectedDestination,
+                actual: actualDestination,
+                result: movedUnit.position == preview.destination ? "到位" : "位置偏差"
+            )
+        ]
+
+        if preview.kind == .withdraw {
+            if let projectedFriendlyHPAfterAction = preview.projectedFriendlyHPAfterAction {
+                comparisons.append(
+                    EnemyThreatCountermeasureExecutionResultComparison(
+                        kind: .survival,
+                        title: "耐久",
+                        expected: "威胁后 HP \(projectedFriendlyHPAfterAction)",
+                        actual: "当前 HP \(movedUnit.hp)",
+                        result: "已撤离，待敌方回合验证"
+                    )
+                )
+            }
+        } else {
+            let expectedAction = preview.destination == preview.threatTargetCoordinate ? "进驻" : "封堵"
+            let actualAction = movedUnit.position == preview.threatTargetCoordinate ? "进驻" :
+                (movedUnit.position.distance(to: preview.threatTargetCoordinate) <= 1 ? "封堵" : "未到位")
+            let objectiveOwner = tile(at: preview.threatTargetCoordinate)?.owner?.title ?? "中立"
+            comparisons.append(
+                EnemyThreatCountermeasureExecutionResultComparison(
+                    kind: .objective,
+                    title: "守点",
+                    expected: expectedAction,
+                    actual: "\(actualAction) · \(objectiveOwner)",
+                    result: actualAction == expectedAction ? "\(expectedAction)\(preview.targetName)" : "守点位置偏差"
+                )
+            )
+        }
+
+        comparisons.append(
+            EnemyThreatCountermeasureExecutionResultComparison(
+                kind: .route,
+                title: "路线",
+                expected: preview.routeCost.map { "\($0)" } ?? "\(route.totalCost)",
+                actual: "\(route.totalCost)",
+                result: preview.routeCost == route.totalCost ? "符合预期" : "路线消耗偏差"
+            )
+        )
+
+        latestEnemyThreatCountermeasureExecutionResult = countermeasureExecutionResultSummary(
+            for: preview,
+            executionKind: .move,
+            coordinate: movedUnit.position,
+            comparisons: comparisons
+        )
+    }
+
+    private func publishCountermeasureReinforceExecutionResult(
+        for preview: EnemyThreatCountermeasurePreview
+    ) {
+        guard preview.kind == .reinforce,
+              let reinforcementResult = latestReinforcementResult else { return }
+
+        let comparisons = [
+            EnemyThreatCountermeasureExecutionResultComparison(
+                kind: .recovery,
+                title: "恢复",
+                expected: "+\(preview.projectedRecoveredHP)",
+                actual: "+\(reinforcementResult.recoveredHP)",
+                result: reinforcementResult.recoveredHP == preview.projectedRecoveredHP ? "符合预期" : "恢复量偏差"
+            ),
+            EnemyThreatCountermeasureExecutionResultComparison(
+                kind: .survival,
+                title: "整补后",
+                expected: preview.projectedFriendlyHPAfterAction.map { "HP \($0)" } ?? "HP --",
+                actual: "HP \(reinforcementResult.endingHP)",
+                result: reinforcementResult.endingHP == preview.projectedFriendlyHPAfterAction ? "符合预期" : "整补后耐久偏差"
+            )
+        ]
+
+        latestEnemyThreatCountermeasureExecutionResult = countermeasureExecutionResultSummary(
+            for: preview,
+            executionKind: .reinforce,
+            coordinate: reinforcementResult.coordinate,
+            comparisons: comparisons
+        )
+    }
+
+    private func countermeasureExecutionResultSummary(
+        for preview: EnemyThreatCountermeasurePreview,
+        executionKind: EnemyThreatCountermeasureExecutionKind,
+        coordinate: HexCoordinate?,
+        comparisons: [EnemyThreatCountermeasureExecutionResultComparison]
+    ) -> EnemyThreatCountermeasureExecutionResultSummary {
+        EnemyThreatCountermeasureExecutionResultSummary(
+            countermeasureID: preview.id,
+            countermeasureKind: preview.kind,
+            executionKind: executionKind,
+            actingUnitID: preview.actingUnitID,
+            actingUnitName: preview.actingUnitName,
+            targetName: preview.targetName,
+            threatEnemyUnitName: preview.threatEnemyUnitName,
+            coordinate: coordinate,
+            expectedSummary: preview.impactSummary,
+            comparisons: comparisons
+        )
+    }
+
     func focusObjectiveAdvanceTarget(coordinate: HexCoordinate) {
         guard winner == nil else { return }
         guard let selectedUnit else {
@@ -1188,6 +1373,7 @@ final class GameState: ObservableObject {
             latestObjectiveCaptureResult = nil
             latestDeploymentResult = nil
             latestReinforcementResult = nil
+            latestEnemyThreatCountermeasureExecutionResult = nil
         }
 
         appendLog(message)
@@ -1694,7 +1880,15 @@ final class GameState: ObservableObject {
 
     func reinforceSelectedUnit() {
         guard let unit = selectedUnit else { return }
+        let countermeasureExecution = focusedEnemyThreatCountermeasureForExecution(
+            kind: .reinforce,
+            executionKind: .reinforce,
+            coordinate: unit.position
+        )
         reinforce(unitID: unit.id)
+        if let countermeasureExecution {
+            publishCountermeasureReinforceExecutionResult(for: countermeasureExecution)
+        }
     }
 
     func deploy(kind: UnitKind, at coordinate: HexCoordinate) {
@@ -1734,6 +1928,7 @@ final class GameState: ObservableObject {
         latestTacticalCommandResult = nil
         latestObjectiveCaptureResult = nil
         latestReinforcementResult = nil
+        latestEnemyThreatCountermeasureExecutionResult = nil
         message = "\(site.sourceObjectiveName) 部署 \(unit.name)，消耗 \(kind.commandCost) 指令点。"
         appendLog(message)
         recordAIPhaseAction(.deployment)
@@ -1891,6 +2086,10 @@ final class GameState: ObservableObject {
                 message = "无法确认移动目标。"
                 return
             }
+            let countermeasureExecution = focusedEnemyThreatCountermeasureForExecution(
+                executionKind: .move,
+                coordinate: coordinate
+            )
             let preservesObjectiveGuidance = shouldPreserveObjectiveGuidance(for: route, unit: selectedUnit)
             let postMoveTargets = postMoveAttackOpportunities(for: selectedUnit, to: coordinate)
             move(
@@ -1898,6 +2097,10 @@ final class GameState: ObservableObject {
                 to: coordinate,
                 preservingObjectiveGuidance: preservesObjectiveGuidance
             )
+            if let countermeasureExecution,
+               countermeasureExecution.kind == .withdraw || countermeasureExecution.kind == .objectiveDefense {
+                publishCountermeasureMoveExecutionResult(for: countermeasureExecution, route: route)
+            }
             if winner == nil,
                let nextTarget = postMoveTargets.first,
                let movedUnit = self.selectedUnit,
@@ -1914,7 +2117,15 @@ final class GameState: ObservableObject {
                 message = "无法确认攻击目标。"
                 return
             }
+            let countermeasureExecution = focusedEnemyThreatCountermeasureForExecution(
+                kind: .firstStrike,
+                executionKind: .attack,
+                coordinate: coordinate
+            )
             attack(attackerID: attacker.id, targetID: target.id)
+            if let countermeasureExecution {
+                publishCountermeasureAttackExecutionResult(for: countermeasureExecution)
+            }
         case let .approachAttack(_, defenderName, route):
             guard let selectedUnit else {
                 message = "需要先选择可行动部队。"
@@ -3120,6 +3331,7 @@ final class GameState: ObservableObject {
     func waitSelectedUnit() {
         guard let selectedUnit else { return }
         clearObjectiveGuidance()
+        latestEnemyThreatCountermeasureExecutionResult = nil
         updateUnit(id: selectedUnit.id) { unit in
             unit.hasMoved = true
             unit.hasAttacked = true
@@ -3141,6 +3353,7 @@ final class GameState: ObservableObject {
         guard winner == nil else { return }
         selectedUnitID = nil
         clearObjectiveGuidance()
+        latestEnemyThreatCountermeasureExecutionResult = nil
         resetUnits(for: .axis)
         activeFaction = .axis
         addCommandIncome(for: .axis)
@@ -3187,6 +3400,7 @@ final class GameState: ObservableObject {
         latestObjectiveCaptureResult = nil
         latestDeploymentResult = nil
         latestReinforcementResult = nil
+        latestEnemyThreatCountermeasureExecutionResult = nil
         latestAIPhaseSummary = nil
         activeAIPhaseBaseline = nil
         activeAIPhaseActionCounts = AIPhaseActionCounts()
@@ -3202,6 +3416,7 @@ final class GameState: ObservableObject {
     ) {
         guard let index = scenario.units.firstIndex(where: { $0.id == unitID }) else { return }
         focusedEnemyThreatCountermeasurePreview = nil
+        latestEnemyThreatCountermeasureExecutionResult = nil
         scenario.units[index].position = coordinate
         scenario.units[index].hasMoved = true
         scenario.units[index].tacticalStatus = .normal
@@ -3328,6 +3543,7 @@ final class GameState: ObservableObject {
             latestObjectiveCaptureResult = nil
             latestDeploymentResult = nil
             latestReinforcementResult = nil
+            latestEnemyThreatCountermeasureExecutionResult = nil
         }
 
         appendLog(message)
@@ -3447,6 +3663,7 @@ final class GameState: ObservableObject {
         latestTacticalCommandResult = nil
         latestObjectiveCaptureResult = nil
         latestDeploymentResult = nil
+        latestEnemyThreatCountermeasureExecutionResult = nil
         message = "\(unit.name) 整补 +\(recovered) 耐久，消耗 \(cost) 指令点。"
         appendLog(message)
         recordAIPhaseAction(.reinforcement)
@@ -4022,6 +4239,7 @@ final class GameState: ObservableObject {
         latestTacticalCommandResult = nil
         latestDeploymentResult = nil
         latestReinforcementResult = nil
+        latestEnemyThreatCountermeasureExecutionResult = nil
         appendLog("\(unit.name)\(action)\(objectiveName)，\(unit.faction.title)获得 \(Self.objectiveCaptureCommandReward) 指令点。")
     }
 

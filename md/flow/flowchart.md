@@ -11,15 +11,16 @@ flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure"]
   I --> S["GameState：核心状态机"]
-  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、Deployment/ReinforcementResultSummary、AIPhaseSummary"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、OBJ计划、THR、敌方意图、反制建议、排序对比、执行前后对照、执行入口桥接"]
-  R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、消息、攻击/战术/占领/后勤结果、AI回合摘要、战报、胜负"]
+  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、Deployment/ReinforcementResultSummary、AIPhaseSummary"] --> S
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、OBJ计划、THR、敌方意图、反制建议、排序对比、执行前后对照、执行入口桥接、执行回放"]
+  R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、消息、攻击/战术/占领/后勤结果、反制回放、AI回合摘要、战报、胜负"]
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
   EI --> EC["只读建议：EnemyThreatCountermeasurePreview 抢先打击 / 撤退 / 守点 / 整补"]
   EC --> BM["只读收益：战果 / 生存 / 守点 / 恢复 / 路线 / 优先值"]
   BM --> PC["只读排序：可执行 / 击毁 / 优先值 / 路线 / 相邻对比"]
   PC --> IP["只读对照：当前 / 采纳 / 改善"]
   IP --> EB["只读入口：ATK / MOVE / 整补按钮提示"]
+  EB --> XR["真实执行后回放：预计 / 实际 / 结果"]
   W --> P["@Published 状态变化"]
   P --> V
   EI --> V
@@ -28,6 +29,7 @@ flowchart TD
   PC --> V
   IP --> V
   EB --> V
+  XR --> V
   S --> T["测试层：GameStateTests / RulesSmokeTest"]
 ```
 
@@ -58,6 +60,8 @@ flowchart TD
   H -->|ATK| J["attack：伤害、反击、经验、士气、latestCombatResult、战报"]
   H -->|POS| K["移动到攻击位并聚焦目标"]
   H -->|不可执行| L["提示原因，不消耗行动"]
+  I --> RR["若匹配当前反制建议：写入 MOVE 反制回放"]
+  J --> RR2["若匹配当前反制建议：写入 ATK 反制回放"]
   I --> M{"移动后是否有 NEXT 目标？"}
   M -->|是| N["自动聚焦可攻击目标"]
   M -->|否| O["保持移动后状态"]
@@ -87,6 +91,7 @@ flowchart LR
   CTR --> PF["PriorityFactor / ComparisonPreview 排序对比解释"]
   CTR --> IP2["ImpactComparison 执行前后预计对照"]
   CTR --> EBP["EnemyThreatCountermeasureExecutionPreview 执行入口桥接"]
+  CTR --> ERP["ExecutionResultSummary 真实执行回放"]
   MV --> RP["RouteStepPreview 步序、消耗、控制区、敌火"]
   MV --> PM["PostMoveAttackPreview 移动后伤害、反击、击毁"]
   MV --> FP["PostMoveFireExposurePreview 潜在承伤、HP 后果、风险等级"]
@@ -111,6 +116,7 @@ flowchart LR
   CMD --> EX["executeMapCommand"]
   EX --> RES["更新单位、据点、消息、攻击/战术/占领/后勤结果、战报"]
   LOG --> RES
+  RES --> CMR["latestEnemyThreatCountermeasureExecutionResult 预计/实际/结果"]
   RES --> WIN["checkVictory / checkTurnLimit"]
   RES --> AI["runAxisAI 轴心国回合"]
   AI --> AIS["AIPhaseSummary：动作计数、指令点、占点、歼灭、伤害"]
@@ -121,6 +127,7 @@ flowchart LR
   PF --> UI2
   IP2 --> UI2
   EBP --> UI2
+  CMR --> UI2
 ```
 
 ## 4. Agent X 主控迭代流程图

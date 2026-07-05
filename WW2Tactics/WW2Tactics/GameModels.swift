@@ -1241,6 +1241,52 @@ struct EnemyThreatCountermeasureExecutionPreview: Equatable {
     let reason: String
 }
 
+enum EnemyThreatCountermeasureExecutionResultKind: String, Identifiable {
+    case damage
+    case survival
+    case enemyHP
+    case objective
+    case recovery
+    case route
+
+    var id: String { rawValue }
+}
+
+struct EnemyThreatCountermeasureExecutionResultComparison: Identifiable, Equatable {
+    let kind: EnemyThreatCountermeasureExecutionResultKind
+    let title: String
+    let expected: String
+    let actual: String
+    let result: String
+
+    var id: String {
+        "\(kind.rawValue)-\(title)-\(expected)-\(actual)-\(result)"
+    }
+}
+
+struct EnemyThreatCountermeasureExecutionResultSummary: Identifiable, Equatable {
+    let countermeasureID: String
+    let countermeasureKind: EnemyThreatCountermeasureKind
+    let executionKind: EnemyThreatCountermeasureExecutionKind
+    let actingUnitID: BattleUnit.ID?
+    let actingUnitName: String
+    let targetName: String
+    let threatEnemyUnitName: String
+    let coordinate: HexCoordinate?
+    let expectedSummary: String
+    let comparisons: [EnemyThreatCountermeasureExecutionResultComparison]
+
+    var id: String {
+        "\(countermeasureID)-\(executionKind.rawValue)-\(coordinate?.id ?? "none")"
+    }
+
+    var actualSummary: String {
+        comparisons
+            .map { "\($0.title)：\($0.expected) -> \($0.actual)，\($0.result)" }
+            .joined(separator: "，")
+    }
+}
+
 struct DeploymentSite: Identifiable, Equatable {
     let coordinate: HexCoordinate
     let sourceObjectiveName: String
