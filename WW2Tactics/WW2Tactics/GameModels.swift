@@ -1269,10 +1269,13 @@ struct EnemyThreatCountermeasureExecutionResultSummary: Identifiable, Equatable 
     let countermeasureKind: EnemyThreatCountermeasureKind
     let executionKind: EnemyThreatCountermeasureExecutionKind
     let actingUnitID: BattleUnit.ID?
+    let targetUnitID: BattleUnit.ID?
+    let threatEnemyUnitID: BattleUnit.ID
     let actingUnitName: String
     let targetName: String
     let threatEnemyUnitName: String
     let coordinate: HexCoordinate?
+    let threatTargetCoordinate: HexCoordinate
     let expectedSummary: String
     let comparisons: [EnemyThreatCountermeasureExecutionResultComparison]
 
@@ -1283,6 +1286,57 @@ struct EnemyThreatCountermeasureExecutionResultSummary: Identifiable, Equatable 
     var actualSummary: String {
         comparisons
             .map { "\($0.title)：\($0.expected) -> \($0.actual)，\($0.result)" }
+            .joined(separator: "，")
+    }
+}
+
+enum EnemyThreatCountermeasureFollowUpResultKind: String, Identifiable {
+    case survival
+    case enemyHP
+    case objective
+    case position
+    case aiImpact
+    case recovery
+
+    var id: String { rawValue }
+}
+
+struct EnemyThreatCountermeasureFollowUpComparison: Identifiable, Equatable {
+    let kind: EnemyThreatCountermeasureFollowUpResultKind
+    let title: String
+    let beforeEnemyPhase: String
+    let afterEnemyPhase: String
+    let result: String
+
+    var id: String {
+        "\(kind.rawValue)-\(title)-\(beforeEnemyPhase)-\(afterEnemyPhase)-\(result)"
+    }
+}
+
+struct EnemyThreatCountermeasureFollowUpSummary: Identifiable, Equatable {
+    let countermeasureID: String
+    let countermeasureKind: EnemyThreatCountermeasureKind
+    let executionKind: EnemyThreatCountermeasureExecutionKind
+    let actingUnitID: BattleUnit.ID?
+    let targetUnitID: BattleUnit.ID?
+    let threatEnemyUnitID: BattleUnit.ID
+    let actingUnitName: String
+    let targetName: String
+    let threatEnemyUnitName: String
+    let coordinate: HexCoordinate?
+    let threatTargetCoordinate: HexCoordinate
+    let aiFaction: Faction
+    let aiTurn: Int
+    let conclusion: String
+    let comparisons: [EnemyThreatCountermeasureFollowUpComparison]
+
+    var id: String {
+        "\(countermeasureID)-follow-up-\(aiFaction.rawValue)-\(aiTurn)-\(coordinate?.id ?? "none")"
+    }
+
+    var detailSummary: String {
+        comparisons
+            .map { "\($0.title)：\($0.beforeEnemyPhase) -> \($0.afterEnemyPhase)，\($0.result)" }
             .joined(separator: "，")
     }
 }

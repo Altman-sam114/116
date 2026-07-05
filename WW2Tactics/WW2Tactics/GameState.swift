@@ -20,6 +20,7 @@ final class GameState: ObservableObject {
     @Published private(set) var latestDeploymentResult: DeploymentResultSummary?
     @Published private(set) var latestReinforcementResult: ReinforcementResultSummary?
     @Published private(set) var latestEnemyThreatCountermeasureExecutionResult: EnemyThreatCountermeasureExecutionResultSummary?
+    @Published private(set) var latestEnemyThreatCountermeasureFollowUpResult: EnemyThreatCountermeasureFollowUpSummary?
     @Published private(set) var latestAIPhaseSummary: AIPhaseSummary?
 
     private enum MapCommandInputMode {
@@ -65,6 +66,26 @@ final class GameState: ObservableObject {
         let objectiveOwnersByCoordinate: [HexCoordinate: Faction]
     }
 
+    private struct EnemyThreatCountermeasureFollowUpUnitSnapshot {
+        let id: BattleUnit.ID
+        let name: String
+        let hp: Int
+        let maxHP: Int
+        let position: HexCoordinate
+
+        var isDestroyed: Bool {
+            hp <= 0
+        }
+    }
+
+    private struct EnemyThreatCountermeasureFollowUpBaseline {
+        let execution: EnemyThreatCountermeasureExecutionResultSummary
+        let actingUnit: EnemyThreatCountermeasureFollowUpUnitSnapshot?
+        let targetUnit: EnemyThreatCountermeasureFollowUpUnitSnapshot?
+        let threatEnemyUnit: EnemyThreatCountermeasureFollowUpUnitSnapshot?
+        let objectiveOwner: Faction?
+    }
+
     private struct ObjectiveAdvancePlan {
         let tile: TerrainTile
         let route: MovementRoute
@@ -77,6 +98,7 @@ final class GameState: ObservableObject {
     private var focusedEnemyThreatCountermeasurePreview: EnemyThreatCountermeasurePreview?
     private var activeAIPhaseBaseline: AIPhaseBaseline?
     private var activeAIPhaseActionCounts = AIPhaseActionCounts()
+    private var pendingEnemyThreatCountermeasureFollowUpBaseline: EnemyThreatCountermeasureFollowUpBaseline?
 
     private static let objectiveCaptureCommandReward = 3
     private static let objectiveCaptureMoraleReward = 8
@@ -1007,6 +1029,7 @@ final class GameState: ObservableObject {
             )
         }
 
+        latestEnemyThreatCountermeasureFollowUpResult = nil
         latestEnemyThreatCountermeasureExecutionResult = countermeasureExecutionResultSummary(
             for: preview,
             executionKind: .attack,
@@ -1073,6 +1096,7 @@ final class GameState: ObservableObject {
             )
         )
 
+        latestEnemyThreatCountermeasureFollowUpResult = nil
         latestEnemyThreatCountermeasureExecutionResult = countermeasureExecutionResultSummary(
             for: preview,
             executionKind: .move,
@@ -1104,6 +1128,7 @@ final class GameState: ObservableObject {
             )
         ]
 
+        latestEnemyThreatCountermeasureFollowUpResult = nil
         latestEnemyThreatCountermeasureExecutionResult = countermeasureExecutionResultSummary(
             for: preview,
             executionKind: .reinforce,
@@ -1123,13 +1148,266 @@ final class GameState: ObservableObject {
             countermeasureKind: preview.kind,
             executionKind: executionKind,
             actingUnitID: preview.actingUnitID,
+            targetUnitID: preview.targetUnitID,
+            threatEnemyUnitID: preview.threatEnemyUnitID,
             actingUnitName: preview.actingUnitName,
             targetName: preview.targetName,
             threatEnemyUnitName: preview.threatEnemyUnitName,
             coordinate: coordinate,
+            threatTargetCoordinate: preview.threatTargetCoordinate,
             expectedSummary: preview.impactSummary,
             comparisons: comparisons
         )
+    }
+
+    private func prepareEnemyThreatCountermeasureFollowUpBaseline() {
+        guard let execution = latestEnemyThreatCountermeasureExecutionResult else {
+            pendingEnemyThreatCountermeasureFollowUpBaseline = nil
+            latestEnemyThreatCountermeasureFollowUpResult = nil
+            return
+        }
+
+        pendingEnemyThreatCountermeasureFollowUpBaseline = EnemyThreatCountermeasureFollowUpBaseline(
+            execution: execution,
+            actingUnit: countermeasureFollowUpSnapshot(for: execution.actingUnitID),
+            targetUnit: countermeasureFollowUpSnapshot(for: execution.targetUnitID),
+            threatEnemyUnit: countermeasureFollowUpSnapshot(for: execution.threatEnemyUnitID),
+            objectiveOwner: tile(at: execution.threatTargetCoordinate)?.owner
+        )
+        latestEnemyThreatCountermeasureFollowUpResult = nil
+    }
+
+    private func publishEnemyThreatCountermeasureFollowUpResultIfNeeded() {
+        guard let baseline = pendingEnemyThreatCountermeasureFollowUpBaseline,
+              let aiSummary = latestAIPhaseSummary else {
+            pendingEnemyThreatCountermeasureFollowUpBaseline = nil
+            return
+        }
+
+        latestEnemyThreatCountermeasureFollowUpResult = countermeasureFollowUpSummary(
+            from: baseline,
+            aiSummary: aiSummary
+        )
+        pendingEnemyThreatCountermeasureFollowUpBaseline = nil
+    }
+
+    private func countermeasureFollowUpSnapshot(
+        for unitID: BattleUnit.ID?
+    ) -> EnemyThreatCountermeasureFollowUpUnitSnapshot? {
+        guard let unitID,
+              let unit = scenario.units.first(where: { $0.id == unitID }) else { return nil }
+        return EnemyThreatCountermeasureFollowUpUnitSnapshot(
+            id: unit.id,
+            name: unit.name,
+            hp: max(0, unit.hp),
+            maxHP: unit.maxHP,
+            position: unit.position
+        )
+    }
+
+    private func countermeasureFollowUpSummary(
+        from baseline: EnemyThreatCountermeasureFollowUpBaseline,
+        aiSummary: AIPhaseSummary
+    ) -> EnemyThreatCountermeasureFollowUpSummary {
+        let outcome = countermeasureFollowUpOutcome(from: baseline, aiSummary: aiSummary)
+        let execution = baseline.execution
+        return EnemyThreatCountermeasureFollowUpSummary(
+            countermeasureID: execution.countermeasureID,
+            countermeasureKind: execution.countermeasureKind,
+            executionKind: execution.executionKind,
+            actingUnitID: execution.actingUnitID,
+            targetUnitID: execution.targetUnitID,
+            threatEnemyUnitID: execution.threatEnemyUnitID,
+            actingUnitName: execution.actingUnitName,
+            targetName: execution.targetName,
+            threatEnemyUnitName: execution.threatEnemyUnitName,
+            coordinate: execution.coordinate,
+            threatTargetCoordinate: execution.threatTargetCoordinate,
+            aiFaction: aiSummary.faction,
+            aiTurn: aiSummary.turn,
+            conclusion: outcome.conclusion,
+            comparisons: outcome.comparisons
+        )
+    }
+
+    private func countermeasureFollowUpOutcome(
+        from baseline: EnemyThreatCountermeasureFollowUpBaseline,
+        aiSummary: AIPhaseSummary
+    ) -> (conclusion: String, comparisons: [EnemyThreatCountermeasureFollowUpComparison]) {
+        let execution = baseline.execution
+        let threatAfter = currentUnit(matching: baseline.threatEnemyUnit)
+        let trackedBefore = baseline.targetUnit ?? baseline.actingUnit
+        let trackedAfter = currentUnit(matching: trackedBefore)
+        let actingAfter = currentUnit(matching: baseline.actingUnit)
+        let objectiveOwnerAfter = tile(at: execution.threatTargetCoordinate)?.owner
+        var comparisons: [EnemyThreatCountermeasureFollowUpComparison]
+        let conclusion: String
+
+        switch execution.countermeasureKind {
+        case .firstStrike:
+            comparisons = [
+                EnemyThreatCountermeasureFollowUpComparison(
+                    kind: .enemyHP,
+                    title: "威胁源",
+                    beforeEnemyPhase: followUpStatusText(baseline.threatEnemyUnit),
+                    afterEnemyPhase: followUpStatusText(threatAfter),
+                    result: threatAfter?.isDestroyed == false ? "威胁源仍在" : "威胁源已解除"
+                ),
+                EnemyThreatCountermeasureFollowUpComparison(
+                    kind: .survival,
+                    title: "受威胁目标",
+                    beforeEnemyPhase: followUpStatusText(trackedBefore),
+                    afterEnemyPhase: followUpStatusText(trackedAfter),
+                    result: followUpSurvivalResult(before: trackedBefore, after: trackedAfter)
+                )
+            ]
+            if threatAfter?.isDestroyed != false {
+                conclusion = "抢先打击后，原威胁来源已解除。"
+            } else if trackedAfter?.isDestroyed == false {
+                conclusion = "抢先打击后，目标仍存活，原威胁仍需关注。"
+            } else {
+                conclusion = "抢先打击后，目标未能撑过敌方回合。"
+            }
+        case .withdraw:
+            let reachResult = followUpThreatReachResult(threat: threatAfter, target: trackedAfter)
+            comparisons = [
+                EnemyThreatCountermeasureFollowUpComparison(
+                    kind: .position,
+                    title: "撤离位置",
+                    beforeEnemyPhase: followUpStatusText(trackedBefore),
+                    afterEnemyPhase: followUpStatusText(trackedAfter),
+                    result: reachResult
+                ),
+                EnemyThreatCountermeasureFollowUpComparison(
+                    kind: .survival,
+                    title: "撤离单位",
+                    beforeEnemyPhase: followUpStatusText(trackedBefore),
+                    afterEnemyPhase: followUpStatusText(trackedAfter),
+                    result: followUpSurvivalResult(before: trackedBefore, after: trackedAfter)
+                )
+            ]
+            if trackedAfter?.isDestroyed == false && reachResult != "仍在原威胁射程" {
+                conclusion = "撤离后，目标存活并避开原威胁直接覆盖。"
+            } else if trackedAfter?.isDestroyed == false {
+                conclusion = "撤离后，目标仍存活，但原威胁仍可能覆盖。"
+            } else {
+                conclusion = "撤离后，目标未能撑过敌方回合。"
+            }
+        case .objectiveDefense:
+            let ownerResult = objectiveOwnerAfter == .allies ? "据点守住" :
+                (objectiveOwnerAfter == .axis ? "据点失守" : "据点未被敌军占领")
+            comparisons = [
+                EnemyThreatCountermeasureFollowUpComparison(
+                    kind: .objective,
+                    title: "据点归属",
+                    beforeEnemyPhase: ownerText(baseline.objectiveOwner),
+                    afterEnemyPhase: ownerText(objectiveOwnerAfter),
+                    result: ownerResult
+                ),
+                EnemyThreatCountermeasureFollowUpComparison(
+                    kind: .survival,
+                    title: "防守单位",
+                    beforeEnemyPhase: followUpStatusText(baseline.actingUnit),
+                    afterEnemyPhase: followUpStatusText(actingAfter),
+                    result: followUpSurvivalResult(before: baseline.actingUnit, after: actingAfter)
+                )
+            ]
+            conclusion = objectiveOwnerAfter == .allies ?
+                "据点防守后，目标据点仍由盟军控制。" :
+                "据点防守后，目标据点归属已变化。"
+        case .reinforce:
+            comparisons = [
+                EnemyThreatCountermeasureFollowUpComparison(
+                    kind: .recovery,
+                    title: "整补单位",
+                    beforeEnemyPhase: followUpStatusText(trackedBefore),
+                    afterEnemyPhase: followUpStatusText(trackedAfter),
+                    result: followUpSurvivalResult(before: trackedBefore, after: trackedAfter)
+                ),
+                EnemyThreatCountermeasureFollowUpComparison(
+                    kind: .enemyHP,
+                    title: "威胁源",
+                    beforeEnemyPhase: followUpStatusText(baseline.threatEnemyUnit),
+                    afterEnemyPhase: followUpStatusText(threatAfter),
+                    result: followUpThreatReachResult(threat: threatAfter, target: trackedAfter)
+                )
+            ]
+            if trackedAfter?.isDestroyed == false {
+                conclusion = "整补后，目标单位撑过敌方回合。"
+            } else {
+                conclusion = "整补后，目标单位仍被敌方回合击毁。"
+            }
+        }
+
+        comparisons.append(
+            EnemyThreatCountermeasureFollowUpComparison(
+                kind: .aiImpact,
+                title: "AI总览",
+                beforeEnemyPhase: "待验证",
+                afterEnemyPhase: "\(aiSummary.totalActions) 行动，伤害 \(aiSummary.damageDealt)",
+                result: aiSummary.objectivesCaptured > 0 ?
+                    "敌军夺取 \(aiSummary.objectivesCaptured) 据点" :
+                    "敌方回合结束"
+            )
+        )
+
+        return (conclusion, comparisons)
+    }
+
+    private func currentUnit(
+        matching snapshot: EnemyThreatCountermeasureFollowUpUnitSnapshot?
+    ) -> BattleUnit? {
+        guard let snapshot else { return nil }
+        return scenario.units.first { $0.id == snapshot.id }
+    }
+
+    private func followUpStatusText(
+        _ snapshot: EnemyThreatCountermeasureFollowUpUnitSnapshot?
+    ) -> String {
+        guard let snapshot else { return "无记录" }
+        if snapshot.isDestroyed {
+            return "已被击毁"
+        }
+        return "HP \(snapshot.hp) @ \(coordinateText(snapshot.position))"
+    }
+
+    private func followUpStatusText(_ unit: BattleUnit?) -> String {
+        guard let unit else { return "不存在" }
+        if unit.isDestroyed {
+            return "已被击毁"
+        }
+        return "HP \(max(0, unit.hp)) @ \(coordinateText(unit.position))"
+    }
+
+    private func followUpSurvivalResult(
+        before: EnemyThreatCountermeasureFollowUpUnitSnapshot?,
+        after: BattleUnit?
+    ) -> String {
+        guard let after else { return "目标不存在" }
+        if after.isDestroyed {
+            return "已被击毁"
+        }
+        guard let before else { return "仍存活" }
+        let delta = max(0, after.hp) - before.hp
+        if delta < 0 {
+            return "损失 \(abs(delta)) HP"
+        }
+        if delta > 0 {
+            return "恢复 +\(delta) HP"
+        }
+        return "HP 保持"
+    }
+
+    private func followUpThreatReachResult(threat: BattleUnit?, target: BattleUnit?) -> String {
+        guard let threat, !threat.isDestroyed else { return "威胁源已解除" }
+        guard let target, !target.isDestroyed else { return "目标已被击毁" }
+        return threat.position.distance(to: target.position) <= threat.range ?
+            "仍在原威胁射程" :
+            "避开原威胁射程"
+    }
+
+    private func ownerText(_ owner: Faction?) -> String {
+        owner?.title ?? "中立"
     }
 
     func focusObjectiveAdvanceTarget(coordinate: HexCoordinate) {
@@ -1374,6 +1652,7 @@ final class GameState: ObservableObject {
             latestDeploymentResult = nil
             latestReinforcementResult = nil
             latestEnemyThreatCountermeasureExecutionResult = nil
+            latestEnemyThreatCountermeasureFollowUpResult = nil
         }
 
         appendLog(message)
@@ -1929,6 +2208,7 @@ final class GameState: ObservableObject {
         latestObjectiveCaptureResult = nil
         latestReinforcementResult = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
+        latestEnemyThreatCountermeasureFollowUpResult = nil
         message = "\(site.sourceObjectiveName) 部署 \(unit.name)，消耗 \(kind.commandCost) 指令点。"
         appendLog(message)
         recordAIPhaseAction(.deployment)
@@ -3332,6 +3612,7 @@ final class GameState: ObservableObject {
         guard let selectedUnit else { return }
         clearObjectiveGuidance()
         latestEnemyThreatCountermeasureExecutionResult = nil
+        latestEnemyThreatCountermeasureFollowUpResult = nil
         updateUnit(id: selectedUnit.id) { unit in
             unit.hasMoved = true
             unit.hasAttacked = true
@@ -3353,6 +3634,7 @@ final class GameState: ObservableObject {
         guard winner == nil else { return }
         selectedUnitID = nil
         clearObjectiveGuidance()
+        prepareEnemyThreatCountermeasureFollowUpBaseline()
         latestEnemyThreatCountermeasureExecutionResult = nil
         resetUnits(for: .axis)
         activeFaction = .axis
@@ -3362,6 +3644,7 @@ final class GameState: ObservableObject {
         beginAIPhaseRecording(for: .axis)
         runAxisAI()
         finishAIPhaseRecording()
+        publishEnemyThreatCountermeasureFollowUpResultIfNeeded()
 
         if winner == nil {
             resetUnits(for: .allies)
@@ -3401,9 +3684,11 @@ final class GameState: ObservableObject {
         latestDeploymentResult = nil
         latestReinforcementResult = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
+        latestEnemyThreatCountermeasureFollowUpResult = nil
         latestAIPhaseSummary = nil
         activeAIPhaseBaseline = nil
         activeAIPhaseActionCounts = AIPhaseActionCounts()
+        pendingEnemyThreatCountermeasureFollowUpBaseline = nil
         commandPoints = [.allies: 6, .axis: 6]
         message = Self.openingMessage(for: newScenario)
         battleLog = [Self.openingLog(for: newScenario)]
@@ -3417,6 +3702,7 @@ final class GameState: ObservableObject {
         guard let index = scenario.units.firstIndex(where: { $0.id == unitID }) else { return }
         focusedEnemyThreatCountermeasurePreview = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
+        latestEnemyThreatCountermeasureFollowUpResult = nil
         scenario.units[index].position = coordinate
         scenario.units[index].hasMoved = true
         scenario.units[index].tacticalStatus = .normal
@@ -3544,6 +3830,7 @@ final class GameState: ObservableObject {
             latestDeploymentResult = nil
             latestReinforcementResult = nil
             latestEnemyThreatCountermeasureExecutionResult = nil
+            latestEnemyThreatCountermeasureFollowUpResult = nil
         }
 
         appendLog(message)
@@ -3664,6 +3951,7 @@ final class GameState: ObservableObject {
         latestObjectiveCaptureResult = nil
         latestDeploymentResult = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
+        latestEnemyThreatCountermeasureFollowUpResult = nil
         message = "\(unit.name) 整补 +\(recovered) 耐久，消耗 \(cost) 指令点。"
         appendLog(message)
         recordAIPhaseAction(.reinforcement)
@@ -4240,6 +4528,7 @@ final class GameState: ObservableObject {
         latestDeploymentResult = nil
         latestReinforcementResult = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
+        latestEnemyThreatCountermeasureFollowUpResult = nil
         appendLog("\(unit.name)\(action)\(objectiveName)，\(unit.faction.title)获得 \(Self.objectiveCaptureCommandReward) 指令点。")
     }
 

@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.18 正在推进反制建议执行回放，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.19 正在推进反制建议敌方回合复核，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
 
 ## 历史记录
 
@@ -985,4 +985,45 @@
 遗留事项：
 
 - 执行回放只记录玩家采纳建议后走既有入口产生的最近一次结果，不新增一键执行、动画、音效或自动战术代理。
+- 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件、排序或执行桥接语义。
+
+### v1.19 / 反制建议敌方回合复核
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `EnemyThreatCountermeasureFollowUpResultKind`、`EnemyThreatCountermeasureFollowUpComparison` 和 `EnemyThreatCountermeasureFollowUpSummary`，记录反制建议执行后经敌方 AI 回合验证的 HP、位置、据点归属、威胁来源和 AI 总览对照。
+- `EnemyThreatCountermeasureExecutionResultSummary` 补充受威胁单位 ID、威胁来源 ID 和威胁目标坐标，让敌方回合复核能稳定绑定 v1.18 即时回放对应的单位和据点。
+- `GameState` 新增 `latestEnemyThreatCountermeasureFollowUpResult` 和私有 pending baseline；`endTurn()` 在清理即时回放前保存执行后基线，在 `finishAIPhaseRecording()` 后、盟军新回合休整前发布复核，保留即时回放跨回合清理语义。
+- 普通无基线回合切换不会生成虚假复核；新的反制执行、普通移动/攻击/整补/部署/战术命令/占点、重开和切战役会清理旧复核。
+- `ContentView` 在反制回放和 AI 回合摘要之间展示“敌方回合复核”卡，显示反制类型、执行单位、目标、威胁来源、结论和前三项对照；UI 只展示 `GameState`/`GameModels` 字段。
+- 补充 XCTest 和规则 smoke test，覆盖无基线不生成、抢先打击、撤退、据点防守、整补四类复核、即时回放清理、AI summary 绑定和重开清理。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.19（反制建议敌方回合复核）.md`
+
+验证结果：
+
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- `git diff --check`：通过，退出码 0。
+- GitHub Actions：待 push 后由 Agent C 下载最新 artifact 验收。
+
+遗留事项：
+
+- 敌方回合复核是基于 HP、位置、据点归属、威胁源存活和 AI 总览的保守验证，不包含逐行动 attacker/target 事件归因。
 - 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件、排序或执行桥接语义。

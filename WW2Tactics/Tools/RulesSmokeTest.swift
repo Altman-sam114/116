@@ -1357,6 +1357,7 @@ struct RulesSmokeTest {
             require(enemyThreatGame.battleLog == startingEnemyThreatLog, "countermeasure focus should not write battle log entries")
 
             verifyCountermeasureExecutionReplay()
+            verifyCountermeasureFollowUpVerification()
 
             let commandGame = GameState(
                 scenario: tacticalCommandScenario(),
@@ -2228,6 +2229,123 @@ struct RulesSmokeTest {
         ordinaryReinforceGame.reinforceSelectedUnit()
         require(ordinaryReinforceGame.latestReinforcementResult != nil, "ordinary reinforce should still publish reinforcement result")
         require(ordinaryReinforceGame.latestEnemyThreatCountermeasureExecutionResult == nil, "ordinary reinforce without focused countermeasure should not publish replay")
+    }
+
+    @MainActor
+    private static func verifyCountermeasureFollowUpVerification() {
+        func countermeasures(in game: GameState) -> [EnemyThreatCountermeasurePreview] {
+            game.enemyThreatCountermeasurePreviews(
+                for: game.enemyThreatIntentPreviews(against: .allies, limit: 10),
+                limit: 10
+            )
+        }
+
+        func requireFollowUp(
+            in game: GameState,
+            for advice: EnemyThreatCountermeasurePreview,
+            executionKind: EnemyThreatCountermeasureExecutionKind,
+            comparisonTitles: [String]
+        ) {
+            game.endTurn()
+            guard let followUp = game.latestEnemyThreatCountermeasureFollowUpResult,
+                  let aiSummary = game.latestAIPhaseSummary else {
+                require(false, "countermeasure follow-up should publish after enemy phase")
+                return
+            }
+            require(game.latestEnemyThreatCountermeasureExecutionResult == nil, "countermeasure follow-up should not keep immediate replay through end turn")
+            require(followUp.countermeasureID == advice.id, "countermeasure follow-up should keep advice id")
+            require(followUp.countermeasureKind == advice.kind, "countermeasure follow-up should keep advice kind")
+            require(followUp.executionKind == executionKind, "countermeasure follow-up should keep execution kind")
+            require(followUp.actingUnitID == advice.actingUnitID, "countermeasure follow-up should keep acting unit id")
+            require(followUp.targetUnitID == advice.targetUnitID, "countermeasure follow-up should keep target unit id")
+            require(followUp.threatEnemyUnitID == advice.threatEnemyUnitID, "countermeasure follow-up should keep threat unit id")
+            require(followUp.threatTargetCoordinate == advice.threatTargetCoordinate, "countermeasure follow-up should keep threat target coordinate")
+            require(followUp.aiFaction == .axis, "countermeasure follow-up should bind to axis AI phase")
+            require(followUp.aiTurn == aiSummary.turn, "countermeasure follow-up should bind to latest AI summary turn")
+            require(!followUp.conclusion.isEmpty, "countermeasure follow-up should include a conclusion")
+            require(!followUp.detailSummary.isEmpty, "countermeasure follow-up should include detail summary")
+            for title in comparisonTitles {
+                require(followUp.comparisons.contains(where: { $0.title == title }), "countermeasure follow-up should include \(title) comparison")
+            }
+            require(followUp.comparisons.contains(where: { $0.kind == .aiImpact }), "countermeasure follow-up should include AI impact comparison")
+        }
+
+        let noBaselineGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))
+        noBaselineGame.endTurn()
+        require(noBaselineGame.latestEnemyThreatCountermeasureFollowUpResult == nil, "enemy phase without countermeasure replay should not publish follow-up")
+        require(noBaselineGame.latestAIPhaseSummary != nil, "enemy phase without follow-up should still publish AI summary")
+
+        let firstStrikeGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))
+        guard let firstStrikeAdvice = countermeasures(in: firstStrikeGame).first(where: {
+            $0.kind == .firstStrike &&
+                $0.actingUnitName == "反击炮兵" &&
+                $0.threatEnemyUnitName == "威胁炮兵"
+        }) else {
+            require(false, "countermeasure follow-up should find first strike advice")
+            return
+        }
+        firstStrikeGame.focusEnemyThreatCountermeasure(firstStrikeAdvice)
+        firstStrikeGame.executeFocusedCommand()
+        require(firstStrikeGame.latestEnemyThreatCountermeasureExecutionResult != nil, "first strike should publish immediate replay before follow-up")
+        requireFollowUp(
+            in: firstStrikeGame,
+            for: firstStrikeAdvice,
+            executionKind: .attack,
+            comparisonTitles: ["威胁源", "受威胁目标", "AI总览"]
+        )
+
+        let withdrawGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))
+        guard let withdrawAdvice = countermeasures(in: withdrawGame).first(where: {
+            $0.kind == .withdraw &&
+                $0.actingUnitName == "前线装甲"
+        }) else {
+            require(false, "countermeasure follow-up should find withdraw advice")
+            return
+        }
+        withdrawGame.focusEnemyThreatCountermeasure(withdrawAdvice)
+        withdrawGame.executeFocusedCommand()
+        requireFollowUp(
+            in: withdrawGame,
+            for: withdrawAdvice,
+            executionKind: .move,
+            comparisonTitles: ["撤离位置", "撤离单位", "AI总览"]
+        )
+
+        let objectiveGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))
+        guard let objectiveAdvice = countermeasures(in: objectiveGame).first(where: {
+            $0.kind == .objectiveDefense &&
+                $0.targetName == "后方油库"
+        }) else {
+            require(false, "countermeasure follow-up should find objective defense advice")
+            return
+        }
+        objectiveGame.focusEnemyThreatCountermeasure(objectiveAdvice)
+        objectiveGame.executeFocusedCommand()
+        requireFollowUp(
+            in: objectiveGame,
+            for: objectiveAdvice,
+            executionKind: .move,
+            comparisonTitles: ["据点归属", "防守单位", "AI总览"]
+        )
+
+        let reinforceGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))
+        guard let reinforceAdvice = countermeasures(in: reinforceGame).first(where: {
+            $0.kind == .reinforce &&
+                $0.actingUnitName == "前线装甲"
+        }) else {
+            require(false, "countermeasure follow-up should find reinforce advice")
+            return
+        }
+        reinforceGame.focusEnemyThreatCountermeasure(reinforceAdvice)
+        reinforceGame.reinforceSelectedUnit()
+        requireFollowUp(
+            in: reinforceGame,
+            for: reinforceAdvice,
+            executionKind: .reinforce,
+            comparisonTitles: ["整补单位", "威胁源", "AI总览"]
+        )
+        reinforceGame.restart()
+        require(reinforceGame.latestEnemyThreatCountermeasureFollowUpResult == nil, "restart should clear countermeasure follow-up")
     }
 
     private static func isolatedSupplyScenario() -> Scenario {
@@ -3570,6 +3688,15 @@ struct RulesSmokeTest {
             decisiveTurnLimit: 2,
             survivalStarThreshold: 1
         )
+    }
+
+    private static func enemyThreatFollowUpScenario(axisSpent: Bool = false) -> Scenario {
+        var scenario = enemyThreatIntentScenario(axisSpent: axisSpent)
+        if let index = scenario.tiles.firstIndex(where: { $0.coordinate == HexCoordinate(q: 0, r: 2) }) {
+            scenario.tiles[index].objectiveName = "未夺取补给点"
+            scenario.tiles[index].owner = nil
+        }
+        return scenario
     }
 
     private static func enemyThreatIntentScenario(axisSpent: Bool = false) -> Scenario {

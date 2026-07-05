@@ -2021,6 +2021,133 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(ordinaryGame.latestEnemyThreatCountermeasureExecutionResult)
     }
 
+    func testEnemyThreatCountermeasureFollowUpPublishesAfterEnemyTurn() throws {
+        func countermeasures(in game: GameState) -> [EnemyThreatCountermeasurePreview] {
+            game.enemyThreatCountermeasurePreviews(
+                for: game.enemyThreatIntentPreviews(against: .allies, limit: 10),
+                limit: 10
+            )
+        }
+
+        @discardableResult
+        func assertFollowUp(
+            in game: GameState,
+            for advice: EnemyThreatCountermeasurePreview,
+            executionKind: EnemyThreatCountermeasureExecutionKind,
+            comparisonTitles: [String],
+            file: StaticString = #filePath,
+            line: UInt = #line
+        ) throws -> EnemyThreatCountermeasureFollowUpSummary {
+            game.endTurn()
+            let followUp = try XCTUnwrap(
+                game.latestEnemyThreatCountermeasureFollowUpResult,
+                file: file,
+                line: line
+            )
+            let aiSummary = try XCTUnwrap(game.latestAIPhaseSummary, file: file, line: line)
+            XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult, file: file, line: line)
+            XCTAssertEqual(followUp.countermeasureID, advice.id, file: file, line: line)
+            XCTAssertEqual(followUp.countermeasureKind, advice.kind, file: file, line: line)
+            XCTAssertEqual(followUp.executionKind, executionKind, file: file, line: line)
+            XCTAssertEqual(followUp.actingUnitID, advice.actingUnitID, file: file, line: line)
+            XCTAssertEqual(followUp.targetUnitID, advice.targetUnitID, file: file, line: line)
+            XCTAssertEqual(followUp.threatEnemyUnitID, advice.threatEnemyUnitID, file: file, line: line)
+            XCTAssertEqual(followUp.threatTargetCoordinate, advice.threatTargetCoordinate, file: file, line: line)
+            XCTAssertEqual(followUp.aiFaction, .axis, file: file, line: line)
+            XCTAssertEqual(followUp.aiTurn, aiSummary.turn, file: file, line: line)
+            XCTAssertEqual(followUp.aiTurn, 1, file: file, line: line)
+            XCTAssertFalse(followUp.conclusion.isEmpty, file: file, line: line)
+            XCTAssertFalse(followUp.detailSummary.isEmpty, file: file, line: line)
+            for title in comparisonTitles {
+                XCTAssertTrue(
+                    followUp.comparisons.contains { $0.title == title },
+                    "missing comparison \(title)",
+                    file: file,
+                    line: line
+                )
+            }
+            XCTAssertTrue(
+                followUp.comparisons.contains { $0.kind == .aiImpact },
+                file: file,
+                line: line
+            )
+            return followUp
+        }
+
+        let noBaselineGame = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
+        noBaselineGame.endTurn()
+        XCTAssertNil(noBaselineGame.latestEnemyThreatCountermeasureFollowUpResult)
+        XCTAssertNotNil(noBaselineGame.latestAIPhaseSummary)
+
+        let firstStrikeGame = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
+        let firstStrike = try XCTUnwrap(countermeasures(in: firstStrikeGame).first {
+            $0.kind == .firstStrike &&
+                $0.actingUnitName == "反击炮兵" &&
+                $0.threatEnemyUnitName == "威胁炮兵"
+        })
+        firstStrikeGame.focusEnemyThreatCountermeasure(firstStrike)
+        firstStrikeGame.executeFocusedCommand()
+        XCTAssertNotNil(firstStrikeGame.latestEnemyThreatCountermeasureExecutionResult)
+        let firstStrikeFollowUp = try assertFollowUp(
+            in: firstStrikeGame,
+            for: firstStrike,
+            executionKind: .attack,
+            comparisonTitles: ["威胁源", "受威胁目标", "AI总览"]
+        )
+        XCTAssertEqual(firstStrikeFollowUp.threatEnemyUnitID, firstStrike.threatEnemyUnitID)
+
+        let withdrawGame = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
+        let withdraw = try XCTUnwrap(countermeasures(in: withdrawGame).first {
+            $0.kind == .withdraw &&
+                $0.actingUnitName == "前线装甲"
+        })
+        let withdrawDestination = try XCTUnwrap(withdraw.destination)
+        withdrawGame.focusEnemyThreatCountermeasure(withdraw)
+        withdrawGame.executeFocusedCommand()
+        XCTAssertEqual(withdrawGame.latestEnemyThreatCountermeasureExecutionResult?.coordinate, withdrawDestination)
+        let withdrawFollowUp = try assertFollowUp(
+            in: withdrawGame,
+            for: withdraw,
+            executionKind: .move,
+            comparisonTitles: ["撤离位置", "撤离单位", "AI总览"]
+        )
+        XCTAssertEqual(withdrawFollowUp.coordinate, withdrawDestination)
+
+        let objectiveDefenseGame = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
+        let objectiveDefense = try XCTUnwrap(countermeasures(in: objectiveDefenseGame).first {
+            $0.kind == .objectiveDefense &&
+                $0.targetName == "后方油库"
+        })
+        objectiveDefenseGame.focusEnemyThreatCountermeasure(objectiveDefense)
+        objectiveDefenseGame.executeFocusedCommand()
+        let objectiveFollowUp = try assertFollowUp(
+            in: objectiveDefenseGame,
+            for: objectiveDefense,
+            executionKind: .move,
+            comparisonTitles: ["据点归属", "防守单位", "AI总览"]
+        )
+        XCTAssertEqual(objectiveFollowUp.threatTargetCoordinate, objectiveDefense.threatTargetCoordinate)
+
+        let reinforceGame = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
+        let reinforce = try XCTUnwrap(countermeasures(in: reinforceGame).first {
+            $0.kind == .reinforce &&
+                $0.actingUnitName == "前线装甲"
+        })
+        reinforceGame.focusEnemyThreatCountermeasure(reinforce)
+        reinforceGame.reinforceSelectedUnit()
+        XCTAssertNotNil(reinforceGame.latestEnemyThreatCountermeasureExecutionResult)
+        let reinforceFollowUp = try assertFollowUp(
+            in: reinforceGame,
+            for: reinforce,
+            executionKind: .reinforce,
+            comparisonTitles: ["整补单位", "威胁源", "AI总览"]
+        )
+        XCTAssertEqual(reinforceFollowUp.coordinate, reinforce.destination)
+
+        reinforceGame.restart()
+        XCTAssertNil(reinforceGame.latestEnemyThreatCountermeasureFollowUpResult)
+    }
+
     func testSelectingAndMovingUnitUpdatesBattlefieldState() throws {
         let game = GameState()
         let tank = try XCTUnwrap(game.units.first { $0.name == "第4装甲师" })
@@ -3874,6 +4001,15 @@ final class GameStateTests: XCTestCase {
             decisiveTurnLimit: 2,
             survivalStarThreshold: 1
         )
+    }
+
+    private static func enemyThreatFollowUpScenario(axisSpent: Bool = false) -> Scenario {
+        var scenario = enemyThreatIntentScenario(axisSpent: axisSpent)
+        if let index = scenario.tiles.firstIndex(where: { $0.coordinate == HexCoordinate(q: 0, r: 2) }) {
+            scenario.tiles[index].objectiveName = "未夺取补给点"
+            scenario.tiles[index].owner = nil
+        }
+        return scenario
     }
 
     private static func enemyThreatIntentScenario(axisSpent: Bool = false) -> Scenario {

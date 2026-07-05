@@ -2720,6 +2720,13 @@ private struct InspectorPanel: View {
                         .overlay(Color.white.opacity(0.18))
                 }
 
+                if let countermeasureFollowUp = game.latestEnemyThreatCountermeasureFollowUpResult {
+                    EnemyThreatCountermeasureFollowUpSummaryView(summary: countermeasureFollowUp)
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.18))
+                }
+
                 if let aiPhaseSummary = game.latestAIPhaseSummary {
                     AIPhaseSummaryView(summary: aiPhaseSummary)
 
@@ -5038,6 +5045,105 @@ private struct EnemyThreatCountermeasureExecutionResultSummaryView: View {
             return .yellow
         case .route:
             return .cyan
+        }
+    }
+}
+
+private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
+    let summary: EnemyThreatCountermeasureFollowUpSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label("敌方回合复核", systemImage: "checkmark.shield.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(color)
+
+                Spacer(minLength: 8)
+
+                Text("T\(summary.aiTurn)")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(color.opacity(0.88), in: RoundedRectangle(cornerRadius: 5))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(summary.countermeasureKind.title)
+                    .font(.headline.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                Text(locationText)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(summary.conclusion)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 7) {
+                ForEach(Array(summary.comparisons.prefix(3))) { comparison in
+                    CombatResultMetric(
+                        title: comparison.title,
+                        value: comparison.afterEnemyPhase,
+                        color: metricColor(for: comparison.kind)
+                    )
+                    .accessibilityLabel("\(comparison.title)，敌方回合前\(comparison.beforeEnemyPhase)，敌方回合后\(comparison.afterEnemyPhase)，\(comparison.result)")
+                }
+            }
+
+            Label("复核：\(summary.detailSummary)", systemImage: "list.bullet.rectangle")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.68))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(9)
+        .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(color.opacity(0.24), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("敌方回合复核，\(summary.countermeasureKind.title)，\(locationText)，\(summary.conclusion)，\(summary.detailSummary)")
+    }
+
+    private var locationText: String {
+        let coordinateText = summary.coordinate.map { "，q\($0.q),r\($0.r)" } ?? ""
+        return "\(summary.actingUnitName) -> \(summary.targetName)，威胁来源 \(summary.threatEnemyUnitName)\(coordinateText)"
+    }
+
+    private var color: Color {
+        switch summary.countermeasureKind {
+        case .firstStrike:
+            return .red
+        case .withdraw:
+            return .cyan
+        case .objectiveDefense:
+            return .yellow
+        case .reinforce:
+            return .green
+        }
+    }
+
+    private func metricColor(for kind: EnemyThreatCountermeasureFollowUpResultKind) -> Color {
+        switch kind {
+        case .enemyHP:
+            return .orange
+        case .survival, .recovery:
+            return .green
+        case .objective:
+            return .yellow
+        case .position:
+            return .cyan
+        case .aiImpact:
+            return .blue
         }
     }
 }
