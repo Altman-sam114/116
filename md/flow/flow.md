@@ -9,7 +9,7 @@
 ```text
 用户输入 / 快捷按钮
   -> ContentView 地图格和 HUD 事件
-  -> GameState handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand
+  -> GameState handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusEnemyThreatCountermeasure
   -> GameModels 中的 Scenario / BattleUnit / TerrainTile / HexCoordinate / MapCommandPreview
   -> GameState 规则判定与状态更新
   -> @Published 状态变化
@@ -222,7 +222,10 @@
 5. 据点防守只针对据点占领威胁，建议己方单位进驻目标据点或移动到相邻封堵格，路线消耗来自 `movementRoutes(for:)`。
 6. 整补支撑只针对受威胁、受损且满足 `canReinforce(_:)` 的己方单位，计算预计恢复量和整补后耐久，但不调用真实 `reinforce`。
 7. 反制建议查询不调用 `move`、`attack`、`deploy`、`reinforce`、`useTacticalCommand`、`advanceTurn`、`performAIPhase` 或任何写状态方法，不改变 `activeFaction`、HP、位置、行动状态、据点归属、指令点、战报、消息或 `latest*Result`。
-8. `ContentView` 在“敌方意图”面板下方显示“反制建议”面板；UI 只展示 `GameState` 字段，不计算路线、评分、战斗或整补结果。
+8. `focusEnemyThreatCountermeasure(_:)` 是反制建议的点选入口。它会重新校验当前单位、目标、路线或整补条件，然后只更新 `selectedUnitID`、`focusedCoordinate`、`guidedObjectiveCoordinate`、安全接敌焦点和 `message`。
+9. 抢先打击聚焦执行单位和威胁来源敌军；撤出危险区聚焦执行单位和撤退目的格；据点防守聚焦防守目的格并保留被威胁据点引导；整补支撑聚焦受威胁单位当前位置。
+10. 反制建议点选不调用真实移动、攻击、整补、部署、战术命令或 AI 方法，不改变 HP、位置、行动状态、据点归属、指令点、战报、胜负或 `latest*Result`。
+11. `ContentView` 在“敌方意图”面板下方显示“反制建议”面板；建议行使用 `Button` 点选聚焦，展示当前预览状态并提供无障碍说明；UI 只展示 `GameState` 字段，不计算路线、评分、战斗或整补结果。
 
 ## 4. 架构边界
 
@@ -241,7 +244,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、敌方威胁意图预判、敌方意图反制建议、部署/整补结果摘要、AI 回合行动摘要：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、敌方威胁意图预判、敌方意图反制建议、反制建议点选聚焦、部署/整补结果摘要、AI 回合行动摘要：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

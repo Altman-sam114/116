@@ -1551,6 +1551,108 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.latestAIPhaseSummary)
     }
 
+    func testEnemyThreatCountermeasureFocusesPreviewWithoutExecuting() throws {
+        let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let startingCommandPoints = game.commandPoints
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+
+        let countermeasures = game.enemyThreatCountermeasurePreviews(
+            for: game.enemyThreatIntentPreviews(against: .allies, limit: 10),
+            limit: 10
+        )
+
+        let firstStrike = try XCTUnwrap(countermeasures.first {
+            $0.kind == .firstStrike &&
+                $0.actingUnitName == "反击炮兵" &&
+                $0.threatEnemyUnitName == "威胁炮兵"
+        })
+        game.focusEnemyThreatCountermeasure(firstStrike)
+        let firstStrikeEnemy = try XCTUnwrap(game.units.first { $0.id == firstStrike.threatEnemyUnitID })
+        XCTAssertEqual(game.selectedUnit?.id, firstStrike.actingUnitID)
+        XCTAssertEqual(game.focusedCoordinate, firstStrikeEnemy.position)
+        XCTAssertNil(game.guidedObjectiveCoordinate)
+        XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(firstStrike))
+        XCTAssertTrue(game.message.contains("抢先打击"))
+
+        let withdraw = try XCTUnwrap(countermeasures.first {
+            $0.kind == .withdraw &&
+                $0.actingUnitName == "前线装甲"
+        })
+        game.focusEnemyThreatCountermeasure(withdraw)
+        let withdrawDestination = try XCTUnwrap(withdraw.destination)
+        let withdrawUnit = try XCTUnwrap(game.units.first { $0.id == withdraw.actingUnitID })
+        XCTAssertEqual(game.selectedUnit?.id, withdraw.actingUnitID)
+        XCTAssertEqual(game.focusedCoordinate, withdrawDestination)
+        XCTAssertNil(game.guidedObjectiveCoordinate)
+        XCTAssertNotNil(game.movementRoute(for: withdrawUnit, to: withdrawDestination))
+        XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(withdraw))
+        XCTAssertTrue(game.message.contains("撤出危险区"))
+
+        let objectiveDefense = try XCTUnwrap(countermeasures.first {
+            $0.kind == .objectiveDefense &&
+                $0.targetName == "后方油库"
+        })
+        game.focusEnemyThreatCountermeasure(objectiveDefense)
+        let objectiveDestination = try XCTUnwrap(objectiveDefense.destination)
+        let objectiveDefender = try XCTUnwrap(game.units.first { $0.id == objectiveDefense.actingUnitID })
+        XCTAssertEqual(game.selectedUnit?.id, objectiveDefense.actingUnitID)
+        XCTAssertEqual(game.focusedCoordinate, objectiveDestination)
+        XCTAssertEqual(game.guidedObjectiveCoordinate, objectiveDefense.threatTargetCoordinate)
+        XCTAssertNotNil(game.movementRoute(for: objectiveDefender, to: objectiveDestination))
+        XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(objectiveDefense))
+        XCTAssertTrue(game.message.contains("据点防守"))
+
+        let reinforce = try XCTUnwrap(countermeasures.first {
+            $0.kind == .reinforce &&
+                $0.actingUnitName == "前线装甲"
+        })
+        game.focusEnemyThreatCountermeasure(reinforce)
+        let reinforcedUnit = try XCTUnwrap(game.units.first { $0.id == reinforce.actingUnitID })
+        XCTAssertEqual(game.selectedUnit?.id, reinforce.actingUnitID)
+        XCTAssertEqual(game.focusedCoordinate, reinforcedUnit.position)
+        XCTAssertNil(game.guidedObjectiveCoordinate)
+        XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(reinforce))
+        XCTAssertTrue(game.message.contains("整补支撑"))
+
+        let stale = EnemyThreatCountermeasurePreview(
+            kind: .firstStrike,
+            threatID: "stale-countermeasure",
+            threatKind: firstStrike.threatKind,
+            threatEnemyUnitID: firstStrike.threatEnemyUnitID,
+            threatEnemyUnitName: firstStrike.threatEnemyUnitName,
+            threatTargetCoordinate: firstStrike.threatTargetCoordinate,
+            actingUnitID: UUID(),
+            actingUnitName: "不存在单位",
+            targetUnitID: firstStrike.targetUnitID,
+            targetName: firstStrike.targetName,
+            destination: nil,
+            routeCost: nil,
+            projectedDamage: 0,
+            projectedEnemyHPAfterDamage: nil,
+            willDestroyEnemy: false,
+            projectedFriendlyHPAfterAction: nil,
+            projectedRecoveredHP: 0,
+            canExecuteNow: false,
+            reason: "测试过期建议",
+            score: 0
+        )
+        game.focusEnemyThreatCountermeasure(stale)
+        XCTAssertTrue(game.message.contains("已不可用"))
+
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertNil(game.latestTacticalCommandResult)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNil(game.latestDeploymentResult)
+        XCTAssertNil(game.latestReinforcementResult)
+        XCTAssertNil(game.latestAIPhaseSummary)
+    }
+
     func testSelectingAndMovingUnitUpdatesBattlefieldState() throws {
         let game = GameState()
         let tank = try XCTUnwrap(game.units.first { $0.name == "第4装甲师" })

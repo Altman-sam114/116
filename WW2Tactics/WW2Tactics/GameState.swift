@@ -495,6 +495,52 @@ final class GameState: ObservableObject {
         focusSafeEngagement(targetID: option.targetID, destination: option.route.destination)
     }
 
+    func focusEnemyThreatCountermeasure(_ preview: EnemyThreatCountermeasurePreview) {
+        guard winner == nil else { return }
+        guard let actingUnitID = preview.actingUnitID,
+              let actingUnit = units.first(where: {
+                  $0.id == actingUnitID &&
+                      $0.faction == activeFaction &&
+                      !$0.isDestroyed
+              }) else {
+            clearObjectiveGuidance()
+            focusedCoordinate = preview.destination ?? preview.threatTargetCoordinate
+            message = "\(preview.actingUnitName) 已不可用，反制建议已过期。"
+            return
+        }
+
+        selectedUnitID = actingUnit.id
+
+        switch preview.kind {
+        case .firstStrike:
+            focusFirstStrikeCountermeasure(preview, actingUnit: actingUnit)
+        case .withdraw:
+            focusWithdrawCountermeasure(preview, actingUnit: actingUnit)
+        case .objectiveDefense:
+            focusObjectiveDefenseCountermeasure(preview, actingUnit: actingUnit)
+        case .reinforce:
+            focusReinforceCountermeasure(preview, actingUnit: actingUnit)
+        }
+    }
+
+    func isEnemyThreatCountermeasureFocused(_ preview: EnemyThreatCountermeasurePreview) -> Bool {
+        guard selectedUnitID == preview.actingUnitID else { return false }
+        switch preview.kind {
+        case .firstStrike:
+            guard let enemy = units.first(where: { $0.id == preview.threatEnemyUnitID }) else { return false }
+            return focusedCoordinate == enemy.position
+        case .withdraw:
+            return focusedCoordinate == preview.destination && guidedObjectiveCoordinate == nil
+        case .objectiveDefense:
+            return focusedCoordinate == preview.destination &&
+                guidedObjectiveCoordinate == preview.threatTargetCoordinate
+        case .reinforce:
+            guard let actingUnitID = preview.actingUnitID,
+                  let unit = units.first(where: { $0.id == actingUnitID }) else { return false }
+            return focusedCoordinate == unit.position && guidedObjectiveCoordinate == nil
+        }
+    }
+
     func focusSafeEngagement(targetID: BattleUnit.ID, destination: HexCoordinate) {
         guard winner == nil else { return }
         guard let selectedUnit else {
@@ -530,6 +576,100 @@ final class GameState: ObservableObject {
         let sourceNames = exposure.sources.prefix(2).map(\.sourceName).joined(separator: "、")
         let sourceText = sourceNames.isEmpty ? "" : "，主要敌火 \(sourceNames)"
         message = "\(selectedUnit.name) 切换安全接敌：先到 q\(option.route.destination.q),r\(option.route.destination.r) 接近 \(target.name)，消耗 \(option.route.totalCost) 移动力\(penaltyText)，终点 \(exposure.riskLevel.shortTitle) 潜在承伤 \(exposure.totalPotentialDamage)\(sourceText)。执行命令后才会移动。"
+    }
+
+    private func focusFirstStrikeCountermeasure(
+        _ preview: EnemyThreatCountermeasurePreview,
+        actingUnit: BattleUnit
+    ) {
+        clearObjectiveGuidance()
+        guard let enemy = units.first(where: {
+            $0.id == preview.threatEnemyUnitID &&
+                $0.faction != actingUnit.faction &&
+                !$0.isDestroyed
+        }) else {
+            focusedCoordinate = actingUnit.position
+            message = "\(preview.threatEnemyUnitName) 已不可用，抢先打击建议已过期。"
+            return
+        }
+
+        focusedCoordinate = enemy.position
+        guard actingUnit.canAttack,
+              let combat = combatPreview(attacker: actingUnit, defender: enemy) else {
+            message = "\(actingUnit.name) 当前无法执行抢先打击，已聚焦 \(enemy.name)。"
+            return
+        }
+
+        let outcome = combat.willDestroyDefender ? "可击毁" : "预计造成 \(combat.damage) 伤害"
+        message = "\(actingUnit.name) 聚焦抢先打击 \(enemy.name)：\(outcome)。点 ATK 才会攻击。"
+    }
+
+    private func focusWithdrawCountermeasure(
+        _ preview: EnemyThreatCountermeasurePreview,
+        actingUnit: BattleUnit
+    ) {
+        clearObjectiveGuidance()
+        guard let destination = preview.destination else {
+            focusedCoordinate = actingUnit.position
+            message = "\(actingUnit.name) 的撤退目的地已不可用。"
+            return
+        }
+
+        guard actingUnit.canMove,
+              let route = movementRoute(for: actingUnit, to: destination) else {
+            focusedCoordinate = actingUnit.position
+            message = "\(actingUnit.name) 当前无法撤至 \(coordinateText(destination))，反制建议已过期。"
+            return
+        }
+
+        focusedCoordinate = destination
+        let penaltyText = route.controlZonePenalty > 0 ? "，含敌方控制区 +\(route.controlZonePenalty)" : ""
+        let hpText = preview.projectedFriendlyHPAfterAction.map { "，预计保留 \($0) 耐久" } ?? ""
+        message = "\(actingUnit.name) 聚焦撤出危险区：前往 \(coordinateText(destination))，消耗 \(route.totalCost) 移动力\(penaltyText)\(hpText)。点 MOVE 才会移动。"
+    }
+
+    private func focusObjectiveDefenseCountermeasure(
+        _ preview: EnemyThreatCountermeasurePreview,
+        actingUnit: BattleUnit
+    ) {
+        clearSafeEngagementFocus()
+        guard let destination = preview.destination else {
+            guidedObjectiveCoordinate = nil
+            focusedCoordinate = actingUnit.position
+            message = "\(actingUnit.name) 的据点防守目的地已不可用。"
+            return
+        }
+
+        guard actingUnit.canMove,
+              let route = movementRoute(for: actingUnit, to: destination) else {
+            guidedObjectiveCoordinate = nil
+            focusedCoordinate = actingUnit.position
+            message = "\(actingUnit.name) 当前无法前往 \(coordinateText(destination)) 防守 \(preview.targetName)。"
+            return
+        }
+
+        focusedCoordinate = destination
+        guidedObjectiveCoordinate = preview.threatTargetCoordinate
+        let reachesObjective = destination == preview.threatTargetCoordinate
+        let action = reachesObjective ? "进驻" : "封堵"
+        let penaltyText = route.controlZonePenalty > 0 ? "，含敌方控制区 +\(route.controlZonePenalty)" : ""
+        message = "\(actingUnit.name) 聚焦据点防守：\(action)\(preview.targetName)，先到 \(coordinateText(destination))，消耗 \(route.totalCost) 移动力\(penaltyText)。点 MOVE 才会移动。"
+    }
+
+    private func focusReinforceCountermeasure(
+        _ preview: EnemyThreatCountermeasurePreview,
+        actingUnit: BattleUnit
+    ) {
+        clearObjectiveGuidance()
+        focusedCoordinate = actingUnit.position
+        guard canReinforce(actingUnit) else {
+            message = "\(actingUnit.name) 当前不满足整补条件，反制建议已过期。"
+            return
+        }
+
+        let recoveredHP = min(actingUnit.kind.reinforceAmount, actingUnit.maxHP - actingUnit.hp)
+        let cost = reinforceCost(for: actingUnit)
+        message = "\(actingUnit.name) 聚焦整补支撑：可恢复 \(recoveredHP) 耐久，消耗 \(cost) 指令点。点整补才会执行。"
     }
 
     func focusObjectiveAdvanceTarget(coordinate: HexCoordinate) {

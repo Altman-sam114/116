@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.11 正在推进敌方意图反制建议，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS 操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.12 正在推进反制建议点选聚焦，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
 
 ## 历史记录
 
@@ -690,3 +690,42 @@
 
 - 反制建议是静态参谋提示，不会自动执行命令，不包含动画、音效、概率 AI、逐行动时间线或真实美术资产。
 - 本轮不改变 AI 优先级、敌方意图预判、战斗数值、移动规则、部署/整补成本、胜负条件或回合流程。
+
+### v1.12 / 反制建议点选聚焦
+
+日期：2026-07-05
+
+核心变更：
+
+- `GameState` 新增 `focusEnemyThreatCountermeasure(_:)` 和 `isEnemyThreatCountermeasureFocused(_:)`，让反制建议能像 OBJ 目标计划和安全接敌候选一样点选后切换地图预览。
+- 抢先打击会选中执行单位并聚焦威胁来源敌军；撤出危险区会选中被威胁单位并聚焦撤退目的格；据点防守会选中执行单位、聚焦防守格并保留被威胁据点引导；整补支撑会选中受威胁单位并聚焦当前位置。
+- 聚焦入口会重新校验单位、路线、敌军或整补条件；过期建议只提示原因，不执行命令。
+- `ContentView` 将反制建议行改为 `Button`，加入当前预览状态、无障碍 label/hint，并保持 UI 只调用 `GameState` 聚焦方法。
+- 补充 XCTest 和规则 smoke test，覆盖四类建议点选、过期建议和无副作用。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.12（反制建议点选聚焦）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions artifact 验收待本轮提交推送后补充。
+
+遗留事项：
+
+- 反制建议点选仍只是预览聚焦，不会自动执行移动、攻击、整补或战术命令。
+- 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件或回合流程。

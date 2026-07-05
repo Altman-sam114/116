@@ -1015,6 +1015,79 @@ struct RulesSmokeTest {
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "enemy threat countermeasures should not mutate objectives")
             require(enemyThreatGame.battleLog == startingEnemyThreatLog, "enemy threat countermeasures should not write battle log entries")
 
+            enemyThreatGame.focusEnemyThreatCountermeasure(firstStrike)
+            guard let firstStrikeEnemy = enemyThreatGame.units.first(where: { $0.id == firstStrike.threatEnemyUnitID }) else {
+                require(false, "first strike focus should still have a threat source")
+                return
+            }
+            require(enemyThreatGame.selectedUnit?.id == firstStrike.actingUnitID, "first strike focus should select the acting unit")
+            require(enemyThreatGame.focusedCoordinate == firstStrikeEnemy.position, "first strike focus should target the enemy")
+            require(enemyThreatGame.guidedObjectiveCoordinate == nil, "first strike focus should clear objective guidance")
+            require(enemyThreatGame.isEnemyThreatCountermeasureFocused(firstStrike), "first strike focus state should be detectable")
+
+            enemyThreatGame.focusEnemyThreatCountermeasure(withdraw)
+            guard let withdrawFocusDestination = withdraw.destination,
+                  let withdrawFocusUnit = enemyThreatGame.units.first(where: { $0.id == withdraw.actingUnitID }) else {
+                require(false, "withdraw focus should keep unit and destination")
+                return
+            }
+            require(enemyThreatGame.selectedUnit?.id == withdraw.actingUnitID, "withdraw focus should select the threatened unit")
+            require(enemyThreatGame.focusedCoordinate == withdrawFocusDestination, "withdraw focus should target the retreat destination")
+            require(enemyThreatGame.guidedObjectiveCoordinate == nil, "withdraw focus should not set objective guidance")
+            require(enemyThreatGame.movementRoute(for: withdrawFocusUnit, to: withdrawFocusDestination) != nil, "withdraw focus route should be reproducible")
+            require(enemyThreatGame.isEnemyThreatCountermeasureFocused(withdraw), "withdraw focus state should be detectable")
+
+            enemyThreatGame.focusEnemyThreatCountermeasure(objectiveDefense)
+            guard let defenseDestination = objectiveDefense.destination,
+                  let defenseUnit = enemyThreatGame.units.first(where: { $0.id == objectiveDefense.actingUnitID }) else {
+                require(false, "objective defense focus should keep unit and destination")
+                return
+            }
+            require(enemyThreatGame.selectedUnit?.id == objectiveDefense.actingUnitID, "objective defense focus should select the acting unit")
+            require(enemyThreatGame.focusedCoordinate == defenseDestination, "objective defense focus should target the defense destination")
+            require(enemyThreatGame.guidedObjectiveCoordinate == objectiveDefense.threatTargetCoordinate, "objective defense focus should guide the threatened objective")
+            require(enemyThreatGame.movementRoute(for: defenseUnit, to: defenseDestination) != nil, "objective defense focus route should be reproducible")
+            require(enemyThreatGame.isEnemyThreatCountermeasureFocused(objectiveDefense), "objective defense focus state should be detectable")
+
+            enemyThreatGame.focusEnemyThreatCountermeasure(reinforce)
+            guard let reinforceUnit = enemyThreatGame.units.first(where: { $0.id == reinforce.actingUnitID }) else {
+                require(false, "reinforce focus should keep the acting unit")
+                return
+            }
+            require(enemyThreatGame.selectedUnit?.id == reinforce.actingUnitID, "reinforce focus should select the acting unit")
+            require(enemyThreatGame.focusedCoordinate == reinforceUnit.position, "reinforce focus should stay on the unit")
+            require(enemyThreatGame.guidedObjectiveCoordinate == nil, "reinforce focus should clear objective guidance")
+            require(enemyThreatGame.isEnemyThreatCountermeasureFocused(reinforce), "reinforce focus state should be detectable")
+
+            let staleCountermeasure = EnemyThreatCountermeasurePreview(
+                kind: .firstStrike,
+                threatID: "stale-countermeasure",
+                threatKind: firstStrike.threatKind,
+                threatEnemyUnitID: firstStrike.threatEnemyUnitID,
+                threatEnemyUnitName: firstStrike.threatEnemyUnitName,
+                threatTargetCoordinate: firstStrike.threatTargetCoordinate,
+                actingUnitID: UUID(),
+                actingUnitName: "不存在单位",
+                targetUnitID: firstStrike.targetUnitID,
+                targetName: firstStrike.targetName,
+                destination: nil,
+                routeCost: nil,
+                projectedDamage: 0,
+                projectedEnemyHPAfterDamage: nil,
+                willDestroyEnemy: false,
+                projectedFriendlyHPAfterAction: nil,
+                projectedRecoveredHP: 0,
+                canExecuteNow: false,
+                reason: "测试过期建议",
+                score: 0
+            )
+            enemyThreatGame.focusEnemyThreatCountermeasure(staleCountermeasure)
+            require(enemyThreatGame.message.contains("已不可用"), "stale countermeasure focus should explain that the advice expired")
+            require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "countermeasure focus should not spend command points")
+            require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "countermeasure focus should not mutate units")
+            require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "countermeasure focus should not mutate objectives")
+            require(enemyThreatGame.battleLog == startingEnemyThreatLog, "countermeasure focus should not write battle log entries")
+
             let commandGame = GameState(
                 scenario: tacticalCommandScenario(),
                 commandPoints: [.allies: 6, .axis: 6]

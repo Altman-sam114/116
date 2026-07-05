@@ -4699,6 +4699,7 @@ private struct EnemyThreatIntentRow: View {
 }
 
 private struct EnemyThreatCountermeasurePanel: View {
+    @EnvironmentObject private var game: GameState
     let previews: [EnemyThreatCountermeasurePreview]
 
     var body: some View {
@@ -4718,7 +4719,15 @@ private struct EnemyThreatCountermeasurePanel: View {
             .foregroundStyle(.cyan)
 
             ForEach(Array(previews.prefix(3))) { preview in
-                EnemyThreatCountermeasureRow(preview: preview)
+                let isFocused = game.isEnemyThreatCountermeasureFocused(preview)
+                Button {
+                    game.focusEnemyThreatCountermeasure(preview)
+                } label: {
+                    EnemyThreatCountermeasureRow(preview: preview, isFocused: isFocused)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(accessibilityLabel(for: preview, isFocused: isFocused))
+                .accessibilityHint("只聚焦该反制建议预览，不会执行移动、攻击或整补")
             }
         }
         .padding(9)
@@ -4729,10 +4738,20 @@ private struct EnemyThreatCountermeasurePanel: View {
         )
         .accessibilityElement(children: .contain)
     }
+
+    private func accessibilityLabel(
+        for preview: EnemyThreatCountermeasurePreview,
+        isFocused: Bool
+    ) -> String {
+        let focused = isFocused ? "，当前预览" : ""
+        let routeText = preview.routeCost.map { "，路线消耗 \($0)" } ?? ""
+        return "\(preview.kind.title)\(focused)，\(preview.actingUnitName) 对 \(preview.targetName)\(routeText)，\(preview.reason)"
+    }
 }
 
 private struct EnemyThreatCountermeasureRow: View {
     let preview: EnemyThreatCountermeasurePreview
+    let isFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -4758,11 +4777,21 @@ private struct EnemyThreatCountermeasureRow: View {
 
                 Spacer(minLength: 8)
 
-                Text(effectText)
-                    .font(.caption.weight(.black))
-                    .foregroundStyle(accentColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(effectText)
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(accentColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    if isFocused {
+                        Label("预览", systemImage: "scope")
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.82))
+                            .labelStyle(.titleAndIcon)
+                            .lineLimit(1)
+                    }
+                }
             }
 
             HStack(spacing: 7) {
@@ -4780,7 +4809,7 @@ private struct EnemyThreatCountermeasureRow: View {
         .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
         .overlay(
             RoundedRectangle(cornerRadius: 7)
-                .stroke(accentColor.opacity(0.22), lineWidth: 1)
+                .stroke(isFocused ? Color.white.opacity(0.52) : accentColor.opacity(0.22), lineWidth: isFocused ? 1.4 : 1)
         )
         .accessibilityElement(children: .combine)
     }
