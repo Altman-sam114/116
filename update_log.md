@@ -774,3 +774,43 @@
 
 - 反制建议地图标记仍是只读态势辅助，不会自动执行移动、攻击、整补或战术命令。
 - 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件或回合流程。
+
+### v1.14 / 反制建议执行桥接预览
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `EnemyThreatCountermeasureExecutionKind` 和 `EnemyThreatCountermeasureExecutionPreview`，把当前点选的反制建议桥接到既有执行入口。
+- `GameState` 新增 `focusedEnemyThreatCountermeasureExecutionPreview`，在反制建议仍被聚焦时重新校验当前状态：抢先打击指向地图 ATK/执行按钮，撤出危险区和据点防守指向地图 MOVE/执行按钮，整补支撑指向单位详情整补按钮。
+- 桥接预览复用 `mapCommandPreview(for:)`、`movementRoute(for:to:)`、`combatPreview(attacker:defender:)` 和 `canReinforce(_:)`，不调用真实移动、攻击、整补或执行命令。
+- `ContentView` 在反制建议列表下方显示只读“下一步”提示，展示 ATK、MOVE 或整补入口，并在无障碍 hint 中说明不会执行命令。
+- 补充 XCTest 和规则 smoke test，覆盖四类反制建议的执行桥接预览，以及普通聚焦、过期建议不保留可执行桥接预览。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.14（反制建议执行桥接预览）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions run、artifact 名称和 Agent C 结果包核对待本轮 push 后补充。
+
+遗留事项：
+
+- 执行桥接预览仍是只读入口提示，不会让反制建议行直接执行移动、攻击或整补。
+- 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件或回合流程。

@@ -957,6 +957,7 @@ struct RulesSmokeTest {
             require(enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreats, limit: 0).isEmpty, "enemy threat countermeasure limit zero should return no previews")
             require(enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreats, limit: 2) == Array(enemyCountermeasures.prefix(2)), "enemy threat countermeasure limit should preserve sorted prefix")
             require(enemyThreatGame.visibleEnemyThreatCountermeasurePreviews == enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreatGame.visibleEnemyThreatIntentPreviews), "visible enemy threat countermeasures should expose the allied preview")
+            require(!(enemyThreatGame.focusedEnemyThreatCountermeasureExecutionPreview?.isExecutable == true), "enemy threat countermeasure execution bridge should require focused advice")
 
             guard let firstStrike = enemyCountermeasures.first(where: {
                 $0.kind == .firstStrike &&
@@ -1040,6 +1041,15 @@ struct RulesSmokeTest {
             require(countermeasureMarkerRoles(at: firstStrikeUnit.position).contains(.actingUnit), "first strike marker should identify the acting unit")
             require(countermeasureMarkerRoles(at: firstStrikeEnemy.position).contains(.threatSource), "first strike marker should identify the threat source")
             require(countermeasureMarkerRoles(at: firstStrikeEnemy.position).contains(.counterTarget), "first strike marker should identify the counter target")
+            guard let firstStrikeExecution = enemyThreatGame.focusedEnemyThreatCountermeasureExecutionPreview else {
+                require(false, "first strike focus should expose an execution bridge preview")
+                return
+            }
+            require(firstStrikeExecution.kind == .attack, "first strike execution bridge should point to ATK")
+            require(firstStrikeExecution.countermeasureKind == .firstStrike, "first strike execution bridge should keep the countermeasure kind")
+            require(firstStrikeExecution.isExecutable, "first strike execution bridge should be executable")
+            require(firstStrikeExecution.coordinate == firstStrikeEnemy.position, "first strike execution bridge should point to the enemy position")
+            require(firstStrikeExecution.unitName == firstStrikeUnit.name, "first strike execution bridge should name the acting unit")
 
             enemyThreatGame.focusEnemyThreatCountermeasure(withdraw)
             guard let withdrawFocusDestination = withdraw.destination,
@@ -1060,6 +1070,15 @@ struct RulesSmokeTest {
             require(countermeasureMarkerRoles(at: withdrawEnemy.position).contains(.threatSource), "withdraw marker should identify the threat source")
             require(countermeasureMarkerRoles(at: withdrawFocusDestination).contains(.counterTarget), "withdraw marker should identify the retreat destination")
             require(countermeasureMarkerRoles(at: withdraw.threatTargetCoordinate).contains(.threatenedTarget), "withdraw marker should identify the threatened target")
+            guard let withdrawExecution = enemyThreatGame.focusedEnemyThreatCountermeasureExecutionPreview else {
+                require(false, "withdraw focus should expose an execution bridge preview")
+                return
+            }
+            require(withdrawExecution.kind == .move, "withdraw execution bridge should point to MOVE")
+            require(withdrawExecution.countermeasureKind == .withdraw, "withdraw execution bridge should keep the countermeasure kind")
+            require(withdrawExecution.isExecutable, "withdraw execution bridge should be executable")
+            require(withdrawExecution.coordinate == withdrawFocusDestination, "withdraw execution bridge should point to the retreat destination")
+            require(withdrawExecution.unitName == withdrawFocusUnit.name, "withdraw execution bridge should name the acting unit")
 
             enemyThreatGame.focusEnemyThreatCountermeasure(objectiveDefense)
             guard let defenseDestination = objectiveDefense.destination,
@@ -1080,6 +1099,15 @@ struct RulesSmokeTest {
             require(countermeasureMarkerRoles(at: defenseEnemy.position).contains(.threatSource), "objective defense marker should identify the threat source")
             require(countermeasureMarkerRoles(at: defenseDestination).contains(.counterTarget), "objective defense marker should identify the defense destination")
             require(countermeasureMarkerRoles(at: objectiveDefense.threatTargetCoordinate).contains(.threatenedTarget), "objective defense marker should identify the threatened objective")
+            guard let objectiveDefenseExecution = enemyThreatGame.focusedEnemyThreatCountermeasureExecutionPreview else {
+                require(false, "objective defense focus should expose an execution bridge preview")
+                return
+            }
+            require(objectiveDefenseExecution.kind == .move, "objective defense execution bridge should point to MOVE")
+            require(objectiveDefenseExecution.countermeasureKind == .objectiveDefense, "objective defense execution bridge should keep the countermeasure kind")
+            require(objectiveDefenseExecution.isExecutable, "objective defense execution bridge should be executable")
+            require(objectiveDefenseExecution.coordinate == defenseDestination, "objective defense execution bridge should point to the defense destination")
+            require(objectiveDefenseExecution.unitName == defenseUnit.name, "objective defense execution bridge should name the acting unit")
 
             enemyThreatGame.focusEnemyThreatCountermeasure(reinforce)
             guard let reinforceUnit = enemyThreatGame.units.first(where: { $0.id == reinforce.actingUnitID }) else {
@@ -1098,9 +1126,19 @@ struct RulesSmokeTest {
             require(countermeasureMarkerRoles(at: reinforceEnemy.position).contains(.threatSource), "reinforce marker should identify the threat source")
             require(countermeasureMarkerRoles(at: reinforceUnit.position).contains(.counterTarget), "reinforce marker should identify the counter target")
             require(countermeasureMarkerRoles(at: reinforce.threatTargetCoordinate).contains(.threatenedTarget), "reinforce marker should identify the threatened target")
+            guard let reinforceExecution = enemyThreatGame.focusedEnemyThreatCountermeasureExecutionPreview else {
+                require(false, "reinforce focus should expose an execution bridge preview")
+                return
+            }
+            require(reinforceExecution.kind == .reinforce, "reinforce execution bridge should point to the reinforce button")
+            require(reinforceExecution.countermeasureKind == .reinforce, "reinforce execution bridge should keep the countermeasure kind")
+            require(reinforceExecution.isExecutable, "reinforce execution bridge should be executable")
+            require(reinforceExecution.coordinate == reinforceUnit.position, "reinforce execution bridge should point to the unit position")
+            require(reinforceExecution.unitName == reinforceUnit.name, "reinforce execution bridge should name the acting unit")
 
             enemyThreatGame.focus(coordinate: reinforceUnit.position)
             require(enemyThreatGame.focusedEnemyThreatCountermeasureMapMarkers.isEmpty, "plain focus should clear countermeasure map markers")
+            require(!(enemyThreatGame.focusedEnemyThreatCountermeasureExecutionPreview?.isExecutable == true), "plain focus should clear the executable bridge preview")
 
             let staleCountermeasure = EnemyThreatCountermeasurePreview(
                 kind: .firstStrike,
@@ -1127,6 +1165,7 @@ struct RulesSmokeTest {
             enemyThreatGame.focusEnemyThreatCountermeasure(staleCountermeasure)
             require(enemyThreatGame.message.contains("已不可用"), "stale countermeasure focus should explain that the advice expired")
             require(enemyThreatGame.focusedEnemyThreatCountermeasureMapMarkers.isEmpty, "stale countermeasure focus should not keep map markers")
+            require(!(enemyThreatGame.focusedEnemyThreatCountermeasureExecutionPreview?.isExecutable == true), "stale countermeasure focus should not keep an executable bridge preview")
             require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "countermeasure focus should not spend command points")
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "countermeasure focus should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "countermeasure focus should not mutate objectives")

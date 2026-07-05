@@ -1494,6 +1494,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.enemyThreatCountermeasurePreviews(for: threats, limit: 2), Array(countermeasures.prefix(2)))
         XCTAssertEqual(visibleCountermeasures, game.enemyThreatCountermeasurePreviews(for: game.visibleEnemyThreatIntentPreviews))
         XCTAssertTrue(countermeasures.allSatisfy(\.canExecuteNow))
+        XCTAssertFalse(game.focusedEnemyThreatCountermeasureExecutionPreview?.isExecutable == true)
 
         let firstStrike = try XCTUnwrap(countermeasures.first {
             $0.kind == .firstStrike &&
@@ -1586,6 +1587,13 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(markerRoles(at: firstStrikeUnit.position).contains(.actingUnit))
         XCTAssertTrue(markerRoles(at: firstStrikeEnemy.position).contains(.threatSource))
         XCTAssertTrue(markerRoles(at: firstStrikeEnemy.position).contains(.counterTarget))
+        let firstStrikeExecution = try XCTUnwrap(game.focusedEnemyThreatCountermeasureExecutionPreview)
+        XCTAssertEqual(firstStrikeExecution.kind, .attack)
+        XCTAssertEqual(firstStrikeExecution.countermeasureKind, .firstStrike)
+        XCTAssertTrue(firstStrikeExecution.isExecutable)
+        XCTAssertEqual(firstStrikeExecution.coordinate, firstStrikeEnemy.position)
+        XCTAssertEqual(firstStrikeExecution.unitName, firstStrikeUnit.name)
+        XCTAssertEqual(firstStrikeExecution.targetName, firstStrikeEnemy.name)
         XCTAssertTrue(game.message.contains("抢先打击"))
 
         let withdraw = try XCTUnwrap(countermeasures.first {
@@ -1605,6 +1613,12 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(markerRoles(at: withdrawEnemy.position).contains(.threatSource))
         XCTAssertTrue(markerRoles(at: withdraw.threatTargetCoordinate).contains(.threatenedTarget))
         XCTAssertTrue(markerRoles(at: withdrawDestination).contains(.counterTarget))
+        let withdrawExecution = try XCTUnwrap(game.focusedEnemyThreatCountermeasureExecutionPreview)
+        XCTAssertEqual(withdrawExecution.kind, .move)
+        XCTAssertEqual(withdrawExecution.countermeasureKind, .withdraw)
+        XCTAssertTrue(withdrawExecution.isExecutable)
+        XCTAssertEqual(withdrawExecution.coordinate, withdrawDestination)
+        XCTAssertEqual(withdrawExecution.unitName, withdrawUnit.name)
         XCTAssertTrue(game.message.contains("撤出危险区"))
 
         let objectiveDefense = try XCTUnwrap(countermeasures.first {
@@ -1624,6 +1638,12 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(markerRoles(at: objectiveEnemy.position).contains(.threatSource))
         XCTAssertTrue(markerRoles(at: objectiveDestination).contains(.counterTarget))
         XCTAssertTrue(markerRoles(at: objectiveDefense.threatTargetCoordinate).contains(.threatenedTarget))
+        let objectiveDefenseExecution = try XCTUnwrap(game.focusedEnemyThreatCountermeasureExecutionPreview)
+        XCTAssertEqual(objectiveDefenseExecution.kind, .move)
+        XCTAssertEqual(objectiveDefenseExecution.countermeasureKind, .objectiveDefense)
+        XCTAssertTrue(objectiveDefenseExecution.isExecutable)
+        XCTAssertEqual(objectiveDefenseExecution.coordinate, objectiveDestination)
+        XCTAssertEqual(objectiveDefenseExecution.unitName, objectiveDefender.name)
         XCTAssertTrue(game.message.contains("据点防守"))
 
         let reinforce = try XCTUnwrap(countermeasures.first {
@@ -1641,10 +1661,17 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(markerRoles(at: reinforceEnemy.position).contains(.threatSource))
         XCTAssertTrue(markerRoles(at: reinforcedUnit.position).contains(.counterTarget))
         XCTAssertTrue(markerRoles(at: reinforce.threatTargetCoordinate).contains(.threatenedTarget))
+        let reinforceExecution = try XCTUnwrap(game.focusedEnemyThreatCountermeasureExecutionPreview)
+        XCTAssertEqual(reinforceExecution.kind, .reinforce)
+        XCTAssertEqual(reinforceExecution.countermeasureKind, .reinforce)
+        XCTAssertTrue(reinforceExecution.isExecutable)
+        XCTAssertEqual(reinforceExecution.coordinate, reinforcedUnit.position)
+        XCTAssertEqual(reinforceExecution.unitName, reinforcedUnit.name)
         XCTAssertTrue(game.message.contains("整补支撑"))
 
         game.focus(coordinate: reinforcedUnit.position)
         XCTAssertTrue(game.focusedEnemyThreatCountermeasureMapMarkers.isEmpty)
+        XCTAssertFalse(game.focusedEnemyThreatCountermeasureExecutionPreview?.isExecutable == true)
 
         let stale = EnemyThreatCountermeasurePreview(
             kind: .firstStrike,
@@ -1671,6 +1698,7 @@ final class GameStateTests: XCTestCase {
         game.focusEnemyThreatCountermeasure(stale)
         XCTAssertTrue(game.message.contains("已不可用"))
         XCTAssertTrue(game.focusedEnemyThreatCountermeasureMapMarkers.isEmpty)
+        XCTAssertFalse(game.focusedEnemyThreatCountermeasureExecutionPreview?.isExecutable == true)
 
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
         XCTAssertEqual(game.scenario.units, startingUnits)

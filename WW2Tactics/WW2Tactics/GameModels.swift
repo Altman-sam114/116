@@ -913,6 +913,45 @@ struct EnemyThreatCountermeasurePreview: Identifiable, Equatable {
     }
 }
 
+enum EnemyThreatCountermeasureExecutionKind: String, Identifiable {
+    case attack
+    case move
+    case reinforce
+    case unavailable
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .attack: "攻击入口"
+        case .move: "移动入口"
+        case .reinforce: "整补入口"
+        case .unavailable: "暂不可用"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .attack: "ATK"
+        case .move: "MOVE"
+        case .reinforce: "整补"
+        case .unavailable: "--"
+        }
+    }
+}
+
+struct EnemyThreatCountermeasureExecutionPreview: Equatable {
+    let kind: EnemyThreatCountermeasureExecutionKind
+    let countermeasureKind: EnemyThreatCountermeasureKind
+    let actionTitle: String
+    let entryTitle: String
+    let coordinate: HexCoordinate?
+    let unitName: String
+    let targetName: String
+    let isExecutable: Bool
+    let reason: String
+}
+
 struct DeploymentSite: Identifiable, Equatable {
     let coordinate: HexCoordinate
     let sourceObjectiveName: String

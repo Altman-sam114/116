@@ -4807,6 +4807,10 @@ private struct EnemyThreatCountermeasurePanel: View {
                 .accessibilityLabel(accessibilityLabel(for: preview, isFocused: isFocused))
                 .accessibilityHint("只聚焦该反制建议预览，不会执行移动、攻击或整补")
             }
+
+            if let executionPreview = game.focusedEnemyThreatCountermeasureExecutionPreview {
+                EnemyThreatCountermeasureExecutionHint(preview: executionPreview)
+            }
         }
         .padding(9)
         .background(Color.cyan.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
@@ -4824,6 +4828,86 @@ private struct EnemyThreatCountermeasurePanel: View {
         let focused = isFocused ? "，当前预览" : ""
         let routeText = preview.routeCost.map { "，路线消耗 \($0)" } ?? ""
         return "\(preview.kind.title)\(focused)，\(preview.actingUnitName) 对 \(preview.targetName)\(routeText)，\(preview.reason)"
+    }
+}
+
+private struct EnemyThreatCountermeasureExecutionHint: View {
+    let preview: EnemyThreatCountermeasureExecutionPreview
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 7) {
+                Label("下一步", systemImage: iconName)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(color)
+                    .lineLimit(1)
+
+                Text(preview.kind.shortTitle)
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(color.opacity(preview.isExecutable ? 0.9 : 0.54), in: RoundedRectangle(cornerRadius: 5))
+
+                Spacer(minLength: 6)
+            }
+
+            Text(preview.entryTitle)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.86))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Label(detailText, systemImage: preview.isExecutable ? "hand.tap.fill" : "exclamationmark.triangle.fill")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.64))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(8)
+        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(color.opacity(preview.isExecutable ? 0.38 : 0.24), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("这只是执行入口提示，不会移动、攻击或整补")
+    }
+
+    private var detailText: String {
+        if let coordinate = preview.coordinate {
+            return "\(preview.unitName) -> \(preview.targetName)，q\(coordinate.q),r\(coordinate.r)。\(preview.reason)"
+        }
+        return "\(preview.unitName) -> \(preview.targetName)。\(preview.reason)"
+    }
+
+    private var accessibilityLabel: String {
+        "\(preview.actionTitle) 下一步，\(preview.kind.shortTitle)，\(preview.entryTitle)，\(detailText)"
+    }
+
+    private var color: Color {
+        switch preview.kind {
+        case .attack:
+            return .red
+        case .move:
+            return .orange
+        case .reinforce:
+            return .green
+        case .unavailable:
+            return .gray
+        }
+    }
+
+    private var iconName: String {
+        switch preview.kind {
+        case .attack:
+            return "target"
+        case .move:
+            return "arrow.up.right.circle.fill"
+        case .reinforce:
+            return "cross.case.fill"
+        case .unavailable:
+            return "exclamationmark.triangle.fill"
+        }
     }
 }
 

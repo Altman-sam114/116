@@ -216,6 +216,12 @@ final class GameState: ObservableObject {
         return enemyThreatCountermeasureMapMarkers(for: preview)
     }
 
+    var focusedEnemyThreatCountermeasureExecutionPreview: EnemyThreatCountermeasureExecutionPreview? {
+        guard let preview = focusedEnemyThreatCountermeasurePreview,
+              isEnemyThreatCountermeasureFocused(preview) else { return nil }
+        return enemyThreatCountermeasureExecutionPreview(for: preview)
+    }
+
     var objectiveTiles: [TerrainTile] {
         scenario.tiles.filter(\.isObjective)
     }
@@ -764,6 +770,181 @@ final class GameState: ObservableObject {
         case .reinforce:
             return canReinforce(actingUnit)
         }
+    }
+
+    private func enemyThreatCountermeasureExecutionPreview(
+        for preview: EnemyThreatCountermeasurePreview
+    ) -> EnemyThreatCountermeasureExecutionPreview {
+        guard let actingUnitID = preview.actingUnitID,
+              let actingUnit = units.first(where: {
+                  $0.id == actingUnitID &&
+                      $0.faction == activeFaction &&
+                      !$0.isDestroyed
+              }) else {
+            return unavailableCountermeasureExecutionPreview(
+                for: preview,
+                unitName: preview.actingUnitName,
+                targetName: preview.targetName,
+                coordinate: preview.destination ?? preview.threatTargetCoordinate,
+                reason: "\(preview.actingUnitName) 已不可用，无法连接执行入口。"
+            )
+        }
+
+        switch preview.kind {
+        case .firstStrike:
+            return firstStrikeExecutionPreview(for: preview, actingUnit: actingUnit)
+        case .withdraw:
+            return movementExecutionPreview(
+                for: preview,
+                actingUnit: actingUnit,
+                actionTitle: "撤出危险区",
+                unavailableReason: "\(actingUnit.name) 当前无法撤至该目的地。"
+            )
+        case .objectiveDefense:
+            return movementExecutionPreview(
+                for: preview,
+                actingUnit: actingUnit,
+                actionTitle: "据点防守",
+                unavailableReason: "\(actingUnit.name) 当前无法前往防守目的地。"
+            )
+        case .reinforce:
+            return reinforceExecutionPreview(for: preview, actingUnit: actingUnit)
+        }
+    }
+
+    private func firstStrikeExecutionPreview(
+        for preview: EnemyThreatCountermeasurePreview,
+        actingUnit: BattleUnit
+    ) -> EnemyThreatCountermeasureExecutionPreview {
+        guard let enemy = units.first(where: {
+            $0.id == preview.threatEnemyUnitID &&
+                $0.faction != actingUnit.faction &&
+                !$0.isDestroyed
+        }) else {
+            return unavailableCountermeasureExecutionPreview(
+                for: preview,
+                unitName: actingUnit.name,
+                targetName: preview.threatEnemyUnitName,
+                coordinate: actingUnit.position,
+                reason: "\(preview.threatEnemyUnitName) 已不可用，无法连接 ATK。"
+            )
+        }
+
+        guard actingUnit.canAttack,
+              combatPreview(attacker: actingUnit, defender: enemy) != nil,
+              let commandPreview = mapCommandPreview(for: enemy.position),
+              case .attack = commandPreview,
+              commandPreview.isExecutable else {
+            return unavailableCountermeasureExecutionPreview(
+                for: preview,
+                unitName: actingUnit.name,
+                targetName: enemy.name,
+                coordinate: enemy.position,
+                reason: "\(actingUnit.name) 当前无法用地图 ATK 执行抢先打击。"
+            )
+        }
+
+        return EnemyThreatCountermeasureExecutionPreview(
+            kind: .attack,
+            countermeasureKind: preview.kind,
+            actionTitle: "抢先打击",
+            entryTitle: "点地图 ATK 或执行按钮",
+            coordinate: enemy.position,
+            unitName: actingUnit.name,
+            targetName: enemy.name,
+            isExecutable: true,
+            reason: "聚焦敌军后通过现有攻击入口执行，不会由建议行自动攻击。"
+        )
+    }
+
+    private func movementExecutionPreview(
+        for preview: EnemyThreatCountermeasurePreview,
+        actingUnit: BattleUnit,
+        actionTitle: String,
+        unavailableReason: String
+    ) -> EnemyThreatCountermeasureExecutionPreview {
+        guard let destination = preview.destination else {
+            return unavailableCountermeasureExecutionPreview(
+                for: preview,
+                unitName: actingUnit.name,
+                targetName: preview.targetName,
+                coordinate: actingUnit.position,
+                reason: "\(actingUnit.name) 的目的地已不可用，无法连接 MOVE。"
+            )
+        }
+
+        guard actingUnit.canMove,
+              movementRoute(for: actingUnit, to: destination) != nil,
+              let commandPreview = mapCommandPreview(for: destination),
+              case .move = commandPreview,
+              commandPreview.isExecutable else {
+            return unavailableCountermeasureExecutionPreview(
+                for: preview,
+                unitName: actingUnit.name,
+                targetName: preview.targetName,
+                coordinate: destination,
+                reason: unavailableReason
+            )
+        }
+
+        return EnemyThreatCountermeasureExecutionPreview(
+            kind: .move,
+            countermeasureKind: preview.kind,
+            actionTitle: actionTitle,
+            entryTitle: "点地图 MOVE 或执行按钮",
+            coordinate: destination,
+            unitName: actingUnit.name,
+            targetName: preview.targetName,
+            isExecutable: true,
+            reason: "聚焦目的格后通过现有移动入口执行，不会由建议行自动移动。"
+        )
+    }
+
+    private func reinforceExecutionPreview(
+        for preview: EnemyThreatCountermeasurePreview,
+        actingUnit: BattleUnit
+    ) -> EnemyThreatCountermeasureExecutionPreview {
+        guard canReinforce(actingUnit) else {
+            return unavailableCountermeasureExecutionPreview(
+                for: preview,
+                unitName: actingUnit.name,
+                targetName: preview.targetName,
+                coordinate: actingUnit.position,
+                reason: "\(actingUnit.name) 当前不满足整补条件。"
+            )
+        }
+
+        return EnemyThreatCountermeasureExecutionPreview(
+            kind: .reinforce,
+            countermeasureKind: preview.kind,
+            actionTitle: "整补支撑",
+            entryTitle: "使用单位详情整补按钮",
+            coordinate: actingUnit.position,
+            unitName: actingUnit.name,
+            targetName: preview.targetName,
+            isExecutable: true,
+            reason: "聚焦单位后通过既有整补按钮执行，不会由建议行自动整补。"
+        )
+    }
+
+    private func unavailableCountermeasureExecutionPreview(
+        for preview: EnemyThreatCountermeasurePreview,
+        unitName: String,
+        targetName: String,
+        coordinate: HexCoordinate?,
+        reason: String
+    ) -> EnemyThreatCountermeasureExecutionPreview {
+        EnemyThreatCountermeasureExecutionPreview(
+            kind: .unavailable,
+            countermeasureKind: preview.kind,
+            actionTitle: preview.kind.title,
+            entryTitle: "入口暂不可用",
+            coordinate: coordinate,
+            unitName: unitName,
+            targetName: targetName,
+            isExecutable: false,
+            reason: reason
+        )
     }
 
     func focusObjectiveAdvanceTarget(coordinate: HexCoordinate) {
