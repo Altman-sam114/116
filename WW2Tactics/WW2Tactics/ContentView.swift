@@ -2590,6 +2590,7 @@ private struct InspectorPanel: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 let enemyThreatIntents = game.visibleEnemyThreatIntentPreviews
+                let enemyThreatCountermeasures = game.visibleEnemyThreatCountermeasurePreviews
 
                 if let winner = game.winner {
                     VictoryPanel(winner: winner)
@@ -2644,6 +2645,10 @@ private struct InspectorPanel: View {
 
                 if !enemyThreatIntents.isEmpty {
                     EnemyThreatIntentPanel(previews: enemyThreatIntents)
+
+                    if !enemyThreatCountermeasures.isEmpty {
+                        EnemyThreatCountermeasurePanel(previews: enemyThreatCountermeasures)
+                    }
 
                     Divider()
                         .overlay(Color.white.opacity(0.18))
@@ -4689,6 +4694,162 @@ private struct EnemyThreatIntentRow: View {
             return "scope"
         case .objectiveCapture:
             return "flag.fill"
+        }
+    }
+}
+
+private struct EnemyThreatCountermeasurePanel: View {
+    let previews: [EnemyThreatCountermeasurePreview]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label("反制建议", systemImage: "shield.lefthalf.filled")
+                    .font(.subheadline.weight(.bold))
+
+                Spacer(minLength: 8)
+
+                Text("\(min(previews.count, 3))")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.cyan)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundStyle(.cyan)
+
+            ForEach(Array(previews.prefix(3))) { preview in
+                EnemyThreatCountermeasureRow(preview: preview)
+            }
+        }
+        .padding(9)
+        .background(Color.cyan.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.cyan.opacity(0.22), lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct EnemyThreatCountermeasureRow: View {
+    let preview: EnemyThreatCountermeasurePreview
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(preview.kind.shortTitle)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(accentColor.opacity(0.86), in: RoundedRectangle(cornerRadius: 5))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(preview.kind.title)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    Text("\(preview.actingUnitName) -> \(preview.targetName)")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.62))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+
+                Spacer(minLength: 8)
+
+                Text(effectText)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(accentColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            HStack(spacing: 7) {
+                CombatResultMetric(title: "威胁", value: preview.threatKind.shortTitle, color: .pink)
+                CombatResultMetric(title: metricTitle, value: metricValue, color: accentColor)
+                CombatResultMetric(title: "路线", value: routeMetricText, color: preview.routeCost == nil ? .cyan : .orange)
+            }
+
+            Label(preview.reason, systemImage: detailIcon)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.68))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(8)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(accentColor.opacity(0.22), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private var accentColor: Color {
+        switch preview.kind {
+        case .firstStrike:
+            return .red
+        case .withdraw:
+            return .cyan
+        case .objectiveDefense:
+            return .yellow
+        case .reinforce:
+            return .green
+        }
+    }
+
+    private var effectText: String {
+        switch preview.kind {
+        case .firstStrike:
+            return preview.willDestroyEnemy ? "击毁" : "-\(preview.projectedDamage)"
+        case .withdraw:
+            return preview.projectedFriendlyHPAfterAction.map { "HP \($0)" } ?? "转移"
+        case .objectiveDefense:
+            return preview.destinationText
+        case .reinforce:
+            return "+\(preview.projectedRecoveredHP)"
+        }
+    }
+
+    private var metricTitle: String {
+        switch preview.kind {
+        case .firstStrike:
+            return "伤害"
+        case .withdraw, .reinforce:
+            return "耐久"
+        case .objectiveDefense:
+            return "目标"
+        }
+    }
+
+    private var metricValue: String {
+        switch preview.kind {
+        case .firstStrike:
+            return "-\(preview.projectedDamage)"
+        case .withdraw:
+            return preview.projectedFriendlyHPAfterAction.map { "\($0)" } ?? "--"
+        case .objectiveDefense:
+            return "守点"
+        case .reinforce:
+            return "+\(preview.projectedRecoveredHP)"
+        }
+    }
+
+    private var routeMetricText: String {
+        guard let routeCost = preview.routeCost else { return preview.kind == .firstStrike ? "射程" : "即刻" }
+        return "\(routeCost)"
+    }
+
+    private var detailIcon: String {
+        switch preview.kind {
+        case .firstStrike:
+            return "target"
+        case .withdraw:
+            return "arrowshape.turn.up.backward.fill"
+        case .objectiveDefense:
+            return "shield.fill"
+        case .reinforce:
+            return "cross.case.fill"
         }
     }
 }

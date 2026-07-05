@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.10 正在推进敌方威胁意图预判，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈和 OBJ/POS 操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.11 正在推进敌方意图反制建议，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS 操作可读性。
 
 ## 历史记录
 
@@ -647,3 +647,43 @@
 
 - 敌方意图预判是静态摘要，不包含逐行动时间线、概率 AI、动画、音效或真实美术资产。
 - 本轮不改变 AI 优先级、路径选择、攻击目标选择、战术命令、后勤策略、战斗数值、胜负条件或回合流程。
+
+### v1.11 / 敌方意图反制建议
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `EnemyThreatCountermeasureKind` 和 `EnemyThreatCountermeasurePreview`，把敌方意图下游的抢先打击、撤出危险区、据点防守和整补支撑转为结构化只读建议。
+- `GameState` 新增 `enemyThreatCountermeasurePreviews(for:limit:)` 和 `visibleEnemyThreatCountermeasurePreviews`，基于敌方意图生成最多 3 条稳定排序的应对建议。
+- 反制建议复用现有只读规则：抢先打击复用 `combatPreview`，撤退复用玩家移动路线和火力暴露预览，据点防守复用移动路线，整补支撑复用 `canReinforce`/恢复量计算；查询不调用真实移动、攻击、整补或 AI 方法。
+- 侧栏“敌方意图”面板下新增“反制建议”面板，显示建议类型、执行单位、目标/目的地、路线消耗、预计效果和理由；UI 只消费 `GameState` 字段。
+- 补充 XCTest 和规则 smoke test，覆盖抢先打击、撤退、据点防守、整补、`limit` 前缀和查询无副作用。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.11（敌方意图反制建议）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions artifact 验收待本轮提交推送后补充。
+
+遗留事项：
+
+- 反制建议是静态参谋提示，不会自动执行命令，不包含动画、音效、概率 AI、逐行动时间线或真实美术资产。
+- 本轮不改变 AI 优先级、敌方意图预判、战斗数值、移动规则、部署/整补成本、胜负条件或回合流程。

@@ -24,7 +24,7 @@
 职责：
 
 - 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、敌方威胁意图预判 `EnemyThreatIntentPreview`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary` 和敌方回合后的 `AIPhaseSummary`。
+- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、敌方威胁意图预判 `EnemyThreatIntentPreview`、敌方意图反制建议 `EnemyThreatCountermeasurePreview`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary` 和敌方回合后的 `AIPhaseSummary`。
 - 生成阿登反击战、诺曼底突破等战役初始数据。
 
 输入：
@@ -47,7 +47,7 @@
 
 - 项目核心状态机。
 - 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、最新部署结果、最新整补结果、最新 AI 回合摘要、胜负、指令点。
-- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选和敌方威胁意图预判。
+- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选、敌方威胁意图预判和敌方意图反制建议。
 
 输入：
 
@@ -213,6 +213,17 @@
 6. 预判查询不调用 `move`、`attack`、`deploy`、`reinforce`、`useTacticalCommand`、`appendLog` 或任何写状态方法，不改变单位行动状态、地图归属、消息、战报、指令点或 `latest*Result`。
 7. `ContentView` 在侧栏战报前显示“敌方意图”面板，并在目标坐标显示 `INT` 地图标记；UI 只展示 `GameState` 已生成的字段，不计算威胁评分或战斗结果。
 
+### 3.13 敌方意图反制建议
+
+1. `EnemyThreatCountermeasurePreview` 是 `EnemyThreatIntentPreview` 的只读下游预览，给玩家提供抢先打击、撤出危险区、据点防守和整补支撑建议。
+2. `enemyThreatCountermeasurePreviews(for:limit:)` 接收敌方意图列表或默认使用 `visibleEnemyThreatIntentPreviews`，生成稳定排序且去重后的最多 `limit` 条建议；`visibleEnemyThreatCountermeasurePreviews` 供 `ContentView` 展示。
+3. 抢先打击只考虑当前可攻击威胁来源的己方单位，复用 `combatPreview(attacker:defender:)` 记录预计伤害、敌军剩余 HP、是否击毁和己方反击后 HP。
+4. 撤出危险区只针对攻击类威胁，复用当前玩家可用 `movementRoutes(for:)` 与 `fireExposurePreview(for:at:)`，选择能降低威胁来源射程或提高预计剩余耐久的目的格。
+5. 据点防守只针对据点占领威胁，建议己方单位进驻目标据点或移动到相邻封堵格，路线消耗来自 `movementRoutes(for:)`。
+6. 整补支撑只针对受威胁、受损且满足 `canReinforce(_:)` 的己方单位，计算预计恢复量和整补后耐久，但不调用真实 `reinforce`。
+7. 反制建议查询不调用 `move`、`attack`、`deploy`、`reinforce`、`useTacticalCommand`、`advanceTurn`、`performAIPhase` 或任何写状态方法，不改变 `activeFaction`、HP、位置、行动状态、据点归属、指令点、战报、消息或 `latest*Result`。
+8. `ContentView` 在“敌方意图”面板下方显示“反制建议”面板；UI 只展示 `GameState` 字段，不计算路线、评分、战斗或整补结果。
+
 ## 4. 架构边界
 
 - 规则状态必须从 `GameState` 发起和落地。
@@ -230,7 +241,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、敌方威胁意图预判、部署/整补结果摘要、AI 回合行动摘要：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、敌方威胁意图预判、敌方意图反制建议、部署/整补结果摘要、AI 回合行动摘要：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

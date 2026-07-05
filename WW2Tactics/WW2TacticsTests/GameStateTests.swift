@@ -1476,6 +1476,81 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.latestAIPhaseSummary)
     }
 
+    func testEnemyThreatCountermeasuresCoverActionsLimitAndReadOnly() throws {
+        let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let startingFaction = game.activeFaction
+        let startingCommandPoints = game.commandPoints
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+        let startingMessage = game.message
+
+        let threats = game.enemyThreatIntentPreviews(against: .allies, limit: 10)
+        let countermeasures = game.enemyThreatCountermeasurePreviews(for: threats, limit: 10)
+        let visibleCountermeasures = game.visibleEnemyThreatCountermeasurePreviews
+
+        XCTAssertFalse(countermeasures.isEmpty)
+        XCTAssertEqual(game.enemyThreatCountermeasurePreviews(for: threats, limit: 0), [])
+        XCTAssertEqual(game.enemyThreatCountermeasurePreviews(for: threats, limit: 2), Array(countermeasures.prefix(2)))
+        XCTAssertEqual(visibleCountermeasures, game.enemyThreatCountermeasurePreviews(for: game.visibleEnemyThreatIntentPreviews))
+        XCTAssertTrue(countermeasures.allSatisfy(\.canExecuteNow))
+
+        let firstStrike = try XCTUnwrap(countermeasures.first {
+            $0.kind == .firstStrike &&
+                $0.actingUnitName == "反击炮兵" &&
+                $0.threatEnemyUnitName == "威胁炮兵"
+        })
+        let counterBattery = try XCTUnwrap(game.units.first { $0.id == firstStrike.actingUnitID })
+        let enemyArtillery = try XCTUnwrap(game.units.first { $0.id == firstStrike.targetUnitID })
+        let firstStrikeCombat = try XCTUnwrap(game.combatPreview(attacker: counterBattery, defender: enemyArtillery))
+        XCTAssertEqual(firstStrike.projectedDamage, firstStrikeCombat.damage)
+        XCTAssertEqual(firstStrike.projectedEnemyHPAfterDamage, firstStrikeCombat.defenderHPAfterAttack)
+        XCTAssertEqual(firstStrike.willDestroyEnemy, firstStrikeCombat.willDestroyDefender)
+        XCTAssertNil(firstStrike.destination)
+        XCTAssertNil(firstStrike.routeCost)
+
+        let withdraw = try XCTUnwrap(countermeasures.first {
+            $0.kind == .withdraw &&
+                $0.actingUnitName == "前线装甲"
+        })
+        let withdrawDestination = try XCTUnwrap(withdraw.destination)
+        let withdrawRouteCost = try XCTUnwrap(withdraw.routeCost)
+        let threatenedTank = try XCTUnwrap(game.units.first { $0.id == withdraw.actingUnitID })
+        let tankRoute = try XCTUnwrap(game.movementRoute(for: threatenedTank, to: withdrawDestination))
+        XCTAssertEqual(withdrawRouteCost, tankRoute.totalCost)
+        XCTAssertGreaterThan(withdraw.projectedFriendlyHPAfterAction ?? 0, 0)
+
+        let objectiveDefense = try XCTUnwrap(countermeasures.first {
+            $0.kind == .objectiveDefense &&
+                $0.targetName == "后方油库"
+        })
+        let objectiveDestination = try XCTUnwrap(objectiveDefense.destination)
+        XCTAssertLessThanOrEqual(objectiveDestination.distance(to: HexCoordinate(q: 2, r: 2)), 1)
+        XCTAssertGreaterThanOrEqual(objectiveDefense.routeCost ?? 0, 0)
+
+        let reinforce = try XCTUnwrap(countermeasures.first {
+            $0.kind == .reinforce &&
+                $0.actingUnitName == "前线装甲"
+        })
+        XCTAssertEqual(reinforce.projectedRecoveredHP, UnitKind.tank.reinforceAmount)
+        XCTAssertEqual(reinforce.projectedFriendlyHPAfterAction, threatenedTank.hp + UnitKind.tank.reinforceAmount)
+        XCTAssertEqual(reinforce.destination, threatenedTank.position)
+        XCTAssertNil(reinforce.routeCost)
+
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertEqual(game.message, startingMessage)
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertNil(game.latestTacticalCommandResult)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNil(game.latestDeploymentResult)
+        XCTAssertNil(game.latestReinforcementResult)
+        XCTAssertNil(game.latestAIPhaseSummary)
+    }
+
     func testSelectingAndMovingUnitUpdatesBattlefieldState() throws {
         let game = GameState()
         let tank = try XCTUnwrap(game.units.first { $0.name == "第4装甲师" })
@@ -3343,6 +3418,10 @@ final class GameStateTests: XCTestCase {
                     tile.objectiveName = "盟军出发点"
                     tile.owner = .allies
                 }
+                if q == 1 && r == 0 {
+                    tile.objectiveName = "前线阵地"
+                    tile.owner = .allies
+                }
                 if q == 2 && r == 2 {
                     tile.objectiveName = "后方油库"
                     tile.owner = .allies
@@ -3409,6 +3488,14 @@ final class GameStateTests: XCTestCase {
                     faction: .allies,
                     position: HexCoordinate(q: 1, r: 1),
                     hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "反击炮兵",
+                    kind: .artillery,
+                    faction: .allies,
+                    position: HexCoordinate(q: 2, r: 0),
+                    hp: UnitKind.artillery.baseHP,
                     commander: nil
                 ),
                 artillery,

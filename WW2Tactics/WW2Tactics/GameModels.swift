@@ -783,9 +783,78 @@ struct EnemyThreatIntentPreview: Identifiable, Equatable {
         kind == .directAttack || kind == .approachAttack
     }
 
+    var threatLabel: String {
+        "\(enemyUnitName)的\(kind.title)"
+    }
+
     var destinationText: String {
         guard let routeDestination else { return "当前射程" }
         return "q\(routeDestination.q),r\(routeDestination.r)"
+    }
+}
+
+enum EnemyThreatCountermeasureKind: String, Identifiable {
+    case firstStrike
+    case withdraw
+    case objectiveDefense
+    case reinforce
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .firstStrike: "抢先打击"
+        case .withdraw: "撤出危险区"
+        case .objectiveDefense: "据点防守"
+        case .reinforce: "整补支撑"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .firstStrike: "HIT"
+        case .withdraw: "OUT"
+        case .objectiveDefense: "DEF"
+        case .reinforce: "REP"
+        }
+    }
+}
+
+struct EnemyThreatCountermeasurePreview: Identifiable, Equatable {
+    let kind: EnemyThreatCountermeasureKind
+    let threatID: String
+    let threatKind: EnemyThreatIntentKind
+    let threatEnemyUnitID: BattleUnit.ID
+    let threatEnemyUnitName: String
+    let threatTargetCoordinate: HexCoordinate
+    let actingUnitID: BattleUnit.ID?
+    let actingUnitName: String
+    let targetUnitID: BattleUnit.ID?
+    let targetName: String
+    let destination: HexCoordinate?
+    let routeCost: Int?
+    let projectedDamage: Int
+    let projectedEnemyHPAfterDamage: Int?
+    let willDestroyEnemy: Bool
+    let projectedFriendlyHPAfterAction: Int?
+    let projectedRecoveredHP: Int
+    let canExecuteNow: Bool
+    let reason: String
+    let score: Int
+
+    var id: String {
+        [
+            kind.rawValue,
+            threatID,
+            actingUnitID?.uuidString ?? "none",
+            targetUnitID?.uuidString ?? targetName,
+            destination?.id ?? "direct"
+        ].joined(separator: "-")
+    }
+
+    var destinationText: String {
+        guard let destination else { return "当前位置" }
+        return "q\(destination.q),r\(destination.r)"
     }
 }
 

@@ -204,6 +204,10 @@ final class GameState: ObservableObject {
         enemyThreatIntentPreviews(against: .allies)
     }
 
+    var visibleEnemyThreatCountermeasurePreviews: [EnemyThreatCountermeasurePreview] {
+        enemyThreatCountermeasurePreviews(for: visibleEnemyThreatIntentPreviews)
+    }
+
     var objectiveTiles: [TerrainTile] {
         scenario.tiles.filter(\.isObjective)
     }
@@ -864,6 +868,28 @@ final class GameState: ObservableObject {
             if uniqueIntents.count == limit { break }
         }
         return uniqueIntents
+    }
+
+    func enemyThreatCountermeasurePreviews(
+        for threats: [EnemyThreatIntentPreview]? = nil,
+        limit: Int = 3
+    ) -> [EnemyThreatCountermeasurePreview] {
+        guard limit > 0 else { return [] }
+
+        let sourceThreats = threats ?? visibleEnemyThreatIntentPreviews
+        let candidates = sourceThreats
+            .flatMap { enemyThreatCountermeasureCandidates(for: $0) }
+            .sorted(by: enemyThreatCountermeasureSort)
+
+        var seen: Set<String> = []
+        var uniqueCountermeasures: [EnemyThreatCountermeasurePreview] = []
+        for countermeasure in candidates {
+            let key = "\(countermeasure.kind.rawValue)-\(countermeasure.threatEnemyUnitID.uuidString)-\(countermeasure.actingUnitID?.uuidString ?? "none")-\(countermeasure.destination?.id ?? countermeasure.targetName)"
+            guard seen.insert(key).inserted else { continue }
+            uniqueCountermeasures.append(countermeasure)
+            if uniqueCountermeasures.count == limit { break }
+        }
+        return uniqueCountermeasures
     }
 
     func flankingSupportUnits(attacker: BattleUnit, defender: BattleUnit) -> [BattleUnit] {
@@ -1944,6 +1970,361 @@ final class GameState: ObservableObject {
             return left.stepCount < right.stepCount
         }
         return left.destination.id < right.destination.id
+    }
+
+    private func enemyThreatCountermeasureCandidates(
+        for threat: EnemyThreatIntentPreview
+    ) -> [EnemyThreatCountermeasurePreview] {
+        [
+            firstStrikeCountermeasure(for: threat),
+            withdrawCountermeasure(for: threat),
+            objectiveDefenseCountermeasure(for: threat),
+            reinforceCountermeasure(for: threat)
+        ].compactMap { $0 }
+    }
+
+    private func firstStrikeCountermeasure(
+        for threat: EnemyThreatIntentPreview
+    ) -> EnemyThreatCountermeasurePreview? {
+        guard let enemy = units.first(where: { $0.id == threat.enemyUnitID }) else { return nil }
+
+        let candidates = units
+            .filter { attacker in
+                attacker.faction == threat.targetFaction &&
+                    attacker.faction == activeFaction &&
+                    attacker.canAttack &&
+                    attacker.position.distance(to: enemy.position) <= attacker.range
+            }
+            .compactMap { attacker -> (unit: BattleUnit, preview: CombatPreview, score: Int)? in
+                guard let preview = combatPreview(attacker: attacker, defender: enemy) else { return nil }
+                let score = 320 +
+                    (preview.willDestroyDefender ? 700 : 0) +
+                    preview.damage * 6 +
+                    enemy.kind.commandCost * 12 -
+                    attacker.position.distance(to: enemy.position)
+                return (attacker, preview, score)
+            }
+            .sorted { left, right in
+                if left.preview.willDestroyDefender != right.preview.willDestroyDefender {
+                    return left.preview.willDestroyDefender && !right.preview.willDestroyDefender
+                }
+                if left.score != right.score {
+                    return left.score > right.score
+                }
+                if left.preview.damage != right.preview.damage {
+                    return left.preview.damage > right.preview.damage
+                }
+                return left.unit.name < right.unit.name
+            }
+
+        guard let best = candidates.first else { return nil }
+        return enemyThreatCountermeasure(
+            kind: .firstStrike,
+            threat: threat,
+            actingUnit: best.unit,
+            targetUnitID: enemy.id,
+            targetName: enemy.name,
+            destination: nil,
+            routeCost: nil,
+            projectedDamage: best.preview.damage,
+            projectedEnemyHPAfterDamage: best.preview.defenderHPAfterAttack,
+            willDestroyEnemy: best.preview.willDestroyDefender,
+            projectedFriendlyHPAfterAction: best.preview.attackerHPAfterCounter,
+            projectedRecoveredHP: 0,
+            reason: best.preview.willDestroyDefender ?
+                "当前射程内可先击毁 \(enemy.name)，解除 \(threat.targetName) 威胁。" :
+                "当前射程内可先压低 \(enemy.name) 耐久，削弱 \(threat.targetName) 威胁。",
+            score: best.score
+        )
+    }
+
+    private func withdrawCountermeasure(
+        for threat: EnemyThreatIntentPreview
+    ) -> EnemyThreatCountermeasurePreview? {
+        guard threat.isAttackThreat,
+              let targetUnitID = threat.targetUnitID,
+              let target = units.first(where: { $0.id == targetUnitID }),
+              let enemy = units.first(where: { $0.id == threat.enemyUnitID }),
+              target.faction == activeFaction,
+              target.canMove else { return nil }
+
+        let startingHPAfterThreat = threat.projectedTargetHPAfterDamage ?? max(0, target.hp - threat.projectedDamage)
+        let routes = movementRoutes(for: target).values
+        let candidates = routes
+            .compactMap { route -> (route: MovementRoute, projectedHP: Int, score: Int)? in
+                let exposure = fireExposurePreview(for: target, at: route.destination)
+                let otherExposureDamage = exposure?.sources
+                    .filter { $0.sourceID != enemy.id }
+                    .map(\.potentialDamage)
+                    .reduce(0, +) ?? 0
+                let sourceDamage = predictedThreatSourceDamage(
+                    from: enemy,
+                    against: target,
+                    at: route.destination
+                )
+                let totalProjectedDamage = otherExposureDamage + sourceDamage
+                let projectedHP = max(0, target.hp - totalProjectedDamage)
+                guard totalProjectedDamage < threat.projectedDamage,
+                      projectedHP > startingHPAfterThreat,
+                      projectedHP > 0 else { return nil }
+
+                let preservedHP = max(0, projectedHP - startingHPAfterThreat)
+                let score = 250 +
+                    preservedHP * 8 +
+                    (sourceDamage == 0 ? 60 : 0) -
+                    route.totalCost * 4 -
+                    route.stepCount
+                return (route, projectedHP, score)
+            }
+            .sorted { left, right in
+                if left.score != right.score {
+                    return left.score > right.score
+                }
+                if left.projectedHP != right.projectedHP {
+                    return left.projectedHP > right.projectedHP
+                }
+                if left.route.totalCost != right.route.totalCost {
+                    return left.route.totalCost < right.route.totalCost
+                }
+                if left.route.stepCount != right.route.stepCount {
+                    return left.route.stepCount < right.route.stepCount
+                }
+                return left.route.destination.id < right.route.destination.id
+            }
+
+        guard let best = candidates.first else { return nil }
+        return enemyThreatCountermeasure(
+            kind: .withdraw,
+            threat: threat,
+            actingUnit: target,
+            targetUnitID: target.id,
+            targetName: target.name,
+            destination: best.route.destination,
+            routeCost: best.route.totalCost,
+            projectedDamage: 0,
+            projectedEnemyHPAfterDamage: nil,
+            willDestroyEnemy: false,
+            projectedFriendlyHPAfterAction: best.projectedHP,
+            projectedRecoveredHP: 0,
+            reason: "转移到 \(coordinateText(best.route.destination)) 可降低 \(threat.threatLabel) 对 \(target.name) 的火力风险。",
+            score: best.score
+        )
+    }
+
+    private func predictedThreatSourceDamage(
+        from enemy: BattleUnit,
+        against target: BattleUnit,
+        at coordinate: HexCoordinate
+    ) -> Int {
+        var movedTarget = target
+        movedTarget.position = coordinate
+        movedTarget.tacticalStatus = .normal
+        movedTarget.isEntrenched = false
+
+        let readyEnemy = readyThreatPreviewUnit(enemy)
+        let candidatePositions = Set(
+            [readyEnemy.position] + predictedMovementRoutes(for: readyEnemy).values.map(\.destination)
+        )
+
+        return candidatePositions
+            .filter { $0.distance(to: coordinate) <= readyEnemy.range }
+            .compactMap { position -> Int? in
+                var projectedEnemy = readyEnemy
+                projectedEnemy.position = position
+                return combatPreview(attacker: projectedEnemy, defender: movedTarget)?.damage
+            }
+            .max() ?? 0
+    }
+
+    private func objectiveDefenseCountermeasure(
+        for threat: EnemyThreatIntentPreview
+    ) -> EnemyThreatCountermeasurePreview? {
+        guard threat.kind == .objectiveCapture,
+              threat.targetFaction == activeFaction,
+              let objective = tile(at: threat.targetCoordinate),
+              objective.isObjective else { return nil }
+
+        let candidates = units
+            .filter { unit in
+                unit.faction == threat.targetFaction &&
+                    unit.faction == activeFaction &&
+                    unit.canMove
+            }
+            .compactMap { unit -> (unit: BattleUnit, route: MovementRoute, reachesObjective: Bool, score: Int)? in
+                let routes = movementRoutes(for: unit)
+                if let route = routes[threat.targetCoordinate] {
+                    let score = 300 +
+                        unit.kind.commandCost * 10 -
+                        route.totalCost * 5 -
+                        route.stepCount
+                    return (unit, route, true, score)
+                }
+
+                guard let route = routes.values
+                    .filter({ $0.destination.distance(to: threat.targetCoordinate) == 1 })
+                    .sorted(by: threatRouteSort)
+                    .first else { return nil }
+                let score = 240 +
+                    unit.kind.commandCost * 8 -
+                    route.totalCost * 5 -
+                    route.stepCount
+                return (unit, route, false, score)
+            }
+            .sorted { left, right in
+                if left.reachesObjective != right.reachesObjective {
+                    return left.reachesObjective && !right.reachesObjective
+                }
+                if left.score != right.score {
+                    return left.score > right.score
+                }
+                if left.route.totalCost != right.route.totalCost {
+                    return left.route.totalCost < right.route.totalCost
+                }
+                if left.unit.kind != right.unit.kind {
+                    return left.unit.kind.sortOrder < right.unit.kind.sortOrder
+                }
+                return left.unit.name < right.unit.name
+            }
+
+        guard let best = candidates.first else { return nil }
+        let actionText = best.reachesObjective ? "进驻" : "封堵"
+        return enemyThreatCountermeasure(
+            kind: .objectiveDefense,
+            threat: threat,
+            actingUnit: best.unit,
+            targetUnitID: nil,
+            targetName: threat.targetName,
+            destination: best.route.destination,
+            routeCost: best.route.totalCost,
+            projectedDamage: 0,
+            projectedEnemyHPAfterDamage: nil,
+            willDestroyEnemy: false,
+            projectedFriendlyHPAfterAction: best.unit.hp,
+            projectedRecoveredHP: 0,
+            reason: "\(best.unit.name) 可\(actionText)\(threat.targetName)，阻止 \(threat.threatLabel) 抢点。",
+            score: best.score
+        )
+    }
+
+    private func reinforceCountermeasure(
+        for threat: EnemyThreatIntentPreview
+    ) -> EnemyThreatCountermeasurePreview? {
+        guard threat.isAttackThreat,
+              let targetUnitID = threat.targetUnitID,
+              let target = units.first(where: { $0.id == targetUnitID }),
+              canReinforce(target) else { return nil }
+
+        let recoveredHP = min(target.kind.reinforceAmount, target.maxHP - target.hp)
+        guard recoveredHP > 0 else { return nil }
+
+        let hpAfterRecovery = target.hp + recoveredHP
+        let projectedHPAfterThreat = max(0, hpAfterRecovery - threat.projectedDamage)
+        let score = 220 +
+            recoveredHP * 6 +
+            (threat.willDestroyTarget && projectedHPAfterThreat > 0 ? 120 : 0) +
+            target.kind.commandCost * 6 -
+            reinforceCost(for: target) * 8
+
+        return enemyThreatCountermeasure(
+            kind: .reinforce,
+            threat: threat,
+            actingUnit: target,
+            targetUnitID: target.id,
+            targetName: target.name,
+            destination: target.position,
+            routeCost: nil,
+            projectedDamage: 0,
+            projectedEnemyHPAfterDamage: nil,
+            willDestroyEnemy: false,
+            projectedFriendlyHPAfterAction: hpAfterRecovery,
+            projectedRecoveredHP: recoveredHP,
+            reason: "在己方据点整补 \(target.name) +\(recoveredHP) 耐久，提高承受 \(threat.threatLabel) 的能力。",
+            score: score
+        )
+    }
+
+    private func enemyThreatCountermeasure(
+        kind: EnemyThreatCountermeasureKind,
+        threat: EnemyThreatIntentPreview,
+        actingUnit: BattleUnit,
+        targetUnitID: BattleUnit.ID?,
+        targetName: String,
+        destination: HexCoordinate?,
+        routeCost: Int?,
+        projectedDamage: Int,
+        projectedEnemyHPAfterDamage: Int?,
+        willDestroyEnemy: Bool,
+        projectedFriendlyHPAfterAction: Int?,
+        projectedRecoveredHP: Int,
+        reason: String,
+        score: Int
+    ) -> EnemyThreatCountermeasurePreview {
+        EnemyThreatCountermeasurePreview(
+            kind: kind,
+            threatID: threat.id,
+            threatKind: threat.kind,
+            threatEnemyUnitID: threat.enemyUnitID,
+            threatEnemyUnitName: threat.enemyUnitName,
+            threatTargetCoordinate: threat.targetCoordinate,
+            actingUnitID: actingUnit.id,
+            actingUnitName: actingUnit.name,
+            targetUnitID: targetUnitID,
+            targetName: targetName,
+            destination: destination,
+            routeCost: routeCost,
+            projectedDamage: projectedDamage,
+            projectedEnemyHPAfterDamage: projectedEnemyHPAfterDamage,
+            willDestroyEnemy: willDestroyEnemy,
+            projectedFriendlyHPAfterAction: projectedFriendlyHPAfterAction,
+            projectedRecoveredHP: projectedRecoveredHP,
+            canExecuteNow: actingUnit.faction == activeFaction && !actingUnit.isDestroyed,
+            reason: reason,
+            score: score
+        )
+    }
+
+    private func enemyThreatCountermeasureSort(
+        _ left: EnemyThreatCountermeasurePreview,
+        _ right: EnemyThreatCountermeasurePreview
+    ) -> Bool {
+        if left.canExecuteNow != right.canExecuteNow {
+            return left.canExecuteNow && !right.canExecuteNow
+        }
+        if left.willDestroyEnemy != right.willDestroyEnemy {
+            return left.willDestroyEnemy && !right.willDestroyEnemy
+        }
+        if left.score != right.score {
+            return left.score > right.score
+        }
+        if left.routeCost != right.routeCost {
+            return (left.routeCost ?? 0) < (right.routeCost ?? 0)
+        }
+        if left.actingUnitName != right.actingUnitName {
+            return left.actingUnitName < right.actingUnitName
+        }
+        if left.targetName != right.targetName {
+            return left.targetName < right.targetName
+        }
+        if left.destination?.id != right.destination?.id {
+            return (left.destination?.id ?? "") < (right.destination?.id ?? "")
+        }
+        if left.threatID != right.threatID {
+            return left.threatID < right.threatID
+        }
+        if left.threatTargetCoordinate.id != right.threatTargetCoordinate.id {
+            return left.threatTargetCoordinate.id < right.threatTargetCoordinate.id
+        }
+        if left.actingUnitID?.uuidString != right.actingUnitID?.uuidString {
+            return (left.actingUnitID?.uuidString ?? "") < (right.actingUnitID?.uuidString ?? "")
+        }
+        if left.targetUnitID?.uuidString != right.targetUnitID?.uuidString {
+            return (left.targetUnitID?.uuidString ?? "") < (right.targetUnitID?.uuidString ?? "")
+        }
+        return left.kind.rawValue < right.kind.rawValue
+    }
+
+    private func coordinateText(_ coordinate: HexCoordinate) -> String {
+        "q\(coordinate.q),r\(coordinate.r)"
     }
 
     private func fireRiskLevel(

@@ -951,6 +951,70 @@ struct RulesSmokeTest {
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "enemy threat intents should not mutate objectives")
             require(enemyThreatGame.battleLog == startingEnemyThreatLog, "enemy threat intents should not write battle log entries")
 
+            let startingCountermeasureCommandPoints = enemyThreatGame.commandPoints
+            let enemyCountermeasures = enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreats, limit: 10)
+            require(!enemyCountermeasures.isEmpty, "enemy threat countermeasures should be available")
+            require(enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreats, limit: 0).isEmpty, "enemy threat countermeasure limit zero should return no previews")
+            require(enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreats, limit: 2) == Array(enemyCountermeasures.prefix(2)), "enemy threat countermeasure limit should preserve sorted prefix")
+            require(enemyThreatGame.visibleEnemyThreatCountermeasurePreviews == enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreatGame.visibleEnemyThreatIntentPreviews), "visible enemy threat countermeasures should expose the allied preview")
+
+            guard let firstStrike = enemyCountermeasures.first(where: {
+                $0.kind == .firstStrike &&
+                    $0.actingUnitName == "反击炮兵" &&
+                    $0.threatEnemyUnitName == "威胁炮兵"
+            }) else {
+                require(false, "enemy threat countermeasures should include first strike advice")
+                return
+            }
+            guard let counterBattery = enemyThreatGame.units.first(where: { $0.id == firstStrike.actingUnitID }),
+                  let firstStrikeTarget = enemyThreatGame.units.first(where: { $0.id == firstStrike.targetUnitID }),
+                  let firstStrikeCombat = enemyThreatGame.combatPreview(attacker: counterBattery, defender: firstStrikeTarget) else {
+                require(false, "first strike countermeasure combat preview should be reproducible")
+                return
+            }
+            require(firstStrike.projectedDamage == firstStrikeCombat.damage, "first strike damage should match combat preview")
+            require(firstStrike.projectedEnemyHPAfterDamage == firstStrikeCombat.defenderHPAfterAttack, "first strike HP projection should match combat preview")
+            require(firstStrike.routeCost == nil, "first strike should not invent a movement route")
+
+            guard let withdraw = enemyCountermeasures.first(where: {
+                $0.kind == .withdraw &&
+                    $0.actingUnitName == "前线装甲"
+            }) else {
+                require(false, "enemy threat countermeasures should include withdraw advice")
+                return
+            }
+            guard let withdrawDestination = withdraw.destination,
+                  let withdrawUnit = enemyThreatGame.units.first(where: { $0.id == withdraw.actingUnitID }),
+                  let withdrawRoute = enemyThreatGame.movementRoute(for: withdrawUnit, to: withdrawDestination) else {
+                require(false, "withdraw countermeasure route should be reproducible")
+                return
+            }
+            require(withdraw.routeCost == withdrawRoute.totalCost, "withdraw route cost should match movement route")
+            require((withdraw.projectedFriendlyHPAfterAction ?? 0) > 0, "withdraw should project surviving HP")
+
+            guard let objectiveDefense = enemyCountermeasures.first(where: {
+                $0.kind == .objectiveDefense &&
+                    $0.targetName == "后方油库"
+            }) else {
+                require(false, "enemy threat countermeasures should include objective defense advice")
+                return
+            }
+            require(objectiveDefense.destination?.distance(to: HexCoordinate(q: 2, r: 2)) ?? Int.max <= 1, "objective defense should reach or screen the threatened objective")
+
+            guard let reinforce = enemyCountermeasures.first(where: {
+                $0.kind == .reinforce &&
+                    $0.actingUnitName == "前线装甲"
+            }) else {
+                require(false, "enemy threat countermeasures should include reinforce advice")
+                return
+            }
+            require(reinforce.projectedRecoveredHP == UnitKind.tank.reinforceAmount, "reinforce countermeasure should project recovery amount")
+            require(reinforce.destination == withdrawUnit.position, "reinforce countermeasure should stay on the threatened objective")
+            require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "enemy threat countermeasures should not spend command points")
+            require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "enemy threat countermeasures should not mutate units")
+            require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "enemy threat countermeasures should not mutate objectives")
+            require(enemyThreatGame.battleLog == startingEnemyThreatLog, "enemy threat countermeasures should not write battle log entries")
+
             let commandGame = GameState(
                 scenario: tacticalCommandScenario(),
                 commandPoints: [.allies: 6, .axis: 6]
@@ -3008,6 +3072,10 @@ struct RulesSmokeTest {
                     tile.objectiveName = "盟军出发点"
                     tile.owner = .allies
                 }
+                if q == 1 && r == 0 {
+                    tile.objectiveName = "前线阵地"
+                    tile.owner = .allies
+                }
                 if q == 2 && r == 2 {
                     tile.objectiveName = "后方油库"
                     tile.owner = .allies
@@ -3074,6 +3142,14 @@ struct RulesSmokeTest {
                     faction: .allies,
                     position: HexCoordinate(q: 1, r: 1),
                     hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "反击炮兵",
+                    kind: .artillery,
+                    faction: .allies,
+                    position: HexCoordinate(q: 2, r: 0),
+                    hp: UnitKind.artillery.baseHP,
                     commander: nil
                 ),
                 artillery,

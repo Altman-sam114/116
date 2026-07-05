@@ -11,13 +11,15 @@ flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget"]
   I --> S["GameState：核心状态机"]
-  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、EnemyThreatIntentPreview、Deployment/ReinforcementResultSummary、AIPhaseSummary"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、OBJ计划、THR、敌方意图"]
+  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、Deployment/ReinforcementResultSummary、AIPhaseSummary"] --> S
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、OBJ计划、THR、敌方意图、反制建议"]
   R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、消息、攻击/战术/占领/后勤结果、AI回合摘要、战报、胜负"]
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
+  EI --> EC["只读建议：EnemyThreatCountermeasurePreview 抢先打击 / 撤退 / 守点 / 整补"]
   W --> P["@Published 状态变化"]
   P --> V
   EI --> V
+  EC --> V
   S --> T["测试层：GameStateTests / RulesSmokeTest"]
 ```
 
@@ -67,6 +69,7 @@ flowchart LR
   U --> ZOC["enemyControlZoneTiles 控制区"]
   U --> THR["threatenedReachableTiles 敌火覆盖"]
   U --> INT["EnemyThreatIntentPreview 敌方威胁意图"]
+  INT --> CTR["EnemyThreatCountermeasurePreview 反制建议"]
   MV --> RP["RouteStepPreview 步序、消耗、控制区、敌火"]
   MV --> PM["PostMoveAttackPreview 移动后伤害、反击、击毁"]
   MV --> FP["PostMoveFireExposurePreview 潜在承伤、HP 后果、风险等级"]
@@ -76,6 +79,9 @@ flowchart LR
   AT --> PM
   AT --> FP
   AT --> INT
+  AT --> CTR
+  MV --> CTR
+  LOG --> CTR
   MV --> CMD["MapCommandPreview"]
   AT --> CMD
   RP --> CMD
@@ -91,6 +97,7 @@ flowchart LR
   AI --> AIS["AIPhaseSummary：动作计数、指令点、占点、歼灭、伤害"]
   AIS --> RES
   INT --> UI["侧栏敌方意图面板 / 地图 INT 标记"]
+  CTR --> UI2["侧栏反制建议面板"]
 ```
 
 ## 4. Agent X 主控迭代流程图
