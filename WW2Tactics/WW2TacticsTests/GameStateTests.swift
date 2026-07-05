@@ -1489,12 +1489,149 @@ final class GameStateTests: XCTestCase {
         let countermeasures = game.enemyThreatCountermeasurePreviews(for: threats, limit: 10)
         let visibleCountermeasures = game.visibleEnemyThreatCountermeasurePreviews
 
+        func syntheticCountermeasure(
+            canExecuteNow: Bool = true,
+            willDestroyEnemy: Bool = false,
+            score: Int = 100,
+            routeCost: Int? = 2,
+            actingUnitName: String = "合成单位",
+            targetName: String = "合成目标",
+            destination: HexCoordinate? = HexCoordinate(q: 0, r: 0)
+        ) -> EnemyThreatCountermeasurePreview {
+            EnemyThreatCountermeasurePreview(
+                kind: .withdraw,
+                threatID: "synthetic-\(canExecuteNow)-\(willDestroyEnemy)-\(score)-\(routeCost ?? -1)-\(actingUnitName)-\(targetName)",
+                threatKind: .directAttack,
+                threatEnemyUnitID: UUID(),
+                threatEnemyUnitName: "合成威胁",
+                threatTargetCoordinate: HexCoordinate(q: 0, r: 0),
+                actingUnitID: UUID(),
+                actingUnitName: actingUnitName,
+                targetUnitID: UUID(),
+                targetName: targetName,
+                destination: destination,
+                routeCost: routeCost,
+                projectedDamage: willDestroyEnemy ? 10 : 2,
+                projectedEnemyHPAfterDamage: willDestroyEnemy ? 0 : 8,
+                willDestroyEnemy: willDestroyEnemy,
+                projectedFriendlyHPAfterAction: 8,
+                projectedRecoveredHP: 0,
+                canExecuteNow: canExecuteNow,
+                reason: "合成排序测试",
+                score: score
+            )
+        }
+
+        func assertTopComparison(
+            previews: [EnemyThreatCountermeasurePreview],
+            expectedKind: EnemyThreatCountermeasurePriorityFactorKind,
+            expectedTitle: String,
+            expectedValue: String,
+            expectedDetail: String
+        ) throws {
+            let comparison = try XCTUnwrap(
+                game.enemyThreatCountermeasureComparisonPreviews(for: previews, limit: 2).first
+            )
+            XCTAssertEqual(comparison.factor.kind, expectedKind)
+            XCTAssertEqual(comparison.factor.title, expectedTitle)
+            XCTAssertEqual(comparison.factor.value, expectedValue)
+            XCTAssertEqual(comparison.factor.detail, expectedDetail)
+            XCTAssertTrue(comparison.summary.contains(expectedDetail))
+        }
+
+        func expectedComparisonTitle(
+            leading: EnemyThreatCountermeasurePreview,
+            trailing: EnemyThreatCountermeasurePreview
+        ) -> String {
+            if leading.canExecuteNow != trailing.canExecuteNow { return "可执行" }
+            if leading.willDestroyEnemy != trailing.willDestroyEnemy { return "击毁" }
+            if leading.score != trailing.score { return "优先值" }
+            if leading.routeCost != trailing.routeCost { return "路线" }
+            if leading.actingUnitName != trailing.actingUnitName { return "执行单位" }
+            if leading.targetName != trailing.targetName { return "目标" }
+            if leading.destination?.id != trailing.destination?.id { return "坐标" }
+            if leading.threatID != trailing.threatID { return "威胁" }
+            if leading.threatTargetCoordinate.id != trailing.threatTargetCoordinate.id { return "威胁坐标" }
+            if leading.actingUnitID?.uuidString != trailing.actingUnitID?.uuidString { return "执行ID" }
+            if leading.targetUnitID?.uuidString != trailing.targetUnitID?.uuidString { return "目标ID" }
+            return "类型"
+        }
+
         XCTAssertFalse(countermeasures.isEmpty)
         XCTAssertEqual(game.enemyThreatCountermeasurePreviews(for: threats, limit: 0), [])
         XCTAssertEqual(game.enemyThreatCountermeasurePreviews(for: threats, limit: 2), Array(countermeasures.prefix(2)))
         XCTAssertEqual(visibleCountermeasures, game.enemyThreatCountermeasurePreviews(for: game.visibleEnemyThreatIntentPreviews))
         XCTAssertTrue(countermeasures.allSatisfy(\.canExecuteNow))
         XCTAssertFalse(game.focusedEnemyThreatCountermeasureExecutionPreview?.isExecutable == true)
+        XCTAssertEqual(game.enemyThreatCountermeasureComparisonPreviews(for: countermeasures, limit: 0), [])
+        XCTAssertEqual(game.enemyThreatCountermeasureComparisonPreviews(for: countermeasures, limit: 1), [])
+
+        let countermeasureComparisons = game.enemyThreatCountermeasureComparisonPreviews(
+            for: countermeasures,
+            limit: 3
+        )
+        XCTAssertEqual(countermeasureComparisons.count, max(0, min(countermeasures.count, 3) - 1))
+        if countermeasures.count >= 2 {
+            let topComparison = try XCTUnwrap(countermeasureComparisons.first)
+            XCTAssertEqual(topComparison.leading.id, countermeasures[0].id)
+            XCTAssertEqual(topComparison.trailing.id, countermeasures[1].id)
+            XCTAssertEqual(
+                topComparison.factor.title,
+                expectedComparisonTitle(leading: countermeasures[0], trailing: countermeasures[1])
+            )
+            XCTAssertFalse(topComparison.factor.value.isEmpty)
+            XCTAssertFalse(topComparison.summary.isEmpty)
+            XCTAssertTrue(topComparison.summary.contains(topComparison.factor.detail))
+        }
+
+        try assertTopComparison(
+            previews: [
+                syntheticCountermeasure(canExecuteNow: false, score: 999),
+                syntheticCountermeasure(canExecuteNow: true, score: 1)
+            ],
+            expectedKind: .availability,
+            expectedTitle: "可执行",
+            expectedValue: "是 > 否",
+            expectedDetail: "执行单位当前可行动"
+        )
+        try assertTopComparison(
+            previews: [
+                syntheticCountermeasure(willDestroyEnemy: false, score: 999),
+                syntheticCountermeasure(willDestroyEnemy: true, score: 1)
+            ],
+            expectedKind: .decisiveStrike,
+            expectedTitle: "击毁",
+            expectedValue: "是 > 否",
+            expectedDetail: "可直接击毁威胁来源"
+        )
+        try assertTopComparison(
+            previews: [
+                syntheticCountermeasure(score: 80),
+                syntheticCountermeasure(score: 120)
+            ],
+            expectedKind: .priorityScore,
+            expectedTitle: "优先值",
+            expectedValue: "120 > 80",
+            expectedDetail: "优先值 120 高于 80"
+        )
+        try assertTopComparison(
+            previews: [
+                syntheticCountermeasure(score: 100, routeCost: 5),
+                syntheticCountermeasure(score: 100, routeCost: 1)
+            ],
+            expectedKind: .routeCost,
+            expectedTitle: "路线",
+            expectedValue: "1 < 5",
+            expectedDetail: "路线消耗 1 更低"
+        )
+
+        for countermeasure in countermeasures {
+            XCTAssertFalse(countermeasure.priorityFactors.isEmpty)
+            XCTAssertTrue(countermeasure.prioritySummary.contains("优先值 \(countermeasure.score)"))
+            XCTAssertTrue(countermeasure.priorityFactors.contains {
+                $0.kind == .priorityScore && $0.value == "\(countermeasure.score)"
+            })
+        }
 
         let firstStrike = try XCTUnwrap(countermeasures.first {
             $0.kind == .firstStrike &&
@@ -1512,6 +1649,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertFalse(firstStrike.benefitSummary.isEmpty)
         let firstStrikeDamageBenefit = try XCTUnwrap(firstStrike.benefitMetrics.first { $0.kind == .damage })
         XCTAssertEqual(firstStrikeDamageBenefit.value, firstStrike.willDestroyEnemy ? "击毁" : "-\(firstStrike.projectedDamage)")
+        XCTAssertTrue(firstStrike.prioritySummary.contains(firstStrike.willDestroyEnemy ? "可击毁威胁" : firstStrike.kind.title))
 
         let withdraw = try XCTUnwrap(countermeasures.first {
             $0.kind == .withdraw &&
@@ -1528,6 +1666,7 @@ final class GameStateTests: XCTestCase {
         let withdrawRouteBenefit = try XCTUnwrap(withdraw.benefitMetrics.first { $0.kind == .route })
         XCTAssertTrue(withdrawSurvivalBenefit.value.contains("\(withdraw.projectedFriendlyHPAfterAction ?? 0)"))
         XCTAssertEqual(withdrawRouteBenefit.value, "\(withdrawRouteCost)")
+        XCTAssertTrue(withdraw.prioritySummary.contains("路线 \(withdrawRouteCost)"))
 
         let objectiveDefense = try XCTUnwrap(countermeasures.first {
             $0.kind == .objectiveDefense &&
@@ -1541,6 +1680,7 @@ final class GameStateTests: XCTestCase {
         let objectiveRouteBenefit = try XCTUnwrap(objectiveDefense.benefitMetrics.first { $0.kind == .route })
         XCTAssertEqual(objectiveBenefit.value, objectiveDestination == objectiveDefense.threatTargetCoordinate ? "进驻" : "封堵")
         XCTAssertEqual(objectiveRouteBenefit.value, "\(objectiveDefense.routeCost ?? 0)")
+        XCTAssertTrue(objectiveDefense.prioritySummary.contains(objectiveDefense.kind.title))
 
         let reinforce = try XCTUnwrap(countermeasures.first {
             $0.kind == .reinforce &&
@@ -1555,6 +1695,7 @@ final class GameStateTests: XCTestCase {
         let reinforceSurvivalBenefit = try XCTUnwrap(reinforce.benefitMetrics.first { $0.kind == .survival })
         XCTAssertEqual(reinforceRecoveryBenefit.value, "+\(reinforce.projectedRecoveredHP)")
         XCTAssertTrue(reinforceSurvivalBenefit.value.contains("\(reinforce.projectedFriendlyHPAfterAction ?? 0)"))
+        XCTAssertTrue(reinforce.prioritySummary.contains("当前位置"))
 
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)

@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.12 正在推进反制建议点选聚焦，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.16 正在推进反制建议排序对比解释，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判和 OBJ/POS/反制建议操作可读性。
 
 ## 历史记录
 
@@ -857,4 +857,43 @@
 遗留事项：
 
 - 收益解释是只读扫描辅助，不改变反制建议排序、score 公式或执行桥接。
+- 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件或回合流程。
+
+### v1.16 / 反制建议排序对比解释
+
+日期：2026-07-05
+
+核心变更：
+
+- `EnemyThreatCountermeasurePreview` 新增 `priorityFactors` 和 `prioritySummary`，从可执行性、击毁判定、优先值、路线、执行单位、目标和坐标等既有字段派生只读排序依据。
+- `GameState` 新增 `enemyThreatCountermeasureComparisonPreviews(for:limit:)`，并让排序函数与对比解释共用同一套排序判定 helper，按既有维度顺序生成首选与下一条建议的相邻对比解释。
+- `ContentView` 在反制建议面板显示“首选依据”，并在建议行展示每条建议的优先级摘要；点选仍只聚焦预览，不执行移动、攻击或整补。
+- 补充 XCTest 和规则 smoke test，覆盖排序依据、相邻对比、limit 边界、可执行/击毁/优先值/路线等关键排序分支和只读无副作用。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.16（反制建议排序对比解释）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- 待 Agent C 下载并核对最新 `origin/main` 对应 GitHub Actions artifact 后记录。
+
+遗留事项：
+
+- 排序对比解释是只读参谋提示，不改变反制建议排序、score 公式或执行桥接。
 - 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件或回合流程。

@@ -4781,6 +4781,12 @@ private struct EnemyThreatCountermeasurePanel: View {
     let previews: [EnemyThreatCountermeasurePreview]
 
     var body: some View {
+        let visiblePreviews = Array(previews.prefix(3))
+        let comparisonPreviews = game.enemyThreatCountermeasureComparisonPreviews(
+            for: visiblePreviews,
+            limit: visiblePreviews.count
+        )
+
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Label("反制建议", systemImage: "shield.lefthalf.filled")
@@ -4788,7 +4794,7 @@ private struct EnemyThreatCountermeasurePanel: View {
 
                 Spacer(minLength: 8)
 
-                Text("\(min(previews.count, 3))")
+                Text("\(visiblePreviews.count)")
                     .font(.caption.weight(.black))
                     .foregroundStyle(.cyan)
                     .lineLimit(1)
@@ -4796,7 +4802,11 @@ private struct EnemyThreatCountermeasurePanel: View {
             }
             .foregroundStyle(.cyan)
 
-            ForEach(Array(previews.prefix(3))) { preview in
+            if let topComparison = comparisonPreviews.first {
+                EnemyThreatCountermeasureComparisonHint(preview: topComparison)
+            }
+
+            ForEach(visiblePreviews) { preview in
                 let isFocused = game.isEnemyThreatCountermeasureFocused(preview)
                 Button {
                     game.focusEnemyThreatCountermeasure(preview)
@@ -4827,7 +4837,7 @@ private struct EnemyThreatCountermeasurePanel: View {
     ) -> String {
         let focused = isFocused ? "，当前预览" : ""
         let routeText = preview.routeCost.map { "，路线消耗 \($0)" } ?? ""
-        return "\(preview.kind.title)\(focused)，\(preview.actingUnitName) 对 \(preview.targetName)\(routeText)，收益：\(preview.benefitSummary)，\(preview.reason)"
+        return "\(preview.kind.title)\(focused)，\(preview.actingUnitName) 对 \(preview.targetName)\(routeText)，排序：\(preview.prioritySummary)，收益：\(preview.benefitSummary)，\(preview.reason)"
     }
 }
 
@@ -4911,6 +4921,49 @@ private struct EnemyThreatCountermeasureExecutionHint: View {
     }
 }
 
+private struct EnemyThreatCountermeasureComparisonHint: View {
+    let preview: EnemyThreatCountermeasureComparisonPreview
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 7) {
+                Label("首选依据", systemImage: "list.number")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.cyan)
+                    .lineLimit(1)
+
+                Text(preview.factor.title)
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.cyan.opacity(0.82), in: RoundedRectangle(cornerRadius: 5))
+
+                Spacer(minLength: 6)
+            }
+
+            Text(preview.summary)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.72))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("\(preview.leading.kind.title) \(preview.factor.value) \(preview.trailing.kind.title)")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.54))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .padding(8)
+        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.cyan.opacity(0.24), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("首选依据，\(preview.summary)，\(preview.factor.title)：\(preview.factor.value)")
+    }
+}
+
 private struct EnemyThreatCountermeasureRow: View {
     let preview: EnemyThreatCountermeasurePreview
     let isFocused: Bool
@@ -4968,6 +5021,11 @@ private struct EnemyThreatCountermeasureRow: View {
                         .accessibilityLabel("\(metric.title)\(metric.value)，\(metric.detail)")
                 }
             }
+
+            Label(preview.prioritySummary, systemImage: "list.number")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.62))
+                .fixedSize(horizontal: false, vertical: true)
 
             Label(preview.reason, systemImage: detailIcon)
                 .font(.caption2.weight(.semibold))

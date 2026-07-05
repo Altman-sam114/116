@@ -953,11 +953,136 @@ struct RulesSmokeTest {
 
             let startingCountermeasureCommandPoints = enemyThreatGame.commandPoints
             let enemyCountermeasures = enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreats, limit: 10)
+            func expectedCountermeasureComparisonTitle(
+                leading: EnemyThreatCountermeasurePreview,
+                trailing: EnemyThreatCountermeasurePreview
+            ) -> String {
+                if leading.canExecuteNow != trailing.canExecuteNow { return "可执行" }
+                if leading.willDestroyEnemy != trailing.willDestroyEnemy { return "击毁" }
+                if leading.score != trailing.score { return "优先值" }
+                if leading.routeCost != trailing.routeCost { return "路线" }
+                if leading.actingUnitName != trailing.actingUnitName { return "执行单位" }
+                if leading.targetName != trailing.targetName { return "目标" }
+                if leading.destination?.id != trailing.destination?.id { return "坐标" }
+                if leading.threatID != trailing.threatID { return "威胁" }
+                if leading.threatTargetCoordinate.id != trailing.threatTargetCoordinate.id { return "威胁坐标" }
+                if leading.actingUnitID?.uuidString != trailing.actingUnitID?.uuidString { return "执行ID" }
+                if leading.targetUnitID?.uuidString != trailing.targetUnitID?.uuidString { return "目标ID" }
+                return "类型"
+            }
+            func syntheticCountermeasure(
+                canExecuteNow: Bool = true,
+                willDestroyEnemy: Bool = false,
+                score: Int = 100,
+                routeCost: Int? = 2
+            ) -> EnemyThreatCountermeasurePreview {
+                EnemyThreatCountermeasurePreview(
+                    kind: .withdraw,
+                    threatID: "synthetic-\(canExecuteNow)-\(willDestroyEnemy)-\(score)-\(routeCost ?? -1)",
+                    threatKind: .directAttack,
+                    threatEnemyUnitID: UUID(),
+                    threatEnemyUnitName: "合成威胁",
+                    threatTargetCoordinate: HexCoordinate(q: 0, r: 0),
+                    actingUnitID: UUID(),
+                    actingUnitName: "合成单位",
+                    targetUnitID: UUID(),
+                    targetName: "合成目标",
+                    destination: HexCoordinate(q: 0, r: 0),
+                    routeCost: routeCost,
+                    projectedDamage: willDestroyEnemy ? 10 : 2,
+                    projectedEnemyHPAfterDamage: willDestroyEnemy ? 0 : 8,
+                    willDestroyEnemy: willDestroyEnemy,
+                    projectedFriendlyHPAfterAction: 8,
+                    projectedRecoveredHP: 0,
+                    canExecuteNow: canExecuteNow,
+                    reason: "合成排序测试",
+                    score: score
+                )
+            }
+            @MainActor
+            func requireTopComparison(
+                previews: [EnemyThreatCountermeasurePreview],
+                expectedKind: EnemyThreatCountermeasurePriorityFactorKind,
+                expectedTitle: String,
+                expectedValue: String,
+                expectedDetail: String
+            ) {
+                guard let comparison = enemyThreatGame.enemyThreatCountermeasureComparisonPreviews(for: previews, limit: 2).first else {
+                    require(false, "synthetic countermeasure comparison should exist")
+                    return
+                }
+                require(comparison.factor.kind == expectedKind, "synthetic countermeasure comparison kind should match")
+                require(comparison.factor.title == expectedTitle, "synthetic countermeasure comparison title should match")
+                require(comparison.factor.value == expectedValue, "synthetic countermeasure comparison value should match")
+                require(comparison.factor.detail == expectedDetail, "synthetic countermeasure comparison detail should match")
+                require(comparison.summary.contains(expectedDetail), "synthetic countermeasure comparison summary should include detail")
+            }
+
             require(!enemyCountermeasures.isEmpty, "enemy threat countermeasures should be available")
             require(enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreats, limit: 0).isEmpty, "enemy threat countermeasure limit zero should return no previews")
             require(enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreats, limit: 2) == Array(enemyCountermeasures.prefix(2)), "enemy threat countermeasure limit should preserve sorted prefix")
             require(enemyThreatGame.visibleEnemyThreatCountermeasurePreviews == enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreatGame.visibleEnemyThreatIntentPreviews), "visible enemy threat countermeasures should expose the allied preview")
             require(!(enemyThreatGame.focusedEnemyThreatCountermeasureExecutionPreview?.isExecutable == true), "enemy threat countermeasure execution bridge should require focused advice")
+            require(enemyThreatGame.enemyThreatCountermeasureComparisonPreviews(for: enemyCountermeasures, limit: 0).isEmpty, "countermeasure comparison limit zero should return no previews")
+            require(enemyThreatGame.enemyThreatCountermeasureComparisonPreviews(for: enemyCountermeasures, limit: 1).isEmpty, "countermeasure comparison limit one should not invent adjacency")
+            let enemyCountermeasureComparisons = enemyThreatGame.enemyThreatCountermeasureComparisonPreviews(for: enemyCountermeasures, limit: 3)
+            require(enemyCountermeasureComparisons.count == max(0, min(enemyCountermeasures.count, 3) - 1), "countermeasure comparison count should match adjacent previews")
+            if enemyCountermeasures.count >= 2 {
+                guard let topComparison = enemyCountermeasureComparisons.first else {
+                    require(false, "countermeasure comparison should explain the top adjacent ordering")
+                    return
+                }
+                require(topComparison.leading.id == enemyCountermeasures[0].id, "countermeasure comparison should keep the top advice")
+                require(topComparison.trailing.id == enemyCountermeasures[1].id, "countermeasure comparison should compare against the second advice")
+                require(topComparison.factor.title == expectedCountermeasureComparisonTitle(leading: enemyCountermeasures[0], trailing: enemyCountermeasures[1]), "countermeasure comparison should match the existing sort dimension")
+                require(!topComparison.factor.value.isEmpty, "countermeasure comparison value should not be empty")
+                require(topComparison.summary.contains(topComparison.factor.detail), "countermeasure comparison summary should include the deciding detail")
+            }
+            requireTopComparison(
+                previews: [
+                    syntheticCountermeasure(canExecuteNow: false, score: 999),
+                    syntheticCountermeasure(canExecuteNow: true, score: 1)
+                ],
+                expectedKind: .availability,
+                expectedTitle: "可执行",
+                expectedValue: "是 > 否",
+                expectedDetail: "执行单位当前可行动"
+            )
+            requireTopComparison(
+                previews: [
+                    syntheticCountermeasure(willDestroyEnemy: false, score: 999),
+                    syntheticCountermeasure(willDestroyEnemy: true, score: 1)
+                ],
+                expectedKind: .decisiveStrike,
+                expectedTitle: "击毁",
+                expectedValue: "是 > 否",
+                expectedDetail: "可直接击毁威胁来源"
+            )
+            requireTopComparison(
+                previews: [
+                    syntheticCountermeasure(score: 80),
+                    syntheticCountermeasure(score: 120)
+                ],
+                expectedKind: .priorityScore,
+                expectedTitle: "优先值",
+                expectedValue: "120 > 80",
+                expectedDetail: "优先值 120 高于 80"
+            )
+            requireTopComparison(
+                previews: [
+                    syntheticCountermeasure(score: 100, routeCost: 5),
+                    syntheticCountermeasure(score: 100, routeCost: 1)
+                ],
+                expectedKind: .routeCost,
+                expectedTitle: "路线",
+                expectedValue: "1 < 5",
+                expectedDetail: "路线消耗 1 更低"
+            )
+            for countermeasure in enemyCountermeasures {
+                require(!countermeasure.priorityFactors.isEmpty, "countermeasure should expose priority factors")
+                require(countermeasure.prioritySummary.contains("优先值 \(countermeasure.score)"), "countermeasure priority summary should include score")
+                require(countermeasure.priorityFactors.contains { $0.kind == .priorityScore && $0.value == "\(countermeasure.score)" }, "countermeasure priority factors should expose score")
+            }
 
             guard let firstStrike = enemyCountermeasures.first(where: {
                 $0.kind == .firstStrike &&
@@ -978,6 +1103,7 @@ struct RulesSmokeTest {
             require(firstStrike.routeCost == nil, "first strike should not invent a movement route")
             require(!firstStrike.benefitSummary.isEmpty, "first strike should expose benefit summary")
             require(firstStrike.benefitMetrics.contains { $0.kind == .damage }, "first strike should expose damage benefit")
+            require(firstStrike.prioritySummary.contains(firstStrike.willDestroyEnemy ? "可击毁威胁" : firstStrike.kind.title), "first strike should explain its priority basis")
 
             guard let withdraw = enemyCountermeasures.first(where: {
                 $0.kind == .withdraw &&
@@ -996,6 +1122,7 @@ struct RulesSmokeTest {
             require((withdraw.projectedFriendlyHPAfterAction ?? 0) > 0, "withdraw should project surviving HP")
             require(withdraw.benefitMetrics.contains { $0.kind == .survival }, "withdraw should expose survival benefit")
             require(withdraw.benefitMetrics.contains { $0.kind == .route && $0.value == "\(withdrawRoute.totalCost)" }, "withdraw should expose route benefit")
+            require(withdraw.prioritySummary.contains("路线 \(withdrawRoute.totalCost)"), "withdraw should explain route priority")
 
             guard let objectiveDefense = enemyCountermeasures.first(where: {
                 $0.kind == .objectiveDefense &&
@@ -1007,6 +1134,7 @@ struct RulesSmokeTest {
             require(objectiveDefense.destination?.distance(to: HexCoordinate(q: 2, r: 2)) ?? Int.max <= 1, "objective defense should reach or screen the threatened objective")
             require(objectiveDefense.benefitMetrics.contains { $0.kind == .objective }, "objective defense should expose objective benefit")
             require(objectiveDefense.benefitMetrics.contains { $0.kind == .route }, "objective defense should expose route benefit")
+            require(objectiveDefense.prioritySummary.contains(objectiveDefense.kind.title), "objective defense should explain its priority basis")
 
             guard let reinforce = enemyCountermeasures.first(where: {
                 $0.kind == .reinforce &&
@@ -1018,6 +1146,7 @@ struct RulesSmokeTest {
             require(reinforce.projectedRecoveredHP == UnitKind.tank.reinforceAmount, "reinforce countermeasure should project recovery amount")
             require(reinforce.destination == withdrawUnit.position, "reinforce countermeasure should stay on the threatened objective")
             require(reinforce.benefitMetrics.contains { $0.kind == .recovery && $0.value.contains("\(reinforce.projectedRecoveredHP)") }, "reinforce should expose recovery benefit")
+            require(reinforce.prioritySummary.contains("当前位置"), "reinforce should explain current-position priority")
             require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "enemy threat countermeasures should not spend command points")
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "enemy threat countermeasures should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "enemy threat countermeasures should not mutate objectives")

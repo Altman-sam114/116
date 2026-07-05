@@ -1307,6 +1307,22 @@ final class GameState: ObservableObject {
         return uniqueCountermeasures
     }
 
+    func enemyThreatCountermeasureComparisonPreviews(
+        for previews: [EnemyThreatCountermeasurePreview]? = nil,
+        limit: Int = 3
+    ) -> [EnemyThreatCountermeasureComparisonPreview] {
+        guard limit > 1 else { return [] }
+
+        let sourcePreviews = previews ?? visibleEnemyThreatCountermeasurePreviews
+        let sortedPreviews = sourcePreviews.sorted(by: enemyThreatCountermeasureSort)
+        let comparedPreviews = Array(sortedPreviews.prefix(limit))
+        guard comparedPreviews.count > 1 else { return [] }
+
+        return zip(comparedPreviews, comparedPreviews.dropFirst()).map { pair in
+            enemyThreatCountermeasureComparisonPreview(leading: pair.0, trailing: pair.1)
+        }
+    }
+
     func flankingSupportUnits(attacker: BattleUnit, defender: BattleUnit) -> [BattleUnit] {
         units
             .filter { support in
@@ -2698,44 +2714,165 @@ final class GameState: ObservableObject {
         )
     }
 
+    private func enemyThreatCountermeasureComparisonPreview(
+        leading: EnemyThreatCountermeasurePreview,
+        trailing: EnemyThreatCountermeasurePreview
+    ) -> EnemyThreatCountermeasureComparisonPreview {
+        let factor = enemyThreatCountermeasureComparisonFactor(leading: leading, trailing: trailing)
+        return EnemyThreatCountermeasureComparisonPreview(
+            leading: leading,
+            trailing: trailing,
+            factor: factor,
+            summary: "\(leading.kind.title)领先\(trailing.kind.title)：\(factor.detail)"
+        )
+    }
+
+    private func enemyThreatCountermeasureComparisonFactor(
+        leading: EnemyThreatCountermeasurePreview,
+        trailing: EnemyThreatCountermeasurePreview
+    ) -> EnemyThreatCountermeasurePriorityFactor {
+        enemyThreatCountermeasureOrderingDecision(leading, trailing)?.factor ??
+            EnemyThreatCountermeasurePriorityFactor(
+                kind: .stableTieBreaker,
+                title: "类型",
+                value: "\(leading.kind.rawValue) = \(trailing.kind.rawValue)",
+                detail: "建议排序完全相同"
+            )
+    }
+
+    private func enemyThreatCountermeasureOrderingDecision(
+        _ left: EnemyThreatCountermeasurePreview,
+        _ right: EnemyThreatCountermeasurePreview
+    ) -> (leftComesFirst: Bool, factor: EnemyThreatCountermeasurePriorityFactor)? {
+        if left.canExecuteNow != right.canExecuteNow {
+            let leftComesFirst = left.canExecuteNow && !right.canExecuteNow
+            return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+                kind: .availability,
+                title: "可执行",
+                value: "\(availabilityText(left.canExecuteNow)) \(leftComesFirst ? ">" : "<") \(availabilityText(right.canExecuteNow))",
+                detail: leftComesFirst ? "执行单位当前可行动" : "右侧建议当前可行动"
+            ))
+        }
+        if left.willDestroyEnemy != right.willDestroyEnemy {
+            let leftComesFirst = left.willDestroyEnemy && !right.willDestroyEnemy
+            return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+                kind: .decisiveStrike,
+                title: "击毁",
+                value: "\(availabilityText(left.willDestroyEnemy)) \(leftComesFirst ? ">" : "<") \(availabilityText(right.willDestroyEnemy))",
+                detail: leftComesFirst ? "可直接击毁威胁来源" : "右侧建议可直接击毁威胁来源"
+            ))
+        }
+        if left.score != right.score {
+            let leftComesFirst = left.score > right.score
+            let winningScore = leftComesFirst ? left.score : right.score
+            let losingScore = leftComesFirst ? right.score : left.score
+            return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+                kind: .priorityScore,
+                title: "优先值",
+                value: "\(left.score) \(leftComesFirst ? ">" : "<") \(right.score)",
+                detail: "优先值 \(winningScore) 高于 \(losingScore)"
+            ))
+        }
+        if left.routeCost != right.routeCost {
+            let leftRouteCost = left.routeCost ?? 0
+            let rightRouteCost = right.routeCost ?? 0
+            let leftComesFirst = leftRouteCost < rightRouteCost
+            let winningRouteCost = leftComesFirst ? leftRouteCost : rightRouteCost
+            return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+                kind: .routeCost,
+                title: "路线",
+                value: "\(leftRouteCost) \(leftComesFirst ? "<" : ">") \(rightRouteCost)",
+                detail: "路线消耗 \(winningRouteCost) 更低"
+            ))
+        }
+        if left.actingUnitName != right.actingUnitName {
+            let leftComesFirst = left.actingUnitName < right.actingUnitName
+            return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+                kind: .actingUnit,
+                title: "执行单位",
+                value: "\(left.actingUnitName) \(leftComesFirst ? "<" : ">") \(right.actingUnitName)",
+                detail: "执行单位名称稳定排序更靠前"
+            ))
+        }
+        if left.targetName != right.targetName {
+            let leftComesFirst = left.targetName < right.targetName
+            return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+                kind: .target,
+                title: "目标",
+                value: "\(left.targetName) \(leftComesFirst ? "<" : ">") \(right.targetName)",
+                detail: "目标名称稳定排序更靠前"
+            ))
+        }
+        if left.destination?.id != right.destination?.id {
+            let leftDestination = left.destination?.id ?? ""
+            let rightDestination = right.destination?.id ?? ""
+            let leftComesFirst = leftDestination < rightDestination
+            return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+                kind: .destination,
+                title: "坐标",
+                value: "\(leftDestination.isEmpty ? "direct" : leftDestination) \(leftComesFirst ? "<" : ">") \(rightDestination.isEmpty ? "direct" : rightDestination)",
+                detail: "目的坐标稳定排序更靠前"
+            ))
+        }
+        if left.threatID != right.threatID {
+            let leftComesFirst = left.threatID < right.threatID
+            return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+                kind: .threat,
+                title: "威胁",
+                value: "\(left.threatID) \(leftComesFirst ? "<" : ">") \(right.threatID)",
+                detail: "威胁 ID 稳定排序更靠前"
+            ))
+        }
+        if left.threatTargetCoordinate.id != right.threatTargetCoordinate.id {
+            let leftComesFirst = left.threatTargetCoordinate.id < right.threatTargetCoordinate.id
+            return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+                kind: .threat,
+                title: "威胁坐标",
+                value: "\(left.threatTargetCoordinate.id) \(leftComesFirst ? "<" : ">") \(right.threatTargetCoordinate.id)",
+                detail: "受威胁坐标稳定排序更靠前"
+            ))
+        }
+        if left.actingUnitID?.uuidString != right.actingUnitID?.uuidString {
+            let leftActingID = left.actingUnitID?.uuidString ?? ""
+            let rightActingID = right.actingUnitID?.uuidString ?? ""
+            let leftComesFirst = leftActingID < rightActingID
+            return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+                kind: .stableTieBreaker,
+                title: "执行ID",
+                value: "\(leftActingID.isEmpty ? "none" : leftActingID) \(leftComesFirst ? "<" : ">") \(rightActingID.isEmpty ? "none" : rightActingID)",
+                detail: "执行单位 ID 稳定排序更靠前"
+            ))
+        }
+        if left.targetUnitID?.uuidString != right.targetUnitID?.uuidString {
+            let leftTargetID = left.targetUnitID?.uuidString ?? ""
+            let rightTargetID = right.targetUnitID?.uuidString ?? ""
+            let leftComesFirst = leftTargetID < rightTargetID
+            return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+                kind: .stableTieBreaker,
+                title: "目标ID",
+                value: "\(leftTargetID.isEmpty ? "none" : leftTargetID) \(leftComesFirst ? "<" : ">") \(rightTargetID.isEmpty ? "none" : rightTargetID)",
+                detail: "目标单位 ID 稳定排序更靠前"
+            ))
+        }
+        guard left.kind.rawValue != right.kind.rawValue else { return nil }
+        let leftComesFirst = left.kind.rawValue < right.kind.rawValue
+        return (leftComesFirst, EnemyThreatCountermeasurePriorityFactor(
+            kind: .stableTieBreaker,
+            title: "类型",
+            value: "\(left.kind.rawValue) \(leftComesFirst ? "<" : ">") \(right.kind.rawValue)",
+            detail: "建议类型稳定排序更靠前"
+        ))
+    }
+
+    private func availabilityText(_ value: Bool) -> String {
+        value ? "是" : "否"
+    }
+
     private func enemyThreatCountermeasureSort(
         _ left: EnemyThreatCountermeasurePreview,
         _ right: EnemyThreatCountermeasurePreview
     ) -> Bool {
-        if left.canExecuteNow != right.canExecuteNow {
-            return left.canExecuteNow && !right.canExecuteNow
-        }
-        if left.willDestroyEnemy != right.willDestroyEnemy {
-            return left.willDestroyEnemy && !right.willDestroyEnemy
-        }
-        if left.score != right.score {
-            return left.score > right.score
-        }
-        if left.routeCost != right.routeCost {
-            return (left.routeCost ?? 0) < (right.routeCost ?? 0)
-        }
-        if left.actingUnitName != right.actingUnitName {
-            return left.actingUnitName < right.actingUnitName
-        }
-        if left.targetName != right.targetName {
-            return left.targetName < right.targetName
-        }
-        if left.destination?.id != right.destination?.id {
-            return (left.destination?.id ?? "") < (right.destination?.id ?? "")
-        }
-        if left.threatID != right.threatID {
-            return left.threatID < right.threatID
-        }
-        if left.threatTargetCoordinate.id != right.threatTargetCoordinate.id {
-            return left.threatTargetCoordinate.id < right.threatTargetCoordinate.id
-        }
-        if left.actingUnitID?.uuidString != right.actingUnitID?.uuidString {
-            return (left.actingUnitID?.uuidString ?? "") < (right.actingUnitID?.uuidString ?? "")
-        }
-        if left.targetUnitID?.uuidString != right.targetUnitID?.uuidString {
-            return (left.targetUnitID?.uuidString ?? "") < (right.targetUnitID?.uuidString ?? "")
-        }
-        return left.kind.rawValue < right.kind.rawValue
+        enemyThreatCountermeasureOrderingDecision(left, right)?.leftComesFirst ?? false
     }
 
     private func coordinateText(_ coordinate: HexCoordinate) -> String {

@@ -918,6 +918,70 @@ struct EnemyThreatCountermeasurePreview: Identifiable, Equatable {
             .joined(separator: "，")
     }
 
+    var prioritySummary: String {
+        let impact = willDestroyEnemy ? "可击毁威胁" : "\(kind.title)"
+        let route = routeCost.map { "路线 \($0)" } ?? (kind == .firstStrike ? "无需移动" : "当前位置")
+        return "\(canExecuteNow ? "当前可执行" : "暂不可执行")，\(impact)，优先值 \(score)，\(route)"
+    }
+
+    var priorityFactors: [EnemyThreatCountermeasurePriorityFactor] {
+        var factors: [EnemyThreatCountermeasurePriorityFactor] = [
+            EnemyThreatCountermeasurePriorityFactor(
+                kind: .availability,
+                title: "可执行",
+                value: canExecuteNow ? "是" : "否",
+                detail: canExecuteNow ? "执行单位仍可行动" : "当前状态下不可执行"
+            ),
+            EnemyThreatCountermeasurePriorityFactor(
+                kind: .decisiveStrike,
+                title: "击毁",
+                value: willDestroyEnemy ? "是" : "否",
+                detail: willDestroyEnemy ? "可直接解除威胁来源" : "不以击毁作为首要优势"
+            ),
+            EnemyThreatCountermeasurePriorityFactor(
+                kind: .priorityScore,
+                title: "优先值",
+                value: "\(score)",
+                detail: "排序主分"
+            )
+        ]
+
+        factors.append(
+            EnemyThreatCountermeasurePriorityFactor(
+                kind: .routeCost,
+                title: "路线",
+                value: routeCost.map { "\($0)" } ?? "0",
+                detail: routeCost.map { "移动力消耗 \($0)" } ?? "无需额外移动"
+            )
+        )
+        factors.append(
+            EnemyThreatCountermeasurePriorityFactor(
+                kind: .actingUnit,
+                title: "执行",
+                value: actingUnitName,
+                detail: "稳定排序执行单位"
+            )
+        )
+        factors.append(
+            EnemyThreatCountermeasurePriorityFactor(
+                kind: .target,
+                title: "目标",
+                value: targetName,
+                detail: "稳定排序目标"
+            )
+        )
+        factors.append(
+            EnemyThreatCountermeasurePriorityFactor(
+                kind: .destination,
+                title: "坐标",
+                value: destinationText,
+                detail: "稳定排序位置"
+            )
+        )
+
+        return factors
+    }
+
     var benefitMetrics: [EnemyThreatCountermeasureBenefitMetric] {
         var metrics: [EnemyThreatCountermeasureBenefitMetric] = []
 
@@ -1069,6 +1133,42 @@ struct EnemyThreatCountermeasureBenefitMetric: Identifiable, Equatable {
 
     var id: String {
         "\(kind.rawValue)-\(title)-\(value)"
+    }
+}
+
+enum EnemyThreatCountermeasurePriorityFactorKind: String, Identifiable {
+    case availability
+    case decisiveStrike
+    case priorityScore
+    case routeCost
+    case actingUnit
+    case target
+    case destination
+    case threat
+    case stableTieBreaker
+
+    var id: String { rawValue }
+}
+
+struct EnemyThreatCountermeasurePriorityFactor: Identifiable, Equatable {
+    let kind: EnemyThreatCountermeasurePriorityFactorKind
+    let title: String
+    let value: String
+    let detail: String
+
+    var id: String {
+        "\(kind.rawValue)-\(title)-\(value)"
+    }
+}
+
+struct EnemyThreatCountermeasureComparisonPreview: Identifiable, Equatable {
+    let leading: EnemyThreatCountermeasurePreview
+    let trailing: EnemyThreatCountermeasurePreview
+    let factor: EnemyThreatCountermeasurePriorityFactor
+    let summary: String
+
+    var id: String {
+        "\(leading.id)-vs-\(trailing.id)-\(factor.id)"
     }
 }
 
