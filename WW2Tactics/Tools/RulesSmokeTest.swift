@@ -976,6 +976,8 @@ struct RulesSmokeTest {
             require(firstStrike.projectedDamage == firstStrikeCombat.damage, "first strike damage should match combat preview")
             require(firstStrike.projectedEnemyHPAfterDamage == firstStrikeCombat.defenderHPAfterAttack, "first strike HP projection should match combat preview")
             require(firstStrike.routeCost == nil, "first strike should not invent a movement route")
+            require(!firstStrike.benefitSummary.isEmpty, "first strike should expose benefit summary")
+            require(firstStrike.benefitMetrics.contains { $0.kind == .damage }, "first strike should expose damage benefit")
 
             guard let withdraw = enemyCountermeasures.first(where: {
                 $0.kind == .withdraw &&
@@ -992,6 +994,8 @@ struct RulesSmokeTest {
             }
             require(withdraw.routeCost == withdrawRoute.totalCost, "withdraw route cost should match movement route")
             require((withdraw.projectedFriendlyHPAfterAction ?? 0) > 0, "withdraw should project surviving HP")
+            require(withdraw.benefitMetrics.contains { $0.kind == .survival }, "withdraw should expose survival benefit")
+            require(withdraw.benefitMetrics.contains { $0.kind == .route && $0.value == "\(withdrawRoute.totalCost)" }, "withdraw should expose route benefit")
 
             guard let objectiveDefense = enemyCountermeasures.first(where: {
                 $0.kind == .objectiveDefense &&
@@ -1001,6 +1005,8 @@ struct RulesSmokeTest {
                 return
             }
             require(objectiveDefense.destination?.distance(to: HexCoordinate(q: 2, r: 2)) ?? Int.max <= 1, "objective defense should reach or screen the threatened objective")
+            require(objectiveDefense.benefitMetrics.contains { $0.kind == .objective }, "objective defense should expose objective benefit")
+            require(objectiveDefense.benefitMetrics.contains { $0.kind == .route }, "objective defense should expose route benefit")
 
             guard let reinforce = enemyCountermeasures.first(where: {
                 $0.kind == .reinforce &&
@@ -1011,6 +1017,7 @@ struct RulesSmokeTest {
             }
             require(reinforce.projectedRecoveredHP == UnitKind.tank.reinforceAmount, "reinforce countermeasure should project recovery amount")
             require(reinforce.destination == withdrawUnit.position, "reinforce countermeasure should stay on the threatened objective")
+            require(reinforce.benefitMetrics.contains { $0.kind == .recovery && $0.value.contains("\(reinforce.projectedRecoveredHP)") }, "reinforce should expose recovery benefit")
             require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "enemy threat countermeasures should not spend command points")
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "enemy threat countermeasures should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "enemy threat countermeasures should not mutate objectives")

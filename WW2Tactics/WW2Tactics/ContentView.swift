@@ -4827,7 +4827,7 @@ private struct EnemyThreatCountermeasurePanel: View {
     ) -> String {
         let focused = isFocused ? "，当前预览" : ""
         let routeText = preview.routeCost.map { "，路线消耗 \($0)" } ?? ""
-        return "\(preview.kind.title)\(focused)，\(preview.actingUnitName) 对 \(preview.targetName)\(routeText)，\(preview.reason)"
+        return "\(preview.kind.title)\(focused)，\(preview.actingUnitName) 对 \(preview.targetName)\(routeText)，收益：\(preview.benefitSummary)，\(preview.reason)"
     }
 }
 
@@ -4962,6 +4962,13 @@ private struct EnemyThreatCountermeasureRow: View {
                 CombatResultMetric(title: "路线", value: routeMetricText, color: preview.routeCost == nil ? .cyan : .orange)
             }
 
+            HStack(spacing: 7) {
+                ForEach(Array(preview.benefitMetrics.prefix(3))) { metric in
+                    CombatResultMetric(title: metric.title, value: metric.value, color: benefitColor(for: metric.kind))
+                        .accessibilityLabel("\(metric.title)\(metric.value)，\(metric.detail)")
+                }
+            }
+
             Label(preview.reason, systemImage: detailIcon)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.68))
@@ -5029,6 +5036,23 @@ private struct EnemyThreatCountermeasureRow: View {
     private var routeMetricText: String {
         guard let routeCost = preview.routeCost else { return preview.kind == .firstStrike ? "射程" : "即刻" }
         return "\(routeCost)"
+    }
+
+    private func benefitColor(for kind: EnemyThreatCountermeasureBenefitKind) -> Color {
+        switch kind {
+        case .damage:
+            return .red
+        case .survival:
+            return .green
+        case .objective:
+            return .yellow
+        case .recovery:
+            return .green
+        case .route:
+            return .orange
+        case .priority:
+            return .white.opacity(0.82)
+        }
     }
 
     private var detailIcon: String {

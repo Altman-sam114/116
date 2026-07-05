@@ -817,3 +817,41 @@
 
 - 执行桥接预览仍是只读入口提示，不会让反制建议行直接执行移动、攻击或整补。
 - 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件或回合流程。
+
+### v1.15 / 反制建议收益解释
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `EnemyThreatCountermeasureBenefitKind` 和 `EnemyThreatCountermeasureBenefitMetric`，把反制建议已有字段派生为战果、生存、守点、恢复、路线和优先值等结构化收益解释。
+- `EnemyThreatCountermeasurePreview` 新增 `benefitMetrics` 和 `benefitSummary` computed properties，复用既有 `projectedDamage`、`projectedEnemyHPAfterDamage`、`projectedFriendlyHPAfterAction`、`projectedRecoveredHP`、`destination`、`routeCost` 和 `score`，不重新计算规则。
+- `ContentView` 在反制建议行内显示紧凑收益指标，并把收益摘要加入无障碍 label；建议行仍只负责聚焦，不执行移动、攻击或整补。
+- 补充 XCTest 和规则 smoke test，覆盖抢先打击、撤出危险区、据点防守、整补支撑四类建议的收益解释。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.15（反制建议收益解释）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions run、artifact 名称和 Agent C 结果包核对待本轮 push 后补充。
+
+遗留事项：
+
+- 收益解释是只读扫描辅助，不改变反制建议排序、score 公式或执行桥接。
+- 本轮不改变 AI、战斗数值、移动规则、敌方意图/反制建议生成算法、整补成本、胜负条件或回合流程。

@@ -1509,6 +1509,9 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(firstStrike.willDestroyEnemy, firstStrikeCombat.willDestroyDefender)
         XCTAssertNil(firstStrike.destination)
         XCTAssertNil(firstStrike.routeCost)
+        XCTAssertFalse(firstStrike.benefitSummary.isEmpty)
+        let firstStrikeDamageBenefit = try XCTUnwrap(firstStrike.benefitMetrics.first { $0.kind == .damage })
+        XCTAssertEqual(firstStrikeDamageBenefit.value, firstStrike.willDestroyEnemy ? "击毁" : "-\(firstStrike.projectedDamage)")
 
         let withdraw = try XCTUnwrap(countermeasures.first {
             $0.kind == .withdraw &&
@@ -1520,6 +1523,11 @@ final class GameStateTests: XCTestCase {
         let tankRoute = try XCTUnwrap(game.movementRoute(for: threatenedTank, to: withdrawDestination))
         XCTAssertEqual(withdrawRouteCost, tankRoute.totalCost)
         XCTAssertGreaterThan(withdraw.projectedFriendlyHPAfterAction ?? 0, 0)
+        XCTAssertFalse(withdraw.benefitSummary.isEmpty)
+        let withdrawSurvivalBenefit = try XCTUnwrap(withdraw.benefitMetrics.first { $0.kind == .survival })
+        let withdrawRouteBenefit = try XCTUnwrap(withdraw.benefitMetrics.first { $0.kind == .route })
+        XCTAssertTrue(withdrawSurvivalBenefit.value.contains("\(withdraw.projectedFriendlyHPAfterAction ?? 0)"))
+        XCTAssertEqual(withdrawRouteBenefit.value, "\(withdrawRouteCost)")
 
         let objectiveDefense = try XCTUnwrap(countermeasures.first {
             $0.kind == .objectiveDefense &&
@@ -1528,6 +1536,11 @@ final class GameStateTests: XCTestCase {
         let objectiveDestination = try XCTUnwrap(objectiveDefense.destination)
         XCTAssertLessThanOrEqual(objectiveDestination.distance(to: HexCoordinate(q: 2, r: 2)), 1)
         XCTAssertGreaterThanOrEqual(objectiveDefense.routeCost ?? 0, 0)
+        XCTAssertFalse(objectiveDefense.benefitSummary.isEmpty)
+        let objectiveBenefit = try XCTUnwrap(objectiveDefense.benefitMetrics.first { $0.kind == .objective })
+        let objectiveRouteBenefit = try XCTUnwrap(objectiveDefense.benefitMetrics.first { $0.kind == .route })
+        XCTAssertEqual(objectiveBenefit.value, objectiveDestination == objectiveDefense.threatTargetCoordinate ? "进驻" : "封堵")
+        XCTAssertEqual(objectiveRouteBenefit.value, "\(objectiveDefense.routeCost ?? 0)")
 
         let reinforce = try XCTUnwrap(countermeasures.first {
             $0.kind == .reinforce &&
@@ -1537,6 +1550,11 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(reinforce.projectedFriendlyHPAfterAction, threatenedTank.hp + UnitKind.tank.reinforceAmount)
         XCTAssertEqual(reinforce.destination, threatenedTank.position)
         XCTAssertNil(reinforce.routeCost)
+        XCTAssertFalse(reinforce.benefitSummary.isEmpty)
+        let reinforceRecoveryBenefit = try XCTUnwrap(reinforce.benefitMetrics.first { $0.kind == .recovery })
+        let reinforceSurvivalBenefit = try XCTUnwrap(reinforce.benefitMetrics.first { $0.kind == .survival })
+        XCTAssertEqual(reinforceRecoveryBenefit.value, "+\(reinforce.projectedRecoveredHP)")
+        XCTAssertTrue(reinforceSurvivalBenefit.value.contains("\(reinforce.projectedFriendlyHPAfterAction ?? 0)"))
 
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)

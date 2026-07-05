@@ -911,6 +911,165 @@ struct EnemyThreatCountermeasurePreview: Identifiable, Equatable {
         guard let destination else { return "当前位置" }
         return "q\(destination.q),r\(destination.r)"
     }
+
+    var benefitSummary: String {
+        benefitMetrics
+            .map { "\($0.title)：\($0.value)" }
+            .joined(separator: "，")
+    }
+
+    var benefitMetrics: [EnemyThreatCountermeasureBenefitMetric] {
+        var metrics: [EnemyThreatCountermeasureBenefitMetric] = []
+
+        switch kind {
+        case .firstStrike:
+            metrics.append(
+                EnemyThreatCountermeasureBenefitMetric(
+                    kind: .damage,
+                    title: "战果",
+                    value: willDestroyEnemy ? "击毁" : "-\(projectedDamage)",
+                    detail: projectedEnemyHPAfterDamage.map { "敌剩余 \($0)" } ?? "压低威胁来源"
+                )
+            )
+            if let projectedEnemyHPAfterDamage, !willDestroyEnemy {
+                metrics.append(
+                    EnemyThreatCountermeasureBenefitMetric(
+                        kind: .survival,
+                        title: "敌耐久",
+                        value: "\(projectedEnemyHPAfterDamage)",
+                        detail: "打击后剩余耐久"
+                    )
+                )
+            }
+            if let projectedFriendlyHPAfterAction {
+                metrics.append(
+                    EnemyThreatCountermeasureBenefitMetric(
+                        kind: .survival,
+                        title: "反击后",
+                        value: "\(projectedFriendlyHPAfterAction)",
+                        detail: "执行单位预计耐久"
+                    )
+                )
+            }
+        case .withdraw:
+            if let projectedFriendlyHPAfterAction {
+                metrics.append(
+                    EnemyThreatCountermeasureBenefitMetric(
+                        kind: .survival,
+                        title: "保留",
+                        value: "HP \(projectedFriendlyHPAfterAction)",
+                        detail: "撤出后预计耐久"
+                    )
+                )
+            }
+            metrics.append(
+                EnemyThreatCountermeasureBenefitMetric(
+                    kind: .objective,
+                    title: "目的",
+                    value: destinationText,
+                    detail: "远离当前威胁"
+                )
+            )
+            if let routeCost {
+                metrics.append(
+                    EnemyThreatCountermeasureBenefitMetric(
+                        kind: .route,
+                        title: "路线",
+                        value: "\(routeCost)",
+                        detail: "移动力消耗"
+                    )
+                )
+            }
+        case .objectiveDefense:
+            let action = destination == threatTargetCoordinate ? "进驻" : "封堵"
+            metrics.append(
+                EnemyThreatCountermeasureBenefitMetric(
+                    kind: .objective,
+                    title: "守点",
+                    value: action,
+                    detail: targetName
+                )
+            )
+            metrics.append(
+                EnemyThreatCountermeasureBenefitMetric(
+                    kind: .objective,
+                    title: "目的",
+                    value: destinationText,
+                    detail: "防守位置"
+                )
+            )
+            if let routeCost {
+                metrics.append(
+                    EnemyThreatCountermeasureBenefitMetric(
+                        kind: .route,
+                        title: "路线",
+                        value: "\(routeCost)",
+                        detail: "移动力消耗"
+                    )
+                )
+            }
+        case .reinforce:
+            metrics.append(
+                EnemyThreatCountermeasureBenefitMetric(
+                    kind: .recovery,
+                    title: "恢复",
+                    value: "+\(projectedRecoveredHP)",
+                    detail: "主动整补耐久"
+                )
+            )
+            if let projectedFriendlyHPAfterAction {
+                metrics.append(
+                    EnemyThreatCountermeasureBenefitMetric(
+                        kind: .survival,
+                        title: "整补后",
+                        value: "HP \(projectedFriendlyHPAfterAction)",
+                        detail: "承受威胁前耐久"
+                    )
+                )
+            }
+            metrics.append(
+                EnemyThreatCountermeasureBenefitMetric(
+                    kind: .objective,
+                    title: "位置",
+                    value: destinationText,
+                    detail: "己方据点整补"
+                )
+            )
+        }
+
+        metrics.append(
+            EnemyThreatCountermeasureBenefitMetric(
+                kind: .priority,
+                title: "优先",
+                value: "\(score)",
+                detail: "排序参考值"
+            )
+        )
+
+        return metrics
+    }
+}
+
+enum EnemyThreatCountermeasureBenefitKind: String, Identifiable {
+    case damage
+    case survival
+    case objective
+    case recovery
+    case route
+    case priority
+
+    var id: String { rawValue }
+}
+
+struct EnemyThreatCountermeasureBenefitMetric: Identifiable, Equatable {
+    let kind: EnemyThreatCountermeasureBenefitKind
+    let title: String
+    let value: String
+    let detail: String
+
+    var id: String {
+        "\(kind.rawValue)-\(title)-\(value)"
+    }
 }
 
 enum EnemyThreatCountermeasureExecutionKind: String, Identifiable {
