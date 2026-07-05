@@ -1117,3 +1117,41 @@
 
 - 本轮只显示最近一次 AI 回合的紧凑地图复盘标记，不新增逐帧播放、动画、镜头移动、音效或真实美术资产。
 - 本轮不改变 AI 决策、战斗数值、移动规则、整补成本、部署逻辑、战术命令、胜负条件或反制建议语义。
+
+### v1.22 / AI 直取据点优先
+
+日期：2026-07-05
+
+核心变更：
+
+- `runAxisAI()` 在后勤、可击毁攻击和战术命令之后、普通非击杀攻击之前，新增直取可达非己方据点的决策分支。
+- 新增 `bestImmediateObjectiveCaptureDestination(for:)`，只从本回合可达、未被占据、非己方的据点中选择目的地，敌方据点优先于中立据点，并保持坐标稳定排序。
+- 新增 `resolveAxisPostMoveAction(unitID:)` 复用移动后攻击或待命收尾，避免直取据点引入第二套行动完成语义。
+- 直取据点仍走现有 `move`、`updateObjectiveControl()` 和 `applyObjectiveCaptureReward()` 路径，因此会产生占点奖励、AI summary、`move -> objectiveCapture` timeline 和 v1.21 地图复盘标记。
+- 补充 XCTest 和规则 smoke test，覆盖“无击杀机会时先占点而非普通攻击”、目标 HP 不变、据点归属变化、timeline 顺序和地图复盘标记；既有机动追击测试继续覆盖可击毁目标优先。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.22（AI直取据点优先）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- 云端 GitHub Actions artifact：待本轮 push 后由 Agent C 下载并核对。
+
+遗留事项：
+
+- 本轮只增加本回合可达据点的直接优先级，不新增全局目标分配、概率 AI、撤退 AI、生产队列或复杂战略规划。
+- 本轮不改变伤害、移动、补给、士气、战术命令、部署、整补、胜负和反制建议语义。

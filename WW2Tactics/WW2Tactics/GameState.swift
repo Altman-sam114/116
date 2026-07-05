@@ -4427,6 +4427,15 @@ final class GameState: ObservableObject {
                 continue
             }
 
+            if let destination = bestImmediateObjectiveCaptureDestination(for: unit) {
+                move(unitID: unit.id, to: destination)
+                if winner != nil {
+                    break
+                }
+                resolveAxisPostMoveAction(unitID: unit.id)
+                continue
+            }
+
             if let target = bestAttackTarget(for: unit) {
                 attack(attackerID: unit.id, targetID: target.id)
                 continue
@@ -4440,17 +4449,7 @@ final class GameState: ObservableObject {
                 break
             }
 
-            if let refreshed = scenario.units.first(where: { $0.id == unit.id }),
-               let target = bestAttackTarget(for: refreshed) {
-                attack(attackerID: refreshed.id, targetID: target.id)
-                advanceAfterManeuverPursuitIfPossible(unitID: refreshed.id)
-            } else {
-                updateUnit(id: unit.id) { axisUnit in
-                    axisUnit.hasMoved = true
-                    axisUnit.hasAttacked = true
-                    axisUnit.isEntrenched = true
-                }
-            }
+            resolveAxisPostMoveAction(unitID: unit.id)
         }
     }
 
@@ -4557,6 +4556,20 @@ final class GameState: ObservableObject {
         move(unitID: unit.id, to: destination)
     }
 
+    private func resolveAxisPostMoveAction(unitID: BattleUnit.ID) {
+        if let refreshed = scenario.units.first(where: { $0.id == unitID }),
+           let target = bestAttackTarget(for: refreshed) {
+            attack(attackerID: refreshed.id, targetID: target.id)
+            advanceAfterManeuverPursuitIfPossible(unitID: refreshed.id)
+        } else {
+            updateUnit(id: unitID) { axisUnit in
+                axisUnit.hasMoved = true
+                axisUnit.hasAttacked = true
+                axisUnit.isEntrenched = true
+            }
+        }
+    }
+
     private func axisReinforcementCandidate() -> BattleUnit? {
         units
             .filter { $0.faction == .axis && canReinforce($0) }
@@ -4581,6 +4594,36 @@ final class GameState: ObservableObject {
             }
         guard let kind = affordableKinds.first else { return }
         deploy(kind: kind, at: site.coordinate)
+    }
+
+    private func bestImmediateObjectiveCaptureDestination(for unit: BattleUnit) -> HexCoordinate? {
+        guard unit.canMove else { return nil }
+
+        return reachableTiles(for: unit)
+            .compactMap { coordinate -> (coordinate: HexCoordinate, priority: Int, distance: Int)? in
+                guard self.unit(at: coordinate) == nil,
+                      let tile = tile(at: coordinate),
+                      tile.isObjective,
+                      tile.owner != unit.faction else { return nil }
+
+                let priority = tile.owner == nil ? 1 : 2
+                return (
+                    coordinate,
+                    priority,
+                    nearestAdvanceTargetDistance(from: coordinate, for: unit)
+                )
+            }
+            .sorted { left, right in
+                if left.priority != right.priority {
+                    return left.priority > right.priority
+                }
+                if left.distance != right.distance {
+                    return left.distance < right.distance
+                }
+                return left.coordinate.id < right.coordinate.id
+            }
+            .first?
+            .coordinate
     }
 
     private func bestAdvanceDestination(for unit: BattleUnit) -> HexCoordinate? {

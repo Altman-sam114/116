@@ -166,7 +166,7 @@
 
 1. 玩家结束回合调用 `endTurn()`。
 2. 轴心国重置行动、获得指令点，`beginAIPhaseRecording(for: .axis)` 采样 AI 行动前的指令点、单位 HP/存活和据点归属。
-3. 执行 `runAxisAI()`；AI 优先整补/增援/战术命令，然后移动接敌或攻击。成功整补、部署、战术命令、攻击和移动会在规则成功路径记录动作计数，并追加结构化 `AIPhaseTimelineEvent`。
+3. 执行 `runAxisAI()`；AI 优先整补/增援，随后按可击毁攻击、战术命令、直取可达非己方据点、普通攻击、推进接敌的顺序行动。成功整补、部署、战术命令、攻击和移动会在规则成功路径记录动作计数，并追加结构化 `AIPhaseTimelineEvent`。
 4. `finishAIPhaseRecording()` 用前后状态差异生成 `latestAIPhaseSummary`：指令点变化、动作计数、占点、歼灭、己方损失、对敌伤害、己方承伤和真实成功动作时间线。被动据点休整、预览和失败动作不计入主动动作，也不会生成时间线事件。
 5. 若玩家回合结束前存在最近一次反制建议执行回放，`GameState` 会在清理即时回放前保存单位 HP/位置、威胁来源和据点归属基线，并在 `finishAIPhaseRecording()` 后、盟军新回合休整前发布 `latestEnemyThreatCountermeasureFollowUpResult`。
 6. 盟军新回合重置行动、获得指令点，自动选择可行动单位；AI 回合摘要、行动时间线、由时间线派生的地图复盘标记和反制建议敌方回合复核保留在侧栏/地图，直到重开/切战役、下一次 AI 回合无基线清理或新的反制执行覆盖。
@@ -202,7 +202,7 @@
 2. `latestAIPhaseSummary` 只由 `GameState` 在 `endTurn()` 包裹 `runAxisAI()` 时生成；玩家聚焦、预览和失败命令不会生成摘要。
 3. `AIPhaseTimelineEvent` 记录真实成功动作的顺序号、阵营、回合、动作类型、行动单位、目标单位、起终点、战术命令、部署兵种、据点、伤害、反击、恢复、指令点消耗/奖励、剩余指令点、击毁和占点标记。
 4. 摘要的动作计数来自真实成功路径，战损和占点来自 AI phase 前后状态差异；占点作为结果事件写入时间线，但不增加 `totalActions`。
-5. 移动导致占点时，时间线顺序为移动事件先写入，再由 `updateObjectiveControl()` 写入占点事件；机动追击场景可形成 `attack -> move -> objectiveCapture`。
+5. 移动导致占点时，时间线顺序为移动事件先写入，再由 `updateObjectiveControl()` 写入占点事件；直取据点场景形成 `move -> objectiveCapture`，机动追击场景可形成 `attack -> move -> objectiveCapture`。
 6. `latestAIPhaseMapMarkers` 是从 `latestAIPhaseSummary.timeline` 纯派生的只读地图复盘标记，不新增独立 `@Published` 状态。移动输出起点/终点，攻击和战术命令输出行动单位/目标，部署和整补输出目的坐标，占点输出据点坐标；缺少坐标的事件会被容忍，不由 View 反推。
 7. 侧栏展示顺序仍以普通攻击、战术命令、据点占领、部署、整补等单项结果卡优先，其后显示 AI 回合摘要卡和最多 5 条行动时间线，再显示 battleLog；地图将同坐标 AI 复盘标记聚合成紧凑徽标，并把复盘内容加入 tile 无障碍文案。
 8. `loadScenario()`、重开和切换战役会清理 `latestAIPhaseSummary` 以及内部 AI phase 记录器和 timeline 缓冲；复盘标记随 summary 变空而变空。
@@ -260,7 +260,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、敌方威胁意图预判、敌方意图反制建议、反制建议收益解释、排序对比解释、执行前后预计对照、反制建议点选聚焦、地图标记、执行入口桥接预览、执行回放、敌方回合复核、部署/整补结果摘要、AI 回合行动摘要、行动时间线和地图复盘标记：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、敌方威胁意图预判、敌方意图反制建议、反制建议收益解释、排序对比解释、执行前后预计对照、反制建议点选聚焦、地图标记、执行入口桥接预览、执行回放、敌方回合复核、部署/整补结果摘要、AI 直取据点优先、AI 回合行动摘要、行动时间线和地图复盘标记：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

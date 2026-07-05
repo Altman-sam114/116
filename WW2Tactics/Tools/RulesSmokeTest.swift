@@ -1881,6 +1881,63 @@ struct RulesSmokeTest {
                 )
             }
 
+            let axisImmediateObjectiveGame = GameState(
+                scenario: axisImmediateObjectiveCaptureScenario(),
+                commandPoints: [.allies: 6, .axis: 0]
+            )
+            guard let axisImmediateInfantry = axisImmediateObjectiveGame.units.first(where: { $0.name == "夺点步兵" }),
+                  let axisImmediateScreen = axisImmediateObjectiveGame.units.first(where: { $0.name == "牵制守军" }) else {
+                require(false, "axis immediate objective capture test units should exist")
+                return
+            }
+            let axisImmediateCaptureCoordinate = HexCoordinate(q: 0, r: 0)
+            axisImmediateObjectiveGame.endTurn()
+            if axisImmediateObjectiveGame.winner == nil {
+                guard let axisImmediateInfantryAfterAI = axisImmediateObjectiveGame.units.first(where: { $0.id == axisImmediateInfantry.id }),
+                      let axisImmediateScreenAfterAI = axisImmediateObjectiveGame.units.first(where: { $0.id == axisImmediateScreen.id }) else {
+                    require(false, "axis immediate objective capture units should survive AI turn")
+                    return
+                }
+                require(axisImmediateInfantryAfterAI.position == axisImmediateCaptureCoordinate, "axis AI should capture reachable objective before nonlethal attack")
+                require(axisImmediateObjectiveGame.tile(at: axisImmediateCaptureCoordinate)?.owner == .axis, "axis immediate objective should change owner")
+                require(axisImmediateScreenAfterAI.hp == axisImmediateScreen.hp, "axis AI should skip nonlethal attack when immediate objective is reachable")
+                guard let axisImmediatePhaseSummary = axisImmediateObjectiveGame.latestAIPhaseSummary else {
+                    require(false, "axis immediate objective turn should publish AI phase summary")
+                    return
+                }
+                require(axisImmediatePhaseSummary.moves == 1, "axis immediate objective summary should count one move")
+                require(axisImmediatePhaseSummary.attacks == 0, "axis immediate objective summary should not count skipped nonlethal attack")
+                require(axisImmediatePhaseSummary.objectivesCaptured == 1, "axis immediate objective summary should count captured objective")
+                requireSequentialTimelineOrders(axisImmediatePhaseSummary.timeline, "axis immediate objective timeline should use sequential orders")
+                guard let axisImmediateMoveIndex = axisImmediatePhaseSummary.timeline.firstIndex(where: { $0.kind == .move }),
+                      let axisImmediateCaptureIndex = axisImmediatePhaseSummary.timeline.firstIndex(where: { $0.kind == .objectiveCapture }) else {
+                    require(false, "axis immediate objective timeline should include move and capture")
+                    return
+                }
+                require(axisImmediateMoveIndex < axisImmediateCaptureIndex, "axis immediate objective timeline should move before capture")
+                require(axisImmediatePhaseSummary.timeline[axisImmediateMoveIndex].to == axisImmediateCaptureCoordinate, "axis immediate objective move should end at objective")
+                require(axisImmediatePhaseSummary.timeline[axisImmediateCaptureIndex].objectiveName == "前沿村镇", "axis immediate objective capture should record objective name")
+                require(axisImmediatePhaseSummary.timeline[axisImmediateCaptureIndex].commandPointReward == 3, "axis immediate objective capture should record reward")
+                let axisImmediateMarkers = axisImmediateObjectiveGame.latestAIPhaseMapMarkers
+                requireAIPhaseMapMarkersMatchSummary(axisImmediateMarkers, axisImmediatePhaseSummary, "axis immediate objective map replay markers")
+                requireAIPhaseMapMarker(
+                    axisImmediateMarkers,
+                    kind: .move,
+                    role: .destination,
+                    coordinate: axisImmediateCaptureCoordinate,
+                    order: axisImmediatePhaseSummary.timeline[axisImmediateMoveIndex].order,
+                    "axis immediate objective map replay should mark move destination"
+                )
+                requireAIPhaseMapMarker(
+                    axisImmediateMarkers,
+                    kind: .objectiveCapture,
+                    role: .objective,
+                    coordinate: axisImmediateCaptureCoordinate,
+                    order: axisImmediatePhaseSummary.timeline[axisImmediateCaptureIndex].order,
+                    "axis immediate objective map replay should mark captured objective"
+                )
+            }
+
             let objectiveRewardGame = GameState(
                 scenario: objectiveRewardScenario(),
                 commandPoints: [.allies: 4, .axis: 6]
@@ -3400,6 +3457,57 @@ struct RulesSmokeTest {
                     faction: .axis,
                     position: HexCoordinate(q: 2, r: 0),
                     hp: UnitKind.tank.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func axisImmediateObjectiveCaptureScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<5 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "前沿村镇"
+                tile.owner = .allies
+            }
+            if q == 4 {
+                tile.objectiveName = "后方据点"
+                tile.owner = .allies
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "axis-immediate-objective-capture-test",
+            name: "轴心直取据点测试",
+            year: "1944",
+            briefing: "测试轴心 AI 在无击杀机会时优先夺取可达据点。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "夺点步兵",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "牵制守军",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 2, r: 0),
+                    hp: UnitKind.infantry.baseHP,
                     commander: nil
                 )
             ],

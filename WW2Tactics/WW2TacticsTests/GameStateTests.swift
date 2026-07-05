@@ -805,6 +805,62 @@ final class GameStateTests: XCTestCase {
         }
     }
 
+    func testAxisAICapturesReachableObjectiveBeforeNonLethalAttack() throws {
+        let game = GameState(
+            scenario: Self.axisImmediateObjectiveCaptureScenario(),
+            commandPoints: [.allies: 6, .axis: 0]
+        )
+        let axisInfantry = try XCTUnwrap(game.units.first { $0.name == "夺点步兵" })
+        let alliedScreen = try XCTUnwrap(game.units.first { $0.name == "牵制守军" })
+        let captureCoordinate = HexCoordinate(q: 0, r: 0)
+
+        game.endTurn()
+
+        XCTAssertNil(game.winner)
+        let infantryAfterAI = try XCTUnwrap(game.units.first { $0.id == axisInfantry.id })
+        let screenAfterAI = try XCTUnwrap(game.units.first { $0.id == alliedScreen.id })
+        XCTAssertEqual(infantryAfterAI.position, captureCoordinate)
+        XCTAssertEqual(game.tile(at: captureCoordinate)?.owner, .axis)
+        XCTAssertEqual(screenAfterAI.hp, alliedScreen.hp)
+
+        let summary = try XCTUnwrap(game.latestAIPhaseSummary)
+        XCTAssertEqual(summary.moves, 1)
+        XCTAssertEqual(summary.attacks, 0)
+        XCTAssertEqual(summary.objectivesCaptured, 1)
+        XCTAssertEqual(summary.totalActions, 1)
+
+        let moveIndex = try XCTUnwrap(summary.timeline.firstIndex { $0.kind == .move })
+        let captureIndex = try XCTUnwrap(summary.timeline.firstIndex { $0.kind == .objectiveCapture })
+        XCTAssertLessThan(moveIndex, captureIndex)
+        XCTAssertEqual(summary.timeline[moveIndex].actorName, "夺点步兵")
+        XCTAssertEqual(summary.timeline[moveIndex].from, HexCoordinate(q: 1, r: 0))
+        XCTAssertEqual(summary.timeline[moveIndex].to, captureCoordinate)
+
+        let captureEvent = summary.timeline[captureIndex]
+        XCTAssertEqual(captureEvent.actorName, "夺点步兵")
+        XCTAssertEqual(captureEvent.objectiveName, "前沿村镇")
+        XCTAssertEqual(captureEvent.previousOwner, .allies)
+        XCTAssertEqual(captureEvent.newOwner, .axis)
+        XCTAssertEqual(captureEvent.commandPointReward, 3)
+
+        let markers = game.latestAIPhaseMapMarkers
+        assertAIPhaseMapMarkers(markers, match: summary)
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .move,
+            role: .destination,
+            coordinate: captureCoordinate,
+            order: summary.timeline[moveIndex].order
+        )
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .objectiveCapture,
+            role: .objective,
+            coordinate: captureCoordinate,
+            order: captureEvent.order
+        )
+    }
+
     func testAxisAIPhaseSummaryRecordsTacticalCommand() throws {
         let game = GameState(
             scenario: Self.axisTacticalCommandScenario(),
@@ -4715,6 +4771,57 @@ final class GameStateTests: XCTestCase {
                     faction: .axis,
                     position: HexCoordinate(q: 2, r: 0),
                     hp: UnitKind.tank.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func axisImmediateObjectiveCaptureScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<5 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .road
+            )
+            if q == 0 {
+                tile.objectiveName = "前沿村镇"
+                tile.owner = .allies
+            }
+            if q == 4 {
+                tile.objectiveName = "后方据点"
+                tile.owner = .allies
+            }
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "axis-immediate-objective-capture-test",
+            name: "轴心直取据点测试",
+            year: "1944",
+            briefing: "测试轴心 AI 在无击杀机会时优先夺取可达据点。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 5,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "夺点步兵",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 1, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "牵制守军",
+                    kind: .infantry,
+                    faction: .allies,
+                    position: HexCoordinate(q: 2, r: 0),
+                    hp: UnitKind.infantry.baseHP,
                     commander: nil
                 )
             ],
