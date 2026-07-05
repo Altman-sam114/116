@@ -1562,6 +1562,10 @@ private struct HexMapView: View {
             grouping: game.focusedEnemyThreatCountermeasureMapMarkers,
             by: \.coordinate
         )
+        let aiPhaseMarkersByCoordinate = Dictionary(
+            grouping: game.latestAIPhaseMapMarkers,
+            by: \.coordinate
+        )
         let contentWidth = CGFloat(game.scenario.mapColumns) * tileWidth * 0.78 + tileWidth
         let contentHeight = CGFloat(game.scenario.mapRows) * tileHeight * 0.78 + tileHeight
 
@@ -1605,7 +1609,8 @@ private struct HexMapView: View {
                     isGuidedObjective: guidedObjectiveCoordinate == tile.coordinate,
                     isLatestObjectiveCapture: latestCaptureCoordinate == tile.coordinate,
                     isEnemyThreatIntentTarget: enemyIntentTargets.contains(tile.coordinate),
-                    enemyThreatCountermeasureMarkers: countermeasureMarkersByCoordinate[tile.coordinate] ?? []
+                    enemyThreatCountermeasureMarkers: countermeasureMarkersByCoordinate[tile.coordinate] ?? [],
+                    aiPhaseMapMarkers: aiPhaseMarkersByCoordinate[tile.coordinate] ?? []
                 )
                 .frame(width: tileWidth, height: tileHeight)
                 .position(x: point.x, y: point.y)
@@ -1719,6 +1724,7 @@ private struct HexTileView: View {
     let isLatestObjectiveCapture: Bool
     let isEnemyThreatIntentTarget: Bool
     let enemyThreatCountermeasureMarkers: [EnemyThreatCountermeasureMapMarker]
+    let aiPhaseMapMarkers: [AIPhaseMapMarker]
 
     var body: some View {
         ZStack {
@@ -1767,6 +1773,12 @@ private struct HexTileView: View {
                 EnemyThreatCountermeasureFocusMarker(markers: enemyThreatCountermeasureMarkers)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, countermeasureMarkerTopPadding)
+            }
+
+            if !aiPhaseMapMarkers.isEmpty {
+                AIPhaseMapReplayMarker(markers: aiPhaseMapMarkers)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, aiPhaseMarkerBottomPadding)
             }
 
             if isAttackCoverage {
@@ -1868,6 +1880,7 @@ private struct HexTileView: View {
         if isEnemyControlZone { return .red.opacity(0.62) }
         if isFocused { return .white.opacity(0.9) }
         if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.9) }
+        if !aiPhaseMapMarkers.isEmpty { return .indigo.opacity(0.86) }
         return .black.opacity(0.28)
     }
 
@@ -1887,6 +1900,7 @@ private struct HexTileView: View {
         if isEnemyControlZone { return 2 }
         if isFocused { return 2 }
         if tile.isObjective { return 2 }
+        if !aiPhaseMapMarkers.isEmpty { return 2 }
         return 1
     }
 
@@ -1913,6 +1927,14 @@ private struct HexTileView: View {
         return 5 + CGFloat(occupiedTopSlots) * 18
     }
 
+    private var aiPhaseMarkerBottomPadding: CGFloat {
+        var occupiedBottomSlots = 0
+        if isAttackPosition {
+            occupiedBottomSlots += 1
+        }
+        return 6 + CGFloat(occupiedBottomSlots) * 18
+    }
+
     private var accessibilityLabel: String {
         let unitText = unit.map { "\($0.faction.title)\($0.kind.title)\($0.name)" } ?? "空地"
         let objectiveText = tile.objectiveName.map { "据点\($0)" } ?? ""
@@ -1930,12 +1952,29 @@ private struct HexTileView: View {
                 .sorted { $0.role.sortOrder < $1.role.sortOrder }
                 .map(\.role.title)
                 .joined(separator: "，")
+        let aiPhaseMapText = aiPhaseMapAccessibilityText
         let fireRiskText = fireExposurePreview.map { preview in
             let sourceText = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
             let sourceSummary = sourceText.isEmpty ? "无敌火来源" : "来源\(sourceText)"
             return "\(preview.riskLevel.title)，潜在伤害\(preview.totalPotentialDamage)，预计剩余\(preview.projectedHPAfterExposure)，\(sourceSummary)"
         } ?? ""
-        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(latestCaptureText) \(enemyThreatIntentText) \(countermeasureText) \(fireRiskText) \(unitText) \(actionAccessibilityText)"
+        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(latestCaptureText) \(enemyThreatIntentText) \(countermeasureText) \(aiPhaseMapText) \(fireRiskText) \(unitText) \(actionAccessibilityText)"
+    }
+
+    private var aiPhaseMapAccessibilityText: String {
+        guard !aiPhaseMapMarkers.isEmpty else { return "" }
+        let markers = aiPhaseMapMarkers.sorted {
+            if $0.eventOrder != $1.eventOrder {
+                return $0.eventOrder < $1.eventOrder
+            }
+            return $0.role.sortOrder < $1.role.sortOrder
+        }
+        let visibleText = markers.prefix(2).map { marker in
+            "AI复盘第\(marker.eventOrder)步，\(marker.eventKind.title)，\(marker.role.title)，\(marker.summary)"
+        }.joined(separator: "；")
+        let hiddenCount = markers.count - min(markers.count, 2)
+        let hiddenText = hiddenCount > 0 ? "；另有\(hiddenCount)条AI复盘标记" : ""
+        return "\(visibleText)\(hiddenText)"
     }
 
     private var routeAccessibilityText: String {
@@ -2295,6 +2334,47 @@ private struct EnemyThreatCountermeasureFocusMarker: View {
                 seen.insert(role)
                 return true
             }
+    }
+}
+
+private struct AIPhaseMapReplayMarker: View {
+    let markers: [AIPhaseMapMarker]
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.system(size: 7, weight: .black))
+            Text(displayText)
+                .font(.system(size: 7, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(Color.indigo.opacity(0.88), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.36), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var displayText: String {
+        let orderedMarkers = markers.sorted {
+            if $0.eventOrder != $1.eventOrder {
+                return $0.eventOrder < $1.eventOrder
+            }
+            if $0.role.sortOrder != $1.role.sortOrder {
+                return $0.role.sortOrder < $1.role.sortOrder
+            }
+            return $0.coordinate.id < $1.coordinate.id
+        }
+        guard let firstMarker = orderedMarkers.first else { return "AI" }
+        if orderedMarkers.count == 1 {
+            return "\(firstMarker.shortCode)-\(firstMarker.role.shortTitle)"
+        }
+        let roleText = orderedMarkers.prefix(2).map(\.role.compactTitle).joined(separator: "+")
+        return "\(firstMarker.shortCode)+\(roleText)"
     }
 }
 
@@ -4122,6 +4202,7 @@ private struct MapLegendView: View {
                 LegendItem(color: .red.opacity(0.78), label: "敌火覆盖", symbol: "TH")
                 LegendItem(color: .pink.opacity(0.86), label: "敌方意图", symbol: "INT")
                 LegendItem(color: .mint.opacity(0.9), label: "反制聚焦", symbol: "ACT")
+                LegendItem(color: .indigo.opacity(0.88), label: "AI复盘", symbol: "AI")
                 LegendItem(color: .green.opacity(0.9), label: "补给线")
                 LegendItem(color: .red.opacity(0.92), label: "断补给", symbol: "CUT")
                 LegendItem(color: .white.opacity(0.85), label: "焦点")

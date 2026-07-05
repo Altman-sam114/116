@@ -13,6 +13,42 @@ func requireSequentialTimelineOrders(_ timeline: [AIPhaseTimelineEvent], _ messa
     }
 }
 
+func requireAIPhaseMapMarkersMatchSummary(
+    _ markers: [AIPhaseMapMarker],
+    _ summary: AIPhaseSummary,
+    _ message: String
+) {
+    let timelineOrders = Set(summary.timeline.map(\.order))
+    require(!markers.isEmpty, "\(message): markers should not be empty")
+    require(
+        markers.allSatisfy { $0.faction == summary.faction && $0.turn == summary.turn },
+        "\(message): markers should match AI phase faction and turn"
+    )
+    require(
+        markers.allSatisfy { timelineOrders.contains($0.eventOrder) },
+        "\(message): markers should point back to timeline orders"
+    )
+}
+
+func requireAIPhaseMapMarker(
+    _ markers: [AIPhaseMapMarker],
+    kind: AIPhaseTimelineEventKind,
+    role: AIPhaseMapMarkerRole,
+    coordinate: HexCoordinate,
+    order: Int? = nil,
+    _ message: String
+) {
+    require(
+        markers.contains { marker in
+            marker.eventKind == kind &&
+                marker.role == role &&
+                marker.coordinate == coordinate &&
+                (order.map { marker.eventOrder == $0 } ?? true)
+        },
+        message
+    )
+}
+
 @main
 struct RulesSmokeTest {
     static func main() async {
@@ -1602,6 +1638,26 @@ struct RulesSmokeTest {
                 require(axisCommandEvent.targetName == "盟军指挥坦克", "axis command timeline should identify target")
                 require(axisCommandEvent.damage == axisCommandSummary.damage, "axis command timeline should match result damage")
                 require(axisCommandEvent.commandPointCost == TacticalCommand.artilleryBarrage.commandCost, "axis command timeline should record command cost")
+                require(axisCommandEvent.from == HexCoordinate(q: 4, r: 0), "axis command timeline should record caster coordinate")
+                require(axisCommandEvent.to == HexCoordinate(q: 1, r: 0), "axis command timeline should record target coordinate")
+                let axisCommandMarkers = axisCommandGame.latestAIPhaseMapMarkers
+                requireAIPhaseMapMarkersMatchSummary(axisCommandMarkers, axisCommandPhaseSummary, "axis command map replay markers")
+                requireAIPhaseMapMarker(
+                    axisCommandMarkers,
+                    kind: .tacticalCommand,
+                    role: .actor,
+                    coordinate: HexCoordinate(q: 4, r: 0),
+                    order: axisCommandEvent.order,
+                    "axis command map replay should mark caster"
+                )
+                requireAIPhaseMapMarker(
+                    axisCommandMarkers,
+                    kind: .tacticalCommand,
+                    role: .target,
+                    coordinate: HexCoordinate(q: 1, r: 0),
+                    order: axisCommandEvent.order,
+                    "axis command map replay should mark target"
+                )
             }
 
             let axisDeploymentPhaseGame = GameState(
@@ -1628,6 +1684,18 @@ struct RulesSmokeTest {
             require(axisDeploymentEvent.to != nil, "axis deployment timeline should record destination")
             require(axisDeploymentEvent.commandPointCost > 0, "axis deployment timeline should record command point cost")
             require(axisDeploymentEvent.commandPointsAfter == axisDeploymentPhaseGame.commandPoints(for: .axis), "axis deployment timeline should record ending command points")
+            let axisDeploymentMarkers = axisDeploymentPhaseGame.latestAIPhaseMapMarkers
+            requireAIPhaseMapMarkersMatchSummary(axisDeploymentMarkers, axisDeploymentPhaseSummary, "axis deployment map replay markers")
+            if let axisDeploymentCoordinate = axisDeploymentEvent.to {
+                requireAIPhaseMapMarker(
+                    axisDeploymentMarkers,
+                    kind: .deployment,
+                    role: .destination,
+                    coordinate: axisDeploymentCoordinate,
+                    order: axisDeploymentEvent.order,
+                    "axis deployment map replay should mark deployment destination"
+                )
+            }
 
             let axisReinforcementPhaseGame = GameState(
                 scenario: axisReinforcementResultScenario(),
@@ -1651,6 +1719,16 @@ struct RulesSmokeTest {
             require(axisReinforcementEvent.actorName == "受损轴心守军", "axis reinforcement timeline should identify unit")
             require(axisReinforcementEvent.recoveredHP > 0, "axis reinforcement timeline should record recovery")
             require(axisReinforcementEvent.commandPointCost > 0, "axis reinforcement timeline should record command point cost")
+            let axisReinforcementMarkers = axisReinforcementPhaseGame.latestAIPhaseMapMarkers
+            requireAIPhaseMapMarkersMatchSummary(axisReinforcementMarkers, axisReinforcementPhaseSummary, "axis reinforcement map replay markers")
+            requireAIPhaseMapMarker(
+                axisReinforcementMarkers,
+                kind: .reinforcement,
+                role: .destination,
+                coordinate: HexCoordinate(q: 0, r: 0),
+                order: axisReinforcementEvent.order,
+                "axis reinforcement map replay should mark reinforcement coordinate"
+            )
 
             let axisAdvanceGame = GameState(
                 scenario: axisFullAdvanceScenario(),
@@ -1693,6 +1771,32 @@ struct RulesSmokeTest {
                 require(axisAdvancePhaseSummary.timeline[0].to == HexCoordinate(q: 1, r: 0), "axis advance timeline should record move destination")
                 require(axisAdvancePhaseSummary.timeline[1].kind == .attack, "axis advance timeline should record attack second")
                 require(axisAdvancePhaseSummary.timeline[1].damage == axisAdvanceCombatSummary.damage, "axis advance timeline should match combat damage")
+                let axisAdvanceMarkers = axisAdvanceGame.latestAIPhaseMapMarkers
+                requireAIPhaseMapMarkersMatchSummary(axisAdvanceMarkers, axisAdvancePhaseSummary, "axis advance map replay markers")
+                requireAIPhaseMapMarker(
+                    axisAdvanceMarkers,
+                    kind: .move,
+                    role: .origin,
+                    coordinate: HexCoordinate(q: 4, r: 0),
+                    order: axisAdvancePhaseSummary.timeline[0].order,
+                    "axis advance map replay should mark move origin"
+                )
+                requireAIPhaseMapMarker(
+                    axisAdvanceMarkers,
+                    kind: .move,
+                    role: .destination,
+                    coordinate: HexCoordinate(q: 1, r: 0),
+                    order: axisAdvancePhaseSummary.timeline[0].order,
+                    "axis advance map replay should mark move destination"
+                )
+                requireAIPhaseMapMarker(
+                    axisAdvanceMarkers,
+                    kind: .attack,
+                    role: .target,
+                    coordinate: HexCoordinate(q: 0, r: 0),
+                    order: axisAdvancePhaseSummary.timeline[1].order,
+                    "axis advance map replay should mark attack target"
+                )
             }
 
             let axisPursuitGame = GameState(
@@ -1740,6 +1844,40 @@ struct RulesSmokeTest {
                 require(
                     axisPursuitPhaseSummary.timeline.filter { $0.kind == .objectiveCapture }.count == axisPursuitPhaseSummary.objectivesCaptured,
                     "axis pursuit timeline capture count should match AI phase summary"
+                )
+                let axisPursuitMarkers = axisPursuitGame.latestAIPhaseMapMarkers
+                requireAIPhaseMapMarkersMatchSummary(axisPursuitMarkers, axisPursuitPhaseSummary, "axis pursuit map replay markers")
+                requireAIPhaseMapMarker(
+                    axisPursuitMarkers,
+                    kind: .attack,
+                    role: .target,
+                    coordinate: HexCoordinate(q: 1, r: 0),
+                    order: axisPursuitPhaseSummary.timeline[axisPursuitAttackIndex].order,
+                    "axis pursuit map replay should keep destroyed target coordinate"
+                )
+                requireAIPhaseMapMarker(
+                    axisPursuitMarkers,
+                    kind: .move,
+                    role: .destination,
+                    coordinate: HexCoordinate(q: 0, r: 0),
+                    order: axisPursuitPhaseSummary.timeline[axisPursuitMoveIndex].order,
+                    "axis pursuit map replay should mark pursuit destination"
+                )
+                requireAIPhaseMapMarker(
+                    axisPursuitMarkers,
+                    kind: .objectiveCapture,
+                    role: .objective,
+                    coordinate: HexCoordinate(q: 0, r: 0),
+                    order: axisPursuitPhaseSummary.timeline[axisPursuitCaptureIndex].order,
+                    "axis pursuit map replay should mark captured objective"
+                )
+                require(
+                    axisPursuitMarkers.contains {
+                        $0.eventKind == .objectiveCapture &&
+                            $0.role == .objective &&
+                            $0.summary.contains("前线据点")
+                    },
+                    "axis pursuit map replay should carry objective summary"
                 )
             }
 

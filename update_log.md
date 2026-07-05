@@ -1074,3 +1074,43 @@
 
 - 本轮只展示侧栏时间线，不新增地图 AI 动作标记、动画、音效、镜头播放、暂停/回放控制或真实美术资产。
 - 本轮不改变 AI 决策、战斗数值、移动规则、整补成本、部署逻辑、战术命令、胜负条件或反制建议语义。
+
+### v1.21 / AI 行动地图复盘标记
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `AIPhaseMapMarkerRole` 和 `AIPhaseMapMarker`，为最近一次敌方 AI 回合的时间线事件提供地图只读复盘标记。
+- `GameState.latestAIPhaseMapMarkers` 从 `latestAIPhaseSummary.timeline` 纯派生，不新增独立持久状态；移动输出起点/终点，攻击和战术命令输出行动单位/目标，部署和整补输出目的坐标，占点输出据点坐标。
+- `useTacticalCommand` 记录 AI 战术命令事件的施放者坐标，让火炮弹幕等命令能同时在地图上标记行动单位和目标。
+- `ContentView` 将 AI 复盘标记按坐标聚合到地图格，新增独立 `AI` 徽标、低优先级边框、图例和 VoiceOver 文案；UI 只展示 `GameState` 派生字段，不从当前单位或战报反推行动。
+- 补充 XCTest 和规则 smoke test，覆盖战术命令、移动+攻击、部署、整补、机动追击占点、被击毁目标坐标保留、事件顺序回连、重开/切战役清理和玩家预览/失败命令不生成复盘标记。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.21（AI行动地图复盘标记）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- 云端 GitHub Actions artifact：待本轮 push 后由 Agent C 下载并核对。
+
+遗留事项：
+
+- 本轮只显示最近一次 AI 回合的紧凑地图复盘标记，不新增逐帧播放、动画、镜头移动、音效或真实美术资产。
+- 本轮不改变 AI 决策、战斗数值、移动规则、整补成本、部署逻辑、战术命令、胜负条件或反制建议语义。

@@ -836,6 +836,71 @@ struct AIPhaseTimelineEvent: Identifiable, Equatable {
     }
 }
 
+enum AIPhaseMapMarkerRole: String, CaseIterable, Identifiable {
+    case actor
+    case target
+    case origin
+    case destination
+    case objective
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .actor: "AI行动单位"
+        case .target: "AI目标"
+        case .origin: "AI起点"
+        case .destination: "AI终点"
+        case .objective: "AI占点"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .actor: "AIU"
+        case .target: "AIT"
+        case .origin: "AIO"
+        case .destination: "AID"
+        case .objective: "AIP"
+        }
+    }
+
+    var compactTitle: String {
+        switch self {
+        case .actor: "A"
+        case .target: "T"
+        case .origin: "O"
+        case .destination: "D"
+        case .objective: "P"
+        }
+    }
+
+    var sortOrder: Int {
+        switch self {
+        case .actor: 0
+        case .origin: 1
+        case .target: 2
+        case .destination: 3
+        case .objective: 4
+        }
+    }
+}
+
+struct AIPhaseMapMarker: Identifiable, Equatable {
+    let faction: Faction
+    let turn: Int
+    let eventOrder: Int
+    let eventKind: AIPhaseTimelineEventKind
+    let role: AIPhaseMapMarkerRole
+    let coordinate: HexCoordinate
+    let shortCode: String
+    let summary: String
+
+    var id: String {
+        "AI-\(faction.rawValue)-\(turn)-\(eventOrder)-\(role.rawValue)-\(coordinate.id)"
+    }
+}
+
 enum EnemyThreatIntentKind: String, Identifiable {
     case directAttack
     case approachAttack

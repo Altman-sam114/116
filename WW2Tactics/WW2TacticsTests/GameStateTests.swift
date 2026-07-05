@@ -3,6 +3,50 @@ import XCTest
 
 @MainActor
 final class GameStateTests: XCTestCase {
+    private func assertAIPhaseMapMarkers(
+        _ markers: [AIPhaseMapMarker],
+        match summary: AIPhaseSummary,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let timelineOrders = Set(summary.timeline.map(\.order))
+        XCTAssertFalse(markers.isEmpty, file: file, line: line)
+        XCTAssertTrue(
+            markers.allSatisfy { $0.faction == summary.faction && $0.turn == summary.turn },
+            "AI map markers should match the latest AI phase faction and turn",
+            file: file,
+            line: line
+        )
+        XCTAssertTrue(
+            markers.allSatisfy { timelineOrders.contains($0.eventOrder) },
+            "AI map markers should refer back to timeline event orders",
+            file: file,
+            line: line
+        )
+    }
+
+    private func assertContainsAIPhaseMapMarker(
+        _ markers: [AIPhaseMapMarker],
+        kind: AIPhaseTimelineEventKind,
+        role: AIPhaseMapMarkerRole,
+        coordinate: HexCoordinate,
+        order: Int? = nil,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertTrue(
+            markers.contains { marker in
+                marker.eventKind == kind &&
+                    marker.role == role &&
+                    marker.coordinate == coordinate &&
+                    (order.map { marker.eventOrder == $0 } ?? true)
+            },
+            "missing AI map marker: kind \(kind), role \(role), coordinate \(coordinate), order \(String(describing: order))",
+            file: file,
+            line: line
+        )
+    }
+
     func testScenarioIncludesWW2TacticsRequirements() {
         let game = GameState()
 
@@ -791,7 +835,27 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(commandEvent.tacticalCommand, .artilleryBarrage)
         XCTAssertEqual(commandEvent.damage, tacticalResult.damage)
         XCTAssertEqual(commandEvent.commandPointCost, TacticalCommand.artilleryBarrage.commandCost)
+        XCTAssertEqual(commandEvent.from, HexCoordinate(q: 4, r: 0))
+        XCTAssertEqual(commandEvent.to, HexCoordinate(q: 1, r: 0))
         XCTAssertTrue(commandEvent.summary.contains("火炮弹幕"))
+
+        let markers = game.latestAIPhaseMapMarkers
+        assertAIPhaseMapMarkers(markers, match: summary)
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .tacticalCommand,
+            role: .actor,
+            coordinate: HexCoordinate(q: 4, r: 0),
+            order: commandEvent.order
+        )
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .tacticalCommand,
+            role: .target,
+            coordinate: HexCoordinate(q: 1, r: 0),
+            order: commandEvent.order
+        )
+        XCTAssertTrue(markers.contains { $0.summary.contains("火炮弹幕") })
     }
 
     func testAxisAIPhaseSummaryRecordsMoveAndAttack() throws {
@@ -825,6 +889,38 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(summary.timeline[1].actorName, "突进侦察")
         XCTAssertEqual(summary.timeline[1].targetName, "远端步兵")
         XCTAssertEqual(summary.timeline[1].damage, combatSummary.damage)
+
+        let markers = game.latestAIPhaseMapMarkers
+        assertAIPhaseMapMarkers(markers, match: summary)
+        XCTAssertEqual(markers.map(\.role), [.origin, .destination, .actor, .target])
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .move,
+            role: .origin,
+            coordinate: HexCoordinate(q: 4, r: 0),
+            order: summary.timeline[0].order
+        )
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .move,
+            role: .destination,
+            coordinate: HexCoordinate(q: 1, r: 0),
+            order: summary.timeline[0].order
+        )
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .attack,
+            role: .actor,
+            coordinate: HexCoordinate(q: 1, r: 0),
+            order: summary.timeline[1].order
+        )
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .attack,
+            role: .target,
+            coordinate: HexCoordinate(q: 0, r: 0),
+            order: summary.timeline[1].order
+        )
     }
 
     func testAxisAIPhaseSummaryRecordsLogistics() throws {
@@ -848,6 +944,15 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(deploymentEvent.deployedUnitKind, deploymentResult.unitKind)
         XCTAssertEqual(deploymentEvent.commandPointCost, deploymentResult.commandCost)
         XCTAssertEqual(deploymentEvent.commandPointsAfter, deploymentGame.commandPoints(for: .axis))
+        let deploymentMarkers = deploymentGame.latestAIPhaseMapMarkers
+        assertAIPhaseMapMarkers(deploymentMarkers, match: deploymentSummary)
+        assertContainsAIPhaseMapMarker(
+            deploymentMarkers,
+            kind: .deployment,
+            role: .destination,
+            coordinate: deploymentResult.coordinate,
+            order: deploymentEvent.order
+        )
 
         let reinforcementGame = GameState(
             scenario: Self.axisReinforcementResultScenario(),
@@ -867,6 +972,15 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(reinforcementEvent.to, HexCoordinate(q: 0, r: 0))
         XCTAssertEqual(reinforcementEvent.recoveredHP, reinforcementResult.recoveredHP)
         XCTAssertEqual(reinforcementEvent.commandPointCost, reinforcementResult.commandCost)
+        let reinforcementMarkers = reinforcementGame.latestAIPhaseMapMarkers
+        assertAIPhaseMapMarkers(reinforcementMarkers, match: reinforcementSummary)
+        assertContainsAIPhaseMapMarker(
+            reinforcementMarkers,
+            kind: .reinforcement,
+            role: .destination,
+            coordinate: HexCoordinate(q: 0, r: 0),
+            order: reinforcementEvent.order
+        )
     }
 
     func testAxisAIPhaseTimelineRecordsManeuverPursuitCaptureOrder() throws {
@@ -904,6 +1018,38 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(captureEvent.commandPointReward, 3)
         XCTAssertEqual(captureEvent.commandPointsAfter, game.commandPoints(for: .axis))
         XCTAssertGreaterThan(summary.timeline.count, summary.totalActions)
+
+        let markers = game.latestAIPhaseMapMarkers
+        assertAIPhaseMapMarkers(markers, match: summary)
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .attack,
+            role: .target,
+            coordinate: HexCoordinate(q: 1, r: 0),
+            order: attackEvent.order
+        )
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .move,
+            role: .origin,
+            coordinate: HexCoordinate(q: 2, r: 0),
+            order: summary.timeline[moveIndex].order
+        )
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .move,
+            role: .destination,
+            coordinate: HexCoordinate(q: 0, r: 0),
+            order: summary.timeline[moveIndex].order
+        )
+        assertContainsAIPhaseMapMarker(
+            markers,
+            kind: .objectiveCapture,
+            role: .objective,
+            coordinate: HexCoordinate(q: 0, r: 0),
+            order: captureEvent.order
+        )
+        XCTAssertTrue(markers.contains { $0.summary.contains("前线据点") })
     }
 
     func testAIPhaseSummaryClearsOnScenarioReset() throws {
@@ -911,31 +1057,38 @@ final class GameStateTests: XCTestCase {
             scenario: Self.axisDeploymentResultScenario(),
             commandPoints: [.allies: 6, .axis: 1]
         )
+        XCTAssertTrue(game.latestAIPhaseMapMarkers.isEmpty)
         game.endTurn()
         XCTAssertNotNil(game.latestAIPhaseSummary)
         XCTAssertFalse(try XCTUnwrap(game.latestAIPhaseSummary).timeline.isEmpty)
+        XCTAssertFalse(game.latestAIPhaseMapMarkers.isEmpty)
 
         game.restart()
 
         XCTAssertNil(game.latestAIPhaseSummary)
+        XCTAssertTrue(game.latestAIPhaseMapMarkers.isEmpty)
         game.endTurn()
         XCTAssertNotNil(game.latestAIPhaseSummary)
+        XCTAssertFalse(game.latestAIPhaseMapMarkers.isEmpty)
 
         game.selectScenario(id: "normandy-1944")
 
         XCTAssertNil(game.latestAIPhaseSummary)
+        XCTAssertTrue(game.latestAIPhaseMapMarkers.isEmpty)
     }
 
     func testPlayerPreviewAndFailedOrdersDoNotCreateAIPhaseSummary() throws {
         let game = GameState()
         game.handlePrimaryAction(on: HexCoordinate(q: 0, r: 0))
         XCTAssertNil(game.latestAIPhaseSummary)
+        XCTAssertTrue(game.latestAIPhaseMapMarkers.isEmpty)
 
         let lowPointGame = GameState(commandPoints: [.allies: 0, .axis: 6])
         let site = try XCTUnwrap(lowPointGame.deploymentSites(for: .allies).first)
         lowPointGame.deploy(kind: .infantry, at: site.coordinate)
 
         XCTAssertNil(lowPointGame.latestAIPhaseSummary)
+        XCTAssertTrue(lowPointGame.latestAIPhaseMapMarkers.isEmpty)
     }
 
     func testCombatPreviewAndTargetQueries() throws {

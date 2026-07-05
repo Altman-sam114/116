@@ -240,6 +240,21 @@ final class GameState: ObservableObject {
         return enemyThreatCountermeasureMapMarkers(for: preview)
     }
 
+    var latestAIPhaseMapMarkers: [AIPhaseMapMarker] {
+        guard let timeline = latestAIPhaseSummary?.timeline else { return [] }
+        return timeline
+            .flatMap(aiPhaseMapMarkers)
+            .sorted {
+                if $0.eventOrder != $1.eventOrder {
+                    return $0.eventOrder < $1.eventOrder
+                }
+                if $0.role.sortOrder != $1.role.sortOrder {
+                    return $0.role.sortOrder < $1.role.sortOrder
+                }
+                return $0.coordinate.id < $1.coordinate.id
+            }
+    }
+
     var focusedEnemyThreatCountermeasureExecutionPreview: EnemyThreatCountermeasureExecutionPreview? {
         guard let preview = focusedEnemyThreatCountermeasurePreview,
               isEnemyThreatCountermeasureFocused(preview) else { return nil }
@@ -768,6 +783,48 @@ final class GameState: ObservableObject {
         )
 
         return markers
+    }
+
+    private func aiPhaseMapMarkers(for event: AIPhaseTimelineEvent) -> [AIPhaseMapMarker] {
+        func marker(role: AIPhaseMapMarkerRole, coordinate: HexCoordinate) -> AIPhaseMapMarker {
+            AIPhaseMapMarker(
+                faction: event.faction,
+                turn: event.turn,
+                eventOrder: event.order,
+                eventKind: event.kind,
+                role: role,
+                coordinate: coordinate,
+                shortCode: event.shortCode,
+                summary: event.summary
+            )
+        }
+
+        switch event.kind {
+        case .move:
+            var markers: [AIPhaseMapMarker] = []
+            if let origin = event.from {
+                markers.append(marker(role: .origin, coordinate: origin))
+            }
+            if let destination = event.to {
+                markers.append(marker(role: .destination, coordinate: destination))
+            }
+            return markers
+        case .attack, .tacticalCommand:
+            var markers: [AIPhaseMapMarker] = []
+            if let actorCoordinate = event.from {
+                markers.append(marker(role: .actor, coordinate: actorCoordinate))
+            }
+            if let targetCoordinate = event.to {
+                markers.append(marker(role: .target, coordinate: targetCoordinate))
+            }
+            return markers
+        case .deployment, .reinforcement:
+            guard let coordinate = event.to else { return [] }
+            return [marker(role: .destination, coordinate: coordinate)]
+        case .objectiveCapture:
+            guard let coordinate = event.to else { return [] }
+            return [marker(role: .objective, coordinate: coordinate)]
+        }
     }
 
     private func isEnemyThreatCountermeasureValidForMapMarkers(
@@ -1662,6 +1719,7 @@ final class GameState: ObservableObject {
                 targetUnitID: finalTarget.id,
                 targetName: finalTarget.name,
                 targetKind: finalTarget.kind,
+                from: finalCaster.position,
                 to: finalTarget.position,
                 tacticalCommand: command,
                 damage: damage,
