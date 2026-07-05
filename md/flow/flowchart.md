@@ -12,8 +12,8 @@ flowchart TD
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusAIPhaseTimelineEvent"]
   I --> S["GameState：核心状态机"]
   M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、OBJ计划、THR、敌方意图、反制建议、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核"]
-  R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、焦点坐标、消息、攻击/战术/占领/后勤结果、反制回放、敌方回合复核、AI回合摘要和行动时间线、战报、胜负"]
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、OBJ计划、THR、敌方意图、反制建议、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核"]
+  R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、焦点坐标、消息、攻击/战术/占领/后勤结果、反制回放、敌方回合复核、AI回合摘要、行动时间线和当前复盘order、战报、胜负"]
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
   EI --> EC["只读建议：EnemyThreatCountermeasurePreview 抢先打击 / 撤退 / 守点 / 整补"]
   EC --> BM["只读收益：战果 / 生存 / 守点 / 恢复 / 路线 / 优先值"]
@@ -128,9 +128,11 @@ flowchart LR
   AIS --> FUR["latestEnemyThreatCountermeasureFollowUpResult HP/位置/据点/威胁源复核"]
   AIS --> RES
   TL --> UIA["侧栏AI摘要：最多5条行动时间线"]
-  UIA --> AIF["点选时间线：focusAIPhaseTimelineEvent 更新 focusedCoordinate / message，不执行命令"]
+  UIA --> AIF["点选时间线：focusAIPhaseTimelineEvent 更新 focusedCoordinate / focusedAIPhaseTimelineEventOrder / message，不执行命令"]
+  AIF --> AIO["focusedAIPhaseMapMarkers：按当前order过滤复盘标记"]
   AIM --> UIM["地图AI复盘标记 / tile无障碍文案"]
-  AIF --> UIM
+  AIO --> UIM2["当前复盘行选中态 / 地图标记强调 / 当前AI复盘无障碍文案"]
+  AIF --> UIM2
   INT --> UI["侧栏敌方意图面板 / 地图 INT 标记"]
   CTR --> UI2["侧栏反制建议面板 / 地图 ACT-SRC-CTR-TGT 标记"]
   BM2 --> UI2

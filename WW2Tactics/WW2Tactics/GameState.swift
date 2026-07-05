@@ -22,6 +22,7 @@ final class GameState: ObservableObject {
     @Published private(set) var latestEnemyThreatCountermeasureExecutionResult: EnemyThreatCountermeasureExecutionResultSummary?
     @Published private(set) var latestEnemyThreatCountermeasureFollowUpResult: EnemyThreatCountermeasureFollowUpSummary?
     @Published private(set) var latestAIPhaseSummary: AIPhaseSummary?
+    @Published private(set) var focusedAIPhaseTimelineEventOrder: Int?
 
     private enum MapCommandInputMode {
         case directTap
@@ -253,6 +254,11 @@ final class GameState: ObservableObject {
                 }
                 return $0.coordinate.id < $1.coordinate.id
             }
+    }
+
+    var focusedAIPhaseMapMarkers: [AIPhaseMapMarker] {
+        guard let focusedAIPhaseTimelineEventOrder else { return [] }
+        return latestAIPhaseMapMarkers.filter { $0.eventOrder == focusedAIPhaseTimelineEventOrder }
     }
 
     var focusedEnemyThreatCountermeasureExecutionPreview: EnemyThreatCountermeasureExecutionPreview? {
@@ -491,6 +497,7 @@ final class GameState: ObservableObject {
 
         clearObjectiveGuidance()
         focusedCoordinate = coordinate
+        focusedAIPhaseTimelineEventOrder = event.order
         message = "AI复盘 #\(event.order)：\(event.summary)"
     }
 
@@ -3794,6 +3801,7 @@ final class GameState: ObservableObject {
         latestEnemyThreatCountermeasureExecutionResult = nil
         latestEnemyThreatCountermeasureFollowUpResult = nil
         latestAIPhaseSummary = nil
+        focusedAIPhaseTimelineEventOrder = nil
         activeAIPhaseBaseline = nil
         activeAIPhaseActionCounts = AIPhaseActionCounts()
         activeAIPhaseTimeline = []
@@ -4112,6 +4120,7 @@ final class GameState: ObservableObject {
     }
 
     private func beginAIPhaseRecording(for faction: Faction) {
+        focusedAIPhaseTimelineEventOrder = nil
         let objectiveOwners = Dictionary(uniqueKeysWithValues: objectiveTiles.compactMap { tile -> (HexCoordinate, Faction)? in
             guard let owner = tile.owner else { return nil }
             return (tile.coordinate, owner)

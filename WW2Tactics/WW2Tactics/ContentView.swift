@@ -1566,6 +1566,10 @@ private struct HexMapView: View {
             grouping: game.latestAIPhaseMapMarkers,
             by: \.coordinate
         )
+        let focusedAIPhaseMarkersByCoordinate = Dictionary(
+            grouping: game.focusedAIPhaseMapMarkers,
+            by: \.coordinate
+        )
         let contentWidth = CGFloat(game.scenario.mapColumns) * tileWidth * 0.78 + tileWidth
         let contentHeight = CGFloat(game.scenario.mapRows) * tileHeight * 0.78 + tileHeight
 
@@ -1610,7 +1614,8 @@ private struct HexMapView: View {
                     isLatestObjectiveCapture: latestCaptureCoordinate == tile.coordinate,
                     isEnemyThreatIntentTarget: enemyIntentTargets.contains(tile.coordinate),
                     enemyThreatCountermeasureMarkers: countermeasureMarkersByCoordinate[tile.coordinate] ?? [],
-                    aiPhaseMapMarkers: aiPhaseMarkersByCoordinate[tile.coordinate] ?? []
+                    aiPhaseMapMarkers: aiPhaseMarkersByCoordinate[tile.coordinate] ?? [],
+                    focusedAIPhaseMapMarkers: focusedAIPhaseMarkersByCoordinate[tile.coordinate] ?? []
                 )
                 .frame(width: tileWidth, height: tileHeight)
                 .position(x: point.x, y: point.y)
@@ -1725,6 +1730,7 @@ private struct HexTileView: View {
     let isEnemyThreatIntentTarget: Bool
     let enemyThreatCountermeasureMarkers: [EnemyThreatCountermeasureMapMarker]
     let aiPhaseMapMarkers: [AIPhaseMapMarker]
+    let focusedAIPhaseMapMarkers: [AIPhaseMapMarker]
 
     var body: some View {
         ZStack {
@@ -1776,9 +1782,12 @@ private struct HexTileView: View {
             }
 
             if !aiPhaseMapMarkers.isEmpty {
-                AIPhaseMapReplayMarker(markers: aiPhaseMapMarkers)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, aiPhaseMarkerBottomPadding)
+                AIPhaseMapReplayMarker(
+                    markers: focusedAIPhaseMapMarkers.isEmpty ? aiPhaseMapMarkers : focusedAIPhaseMapMarkers,
+                    isFocused: !focusedAIPhaseMapMarkers.isEmpty
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.bottom, aiPhaseMarkerBottomPadding)
             }
 
             if isAttackCoverage {
@@ -1872,6 +1881,7 @@ private struct HexTileView: View {
         if isLatestObjectiveCapture { return .yellow.opacity(0.96) }
         if isGuidedObjective { return .green.opacity(0.96) }
         if !enemyThreatCountermeasureMarkers.isEmpty { return .mint.opacity(0.96) }
+        if !focusedAIPhaseMapMarkers.isEmpty { return .white.opacity(0.96) }
         if isEnemyThreatIntentTarget { return .pink.opacity(0.92) }
         if isMovementRoute { return .cyan.opacity(0.88) }
         if isAttackCoverage { return .orange.opacity(0.58) }
@@ -1892,6 +1902,7 @@ private struct HexTileView: View {
         if isLatestObjectiveCapture { return 3 }
         if isGuidedObjective { return 3 }
         if !enemyThreatCountermeasureMarkers.isEmpty { return 3 }
+        if !focusedAIPhaseMapMarkers.isEmpty { return 3 }
         if isEnemyThreatIntentTarget { return 2 }
         if isMovementRoute { return 2 }
         if isAttackCoverage { return 2 }
@@ -1963,14 +1974,20 @@ private struct HexTileView: View {
 
     private var aiPhaseMapAccessibilityText: String {
         guard !aiPhaseMapMarkers.isEmpty else { return "" }
-        let markers = aiPhaseMapMarkers.sorted {
-            if $0.eventOrder != $1.eventOrder {
-                return $0.eventOrder < $1.eventOrder
+        let markers = aiPhaseMapMarkers.sorted { left, right in
+            let leftFocused = focusedAIPhaseMapMarkers.contains { $0.id == left.id }
+            let rightFocused = focusedAIPhaseMapMarkers.contains { $0.id == right.id }
+            if leftFocused != rightFocused {
+                return leftFocused
             }
-            return $0.role.sortOrder < $1.role.sortOrder
+            if left.eventOrder != right.eventOrder {
+                return left.eventOrder < right.eventOrder
+            }
+            return left.role.sortOrder < right.role.sortOrder
         }
         let visibleText = markers.prefix(2).map { marker in
-            "AI复盘第\(marker.eventOrder)步，\(marker.eventKind.title)，\(marker.role.title)，\(marker.summary)"
+            let focusedText = focusedAIPhaseMapMarkers.contains { $0.id == marker.id } ? "当前" : ""
+            return "\(focusedText)AI复盘第\(marker.eventOrder)步，\(marker.eventKind.title)，\(marker.role.title)，\(marker.summary)"
         }.joined(separator: "；")
         let hiddenCount = markers.count - min(markers.count, 2)
         let hiddenText = hiddenCount > 0 ? "；另有\(hiddenCount)条AI复盘标记" : ""
@@ -2339,21 +2356,22 @@ private struct EnemyThreatCountermeasureFocusMarker: View {
 
 private struct AIPhaseMapReplayMarker: View {
     let markers: [AIPhaseMapMarker]
+    let isFocused: Bool
 
     var body: some View {
         HStack(spacing: 2) {
-            Image(systemName: "clock.arrow.circlepath")
+            Image(systemName: isFocused ? "scope" : "clock.arrow.circlepath")
                 .font(.system(size: 7, weight: .black))
             Text(displayText)
                 .font(.system(size: 7, weight: .black, design: .rounded))
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(isFocused ? .black : .white)
         .padding(.horizontal, 5)
         .padding(.vertical, 3)
-        .background(Color.indigo.opacity(0.88), in: Capsule())
+        .background((isFocused ? Color.yellow.opacity(0.88) : Color.indigo.opacity(0.88)), in: Capsule())
         .overlay(
             Capsule()
-                .stroke(Color.white.opacity(0.36), lineWidth: 1)
+                .stroke(Color.white.opacity(isFocused ? 0.72 : 0.36), lineWidth: isFocused ? 1.5 : 1)
         )
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -2371,10 +2389,10 @@ private struct AIPhaseMapReplayMarker: View {
         }
         guard let firstMarker = orderedMarkers.first else { return "AI" }
         if orderedMarkers.count == 1 {
-            return "\(firstMarker.shortCode)-\(firstMarker.role.shortTitle)"
+            return "\(isFocused ? "SEL " : "")\(firstMarker.shortCode)-\(firstMarker.role.shortTitle)"
         }
         let roleText = orderedMarkers.prefix(2).map(\.role.compactTitle).joined(separator: "+")
-        return "\(firstMarker.shortCode)+\(roleText)"
+        return "\(isFocused ? "SEL " : "")\(firstMarker.shortCode)+\(roleText)"
     }
 }
 
@@ -5509,14 +5527,15 @@ private struct AIPhaseSummaryView: View {
                         .foregroundStyle(.white.opacity(0.78))
 
                     ForEach(visibleTimeline) { event in
+                        let isFocusedEvent = game.focusedAIPhaseTimelineEventOrder == event.order
                         Button {
                             game.focusAIPhaseTimelineEvent(order: event.order)
                         } label: {
-                            AIPhaseTimelineEventRow(event: event)
+                            AIPhaseTimelineEventRow(event: event, isFocused: isFocusedEvent)
                         }
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("AI 行动 \(event.order)，\(event.kind.title)，\(event.summary)")
+                        .accessibilityLabel("\(isFocusedEvent ? "当前复盘事件，" : "")AI 行动 \(event.order)，\(event.kind.title)，\(event.summary)")
                         .accessibilityHint("只定位地图复盘，不执行命令")
                     }
 
@@ -5547,25 +5566,38 @@ private struct AIPhaseSummaryView: View {
 
 private struct AIPhaseTimelineEventRow: View {
     let event: AIPhaseTimelineEvent
+    let isFocused: Bool
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: isFocused ? "scope" : "circle")
+                .font(.caption2.weight(.black))
+                .foregroundStyle(isFocused ? .yellow : .white.opacity(0.35))
+                .frame(width: 12, alignment: .leading)
+
             Text("#\(event.order)")
                 .font(.caption2.weight(.black))
-                .foregroundStyle(.white.opacity(0.72))
+                .foregroundStyle(isFocused ? .white.opacity(0.96) : .white.opacity(0.72))
                 .monospacedDigit()
                 .frame(width: 24, alignment: .leading)
 
             Text(event.shortCode)
                 .font(.caption2.weight(.bold))
-                .foregroundStyle(.white.opacity(0.84))
+                .foregroundStyle(isFocused ? .yellow.opacity(0.96) : .white.opacity(0.84))
                 .frame(width: 28, alignment: .leading)
 
             Text(event.summary)
                 .font(.caption2)
-                .foregroundStyle(.white.opacity(0.68))
+                .foregroundStyle(isFocused ? .white.opacity(0.9) : .white.opacity(0.68))
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(isFocused ? Color.white.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 5))
+        .overlay(
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(isFocused ? Color.yellow.opacity(0.54) : Color.clear, lineWidth: 1)
+        )
     }
 }
 

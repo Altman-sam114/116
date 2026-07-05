@@ -1858,6 +1858,14 @@ struct RulesSmokeTest {
                 require(axisPostMoveBarragePhaseSummary.timeline[1].to == axisPostMoveBarrageTarget.position, "axis post-move barrage timeline should record target coordinate")
                 let axisPostMoveBarrageMarkers = axisPostMoveBarrageGame.latestAIPhaseMapMarkers
                 requireAIPhaseMapMarkersMatchSummary(axisPostMoveBarrageMarkers, axisPostMoveBarragePhaseSummary, "axis post-move barrage map replay markers")
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == nil,
+                    "axis post-move barrage should start without focused replay event"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseMapMarkers.isEmpty,
+                    "axis post-move barrage should start without focused replay markers"
+                )
                 requireAIPhaseMapMarker(
                     axisPostMoveBarrageMarkers,
                     kind: .move,
@@ -1895,6 +1903,14 @@ struct RulesSmokeTest {
                     "axis post-move barrage replay focus should use event destination"
                 )
                 require(
+                    axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageReplayEvent.order,
+                    "axis post-move barrage replay focus should record focused event order"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseMapMarkers == axisPostMoveBarrageMarkers.filter { $0.eventOrder == axisPostMoveBarrageReplayEvent.order },
+                    "axis post-move barrage replay focus markers should derive from latest map markers"
+                )
+                require(
                     axisPostMoveBarrageGame.message.contains("AI复盘 #\(axisPostMoveBarrageReplayEvent.order)"),
                     "axis post-move barrage replay focus message should identify event order"
                 )
@@ -1929,8 +1945,25 @@ struct RulesSmokeTest {
                     "invalid AI replay event order should preserve focused coordinate"
                 )
                 require(
+                    axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageReplayEvent.order,
+                    "invalid AI replay event order should preserve focused replay event order"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseMapMarkers == axisPostMoveBarrageMarkers.filter { $0.eventOrder == axisPostMoveBarrageReplayEvent.order },
+                    "invalid AI replay event order should preserve focused replay markers"
+                )
+                require(
                     axisPostMoveBarrageGame.message.contains("未找到AI复盘事件 #999"),
                     "invalid AI replay event order should publish clear message"
+                )
+                axisPostMoveBarrageGame.endTurn()
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == nil,
+                    "next AI phase should clear focused replay event order"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseMapMarkers.isEmpty,
+                    "next AI phase should clear focused replay markers"
                 )
             }
 

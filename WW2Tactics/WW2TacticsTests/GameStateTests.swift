@@ -833,6 +833,8 @@ final class GameStateTests: XCTestCase {
 
         let markers = game.latestAIPhaseMapMarkers
         assertAIPhaseMapMarkers(markers, match: summary)
+        XCTAssertNil(game.focusedAIPhaseTimelineEventOrder)
+        XCTAssertTrue(game.focusedAIPhaseMapMarkers.isEmpty)
         assertContainsAIPhaseMapMarker(
             markers,
             kind: .move,
@@ -872,6 +874,11 @@ final class GameStateTests: XCTestCase {
         game.focusAIPhaseTimelineEvent(order: tacticalEvent.order)
 
         XCTAssertEqual(game.focusedCoordinate, replayCoordinate)
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, tacticalEvent.order)
+        XCTAssertEqual(
+            game.focusedAIPhaseMapMarkers,
+            markersBeforeReplayFocus.filter { $0.eventOrder == tacticalEvent.order }
+        )
         XCTAssertTrue(game.message.contains("AI复盘 #\(tacticalEvent.order)"))
         XCTAssertTrue(game.message.contains(tacticalEvent.summary))
         XCTAssertEqual(game.scenario.units, unitsBeforeReplayFocus)
@@ -883,11 +890,21 @@ final class GameStateTests: XCTestCase {
         game.focusAIPhaseTimelineEvent(order: 999)
 
         XCTAssertEqual(game.focusedCoordinate, focusedAfterReplay)
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, tacticalEvent.order)
+        XCTAssertEqual(
+            game.focusedAIPhaseMapMarkers,
+            markersBeforeReplayFocus.filter { $0.eventOrder == tacticalEvent.order }
+        )
         XCTAssertTrue(game.message.contains("未找到AI复盘事件 #999"))
         XCTAssertEqual(game.scenario.units, unitsBeforeReplayFocus)
         XCTAssertEqual(game.commandPoints, commandPointsBeforeReplayFocus)
         XCTAssertEqual(game.latestAIPhaseSummary, summaryBeforeReplayFocus)
         XCTAssertEqual(game.latestAIPhaseMapMarkers, markersBeforeReplayFocus)
+
+        game.endTurn()
+
+        XCTAssertNil(game.focusedAIPhaseTimelineEventOrder)
+        XCTAssertTrue(game.focusedAIPhaseMapMarkers.isEmpty)
     }
 
     func testAIPhaseTimelineFocusRequiresPublishedSummary() {
@@ -907,6 +924,8 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.commandPoints, initialCommandPoints)
         XCTAssertNil(game.latestAIPhaseSummary)
         XCTAssertTrue(game.latestAIPhaseMapMarkers.isEmpty)
+        XCTAssertNil(game.focusedAIPhaseTimelineEventOrder)
+        XCTAssertTrue(game.focusedAIPhaseMapMarkers.isEmpty)
     }
 
     func testAxisAIUsesManeuverPursuitAfterDestroyingAdjacentTarget() throws {
@@ -1248,21 +1267,32 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(game.latestAIPhaseMapMarkers.isEmpty)
         game.endTurn()
         XCTAssertNotNil(game.latestAIPhaseSummary)
-        XCTAssertFalse(try XCTUnwrap(game.latestAIPhaseSummary).timeline.isEmpty)
+        let summary = try XCTUnwrap(game.latestAIPhaseSummary)
+        let event = try XCTUnwrap(summary.timeline.first)
         XCTAssertFalse(game.latestAIPhaseMapMarkers.isEmpty)
+        game.focusAIPhaseTimelineEvent(order: event.order)
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, event.order)
+        XCTAssertFalse(game.focusedAIPhaseMapMarkers.isEmpty)
 
         game.restart()
 
         XCTAssertNil(game.latestAIPhaseSummary)
         XCTAssertTrue(game.latestAIPhaseMapMarkers.isEmpty)
+        XCTAssertNil(game.focusedAIPhaseTimelineEventOrder)
+        XCTAssertTrue(game.focusedAIPhaseMapMarkers.isEmpty)
         game.endTurn()
-        XCTAssertNotNil(game.latestAIPhaseSummary)
+        let restartedSummary = try XCTUnwrap(game.latestAIPhaseSummary)
         XCTAssertFalse(game.latestAIPhaseMapMarkers.isEmpty)
+        let restartedEvent = try XCTUnwrap(restartedSummary.timeline.first)
+        game.focusAIPhaseTimelineEvent(order: restartedEvent.order)
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, restartedEvent.order)
 
         game.selectScenario(id: "normandy-1944")
 
         XCTAssertNil(game.latestAIPhaseSummary)
         XCTAssertTrue(game.latestAIPhaseMapMarkers.isEmpty)
+        XCTAssertNil(game.focusedAIPhaseTimelineEventOrder)
+        XCTAssertTrue(game.focusedAIPhaseMapMarkers.isEmpty)
     }
 
     func testPlayerPreviewAndFailedOrdersDoNotCreateAIPhaseSummary() throws {
