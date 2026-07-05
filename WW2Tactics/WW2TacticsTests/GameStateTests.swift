@@ -861,6 +861,52 @@ final class GameStateTests: XCTestCase {
             coordinate: alliedTarget.position,
             order: summary.timeline[1].order
         )
+
+        let unitsBeforeReplayFocus = game.scenario.units
+        let commandPointsBeforeReplayFocus = game.commandPoints
+        let summaryBeforeReplayFocus = summary
+        let markersBeforeReplayFocus = markers
+        let tacticalEvent = summary.timeline[1]
+        let replayCoordinate = try XCTUnwrap(tacticalEvent.to ?? tacticalEvent.from)
+
+        game.focusAIPhaseTimelineEvent(order: tacticalEvent.order)
+
+        XCTAssertEqual(game.focusedCoordinate, replayCoordinate)
+        XCTAssertTrue(game.message.contains("AI复盘 #\(tacticalEvent.order)"))
+        XCTAssertTrue(game.message.contains(tacticalEvent.summary))
+        XCTAssertEqual(game.scenario.units, unitsBeforeReplayFocus)
+        XCTAssertEqual(game.commandPoints, commandPointsBeforeReplayFocus)
+        XCTAssertEqual(game.latestAIPhaseSummary, summaryBeforeReplayFocus)
+        XCTAssertEqual(game.latestAIPhaseMapMarkers, markersBeforeReplayFocus)
+
+        let focusedAfterReplay = game.focusedCoordinate
+        game.focusAIPhaseTimelineEvent(order: 999)
+
+        XCTAssertEqual(game.focusedCoordinate, focusedAfterReplay)
+        XCTAssertTrue(game.message.contains("未找到AI复盘事件 #999"))
+        XCTAssertEqual(game.scenario.units, unitsBeforeReplayFocus)
+        XCTAssertEqual(game.commandPoints, commandPointsBeforeReplayFocus)
+        XCTAssertEqual(game.latestAIPhaseSummary, summaryBeforeReplayFocus)
+        XCTAssertEqual(game.latestAIPhaseMapMarkers, markersBeforeReplayFocus)
+    }
+
+    func testAIPhaseTimelineFocusRequiresPublishedSummary() {
+        let game = GameState(
+            scenario: Self.axisPostMoveBarrageScenario(),
+            commandPoints: [.allies: 6, .axis: 1]
+        )
+        let initialFocus = game.focusedCoordinate
+        let initialUnits = game.scenario.units
+        let initialCommandPoints = game.commandPoints
+
+        game.focusAIPhaseTimelineEvent(order: 1)
+
+        XCTAssertEqual(game.focusedCoordinate, initialFocus)
+        XCTAssertTrue(game.message.contains("未找到AI复盘事件 #1"))
+        XCTAssertEqual(game.scenario.units, initialUnits)
+        XCTAssertEqual(game.commandPoints, initialCommandPoints)
+        XCTAssertNil(game.latestAIPhaseSummary)
+        XCTAssertTrue(game.latestAIPhaseMapMarkers.isEmpty)
     }
 
     func testAxisAIUsesManeuverPursuitAfterDestroyingAdjacentTarget() throws {

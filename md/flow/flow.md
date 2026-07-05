@@ -204,8 +204,10 @@
 4. 摘要的动作计数来自真实成功路径，战损和占点来自 AI phase 前后状态差异；占点作为结果事件写入时间线，但不增加 `totalActions`。
 5. 移动导致占点时，时间线顺序为移动事件先写入，再由 `updateObjectiveControl()` 写入占点事件；直取据点场景形成 `move -> objectiveCapture`，机动追击场景可形成 `attack -> move -> objectiveCapture`，移动后火炮弹幕场景可形成 `move -> tacticalCommand`。
 6. `latestAIPhaseMapMarkers` 是从 `latestAIPhaseSummary.timeline` 纯派生的只读地图复盘标记，不新增独立 `@Published` 状态。移动输出起点/终点，攻击和战术命令输出行动单位/目标，部署和整补输出目的坐标，占点输出据点坐标；缺少坐标的事件会被容忍，不由 View 反推。
-7. 侧栏展示顺序仍以普通攻击、战术命令、据点占领、部署、整补等单项结果卡优先，其后显示 AI 回合摘要卡和最多 5 条行动时间线，再显示 battleLog；地图将同坐标 AI 复盘标记聚合成紧凑徽标，并把复盘内容加入 tile 无障碍文案。
-8. `loadScenario()`、重开和切换战役会清理 `latestAIPhaseSummary` 以及内部 AI phase 记录器和 timeline 缓冲；复盘标记随 summary 变空而变空。
+7. `focusAIPhaseTimelineEvent(order:)` 是侧栏时间线点选定位入口。它只从最新 `AIPhaseSummary.timeline` 查找事件，按 `event.to ?? event.from` 选择定位坐标，校验坐标仍在当前地图后更新 `focusedCoordinate` 和 `message`，并清理 OBJ/SAFE/反制等临时引导。
+8. 点选 AI 时间线不会调用移动、攻击、战术命令、部署、整补或 AI 方法，不改变单位 HP/位置、行动状态、据点归属、指令点、AI summary、timeline 或 `latestAIPhaseMapMarkers`；无 summary、无事件、无坐标或坐标不在当前地图时只写提示并保留旧焦点。
+9. 侧栏展示顺序仍以普通攻击、战术命令、据点占领、部署、整补等单项结果卡优先，其后显示 AI 回合摘要卡和最多 5 条行动时间线，再显示 battleLog；地图将同坐标 AI 复盘标记聚合成紧凑徽标，并把复盘内容加入 tile 无障碍文案。时间线行使用 `Button` 转发到 `GameState`，地图自动滚动复用 `focusedCoordinate` 监听链。
+10. `loadScenario()`、重开和切换战役会清理 `latestAIPhaseSummary` 以及内部 AI phase 记录器和 timeline 缓冲；复盘标记随 summary 变空而变空。
 
 ### 3.12 敌方威胁意图预判
 

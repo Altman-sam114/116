@@ -5452,6 +5452,8 @@ private struct EnemyThreatCountermeasureRow: View {
 }
 
 private struct AIPhaseSummaryView: View {
+    @EnvironmentObject private var game: GameState
+
     let summary: AIPhaseSummary
 
     private var commandPointChangeText: String {
@@ -5507,7 +5509,15 @@ private struct AIPhaseSummaryView: View {
                         .foregroundStyle(.white.opacity(0.78))
 
                     ForEach(visibleTimeline) { event in
-                        AIPhaseTimelineEventRow(event: event)
+                        Button {
+                            game.focusAIPhaseTimelineEvent(order: event.order)
+                        } label: {
+                            AIPhaseTimelineEventRow(event: event)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("AI 行动 \(event.order)，\(event.kind.title)，\(event.summary)")
+                        .accessibilityHint("只定位地图复盘，不执行命令")
                     }
 
                     if hiddenTimelineCount > 0 {
@@ -5556,8 +5566,6 @@ private struct AIPhaseTimelineEventRow: View {
                 .foregroundStyle(.white.opacity(0.68))
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("AI 行动 \(event.order)，\(event.kind.title)，\(event.summary)")
     }
 }
 

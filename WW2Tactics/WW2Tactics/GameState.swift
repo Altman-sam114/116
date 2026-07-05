@@ -473,6 +473,27 @@ final class GameState: ObservableObject {
         }
     }
 
+    func focusAIPhaseTimelineEvent(order: Int) {
+        guard let event = latestAIPhaseSummary?.timeline.first(where: { $0.order == order }) else {
+            message = "未找到AI复盘事件 #\(order)。"
+            return
+        }
+
+        guard let coordinate = event.to ?? event.from else {
+            message = "AI复盘 #\(order) 没有可定位坐标。"
+            return
+        }
+
+        guard tile(at: coordinate) != nil else {
+            message = "AI复盘 #\(order) 坐标不在当前地图。"
+            return
+        }
+
+        clearObjectiveGuidance()
+        focusedCoordinate = coordinate
+        message = "AI复盘 #\(event.order)：\(event.summary)"
+    }
+
     func selectNextReadyUnitFromMap() {
         guard winner == nil else { return }
         guard let unit = readyUnits.first else {
