@@ -1948,6 +1948,47 @@ struct BattlefieldSituationActionHint: Identifiable, Equatable {
     }
 }
 
+enum BattlefieldSituationResponseKind: String, Identifiable {
+    case countermeasure
+    case objectiveCapture
+
+    var id: String { rawValue }
+
+    var shortTitle: String {
+        switch self {
+        case .countermeasure: "CTR"
+        case .objectiveCapture: "CAP"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .countermeasure: "checkmark.shield.fill"
+        case .objectiveCapture: "flag.checkered"
+        }
+    }
+}
+
+struct BattlefieldSituationResponseSummary: Identifiable, Equatable {
+    let kind: BattlefieldSituationResponseKind
+    let title: String
+    let detail: String
+    let resultTitle: String
+    let resultDetail: String
+    let coordinate: HexCoordinate?
+
+    var id: String {
+        [
+            kind.rawValue,
+            title,
+            detail,
+            resultTitle,
+            resultDetail,
+            coordinate?.id ?? "none"
+        ].joined(separator: "-")
+    }
+}
+
 enum BattlefieldSituationFocusTargetKind: String, Identifiable {
     case countermeasure
     case objectiveDefense

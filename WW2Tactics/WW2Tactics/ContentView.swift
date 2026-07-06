@@ -2896,6 +2896,42 @@ private struct BattlefieldSituationSummaryView: View {
                 .foregroundStyle(.white.opacity(0.66))
                 .fixedSize(horizontal: false, vertical: true)
 
+            if let response = game.battlefieldSituationResponseSummary {
+                HStack(alignment: .top, spacing: 7) {
+                    Label(response.kind.shortTitle, systemImage: response.kind.iconName)
+                        .font(.caption2.weight(.black))
+                        .foregroundStyle(responseColor.opacity(0.92))
+                        .lineLimit(1)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(response.title)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white.opacity(0.88))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                        Text(response.detail)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.62))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.66)
+                        Text("\(response.resultTitle) · \(response.resultDetail)")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(responseColor.opacity(0.86))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.62)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 7)
+                .background(responseColor.opacity(0.11), in: RoundedRectangle(cornerRadius: 7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(responseColor.opacity(0.24), lineWidth: 1)
+                )
+                .accessibilityLabel("战线态势执行反馈，\(response.kind.shortTitle)，\(response.title)，\(response.detail)，\(response.resultTitle)，\(response.resultDetail)")
+            }
+
             if let target = summary.primaryFocusTarget {
                 Button(action: game.focusBattlefieldSituationPrimaryTarget) {
                     HStack(spacing: 7) {
@@ -2989,6 +3025,16 @@ private struct BattlefieldSituationSummaryView: View {
             .cyan
         case .spent:
             .gray
+        }
+    }
+
+    private var responseColor: Color {
+        guard let response = game.battlefieldSituationResponseSummary else { return priorityColor }
+        switch response.kind {
+        case .countermeasure:
+            return Color.mint
+        case .objectiveCapture:
+            return Color.yellow
         }
     }
 

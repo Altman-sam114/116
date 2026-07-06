@@ -2490,6 +2490,107 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.latestAIPhaseSummary)
     }
 
+    func testBattlefieldSituationResponseSummarizesCountermeasureExecutionReadOnly() throws {
+        let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let countermeasures = game.enemyThreatCountermeasurePreviews(
+            for: game.enemyThreatIntentPreviews(against: .allies, limit: 10),
+            limit: 10
+        )
+        let firstStrike = try XCTUnwrap(countermeasures.first {
+            $0.kind == .firstStrike &&
+                $0.actingUnitName == "反击炮兵" &&
+                $0.threatEnemyUnitName == "威胁炮兵"
+        })
+
+        XCTAssertNil(game.battlefieldSituationResponseSummary)
+
+        game.focusEnemyThreatCountermeasure(firstStrike)
+        game.executeFocusedCommand()
+
+        let replay = try XCTUnwrap(game.latestEnemyThreatCountermeasureExecutionResult)
+        let startingFaction = game.activeFaction
+        let startingCommandPoints = game.commandPoints
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+        let startingMessage = game.message
+
+        let response = try XCTUnwrap(game.battlefieldSituationResponseSummary)
+
+        XCTAssertEqual(response.kind, .countermeasure)
+        XCTAssertEqual(response.kind.shortTitle, "CTR")
+        XCTAssertEqual(response.kind.iconName, "checkmark.shield.fill")
+        XCTAssertTrue(response.title.contains(firstStrike.kind.title))
+        XCTAssertTrue(response.detail.contains(firstStrike.actingUnitName))
+        XCTAssertTrue(response.detail.contains(replay.executionKind.shortTitle))
+        XCTAssertTrue(response.resultTitle.isEmpty == false)
+        XCTAssertTrue(response.resultDetail.contains("->"))
+        XCTAssertEqual(response.coordinate, replay.coordinate ?? replay.threatTargetCoordinate)
+        XCTAssertEqual(game.battlefieldSituationResponseSummary, response)
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertEqual(game.message, startingMessage)
+        XCTAssertEqual(game.latestEnemyThreatCountermeasureExecutionResult, replay)
+    }
+
+    func testBattlefieldSituationResponseSummarizesObjectiveCaptureReadOnly() throws {
+        let game = GameState(scenario: Self.objectiveAdvanceScenario(includeOccupiedDecoy: false))
+        let tank = try XCTUnwrap(game.units.first { $0.name == "目标推进装甲" })
+        let preview = try XCTUnwrap(game.objectiveAdvancePreviews(for: tank).first)
+
+        game.handlePrimaryAction(on: tank.position)
+        game.focusObjectiveAdvancePreview(preview)
+        game.executeFocusedCommand()
+
+        let capture = try XCTUnwrap(game.latestObjectiveCaptureResult)
+        let startingFaction = game.activeFaction
+        let startingCommandPoints = game.commandPoints
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+        let startingMessage = game.message
+
+        let response = try XCTUnwrap(game.battlefieldSituationResponseSummary)
+
+        XCTAssertEqual(response.kind, .objectiveCapture)
+        XCTAssertEqual(response.kind.shortTitle, "CAP")
+        XCTAssertEqual(response.kind.iconName, "flag.checkered")
+        XCTAssertEqual(response.title, "\(capture.actionTitle)\(capture.objectiveName)")
+        XCTAssertTrue(response.detail.contains(capture.capturingUnitName))
+        XCTAssertTrue(response.detail.contains(capture.ownerTransitionText))
+        XCTAssertEqual(response.resultTitle, "据点进度 \(capture.progressText)")
+        XCTAssertTrue(response.resultDetail.contains("指令 +\(capture.commandPointReward)"))
+        XCTAssertEqual(response.coordinate, capture.coordinate)
+        XCTAssertEqual(game.battlefieldSituationResponseSummary, response)
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertEqual(game.message, startingMessage)
+        XCTAssertEqual(game.latestObjectiveCaptureResult, capture)
+    }
+
+    func testBattlefieldSituationResponseIgnoresUnrelatedCombat() throws {
+        let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let artillery = try XCTUnwrap(game.units.first { $0.name == "反击炮兵" })
+        let target = try XCTUnwrap(game.units.first { $0.name == "威胁炮兵" })
+
+        XCTAssertNil(game.battlefieldSituationResponseSummary)
+
+        game.handleTap(on: artillery.position)
+        game.focus(unitID: target.id)
+        game.executeFocusedCommand()
+
+        XCTAssertNotNil(game.latestCombatResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNil(game.battlefieldSituationResponseSummary)
+    }
+
     func testEnemyThreatCountermeasuresCoverActionsLimitAndReadOnly() throws {
         let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
         let startingFaction = game.activeFaction

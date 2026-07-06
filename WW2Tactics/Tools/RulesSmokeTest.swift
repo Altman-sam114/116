@@ -892,6 +892,15 @@ struct RulesSmokeTest {
             require(objectiveAdvanceCapture.coordinate == targetObjective.coordinate, "guided objective capture summary should record coordinate")
             require(objectiveAdvanceCapture.previousOwner == .axis, "guided objective capture summary should record previous owner")
             require(objectiveAdvanceCapture.newOwner == .allies, "guided objective capture summary should record new owner")
+            guard let objectiveSituationResponse = objectiveAdvanceGame.battlefieldSituationResponseSummary else {
+                require(false, "objective capture should publish battlefield situation response")
+                return
+            }
+            require(objectiveSituationResponse.kind == .objectiveCapture, "objective capture response should use CAP kind")
+            require(objectiveSituationResponse.title.contains("前线据点"), "objective capture response should name the captured objective")
+            require(objectiveSituationResponse.resultTitle.contains(objectiveAdvanceCapture.progressText), "objective capture response should expose objective progress")
+            require(objectiveSituationResponse.resultDetail.contains("指令 +\(objectiveAdvanceCapture.commandPointReward)"), "objective capture response should expose command reward")
+            require(objectiveSituationResponse.coordinate == targetObjective.coordinate, "objective capture response should point to capture coordinate")
 
             let distantObjectiveGame = GameState(scenario: distantObjectiveAdvanceScenario())
             guard let distantAdvanceTank = distantObjectiveGame.units.first(where: { $0.name == "目标推进装甲" }),
@@ -3052,6 +3061,7 @@ struct RulesSmokeTest {
         }
         firstStrikeExecutionGame.focusEnemyThreatCountermeasure(firstStrikeExecutionAdvice)
         require(firstStrikeExecutionGame.latestEnemyThreatCountermeasureExecutionResult == nil, "first strike focus should not publish replay before execution")
+        require(firstStrikeExecutionGame.battlefieldSituationResponseSummary == nil, "first strike focus should not publish battlefield situation response before execution")
         firstStrikeExecutionGame.executeFocusedCommand()
         guard let firstStrikeReplay = firstStrikeExecutionGame.latestEnemyThreatCountermeasureExecutionResult,
               let firstStrikeResult = firstStrikeExecutionGame.latestCombatResult,
@@ -3067,6 +3077,15 @@ struct RulesSmokeTest {
         require(firstStrikeDamageReplay.actual == "-\(firstStrikeResult.damage)", "first strike replay should use actual damage")
         require(firstStrikeResult.damage == firstStrikeExecutionAdvice.projectedDamage, "first strike actual damage should match preview in smoke scenario")
         require(firstStrikeEnemyHPReplay.actual == (firstStrikeResult.didDestroyDefender ? "击毁" : "HP \(firstStrikeResult.defender.endingHP)"), "first strike replay should use actual defender HP")
+        guard let firstStrikeSituationResponse = firstStrikeExecutionGame.battlefieldSituationResponseSummary else {
+            require(false, "first strike execution should publish battlefield situation response")
+            return
+        }
+        require(firstStrikeSituationResponse.kind == .countermeasure, "first strike response should use countermeasure kind")
+        require(firstStrikeSituationResponse.title.contains(firstStrikeExecutionAdvice.kind.title), "first strike response should name advice kind")
+        require(firstStrikeSituationResponse.detail.contains(firstStrikeExecutionAdvice.actingUnitName), "first strike response should name acting unit")
+        require(firstStrikeSituationResponse.resultDetail.contains("->"), "first strike response should expose expected to actual comparison")
+        require(firstStrikeSituationResponse.coordinate == (firstStrikeReplay.coordinate ?? firstStrikeReplay.threatTargetCoordinate), "first strike response should point to replay coordinate")
 
         let withdrawExecutionGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
         guard let withdrawExecutionAdvice = countermeasures(in: withdrawExecutionGame).first(where: {
@@ -3189,6 +3208,7 @@ struct RulesSmokeTest {
         ordinaryAttackGame.executeFocusedCommand()
         require(ordinaryAttackGame.latestCombatResult != nil, "ordinary attack should still publish combat result")
         require(ordinaryAttackGame.latestEnemyThreatCountermeasureExecutionResult == nil, "ordinary attack without focused countermeasure should not publish replay")
+        require(ordinaryAttackGame.battlefieldSituationResponseSummary == nil, "ordinary attack without focused countermeasure should not publish battlefield situation response")
 
         let ordinaryReinforceGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
         guard let ordinaryReinforceUnit = ordinaryReinforceGame.units.first(where: { $0.name == "前线装甲" }) else {

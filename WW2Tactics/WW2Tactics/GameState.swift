@@ -336,6 +336,18 @@ final class GameState: ObservableObject {
         )
     }
 
+    var battlefieldSituationResponseSummary: BattlefieldSituationResponseSummary? {
+        if let countermeasureResult = latestEnemyThreatCountermeasureExecutionResult {
+            return battlefieldSituationCountermeasureResponseSummary(countermeasureResult)
+        }
+
+        if let objectiveCaptureResult = latestObjectiveCaptureResult {
+            return battlefieldSituationObjectiveCaptureResponseSummary(objectiveCaptureResult)
+        }
+
+        return nil
+    }
+
     var objectiveTiles: [TerrainTile] {
         scenario.tiles.filter(\.isObjective)
     }
@@ -3973,6 +3985,37 @@ final class GameState: ObservableObject {
             .turnControl,
             "本回合行动已接近完成",
             "暂无可行动部队，确认战报和威胁后结束回合。"
+        )
+    }
+
+    private func battlefieldSituationCountermeasureResponseSummary(
+        _ result: EnemyThreatCountermeasureExecutionResultSummary
+    ) -> BattlefieldSituationResponseSummary {
+        let leadingComparison = result.comparisons.first
+        let resultTitle = leadingComparison.map { "\($0.title) \($0.result)" } ?? result.executionKind.title
+        let resultDetail = leadingComparison.map {
+            "\($0.expected) -> \($0.actual)"
+        } ?? result.actualSummary
+        return BattlefieldSituationResponseSummary(
+            kind: .countermeasure,
+            title: "\(result.countermeasureKind.title)已执行",
+            detail: "\(result.actingUnitName) \(result.executionKind.shortTitle) \(result.targetName)",
+            resultTitle: resultTitle,
+            resultDetail: resultDetail,
+            coordinate: result.coordinate ?? result.threatTargetCoordinate
+        )
+    }
+
+    private func battlefieldSituationObjectiveCaptureResponseSummary(
+        _ result: ObjectiveCaptureResultSummary
+    ) -> BattlefieldSituationResponseSummary {
+        BattlefieldSituationResponseSummary(
+            kind: .objectiveCapture,
+            title: "\(result.actionTitle)\(result.objectiveName)",
+            detail: "\(result.capturingUnitName) \(result.ownerTransitionText)",
+            resultTitle: "据点进度 \(result.progressText)",
+            resultDetail: "指令 +\(result.commandPointReward)，士气 +\(result.moraleReward)，经验 +\(result.experienceReward)",
+            coordinate: result.coordinate
         )
     }
 
