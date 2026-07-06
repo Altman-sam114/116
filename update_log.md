@@ -1783,3 +1783,38 @@
 
 - 本轮只把既有反制复核结果接入战线态势卡，不新增 AI 模拟、不改变复核生成、反制建议、OBJ 计划、AI、移动、攻击、整补、部署、据点、胜负或战斗数值。
 - 下一轮可继续处理普通战斗/后勤结果与态势影响的联动，或强化 AI 复盘定位和地图反馈。
+
+### v1.38 / 战线态势 AI 复盘联动定位
+
+日期：2026-07-06
+
+核心变更：
+
+- `GameModels` 新增 `BattlefieldSituationReplayTarget`，并让 `BattlefieldSituationSummary` 携带可选的 AI 关键复盘定位目标。
+- `GameState.battlefieldSituationSummary` 从最新 `AIPhaseSummary.replayConclusion.keyEvents.first` 纯派生战线态势复盘目标，并用同一 timeline 回查可定位坐标；无 summary、无关键事件、无坐标或坐标越界时不伪造目标。
+- 新增 `focusBattlefieldSituationReplayTarget()`，点击战线态势复盘入口时只复用既有 `focusAIPhaseTimelineEvent(order:)`，不直接设置坐标、不执行命令、不改变 AI 生成或 marker 派生。
+- `ContentView` 的“战线态势”卡新增“复盘影响”紧凑按钮，展示敌方关键 AI 事件并定位地图；UI 只消费 summary 字段，不查 timeline 或 marker。
+- 扩展 XCTest 和规则 smoke test，覆盖 replay target 派生、定位复用、只读无副作用以及无 summary/无坐标/越界坐标退化。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.38（战线态势AI复盘联动定位）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只把战线态势卡和既有 AI 复盘关键事件定位连接起来，不新增 AI 行为、不改变关键事件排序、不改变战线态势首要定位、不新增自动执行。
+- 下一轮可继续处理普通战斗/后勤结果与态势影响解释的联动，或进一步增强地图反馈的可读性。

@@ -2207,6 +2207,64 @@ struct RulesSmokeTest {
                     require(false, "axis post-move barrage conclusion should expose a focusable key event")
                     return
                 }
+                guard let axisPostMoveBarrageSituationReplayTarget = axisPostMoveBarrageGame.battlefieldSituationSummary.replayTarget else {
+                    require(false, "battlefield situation should expose AI replay target")
+                    return
+                }
+                require(
+                    axisPostMoveBarrageSituationReplayTarget.order == axisPostMoveBarrageConclusionEvent.order,
+                    "battlefield situation AI replay target should use first conclusion key event order"
+                )
+                require(
+                    axisPostMoveBarrageSituationReplayTarget.title == axisPostMoveBarrageConclusionEvent.title,
+                    "battlefield situation AI replay target should expose key event title"
+                )
+                require(
+                    axisPostMoveBarrageSituationReplayTarget.detail == axisPostMoveBarrageConclusionEvent.detail,
+                    "battlefield situation AI replay target should expose key event detail"
+                )
+                require(
+                    axisPostMoveBarrageSituationReplayTarget.coordinate == axisPostMoveBarrageConclusionCoordinate,
+                    "battlefield situation AI replay target should use key event coordinate"
+                )
+                let axisPostMoveBarrageUnitsBeforeSituationReplayFocus = axisPostMoveBarrageGame.scenario.units
+                let axisPostMoveBarrageCommandPointsBeforeSituationReplayFocus = axisPostMoveBarrageGame.commandPoints
+                let axisPostMoveBarrageSummaryBeforeSituationReplayFocus = axisPostMoveBarrageGame.latestAIPhaseSummary
+                let axisPostMoveBarrageMarkersBeforeSituationReplayFocus = axisPostMoveBarrageGame.latestAIPhaseMapMarkers
+                let axisPostMoveBarragePlaybackBeforeSituationReplayFocus = axisPostMoveBarrageGame.isAIPhaseTimelinePlaybackActive
+                axisPostMoveBarrageGame.focusBattlefieldSituationReplayTarget()
+                require(
+                    axisPostMoveBarrageGame.focusedCoordinate == axisPostMoveBarrageConclusionCoordinate,
+                    "battlefield situation AI replay target should focus key event coordinate"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageConclusionEvent.order,
+                    "battlefield situation AI replay target should reuse AI replay focused order"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseMapMarkers == axisPostMoveBarrageMarkers.filter { $0.eventOrder == axisPostMoveBarrageConclusionEvent.order },
+                    "battlefield situation AI replay target should reuse focused AI map markers"
+                )
+                require(
+                    axisPostMoveBarrageGame.scenario.units == axisPostMoveBarrageUnitsBeforeSituationReplayFocus,
+                    "battlefield situation AI replay focus should not mutate units"
+                )
+                require(
+                    axisPostMoveBarrageGame.commandPoints == axisPostMoveBarrageCommandPointsBeforeSituationReplayFocus,
+                    "battlefield situation AI replay focus should not mutate command points"
+                )
+                require(
+                    axisPostMoveBarrageGame.latestAIPhaseSummary == axisPostMoveBarrageSummaryBeforeSituationReplayFocus,
+                    "battlefield situation AI replay focus should not mutate AI summary"
+                )
+                require(
+                    axisPostMoveBarrageGame.latestAIPhaseMapMarkers == axisPostMoveBarrageMarkersBeforeSituationReplayFocus,
+                    "battlefield situation AI replay focus should not mutate map replay markers"
+                )
+                require(
+                    axisPostMoveBarrageGame.isAIPhaseTimelinePlaybackActive == axisPostMoveBarragePlaybackBeforeSituationReplayFocus,
+                    "battlefield situation AI replay focus should preserve playback state"
+                )
                 let axisPostMoveBarrageUnitsBeforeConclusionFocus = axisPostMoveBarrageGame.scenario.units
                 let axisPostMoveBarrageCommandPointsBeforeConclusionFocus = axisPostMoveBarrageGame.commandPoints
                 let axisPostMoveBarrageSummaryBeforeConclusionFocus = axisPostMoveBarrageGame.latestAIPhaseSummary

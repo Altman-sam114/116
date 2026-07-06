@@ -329,6 +329,7 @@ final class GameState: ObservableObject {
             objectiveThreatCount: objectiveThreats.count,
             executableCountermeasureCount: executableCountermeasures.count,
             threatenedObjectiveNames: threatenedObjectiveNames,
+            replayTarget: battlefieldSituationReplayTarget(),
             primaryFocusTarget: battlefieldSituationPrimaryFocusTarget(
                 threats: threats,
                 countermeasures: countermeasures
@@ -645,6 +646,15 @@ final class GameState: ObservableObject {
             }
             select(unitID: unitID)
         }
+    }
+
+    func focusBattlefieldSituationReplayTarget() {
+        guard let replayTarget = battlefieldSituationSummary.replayTarget else {
+            message = "战线态势暂无可定位的敌方关键复盘事件。"
+            return
+        }
+
+        focusAIPhaseTimelineEvent(order: replayTarget.order)
     }
 
     func focusAIPhaseTimelineEvent(order: Int) {
@@ -4040,6 +4050,23 @@ final class GameState: ObservableObject {
             resultTitle: "据点进度 \(result.progressText)",
             resultDetail: "指令 +\(result.commandPointReward)，士气 +\(result.moraleReward)，经验 +\(result.experienceReward)",
             coordinate: result.coordinate
+        )
+    }
+
+    private func battlefieldSituationReplayTarget() -> BattlefieldSituationReplayTarget? {
+        guard let aiSummary = latestAIPhaseSummary,
+              let keyEvent = aiSummary.replayConclusion.keyEvents.first,
+              let timelineEvent = aiSummary.timeline.first(where: { $0.order == keyEvent.order }),
+              let coordinate = timelineEvent.to ?? timelineEvent.from,
+              tile(at: coordinate) != nil else {
+            return nil
+        }
+
+        return BattlefieldSituationReplayTarget(
+            order: keyEvent.order,
+            title: keyEvent.title,
+            detail: keyEvent.detail,
+            coordinate: coordinate
         )
     }
 

@@ -1040,6 +1040,34 @@ final class GameStateTests: XCTestCase {
         let conclusionReplayCoordinate = try XCTUnwrap(
             conclusionTimelineEvent.to ?? conclusionTimelineEvent.from
         )
+        let battlefieldReplayTarget = try XCTUnwrap(game.battlefieldSituationSummary.replayTarget)
+        XCTAssertEqual(battlefieldReplayTarget.order, conclusionKeyEvent.order)
+        XCTAssertEqual(battlefieldReplayTarget.title, conclusionKeyEvent.title)
+        XCTAssertEqual(battlefieldReplayTarget.detail, conclusionKeyEvent.detail)
+        XCTAssertEqual(battlefieldReplayTarget.coordinate, conclusionReplayCoordinate)
+
+        let unitsBeforeBattlefieldReplayFocus = game.scenario.units
+        let commandPointsBeforeBattlefieldReplayFocus = game.commandPoints
+        let summaryBeforeBattlefieldReplayFocus = game.latestAIPhaseSummary
+        let markersBeforeBattlefieldReplayFocus = game.latestAIPhaseMapMarkers
+        let playbackBeforeBattlefieldReplayFocus = game.isAIPhaseTimelinePlaybackActive
+
+        game.focusBattlefieldSituationReplayTarget()
+
+        XCTAssertEqual(game.focusedCoordinate, conclusionReplayCoordinate)
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, conclusionKeyEvent.order)
+        XCTAssertEqual(
+            game.focusedAIPhaseMapMarkers,
+            markersBeforeReplayFocus.filter { $0.eventOrder == conclusionKeyEvent.order }
+        )
+        XCTAssertTrue(game.message.contains("AI复盘 #\(conclusionKeyEvent.order)"))
+        XCTAssertTrue(game.message.contains(conclusionTimelineEvent.summary))
+        XCTAssertEqual(game.scenario.units, unitsBeforeBattlefieldReplayFocus)
+        XCTAssertEqual(game.commandPoints, commandPointsBeforeBattlefieldReplayFocus)
+        XCTAssertEqual(game.latestAIPhaseSummary, summaryBeforeBattlefieldReplayFocus)
+        XCTAssertEqual(game.latestAIPhaseMapMarkers, markersBeforeBattlefieldReplayFocus)
+        XCTAssertEqual(game.isAIPhaseTimelinePlaybackActive, playbackBeforeBattlefieldReplayFocus)
+
         let unitsBeforeConclusionFocus = game.scenario.units
         let commandPointsBeforeConclusionFocus = game.commandPoints
         let summaryBeforeConclusionFocus = game.latestAIPhaseSummary
@@ -1201,6 +1229,14 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(game.latestAIPhaseMapMarkers.isEmpty)
         XCTAssertNil(game.focusedAIPhaseTimelineEventOrder)
         XCTAssertTrue(game.focusedAIPhaseMapMarkers.isEmpty)
+        XCTAssertNil(game.battlefieldSituationSummary.replayTarget)
+
+        game.focusBattlefieldSituationReplayTarget()
+
+        XCTAssertEqual(game.focusedCoordinate, initialFocus)
+        XCTAssertNil(game.focusedAIPhaseTimelineEventOrder)
+        XCTAssertTrue(game.focusedAIPhaseMapMarkers.isEmpty)
+        XCTAssertTrue(game.message.contains("暂无可定位"))
     }
 
     func testAIPhaseTimelinePlaybackRejectsEmptyAndInvalidEvents() throws {
@@ -1222,6 +1258,7 @@ final class GameStateTests: XCTestCase {
             keyEventKinds: []
         )
         XCTAssertTrue(try XCTUnwrap(game.latestAIPhaseSummary).replayConclusion.keyEvents.isEmpty)
+        XCTAssertNil(game.battlefieldSituationSummary.replayTarget)
 
         let validCoordinate = try XCTUnwrap(game.focusedCoordinate)
         let maneuverConclusion = testAIPhaseSummary(
@@ -1286,6 +1323,7 @@ final class GameStateTests: XCTestCase {
                 testAIPhaseTimelineEvent(order: 2, from: nil, to: nil)
             ])
         )
+        XCTAssertNil(game.battlefieldSituationSummary.replayTarget)
         game.toggleAIPhaseTimelinePlayback()
         game.advanceAIPhaseTimelinePlayback()
 
@@ -1301,6 +1339,7 @@ final class GameStateTests: XCTestCase {
                 testAIPhaseTimelineEvent(order: 3, from: HexCoordinate(q: 999, r: 999), to: HexCoordinate(q: 999, r: 999))
             ])
         )
+        XCTAssertNil(game.battlefieldSituationSummary.replayTarget)
         game.toggleAIPhaseTimelinePlayback()
         game.advanceAIPhaseTimelinePlayback()
 

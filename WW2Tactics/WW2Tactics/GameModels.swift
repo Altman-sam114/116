@@ -1992,6 +1992,17 @@ struct BattlefieldSituationResponseSummary: Identifiable, Equatable {
     }
 }
 
+struct BattlefieldSituationReplayTarget: Identifiable, Equatable {
+    let order: Int
+    let title: String
+    let detail: String
+    let coordinate: HexCoordinate
+
+    var id: String {
+        "\(order)-\(title)-\(coordinate.id)"
+    }
+}
+
 enum BattlefieldSituationFocusTargetKind: String, Identifiable {
     case countermeasure
     case objectiveDefense
@@ -2057,10 +2068,11 @@ struct BattlefieldSituationSummary: Equatable {
     let objectiveThreatCount: Int
     let executableCountermeasureCount: Int
     let threatenedObjectiveNames: [String]
+    let replayTarget: BattlefieldSituationReplayTarget?
     let primaryFocusTarget: BattlefieldSituationFocusTarget?
 
     var id: String {
-        "\(faction.rawValue)-\(priority.rawValue)-\(focusKind.rawValue)-\(commandPoints)-\(readyUnitCount)-\(controlledObjectiveCount)-\(enemyThreatCount)-\(executableCountermeasureCount)-\(primaryFocusTarget?.id ?? "none")"
+        "\(faction.rawValue)-\(priority.rawValue)-\(focusKind.rawValue)-\(commandPoints)-\(readyUnitCount)-\(controlledObjectiveCount)-\(enemyThreatCount)-\(executableCountermeasureCount)-\(replayTarget?.id ?? "none")-\(primaryFocusTarget?.id ?? "none")"
     }
 
     var objectiveProgressText: String {

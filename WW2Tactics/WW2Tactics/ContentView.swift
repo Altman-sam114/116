@@ -2932,6 +2932,47 @@ private struct BattlefieldSituationSummaryView: View {
                 .accessibilityLabel("战线态势执行反馈，\(response.kind.shortTitle)，\(response.title)，\(response.detail)，\(response.resultTitle)，\(response.resultDetail)")
             }
 
+            if let replayTarget = summary.replayTarget {
+                Button(action: game.focusBattlefieldSituationReplayTarget) {
+                    HStack(spacing: 7) {
+                        Label("复盘影响", systemImage: "timeline.selection")
+                            .font(.caption2.weight(.bold))
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(replayTarget.title)
+                                .font(.caption2.weight(.bold))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+                            Text(replayTarget.detail)
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.white.opacity(0.58))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.66)
+                        }
+
+                        Spacer(minLength: 4)
+
+                        Text("#\(replayTarget.order)")
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.84))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 3)
+                            .background(Color.white.opacity(0.10), in: Capsule())
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white.opacity(0.86))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 7)
+                .background(Color.blue.opacity(0.11), in: RoundedRectangle(cornerRadius: 7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(Color.blue.opacity(0.24), lineWidth: 1)
+                )
+                .accessibilityLabel("定位敌方关键复盘事件，事件\(replayTarget.order)，\(replayTarget.title)，\(replayTarget.detail)")
+            }
+
             if let target = summary.primaryFocusTarget {
                 Button(action: game.focusBattlefieldSituationPrimaryTarget) {
                     HStack(spacing: 7) {
