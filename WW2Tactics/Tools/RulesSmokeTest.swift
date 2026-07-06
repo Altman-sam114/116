@@ -1462,8 +1462,14 @@ struct RulesSmokeTest {
             require(objectivePressure.primaryThreatTitle.isEmpty == false, "objective pressure should expose a risk title")
             require(objectivePressure.primaryThreatDetail.contains(situationObjectiveThreat.enemyUnitName), "objective pressure should describe the primary threat")
             require(objectivePressure.actionHint.entryTitle.isEmpty == false, "objective pressure should expose a recommended entry")
-            require(objectivePressure.actionHint.kind == .move, "objective pressure should recommend MOVE for objective defense")
             require(objectivePressure.countermeasurePreview == pressureCountermeasure, "objective pressure should link the matching objective defense countermeasure")
+            if let pressureCountermeasure {
+                require(objectivePressure.actionHint.kind == .move, "objective pressure should recommend MOVE when objective defense is in the current countermeasures")
+                require(objectivePressure.actionHint.isExecutable == pressureCountermeasure.canExecuteNow, "objective pressure should mirror objective defense availability")
+            } else {
+                require(objectivePressure.actionHint.kind == .defend, "objective pressure should fall back to DEF when no matching countermeasure is in the current list")
+                require(objectivePressure.actionHint.isExecutable == enemyThreatGame.readyUnitCount > 0, "objective pressure fallback should mirror ready unit availability")
+            }
             guard let situationFocusTarget = situationSummary.primaryFocusTarget,
                   let situationCountermeasure = situationFocusTarget.countermeasurePreview else {
                 require(false, "battlefield situation should expose a countermeasure focus target")

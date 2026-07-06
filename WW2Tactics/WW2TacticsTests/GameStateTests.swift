@@ -2416,18 +2416,23 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(summary.threatenedObjectiveNames.contains("后方油库"))
         let objectiveThreat = try XCTUnwrap(threats.first { $0.kind == .objectiveCapture && $0.targetName == "后方油库" })
         let objectivePressure = try XCTUnwrap(summary.objectivePressures.first { $0.objectiveName == "后方油库" })
-        let objectiveDefense = try XCTUnwrap(countermeasures.first {
+        let objectiveDefense = countermeasures.first {
             $0.kind == .objectiveDefense &&
                 $0.threatID == objectiveThreat.id
-        })
+        }
         XCTAssertEqual(objectivePressure.coordinate, objectiveThreat.targetCoordinate)
         XCTAssertEqual(objectivePressure.owner, game.tile(at: objectiveThreat.targetCoordinate)?.owner)
         XCTAssertGreaterThanOrEqual(objectivePressure.threatSourceCount, 1)
         XCTAssertEqual(objectivePressure.primaryThreatTitle, "占点风险")
         XCTAssertTrue(objectivePressure.primaryThreatDetail.contains(objectiveThreat.enemyUnitName))
         XCTAssertEqual(objectivePressure.countermeasurePreview, objectiveDefense)
-        XCTAssertEqual(objectivePressure.actionHint.kind, .move)
-        XCTAssertEqual(objectivePressure.actionHint.isExecutable, objectiveDefense.canExecuteNow)
+        if let objectiveDefense {
+            XCTAssertEqual(objectivePressure.actionHint.kind, .move)
+            XCTAssertEqual(objectivePressure.actionHint.isExecutable, objectiveDefense.canExecuteNow)
+        } else {
+            XCTAssertEqual(objectivePressure.actionHint.kind, .defend)
+            XCTAssertEqual(objectivePressure.actionHint.isExecutable, game.readyUnitCount > 0)
+        }
         XCTAssertFalse(objectivePressure.actionHint.entryTitle.isEmpty)
         XCTAssertEqual(summary.priority, .threatened)
         XCTAssertEqual(summary.focusKind, .countermeasure)
