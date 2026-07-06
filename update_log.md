@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判、AI 复盘、OBJ/POS/反制建议操作可读性、玩家回合战线态势汇总和执行反馈闭环。
+- 近期规划已进入 `v1（地图操作体验）`：已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判、AI 复盘、OBJ/POS/反制建议操作可读性、玩家回合战线态势汇总、执行反馈闭环和敌方回合影响解释。
 
 ## 历史记录
 
@@ -1734,9 +1734,52 @@
 - iOS app 源码级 typecheck：通过，退出码 0。
 - 测试模块 emit：通过，退出码 0。
 - `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
-- 云端 GitHub Actions 结果以本轮最终交付记录为准。
+- GitHub Actions `WW2Tactics CI Results` run `28788564127` / attempt `1`：completed / success。
+- Artifact `ww2tactics-ci-v1.36-main-4c143fb-run28788564127-attempt1`：Agent C 已下载到 `/private/tmp/ww2tactics-c-review-28788564127/`，目录大小 `3.4M`。
+- Manifest `commitSha=4c143fb48056195e2e5c37acdfb1aa02536e9b6a`、`branch=main`、`runId=28788564127`、`runAttempt=1` 与 `origin/main` 功能提交一致。
+- `ci-failure-summary.md`、`junit.xml`、`static-checks.log`、`rules-smoke.log`、`xcodebuild.log` 和 `WW2Tactics.xcresult` 均已核对；静态检查、规则 smoke 和 Xcode build-for-testing 均为 success，XCTest 执行按当前 CI 策略为 skipped。
 
 遗留事项：
 
 - 本轮只增加战线态势卡的执行反馈展示，不新增自动执行、不改变反制建议、OBJ 计划、AI、移动、攻击、整补、部署、据点、胜负或战斗数值。
 - 下一轮可继续把态势响应和敌方回合后的复核/AI 影响解释串联起来。
+
+### v1.37 / 战线态势敌方回合影响
+
+日期：2026-07-06
+
+核心变更：
+
+- `BattlefieldSituationResponseKind` 新增敌方回合影响类型，让战线态势响应能区分即时反制、占点和敌方回合复核。
+- `GameState.battlefieldSituationResponseSummary` 调整为优先从 `latestEnemyThreatCountermeasureFollowUpResult` 派生敌方回合影响，其次才展示即时反制执行回放或据点占领反馈。
+- 战线态势卡在反制进入敌方回合后会显示复核等级、反制类型、执行单位/目标、关键敌方回合前后对比和复核坐标；UI 只消费 `GameState` 字段，不计算复核规则。
+- 扩展 XCTest 和规则 smoke test，覆盖 follow-up 响应优先级、读取无副作用、无反制 baseline 不伪造 follow-up 响应，以及既有即时反制/占点响应不被破坏。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.37（战线态势敌方回合影响）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- 云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只把既有反制复核结果接入战线态势卡，不新增 AI 模拟、不改变复核生成、反制建议、OBJ 计划、AI、移动、攻击、整补、部署、据点、胜负或战斗数值。
+- 下一轮可继续处理普通战斗/后勤结果与态势影响的联动，或强化 AI 复盘定位和地图反馈。

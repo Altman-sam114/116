@@ -337,6 +337,10 @@ final class GameState: ObservableObject {
     }
 
     var battlefieldSituationResponseSummary: BattlefieldSituationResponseSummary? {
+        if let followUpResult = latestEnemyThreatCountermeasureFollowUpResult {
+            return battlefieldSituationCountermeasureFollowUpResponseSummary(followUpResult)
+        }
+
         if let countermeasureResult = latestEnemyThreatCountermeasureExecutionResult {
             return battlefieldSituationCountermeasureResponseSummary(countermeasureResult)
         }
@@ -3985,6 +3989,26 @@ final class GameState: ObservableObject {
             .turnControl,
             "本回合行动已接近完成",
             "暂无可行动部队，确认战报和威胁后结束回合。"
+        )
+    }
+
+    private func battlefieldSituationCountermeasureFollowUpResponseSummary(
+        _ result: EnemyThreatCountermeasureFollowUpSummary
+    ) -> BattlefieldSituationResponseSummary {
+        let leadingComparison = result.comparisons.first
+        let resultTitle = leadingComparison.map {
+            "\($0.title) \($0.result)"
+        } ?? result.outcomeLevel.title
+        let resultDetail = leadingComparison.map {
+            "\($0.beforeEnemyPhase) -> \($0.afterEnemyPhase)"
+        } ?? result.detailSummary
+        return BattlefieldSituationResponseSummary(
+            kind: .countermeasureFollowUp,
+            title: "\(result.outcomeLevel.title)：\(result.countermeasureKind.title)",
+            detail: "\(result.actingUnitName) -> \(result.targetName)，\(result.conclusion)",
+            resultTitle: resultTitle,
+            resultDetail: resultDetail,
+            coordinate: result.coordinate ?? result.threatTargetCoordinate
         )
     }
 

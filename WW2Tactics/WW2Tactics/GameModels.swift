@@ -1949,6 +1949,7 @@ struct BattlefieldSituationActionHint: Identifiable, Equatable {
 }
 
 enum BattlefieldSituationResponseKind: String, Identifiable {
+    case countermeasureFollowUp
     case countermeasure
     case objectiveCapture
 
@@ -1956,6 +1957,7 @@ enum BattlefieldSituationResponseKind: String, Identifiable {
 
     var shortTitle: String {
         switch self {
+        case .countermeasureFollowUp: "AI"
         case .countermeasure: "CTR"
         case .objectiveCapture: "CAP"
         }
@@ -1963,6 +1965,7 @@ enum BattlefieldSituationResponseKind: String, Identifiable {
 
     var iconName: String {
         switch self {
+        case .countermeasureFollowUp: "shield.lefthalf.filled"
         case .countermeasure: "checkmark.shield.fill"
         case .objectiveCapture: "flag.checkered"
         }

@@ -2591,6 +2591,72 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.battlefieldSituationResponseSummary)
     }
 
+    func testBattlefieldSituationResponseSummarizesCountermeasureFollowUpReadOnly() throws {
+        let game = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
+        let firstStrike = try XCTUnwrap(game.enemyThreatCountermeasurePreviews(
+            for: game.enemyThreatIntentPreviews(against: .allies, limit: 10),
+            limit: 10
+        ).first {
+            $0.kind == .firstStrike &&
+                $0.actingUnitName == "反击炮兵" &&
+                $0.threatEnemyUnitName == "威胁炮兵"
+        })
+
+        XCTAssertNil(game.battlefieldSituationResponseSummary)
+
+        game.focusEnemyThreatCountermeasure(firstStrike)
+        game.executeFocusedCommand()
+
+        XCTAssertEqual(game.battlefieldSituationResponseSummary?.kind, .countermeasure)
+
+        game.endTurn()
+
+        let followUp = try XCTUnwrap(game.latestEnemyThreatCountermeasureFollowUpResult)
+        let aiSummary = try XCTUnwrap(game.latestAIPhaseSummary)
+        let leadingComparison = try XCTUnwrap(followUp.comparisons.first)
+        let startingFaction = game.activeFaction
+        let startingCommandPoints = game.commandPoints
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+        let startingMessage = game.message
+
+        let response = try XCTUnwrap(game.battlefieldSituationResponseSummary)
+
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
+        XCTAssertEqual(response.kind, .countermeasureFollowUp)
+        XCTAssertEqual(response.kind.shortTitle, "AI")
+        XCTAssertEqual(response.kind.iconName, "shield.lefthalf.filled")
+        XCTAssertTrue(response.title.contains(followUp.outcomeLevel.title))
+        XCTAssertTrue(response.title.contains(followUp.countermeasureKind.title))
+        XCTAssertTrue(response.detail.contains(followUp.actingUnitName))
+        XCTAssertTrue(response.detail.contains(followUp.targetName))
+        XCTAssertTrue(response.detail.contains(followUp.conclusion))
+        XCTAssertEqual(response.resultTitle, "\(leadingComparison.title) \(leadingComparison.result)")
+        XCTAssertEqual(response.resultDetail, "\(leadingComparison.beforeEnemyPhase) -> \(leadingComparison.afterEnemyPhase)")
+        XCTAssertEqual(response.coordinate, followUp.coordinate ?? followUp.threatTargetCoordinate)
+        XCTAssertEqual(game.battlefieldSituationResponseSummary, response)
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertEqual(game.message, startingMessage)
+        XCTAssertEqual(game.latestAIPhaseSummary, aiSummary)
+        XCTAssertEqual(game.latestEnemyThreatCountermeasureFollowUpResult, followUp)
+    }
+
+    func testBattlefieldSituationResponseDoesNotSummarizeFollowUpWithoutCountermeasureBaseline() {
+        let game = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
+
+        game.endTurn()
+
+        XCTAssertNotNil(game.latestAIPhaseSummary)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureFollowUpResult)
+        XCTAssertNotEqual(game.battlefieldSituationResponseSummary?.kind, .countermeasureFollowUp)
+    }
+
     func testEnemyThreatCountermeasuresCoverActionsLimitAndReadOnly() throws {
         let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
         let startingFaction = game.activeFaction

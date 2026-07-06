@@ -3261,6 +3261,24 @@ struct RulesSmokeTest {
                 require(followUp.comparisons.contains(where: { $0.title == title }), "countermeasure follow-up should include \(title) comparison")
             }
             require(followUp.comparisons.contains(where: { $0.kind == .aiImpact }), "countermeasure follow-up should include AI impact comparison")
+            guard let situationResponse = game.battlefieldSituationResponseSummary,
+                  let leadingComparison = followUp.comparisons.first else {
+                require(false, "countermeasure follow-up should publish battlefield situation response")
+                return nil
+            }
+            require(situationResponse.kind == .countermeasureFollowUp, "follow-up situation response should use AI impact kind")
+            require(situationResponse.title.contains(followUp.outcomeLevel.title), "follow-up situation response should expose outcome level")
+            require(situationResponse.title.contains(followUp.countermeasureKind.title), "follow-up situation response should expose countermeasure kind")
+            require(situationResponse.detail.contains(followUp.conclusion), "follow-up situation response should expose conclusion")
+            require(situationResponse.resultTitle == "\(leadingComparison.title) \(leadingComparison.result)", "follow-up situation response should expose leading result")
+            require(
+                situationResponse.resultDetail == "\(leadingComparison.beforeEnemyPhase) -> \(leadingComparison.afterEnemyPhase)",
+                "follow-up situation response should expose before and after enemy phase"
+            )
+            require(
+                situationResponse.coordinate == (followUp.coordinate ?? followUp.threatTargetCoordinate),
+                "follow-up situation response should point to follow-up coordinate"
+            )
 
             let unitsBeforeFocus = game.units
             let commandPointsBeforeFocus = game.commandPoints
@@ -3283,6 +3301,10 @@ struct RulesSmokeTest {
         noBaselineGame.endTurn()
         require(noBaselineGame.latestEnemyThreatCountermeasureFollowUpResult == nil, "enemy phase without countermeasure replay should not publish follow-up")
         require(noBaselineGame.latestAIPhaseSummary != nil, "enemy phase without follow-up should still publish AI summary")
+        require(
+            noBaselineGame.battlefieldSituationResponseSummary?.kind != .countermeasureFollowUp,
+            "enemy phase without follow-up should not publish follow-up situation response"
+        )
 
         let firstStrikeGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))
         guard let firstStrikeAdvice = countermeasures(in: firstStrikeGame).first(where: {

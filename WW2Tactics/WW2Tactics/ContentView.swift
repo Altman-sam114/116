@@ -3031,6 +3031,8 @@ private struct BattlefieldSituationSummaryView: View {
     private var responseColor: Color {
         guard let response = game.battlefieldSituationResponseSummary else { return priorityColor }
         switch response.kind {
+        case .countermeasureFollowUp:
+            return Color.blue
         case .countermeasure:
             return Color.mint
         case .objectiveCapture:
