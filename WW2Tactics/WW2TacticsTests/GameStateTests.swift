@@ -868,8 +868,61 @@ final class GameStateTests: XCTestCase {
         let commandPointsBeforeReplayFocus = game.commandPoints
         let summaryBeforeReplayFocus = summary
         let markersBeforeReplayFocus = markers
+        let firstEvent = try XCTUnwrap(summary.timeline.first)
         let tacticalEvent = summary.timeline[1]
+        let lastEvent = try XCTUnwrap(summary.timeline.last)
+        let firstReplayCoordinate = try XCTUnwrap(firstEvent.to ?? firstEvent.from)
         let replayCoordinate = try XCTUnwrap(tacticalEvent.to ?? tacticalEvent.from)
+        let lastReplayCoordinate = try XCTUnwrap(lastEvent.to ?? lastEvent.from)
+
+        XCTAssertTrue(game.canFocusPreviousAIPhaseTimelineEvent)
+        XCTAssertTrue(game.canFocusNextAIPhaseTimelineEvent)
+
+        game.focusNextAIPhaseTimelineEvent()
+
+        XCTAssertEqual(game.focusedCoordinate, firstReplayCoordinate)
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, firstEvent.order)
+        XCTAssertEqual(
+            game.focusedAIPhaseMapMarkers,
+            markersBeforeReplayFocus.filter { $0.eventOrder == firstEvent.order }
+        )
+        XCTAssertFalse(game.canFocusPreviousAIPhaseTimelineEvent)
+        XCTAssertEqual(game.canFocusNextAIPhaseTimelineEvent, summary.timeline.count > 1)
+
+        let firstFocusedCoordinate = game.focusedCoordinate
+        game.focusPreviousAIPhaseTimelineEvent()
+
+        XCTAssertEqual(game.focusedCoordinate, firstFocusedCoordinate)
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, firstEvent.order)
+        XCTAssertTrue(game.message.contains("已经是第一条AI复盘事件"))
+
+        game.focusAIPhaseTimelineEvent(order: lastEvent.order)
+
+        XCTAssertEqual(game.focusedCoordinate, lastReplayCoordinate)
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, lastEvent.order)
+        XCTAssertEqual(game.canFocusPreviousAIPhaseTimelineEvent, summary.timeline.count > 1)
+        XCTAssertFalse(game.canFocusNextAIPhaseTimelineEvent)
+
+        let lastFocusedCoordinate = game.focusedCoordinate
+        game.focusNextAIPhaseTimelineEvent()
+
+        XCTAssertEqual(game.focusedCoordinate, lastFocusedCoordinate)
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, lastEvent.order)
+        XCTAssertTrue(game.message.contains("已经是最后一条AI复盘事件"))
+
+        if summary.timeline.count > 1 {
+            let previousEvent = summary.timeline[summary.timeline.count - 2]
+            let previousReplayCoordinate = try XCTUnwrap(previousEvent.to ?? previousEvent.from)
+
+            game.focusPreviousAIPhaseTimelineEvent()
+
+            XCTAssertEqual(game.focusedCoordinate, previousReplayCoordinate)
+            XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, previousEvent.order)
+            XCTAssertEqual(
+                game.focusedAIPhaseMapMarkers,
+                markersBeforeReplayFocus.filter { $0.eventOrder == previousEvent.order }
+            )
+        }
 
         game.focusAIPhaseTimelineEvent(order: tacticalEvent.order)
 
@@ -885,6 +938,24 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.commandPoints, commandPointsBeforeReplayFocus)
         XCTAssertEqual(game.latestAIPhaseSummary, summaryBeforeReplayFocus)
         XCTAssertEqual(game.latestAIPhaseMapMarkers, markersBeforeReplayFocus)
+
+        let reverseGame = GameState(
+            scenario: Self.axisPostMoveBarrageScenario(),
+            commandPoints: [.allies: 6, .axis: 1]
+        )
+        reverseGame.endTurn()
+        let reverseSummary = try XCTUnwrap(reverseGame.latestAIPhaseSummary)
+        let reverseLastEvent = try XCTUnwrap(reverseSummary.timeline.last)
+        let reverseLastCoordinate = try XCTUnwrap(reverseLastEvent.to ?? reverseLastEvent.from)
+
+        reverseGame.focusPreviousAIPhaseTimelineEvent()
+
+        XCTAssertEqual(reverseGame.focusedCoordinate, reverseLastCoordinate)
+        XCTAssertEqual(reverseGame.focusedAIPhaseTimelineEventOrder, reverseLastEvent.order)
+        XCTAssertEqual(
+            reverseGame.focusedAIPhaseMapMarkers,
+            reverseGame.latestAIPhaseMapMarkers.filter { $0.eventOrder == reverseLastEvent.order }
+        )
 
         let focusedAfterReplay = game.focusedCoordinate
         game.focusAIPhaseTimelineEvent(order: 999)
@@ -917,9 +988,11 @@ final class GameStateTests: XCTestCase {
         let initialCommandPoints = game.commandPoints
 
         game.focusAIPhaseTimelineEvent(order: 1)
+        game.focusNextAIPhaseTimelineEvent()
+        game.focusPreviousAIPhaseTimelineEvent()
 
         XCTAssertEqual(game.focusedCoordinate, initialFocus)
-        XCTAssertTrue(game.message.contains("未找到AI复盘事件 #1"))
+        XCTAssertTrue(game.message.contains("没有可浏览的AI复盘事件"))
         XCTAssertEqual(game.scenario.units, initialUnits)
         XCTAssertEqual(game.commandPoints, initialCommandPoints)
         XCTAssertNil(game.latestAIPhaseSummary)

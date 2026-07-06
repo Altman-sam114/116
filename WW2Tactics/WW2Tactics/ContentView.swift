@@ -5522,9 +5522,29 @@ private struct AIPhaseSummaryView: View {
 
             if !visibleTimeline.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
-                    Label("行动时间线", systemImage: "list.number")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.white.opacity(0.78))
+                    HStack(spacing: 6) {
+                        Label("行动时间线", systemImage: "list.number")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white.opacity(0.78))
+
+                        Spacer(minLength: 6)
+
+                        AIPhaseTimelineNavigationButton(
+                            title: "上一条AI复盘",
+                            systemImage: "chevron.left",
+                            isDisabled: !game.canFocusPreviousAIPhaseTimelineEvent
+                        ) {
+                            game.focusPreviousAIPhaseTimelineEvent()
+                        }
+
+                        AIPhaseTimelineNavigationButton(
+                            title: "下一条AI复盘",
+                            systemImage: "chevron.right",
+                            isDisabled: !game.canFocusNextAIPhaseTimelineEvent
+                        ) {
+                            game.focusNextAIPhaseTimelineEvent()
+                        }
+                    }
 
                     ForEach(visibleTimeline) { event in
                         let isFocusedEvent = game.focusedAIPhaseTimelineEventOrder == event.order
@@ -5561,6 +5581,35 @@ private struct AIPhaseSummaryView: View {
                 .stroke(summary.faction.accentColor.opacity(0.24), lineWidth: 1)
         )
         .accessibilityElement(children: .contain)
+    }
+}
+
+private struct AIPhaseTimelineNavigationButton: View {
+    let title: String
+    let systemImage: String
+    let isDisabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.iconOnly)
+                .font(.caption2.weight(.black))
+                .foregroundStyle(isDisabled ? .white.opacity(0.28) : .yellow.opacity(0.92))
+                .frame(width: 22, height: 20)
+                .background(Color.white.opacity(isDisabled ? 0.04 : 0.10), in: RoundedRectangle(cornerRadius: 5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(Color.white.opacity(isDisabled ? 0.10 : 0.26), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
+        .accessibilityLabel(title)
+        .accessibilityHint("只切换AI复盘定位，不执行命令")
+        .help(title)
     }
 }
 

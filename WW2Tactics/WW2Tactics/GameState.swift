@@ -261,6 +261,14 @@ final class GameState: ObservableObject {
         return latestAIPhaseMapMarkers.filter { $0.eventOrder == focusedAIPhaseTimelineEventOrder }
     }
 
+    var canFocusPreviousAIPhaseTimelineEvent: Bool {
+        aiPhaseTimelineNavigationTargetOrder(offset: -1) != nil
+    }
+
+    var canFocusNextAIPhaseTimelineEvent: Bool {
+        aiPhaseTimelineNavigationTargetOrder(offset: 1) != nil
+    }
+
     var focusedEnemyThreatCountermeasureExecutionPreview: EnemyThreatCountermeasureExecutionPreview? {
         guard let preview = focusedEnemyThreatCountermeasurePreview,
               isEnemyThreatCountermeasureFocused(preview) else { return nil }
@@ -499,6 +507,41 @@ final class GameState: ObservableObject {
         focusedCoordinate = coordinate
         focusedAIPhaseTimelineEventOrder = event.order
         message = "AI复盘 #\(event.order)：\(event.summary)"
+    }
+
+    func focusPreviousAIPhaseTimelineEvent() {
+        focusAdjacentAIPhaseTimelineEvent(offset: -1)
+    }
+
+    func focusNextAIPhaseTimelineEvent() {
+        focusAdjacentAIPhaseTimelineEvent(offset: 1)
+    }
+
+    private func focusAdjacentAIPhaseTimelineEvent(offset: Int) {
+        guard let timeline = latestAIPhaseSummary?.timeline, !timeline.isEmpty else {
+            message = "没有可浏览的AI复盘事件。"
+            return
+        }
+
+        guard let targetOrder = aiPhaseTimelineNavigationTargetOrder(offset: offset) else {
+            message = offset < 0 ? "已经是第一条AI复盘事件。" : "已经是最后一条AI复盘事件。"
+            return
+        }
+
+        focusAIPhaseTimelineEvent(order: targetOrder)
+    }
+
+    private func aiPhaseTimelineNavigationTargetOrder(offset: Int) -> Int? {
+        guard let timeline = latestAIPhaseSummary?.timeline, !timeline.isEmpty else { return nil }
+
+        guard let focusedAIPhaseTimelineEventOrder,
+              let currentIndex = timeline.firstIndex(where: { $0.order == focusedAIPhaseTimelineEventOrder }) else {
+            return offset < 0 ? timeline.last?.order : timeline.first?.order
+        }
+
+        let targetIndex = currentIndex + offset
+        guard timeline.indices.contains(targetIndex) else { return nil }
+        return timeline[targetIndex].order
     }
 
     func selectNextReadyUnitFromMap() {

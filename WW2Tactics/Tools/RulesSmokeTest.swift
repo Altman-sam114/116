@@ -1892,11 +1892,58 @@ struct RulesSmokeTest {
                 )
                 let axisPostMoveBarrageUnitsBeforeReplayFocus = axisPostMoveBarrageGame.scenario.units
                 let axisPostMoveBarrageCommandPointsBeforeReplayFocus = axisPostMoveBarrageGame.commandPoints
+                let axisPostMoveBarrageFirstEvent = axisPostMoveBarragePhaseSummary.timeline[0]
                 let axisPostMoveBarrageReplayEvent = axisPostMoveBarragePhaseSummary.timeline[1]
+                guard let axisPostMoveBarrageLastEvent = axisPostMoveBarragePhaseSummary.timeline.last else {
+                    require(false, "axis post-move barrage timeline should have a last event")
+                    return
+                }
+                guard let axisPostMoveBarrageFirstCoordinate = axisPostMoveBarrageFirstEvent.to ?? axisPostMoveBarrageFirstEvent.from else {
+                    require(false, "axis post-move barrage first replay event should have focus coordinate")
+                    return
+                }
                 guard let axisPostMoveBarrageReplayCoordinate = axisPostMoveBarrageReplayEvent.to ?? axisPostMoveBarrageReplayEvent.from else {
                     require(false, "axis post-move barrage replay event should have focus coordinate")
                     return
                 }
+                guard let axisPostMoveBarrageLastCoordinate = axisPostMoveBarrageLastEvent.to ?? axisPostMoveBarrageLastEvent.from else {
+                    require(false, "axis post-move barrage last replay event should have focus coordinate")
+                    return
+                }
+                require(
+                    axisPostMoveBarrageGame.canFocusPreviousAIPhaseTimelineEvent,
+                    "axis post-move barrage should allow previous replay navigation before an event is focused"
+                )
+                require(
+                    axisPostMoveBarrageGame.canFocusNextAIPhaseTimelineEvent,
+                    "axis post-move barrage should allow next replay navigation before an event is focused"
+                )
+                axisPostMoveBarrageGame.focusNextAIPhaseTimelineEvent()
+                require(
+                    axisPostMoveBarrageGame.focusedCoordinate == axisPostMoveBarrageFirstCoordinate,
+                    "axis post-move barrage next replay navigation should start at first event"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageFirstEvent.order,
+                    "axis post-move barrage next replay navigation should record first event order"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseMapMarkers == axisPostMoveBarrageMarkers.filter { $0.eventOrder == axisPostMoveBarrageFirstEvent.order },
+                    "axis post-move barrage next replay markers should derive from latest map markers"
+                )
+                require(
+                    !axisPostMoveBarrageGame.canFocusPreviousAIPhaseTimelineEvent,
+                    "axis post-move barrage first replay event should disable previous navigation"
+                )
+                axisPostMoveBarrageGame.focusPreviousAIPhaseTimelineEvent()
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageFirstEvent.order,
+                    "axis post-move barrage previous replay boundary should preserve first event order"
+                )
+                require(
+                    axisPostMoveBarrageGame.message.contains("已经是第一条AI复盘事件"),
+                    "axis post-move barrage previous replay boundary should publish clear message"
+                )
                 axisPostMoveBarrageGame.focusAIPhaseTimelineEvent(order: axisPostMoveBarrageReplayEvent.order)
                 require(
                     axisPostMoveBarrageGame.focusedCoordinate == axisPostMoveBarrageReplayCoordinate,
@@ -1938,6 +1985,50 @@ struct RulesSmokeTest {
                     axisPostMoveBarrageGame.latestAIPhaseMapMarkers == axisPostMoveBarrageMarkers,
                     "axis post-move barrage replay focus should not mutate map replay markers"
                 )
+                require(
+                    axisPostMoveBarrageGame.canFocusPreviousAIPhaseTimelineEvent,
+                    "axis post-move barrage focused tactical replay should allow previous navigation"
+                )
+                axisPostMoveBarrageGame.focusAIPhaseTimelineEvent(order: axisPostMoveBarrageLastEvent.order)
+                require(
+                    axisPostMoveBarrageGame.focusedCoordinate == axisPostMoveBarrageLastCoordinate,
+                    "axis post-move barrage replay focus should use last event coordinate"
+                )
+                require(
+                    !axisPostMoveBarrageGame.canFocusNextAIPhaseTimelineEvent,
+                    "axis post-move barrage last replay event should disable next navigation"
+                )
+                let axisPostMoveBarrageLastFocus = axisPostMoveBarrageGame.focusedCoordinate
+                axisPostMoveBarrageGame.focusNextAIPhaseTimelineEvent()
+                require(
+                    axisPostMoveBarrageGame.focusedCoordinate == axisPostMoveBarrageLastFocus,
+                    "axis post-move barrage next replay boundary should preserve focused coordinate"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageLastEvent.order,
+                    "axis post-move barrage next replay boundary should preserve last event order"
+                )
+                require(
+                    axisPostMoveBarrageGame.message.contains("已经是最后一条AI复盘事件"),
+                    "axis post-move barrage next replay boundary should publish clear message"
+                )
+                axisPostMoveBarrageGame.focusPreviousAIPhaseTimelineEvent()
+                let axisPostMoveBarrageExpectedPreviousEvent = axisPostMoveBarragePhaseSummary.timeline[
+                    axisPostMoveBarragePhaseSummary.timeline.count - 2
+                ]
+                guard let axisPostMoveBarrageExpectedPreviousCoordinate = axisPostMoveBarrageExpectedPreviousEvent.to ?? axisPostMoveBarrageExpectedPreviousEvent.from else {
+                    require(false, "axis post-move barrage previous replay event should have focus coordinate")
+                    return
+                }
+                require(
+                    axisPostMoveBarrageGame.focusedCoordinate == axisPostMoveBarrageExpectedPreviousCoordinate,
+                    "axis post-move barrage previous replay navigation should move to adjacent event"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageExpectedPreviousEvent.order,
+                    "axis post-move barrage previous replay navigation should record adjacent event order"
+                )
+                axisPostMoveBarrageGame.focusAIPhaseTimelineEvent(order: axisPostMoveBarrageReplayEvent.order)
                 let axisPostMoveBarrageFocusAfterReplay = axisPostMoveBarrageGame.focusedCoordinate
                 axisPostMoveBarrageGame.focusAIPhaseTimelineEvent(order: 999)
                 require(
