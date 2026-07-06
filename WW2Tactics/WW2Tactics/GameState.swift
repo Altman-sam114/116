@@ -302,6 +302,10 @@ final class GameState: ObservableObject {
         let countermeasures = enemyThreatCountermeasurePreviews(for: threats, limit: 6)
         let executableCountermeasures = countermeasures.filter(\.canExecuteNow)
         let objectiveThreats = threats.filter { $0.kind == .objectiveCapture }
+        let objectivePressures = battlefieldSituationObjectivePressures(
+            threats: objectiveThreats,
+            countermeasures: countermeasures
+        )
         let threatenedObjectiveNames = objectiveThreats
             .map(\.targetName)
             .uniquedStable()
@@ -333,6 +337,7 @@ final class GameState: ObservableObject {
             objectiveThreatCount: objectiveThreats.count,
             executableCountermeasureCount: executableCountermeasures.count,
             threatenedObjectiveNames: threatenedObjectiveNames,
+            objectivePressures: objectivePressures,
             replayTarget: battlefieldSituationReplayTarget(),
             primaryFocusTarget: battlefieldSituationPrimaryFocusTarget(
                 threats: threats,
@@ -4471,6 +4476,89 @@ final class GameState: ObservableObject {
             return fallback.position
         }
         return nil
+    }
+
+    private func battlefieldSituationObjectivePressures(
+        threats: [EnemyThreatIntentPreview],
+        countermeasures: [EnemyThreatCountermeasurePreview]
+    ) -> [BattlefieldSituationObjectivePressure] {
+        var groupedThreats: [(coordinate: HexCoordinate, threats: [EnemyThreatIntentPreview])] = []
+        for threat in threats where threat.kind == .objectiveCapture {
+            if let index = groupedThreats.firstIndex(where: { $0.coordinate == threat.targetCoordinate }) {
+                groupedThreats[index].threats.append(threat)
+            } else {
+                groupedThreats.append((coordinate: threat.targetCoordinate, threats: [threat]))
+            }
+        }
+
+        return groupedThreats
+            .compactMap { group -> BattlefieldSituationObjectivePressure? in
+                guard let primaryThreat = group.threats.first else { return nil }
+                let sourceCount = Set(group.threats.map(\.enemyUnitID)).count
+                let objectiveTile = tile(at: group.coordinate)
+                let objectiveName = objectiveTile?.objectiveName ?? primaryThreat.targetName
+                let matchingCountermeasure = battlefieldSituationObjectivePressureCountermeasure(
+                    for: group.threats,
+                    from: countermeasures
+                )
+                let actionHint = matchingCountermeasure.map(battlefieldSituationCountermeasureActionHint) ??
+                    BattlefieldSituationActionHint(
+                        kind: .defend,
+                        title: "查看守点压力",
+                        entryTitle: "定位后选择待命部队封堵或进驻",
+                        detail: "该压力只解释夺点风险，不会自动移动部队。",
+                        isExecutable: readyUnitCount > 0
+                    )
+                let routeText = primaryThreat.routeCost.map { "路线 \($0)" } ?? "路线已成形"
+                let sourceText = sourceCount == 1 ? primaryThreat.enemyUnitName : "\(sourceCount) 个敌军"
+                let primaryThreatDetail = "\(sourceText) 威胁夺取，\(routeText)"
+
+                return BattlefieldSituationObjectivePressure(
+                    objectiveName: objectiveName,
+                    coordinate: group.coordinate,
+                    owner: objectiveTile?.owner,
+                    threatSourceCount: sourceCount,
+                    primaryThreatTitle: "占点风险",
+                    primaryThreatDetail: primaryThreatDetail,
+                    actionHint: actionHint,
+                    countermeasurePreview: matchingCountermeasure
+                )
+            }
+            .sorted(by: battlefieldSituationObjectivePressureSort)
+    }
+
+    private func battlefieldSituationObjectivePressureCountermeasure(
+        for threats: [EnemyThreatIntentPreview],
+        from countermeasures: [EnemyThreatCountermeasurePreview]
+    ) -> EnemyThreatCountermeasurePreview? {
+        let threatIDs = Set(threats.map(\.id))
+        let matching = countermeasures.filter { threatIDs.contains($0.threatID) }
+        return matching.first { $0.kind == .objectiveDefense && $0.canExecuteNow } ??
+            matching.first { $0.kind == .objectiveDefense } ??
+            matching.first { $0.canExecuteNow } ??
+            matching.first
+    }
+
+    private func battlefieldSituationObjectivePressureSort(
+        _ left: BattlefieldSituationObjectivePressure,
+        _ right: BattlefieldSituationObjectivePressure
+    ) -> Bool {
+        if left.owner == activeFaction && right.owner != activeFaction {
+            return true
+        }
+        if left.owner != activeFaction && right.owner == activeFaction {
+            return false
+        }
+        if left.threatSourceCount != right.threatSourceCount {
+            return left.threatSourceCount > right.threatSourceCount
+        }
+        if left.actionHint.isExecutable != right.actionHint.isExecutable {
+            return left.actionHint.isExecutable && !right.actionHint.isExecutable
+        }
+        if left.objectiveName != right.objectiveName {
+            return left.objectiveName < right.objectiveName
+        }
+        return left.coordinate.id < right.coordinate.id
     }
 
     private func battlefieldSituationReplayTarget() -> BattlefieldSituationReplayTarget? {

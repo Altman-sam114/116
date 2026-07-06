@@ -3161,6 +3161,41 @@ private struct BattlefieldSituationSummaryView: View {
                 .accessibilityLabel("定位战线态势首要目标，\(target.kind.title)，\(target.title)，\(target.detail)，下一步，\(target.actionHint.entryTitle)，\(target.actionHint.detail)")
             }
 
+            if !summary.objectivePressures.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Label("据点压力", systemImage: "shield.lefthalf.filled")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(priorityColor.opacity(0.92))
+
+                        Spacer(minLength: 6)
+
+                        Text("\(summary.objectivePressures.count)")
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.78))
+                            .monospacedDigit()
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.white.opacity(0.10), in: Capsule())
+                    }
+
+                    ForEach(Array(summary.objectivePressures.prefix(3))) { pressure in
+                        BattlefieldSituationObjectivePressureRow(
+                            pressure: pressure,
+                            color: priorityColor
+                        )
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 7)
+                .background(priorityColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(priorityColor.opacity(0.22), lineWidth: 1)
+                )
+                .accessibilityLabel("据点防守压力，\(summary.objectivePressures.map { "\($0.objectiveName)，\($0.primaryThreatDetail)，\($0.actionHint.entryTitle)" }.joined(separator: "；"))")
+            }
+
             LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 7) {
                 ForEach(summary.metrics) { metric in
                     BattlefieldSituationMetricPill(metric: metric)
@@ -3246,6 +3281,70 @@ private struct BattlefieldSituationSummaryView: View {
         case .resolved:
             "crown.fill"
         }
+    }
+}
+
+private struct BattlefieldSituationObjectivePressureRow: View {
+    let pressure: BattlefieldSituationObjectivePressure
+    let color: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 7) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 5) {
+                    Text(pressure.objectiveName)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white.opacity(0.88))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+
+                    Text(pressure.ownerTitle)
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.72))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(0.08), in: Capsule())
+                }
+
+                Text(pressure.primaryThreatDetail)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.60))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.64)
+
+                Label(pressure.actionHint.entryTitle, systemImage: pressure.actionHint.kind.iconName)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(color.opacity(pressure.actionHint.isExecutable ? 0.90 : 0.58))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.62)
+            }
+
+            Spacer(minLength: 4)
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(pressure.primaryThreatTitle)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.80))
+                    .lineLimit(1)
+
+                Text("\(pressure.threatSourceCount)源")
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .monospacedDigit()
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 3)
+                    .background(color.opacity(0.48), in: Capsule())
+
+                Text(pressure.actionHint.kind.shortTitle)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.84))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.10), in: Capsule())
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityLabel("\(pressure.objectiveName)，\(pressure.ownerTitle)，\(pressure.threatSourceCount) 个威胁来源，\(pressure.primaryThreatTitle)，\(pressure.primaryThreatDetail)，推荐入口，\(pressure.actionHint.entryTitle)")
     }
 }
 

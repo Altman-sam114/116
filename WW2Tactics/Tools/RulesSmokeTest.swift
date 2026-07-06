@@ -1438,6 +1438,32 @@ struct RulesSmokeTest {
             require(situationSummary.priority == .threatened, "battlefield situation should mark threatened front")
             require(situationSummary.focusKind == .countermeasure, "battlefield situation should recommend countermeasures when available")
             require(situationSummary.threatenedObjectiveSummary.contains("后方油库"), "battlefield situation should summarize threatened objectives")
+            guard let situationObjectiveThreat = enemyThreatGame.enemyThreatIntentPreviews(against: .allies, limit: 6).first(where: {
+                $0.kind == .objectiveCapture &&
+                    $0.targetName == "后方油库"
+            }) else {
+                require(false, "battlefield situation pressure should have a matching objective threat")
+                return
+            }
+            guard let objectivePressure = situationSummary.objectivePressures.first(where: { $0.objectiveName == "后方油库" }) else {
+                require(false, "battlefield situation should expose objective pressure entries")
+                return
+            }
+            let pressureCountermeasure = enemyThreatGame.enemyThreatCountermeasurePreviews(
+                for: enemyThreatGame.enemyThreatIntentPreviews(against: .allies, limit: 6),
+                limit: 6
+            ).first {
+                $0.kind == .objectiveDefense &&
+                    $0.threatID == situationObjectiveThreat.id
+            }
+            require(objectivePressure.coordinate == situationObjectiveThreat.targetCoordinate, "objective pressure should point to the threatened objective")
+            require(objectivePressure.owner == enemyThreatGame.tile(at: situationObjectiveThreat.targetCoordinate)?.owner, "objective pressure should expose current owner")
+            require(objectivePressure.threatSourceCount >= 1, "objective pressure should count threat sources")
+            require(objectivePressure.primaryThreatTitle.isEmpty == false, "objective pressure should expose a risk title")
+            require(objectivePressure.primaryThreatDetail.contains(situationObjectiveThreat.enemyUnitName), "objective pressure should describe the primary threat")
+            require(objectivePressure.actionHint.entryTitle.isEmpty == false, "objective pressure should expose a recommended entry")
+            require(objectivePressure.actionHint.kind == .move, "objective pressure should recommend MOVE for objective defense")
+            require(objectivePressure.countermeasurePreview == pressureCountermeasure, "objective pressure should link the matching objective defense countermeasure")
             guard let situationFocusTarget = situationSummary.primaryFocusTarget,
                   let situationCountermeasure = situationFocusTarget.countermeasurePreview else {
                 require(false, "battlefield situation should expose a countermeasure focus target")

@@ -2276,6 +2276,34 @@ struct BattlefieldSituationFocusTarget: Identifiable, Equatable {
     }
 }
 
+struct BattlefieldSituationObjectivePressure: Identifiable, Equatable {
+    let objectiveName: String
+    let coordinate: HexCoordinate
+    let owner: Faction?
+    let threatSourceCount: Int
+    let primaryThreatTitle: String
+    let primaryThreatDetail: String
+    let actionHint: BattlefieldSituationActionHint
+    let countermeasurePreview: EnemyThreatCountermeasurePreview?
+
+    var ownerTitle: String {
+        owner?.title ?? "中立"
+    }
+
+    var id: String {
+        [
+            objectiveName,
+            coordinate.id,
+            owner?.rawValue ?? "neutral",
+            "\(threatSourceCount)",
+            primaryThreatTitle,
+            primaryThreatDetail,
+            actionHint.id,
+            countermeasurePreview?.id ?? "none"
+        ].joined(separator: "-")
+    }
+}
+
 struct BattlefieldSituationSummary: Equatable {
     let faction: Faction
     let priority: BattlefieldSituationPriority
@@ -2292,11 +2320,24 @@ struct BattlefieldSituationSummary: Equatable {
     let objectiveThreatCount: Int
     let executableCountermeasureCount: Int
     let threatenedObjectiveNames: [String]
+    let objectivePressures: [BattlefieldSituationObjectivePressure]
     let replayTarget: BattlefieldSituationReplayTarget?
     let primaryFocusTarget: BattlefieldSituationFocusTarget?
 
     var id: String {
-        "\(faction.rawValue)-\(priority.rawValue)-\(focusKind.rawValue)-\(commandPoints)-\(readyUnitCount)-\(controlledObjectiveCount)-\(enemyThreatCount)-\(executableCountermeasureCount)-\(replayTarget?.id ?? "none")-\(primaryFocusTarget?.id ?? "none")"
+        [
+            faction.rawValue,
+            priority.rawValue,
+            focusKind.rawValue,
+            "\(commandPoints)",
+            "\(readyUnitCount)",
+            "\(controlledObjectiveCount)",
+            "\(enemyThreatCount)",
+            "\(executableCountermeasureCount)",
+            objectivePressures.map(\.id).joined(separator: "|"),
+            replayTarget?.id ?? "none",
+            primaryFocusTarget?.id ?? "none"
+        ].joined(separator: "-")
     }
 
     var objectiveProgressText: String {

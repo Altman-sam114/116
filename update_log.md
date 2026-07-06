@@ -2064,3 +2064,36 @@
 
 - 本轮只做真实 AI 时间线的保守关联，不做精确逐行动因果归因，不模拟未防守分支，不改变 AI 行为、时间线记录、守点评分或执行规则。
 - 下一轮可继续强化 AI 复盘与战线态势地图反馈，或补充更多据点攻防的非模拟解释。
+
+### v1.46 / 据点防守压力列表
+
+日期：2026-07-06
+
+核心变更：
+
+- `GameModels` 新增 `BattlefieldSituationObjectivePressure`，把受威胁据点、当前归属、威胁来源数量、占点风险和推荐入口整理为结构化只读条目。
+- `GameState.battlefieldSituationSummary` 基于同一批敌方 `.objectiveCapture` 意图和同 threatID 反制建议派生据点防守压力列表，不新增 `@Published` 状态，不改变敌方意图排序、反制 score、AI 或战斗规则。
+- `ContentView` 的“战线态势”卡新增紧凑“据点压力”列表，展示据点名、归属、威胁来源、占点风险和 DEF/MOVE 等入口短码；UI 只消费 summary 字段，不计算威胁或反制。
+- 扩展 XCTest 和规则 smoke test，覆盖“后方油库”据点压力字段、推荐守点入口、无威胁退化和读取 summary 的只读边界。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.46（据点防守压力列表）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只解释玩家回合据点防守压力，不新增自动守点、AI 行动归因、未防守分支模拟、动画、音效或新美术资源。
+- 不改变 AI、移动、攻击、补给、士气、据点奖励、胜负、敌方意图或反制建议排序。
