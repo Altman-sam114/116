@@ -2331,6 +2331,70 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.latestAIPhaseSummary)
     }
 
+    func testBattlefieldSituationSummaryAggregatesThreatsAndReadiness() throws {
+        let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let startingFaction = game.activeFaction
+        let startingCommandPoints = game.commandPoints
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+        let startingMessage = game.message
+        let threats = game.enemyThreatIntentPreviews(from: .axis, against: .allies, limit: 6)
+        let countermeasures = game.enemyThreatCountermeasurePreviews(for: threats, limit: 6)
+
+        let summary = game.battlefieldSituationSummary
+
+        XCTAssertEqual(summary.faction, .allies)
+        XCTAssertEqual(summary.commandPoints, game.activeCommandPoints)
+        XCTAssertEqual(summary.readyUnitCount, game.readyUnits.count)
+        XCTAssertEqual(summary.totalUnitCount, game.units(for: .allies).count)
+        XCTAssertEqual(summary.controlledObjectiveCount, game.objectiveTiles.filter { $0.owner == .allies }.count)
+        XCTAssertEqual(summary.totalObjectiveCount, game.objectiveTiles.count)
+        XCTAssertEqual(summary.enemyThreatCount, threats.count)
+        XCTAssertEqual(summary.attackThreatCount, threats.filter(\.isAttackThreat).count)
+        XCTAssertEqual(summary.objectiveThreatCount, threats.filter { $0.kind == .objectiveCapture }.count)
+        XCTAssertEqual(summary.executableCountermeasureCount, countermeasures.filter(\.canExecuteNow).count)
+        XCTAssertTrue(summary.threatenedObjectiveNames.contains("后方油库"))
+        XCTAssertEqual(summary.priority, .threatened)
+        XCTAssertEqual(summary.focusKind, .countermeasure)
+        XCTAssertTrue(summary.title.contains("威胁"))
+        XCTAssertTrue(summary.detail.contains("可执行反制"))
+        XCTAssertEqual(summary.objectiveProgressText, "\(summary.controlledObjectiveCount)/\(summary.totalObjectiveCount)")
+        XCTAssertEqual(summary.readinessText, "\(summary.readyUnitCount)/\(summary.totalUnitCount)")
+        XCTAssertEqual(summary.metrics.count, 5)
+        XCTAssertTrue(summary.metrics.contains { $0.title == "反制" && $0.value == "\(summary.executableCountermeasureCount)" })
+        XCTAssertEqual(summary.threatenedObjectiveSummary, "后方油库")
+
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertEqual(game.message, startingMessage)
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertNil(game.latestTacticalCommandResult)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNil(game.latestDeploymentResult)
+        XCTAssertNil(game.latestReinforcementResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureFollowUpResult)
+        XCTAssertNil(game.latestAIPhaseSummary)
+    }
+
+    func testBattlefieldSituationSummaryFallsBackToAdvanceWhenNoThreats() {
+        let game = GameState(scenario: Self.objectiveAdvanceScenario(includeOccupiedDecoy: false))
+
+        let summary = game.battlefieldSituationSummary
+
+        XCTAssertEqual(summary.enemyThreatCount, 0)
+        XCTAssertEqual(summary.executableCountermeasureCount, 0)
+        XCTAssertEqual(summary.priority, .active)
+        XCTAssertEqual(summary.focusKind, .objectiveAdvance)
+        XCTAssertTrue(summary.title.contains("推进"))
+        XCTAssertEqual(summary.threatenedObjectiveNames, [])
+        XCTAssertEqual(summary.threatenedObjectiveSummary, "暂无据点威胁")
+    }
+
     func testEnemyThreatCountermeasuresCoverActionsLimitAndReadOnly() throws {
         let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
         let startingFaction = game.activeFaction

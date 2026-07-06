@@ -1844,6 +1844,133 @@ struct EnemyThreatCountermeasureFollowUpSummary: Identifiable, Equatable {
     }
 }
 
+enum BattlefieldSituationPriority: String, Identifiable {
+    case decisive
+    case threatened
+    case active
+    case stable
+    case spent
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .decisive: "决胜"
+        case .threatened: "受压"
+        case .active: "可行动"
+        case .stable: "稳定"
+        case .spent: "待结算"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .decisive: "WIN"
+        case .threatened: "THR"
+        case .active: "ACT"
+        case .stable: "OK"
+        case .spent: "END"
+        }
+    }
+}
+
+enum BattlefieldSituationFocusKind: String, Identifiable {
+    case countermeasure
+    case objectiveDefense
+    case objectiveAdvance
+    case forceReadiness
+    case turnControl
+    case resolved
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .countermeasure: "反制"
+        case .objectiveDefense: "守点"
+        case .objectiveAdvance: "推进"
+        case .forceReadiness: "整队"
+        case .turnControl: "回合"
+        case .resolved: "结算"
+        }
+    }
+}
+
+struct BattlefieldSituationMetric: Identifiable, Equatable {
+    let title: String
+    let value: String
+    let detail: String
+
+    var id: String {
+        "\(title)-\(value)-\(detail)"
+    }
+}
+
+struct BattlefieldSituationSummary: Equatable {
+    let faction: Faction
+    let priority: BattlefieldSituationPriority
+    let focusKind: BattlefieldSituationFocusKind
+    let title: String
+    let detail: String
+    let commandPoints: Int
+    let readyUnitCount: Int
+    let totalUnitCount: Int
+    let controlledObjectiveCount: Int
+    let totalObjectiveCount: Int
+    let enemyThreatCount: Int
+    let attackThreatCount: Int
+    let objectiveThreatCount: Int
+    let executableCountermeasureCount: Int
+    let threatenedObjectiveNames: [String]
+
+    var id: String {
+        "\(faction.rawValue)-\(priority.rawValue)-\(focusKind.rawValue)-\(commandPoints)-\(readyUnitCount)-\(controlledObjectiveCount)-\(enemyThreatCount)-\(executableCountermeasureCount)"
+    }
+
+    var objectiveProgressText: String {
+        "\(controlledObjectiveCount)/\(totalObjectiveCount)"
+    }
+
+    var readinessText: String {
+        "\(readyUnitCount)/\(totalUnitCount)"
+    }
+
+    var threatenedObjectiveSummary: String {
+        guard !threatenedObjectiveNames.isEmpty else { return "暂无据点威胁" }
+        return threatenedObjectiveNames.joined(separator: "、")
+    }
+
+    var metrics: [BattlefieldSituationMetric] {
+        [
+            BattlefieldSituationMetric(
+                title: "指令",
+                value: "\(commandPoints)",
+                detail: "\(faction.title)可用指令点"
+            ),
+            BattlefieldSituationMetric(
+                title: "待命",
+                value: readinessText,
+                detail: "仍可移动或攻击的部队"
+            ),
+            BattlefieldSituationMetric(
+                title: "据点",
+                value: objectiveProgressText,
+                detail: "当前控制据点进度"
+            ),
+            BattlefieldSituationMetric(
+                title: "威胁",
+                value: "\(enemyThreatCount)",
+                detail: "敌方意图预判"
+            ),
+            BattlefieldSituationMetric(
+                title: "反制",
+                value: "\(executableCountermeasureCount)",
+                detail: "当前可执行建议"
+            )
+        ]
+    }
+}
+
 struct DeploymentSite: Identifiable, Equatable {
     let coordinate: HexCoordinate
     let sourceObjectiveName: String

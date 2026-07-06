@@ -11,8 +11,8 @@ flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback"]
   I --> S["GameState：核心状态机"]
-  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核、复核等级、复核目标定位"]
+  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BattlefieldSituationSummary、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、战线态势、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核、复核等级、复核目标定位"]
   R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、焦点坐标、消息、攻击/战术/占领/后勤结果、反制回放、敌方回合复核、AI回合摘要、行动时间线、当前复盘order、播放状态/速度、战报、胜负"]
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
   EI --> EC["只读建议：EnemyThreatCountermeasurePreview 抢先打击 / 撤退 / 守点 / 整补"]
@@ -20,12 +20,14 @@ flowchart TD
   BM --> PC["只读排序：可执行 / 击毁 / 优先值 / 路线 / 相邻对比"]
   PC --> IP["只读对照：当前 / 采纳 / 改善"]
   IP --> EB["只读入口：ATK / MOVE / 整补按钮提示"]
+  EC --> BS["只读态势：指令 / 待命 / 据点 / 威胁 / 反制 / 首要建议"]
   EB --> XR["真实执行后回放：预计 / 实际 / 结果"]
   XR --> FV["敌方回合后复核：HP / 位置 / 据点 / 威胁源 / 奏效等级 / 定位目标"]
   W --> P["@Published 状态变化"]
   P --> V
   EI --> V
   EC --> V
+  BS --> V
   BM --> V
   PC --> V
   IP --> V
@@ -91,6 +93,7 @@ flowchart LR
   U --> THR["threatenedReachableTiles 敌火覆盖"]
   U --> INT["EnemyThreatIntentPreview 敌方威胁意图"]
   INT --> CTR["EnemyThreatCountermeasurePreview 反制建议"]
+  CTR --> BS["BattlefieldSituationSummary 战线态势汇总"]
   CTR --> BM2["BenefitMetric 收益解释"]
   CTR --> PF["PriorityFactor / ComparisonPreview 排序对比解释"]
   CTR --> IP2["ImpactComparison 执行前后预计对照"]
@@ -152,6 +155,7 @@ flowchart LR
   FLOC --> UI2
   CMR --> UI2
   FUR --> UI2
+  BS --> UI3["侧栏战线态势：指令 / 待命 / 据点 / 威胁 / 反制 / 受威胁据点 / 首要建议"]
 ```
 
 ## 4. Agent X 主控迭代流程图

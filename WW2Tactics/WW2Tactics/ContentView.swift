@@ -2775,6 +2775,11 @@ private struct InspectorPanel: View {
                     ScenarioPanel()
                 }
 
+                Divider()
+                    .overlay(Color.white.opacity(0.18))
+
+                BattlefieldSituationSummaryView(summary: game.battlefieldSituationSummary)
+
                 if let tile = game.focusedTile {
                     Divider()
                         .overlay(Color.white.opacity(0.18))
@@ -2857,6 +2862,128 @@ private struct InspectorPanel: View {
                         .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
         )
+    }
+}
+
+private struct BattlefieldSituationSummaryView: View {
+    let summary: BattlefieldSituationSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
+                Label("战线态势", systemImage: "scope")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.88))
+
+                Spacer(minLength: 8)
+
+                Text(summary.priority.shortTitle)
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(priorityColor.opacity(0.68), in: Capsule())
+            }
+
+            Text(summary.title)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(summary.detail)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.white.opacity(0.66))
+                .fixedSize(horizontal: false, vertical: true)
+
+            LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 7) {
+                ForEach(summary.metrics) { metric in
+                    BattlefieldSituationMetricPill(metric: metric)
+                }
+            }
+
+            HStack(spacing: 7) {
+                Label(summary.focusKind.title, systemImage: focusIcon)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(priorityColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Spacer(minLength: 6)
+
+                Text(summary.threatenedObjectiveSummary)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.66)
+            }
+        }
+        .padding(10)
+        .background(priorityColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(priorityColor.opacity(0.22), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("战线态势，\(summary.priority.title)，\(summary.title)，\(summary.detail)，据点\(summary.objectiveProgressText)，待命\(summary.readinessText)，威胁\(summary.enemyThreatCount)，反制\(summary.executableCountermeasureCount)")
+    }
+
+    private var gridColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 72), spacing: 7)]
+    }
+
+    private var priorityColor: Color {
+        switch summary.priority {
+        case .decisive:
+            .yellow
+        case .threatened:
+            .red
+        case .active:
+            .green
+        case .stable:
+            .cyan
+        case .spent:
+            .gray
+        }
+    }
+
+    private var focusIcon: String {
+        switch summary.focusKind {
+        case .countermeasure:
+            "bolt.shield.fill"
+        case .objectiveDefense:
+            "shield.lefthalf.filled"
+        case .objectiveAdvance:
+            "flag.checkered"
+        case .forceReadiness:
+            "person.3.fill"
+        case .turnControl:
+            "forward.end.fill"
+        case .resolved:
+            "crown.fill"
+        }
+    }
+}
+
+private struct BattlefieldSituationMetricPill: View {
+    let metric: BattlefieldSituationMetric
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(metric.title)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white.opacity(0.56))
+                .lineLimit(1)
+            Text(metric.value)
+                .font(.caption.weight(.black))
+                .foregroundStyle(.white.opacity(0.9))
+                .lineLimit(1)
+                .minimumScaleFactor(0.68)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 7))
+        .accessibilityLabel("\(metric.title)\(metric.value)，\(metric.detail)")
     }
 }
 

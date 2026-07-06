@@ -289,6 +289,49 @@ final class GameState: ObservableObject {
         return enemyThreatCountermeasureExecutionPreview(for: preview)
     }
 
+    var battlefieldSituationSummary: BattlefieldSituationSummary {
+        let threats = enemyThreatIntentPreviews(
+            from: activeFaction.opponent,
+            against: activeFaction,
+            limit: 6
+        )
+        let countermeasures = enemyThreatCountermeasurePreviews(for: threats, limit: 6)
+        let executableCountermeasures = countermeasures.filter(\.canExecuteNow)
+        let objectiveThreats = threats.filter { $0.kind == .objectiveCapture }
+        let threatenedObjectiveNames = objectiveThreats
+            .map(\.targetName)
+            .uniquedStable()
+        let controlledObjectives = objectiveTiles.filter { $0.owner == activeFaction }.count
+        let activeUnits = units(for: activeFaction)
+
+        let recommendation = battlefieldSituationRecommendation(
+            threats: threats,
+            objectiveThreatNames: threatenedObjectiveNames,
+            executableCountermeasureCount: executableCountermeasures.count,
+            controlledObjectiveCount: controlledObjectives,
+            totalObjectiveCount: objectiveTiles.count,
+            readyUnitCount: readyUnits.count
+        )
+
+        return BattlefieldSituationSummary(
+            faction: activeFaction,
+            priority: recommendation.priority,
+            focusKind: recommendation.focusKind,
+            title: recommendation.title,
+            detail: recommendation.detail,
+            commandPoints: activeCommandPoints,
+            readyUnitCount: readyUnits.count,
+            totalUnitCount: activeUnits.count,
+            controlledObjectiveCount: controlledObjectives,
+            totalObjectiveCount: objectiveTiles.count,
+            enemyThreatCount: threats.count,
+            attackThreatCount: threats.filter(\.isAttackThreat).count,
+            objectiveThreatCount: objectiveThreats.count,
+            executableCountermeasureCount: executableCountermeasures.count,
+            threatenedObjectiveNames: threatenedObjectiveNames
+        )
+    }
+
     var objectiveTiles: [TerrainTile] {
         scenario.tiles.filter(\.isObjective)
     }
@@ -3811,6 +3854,67 @@ final class GameState: ObservableObject {
         enemyThreatCountermeasureOrderingDecision(left, right)?.leftComesFirst ?? false
     }
 
+    private func battlefieldSituationRecommendation(
+        threats: [EnemyThreatIntentPreview],
+        objectiveThreatNames: [String],
+        executableCountermeasureCount: Int,
+        controlledObjectiveCount: Int,
+        totalObjectiveCount: Int,
+        readyUnitCount: Int
+    ) -> (priority: BattlefieldSituationPriority, focusKind: BattlefieldSituationFocusKind, title: String, detail: String) {
+        if let winner {
+            return (
+                .decisive,
+                .resolved,
+                "\(winner.title)胜利已判定",
+                "战役已结算，可复盘战报或重新开局。"
+            )
+        }
+
+        if executableCountermeasureCount > 0, let leadingThreat = threats.first {
+            return (
+                .threatened,
+                .countermeasure,
+                "先处理\(leadingThreat.targetName)威胁",
+                "当前有 \(executableCountermeasureCount) 条可执行反制，优先降低\(leadingThreat.threatLabel)。"
+            )
+        }
+
+        if let objectiveName = objectiveThreatNames.first {
+            return (
+                .threatened,
+                .objectiveDefense,
+                "守住\(objectiveName)",
+                "敌方存在 \(objectiveThreatNames.count) 个据点夺取意图，先补防或封堵目标邻格。"
+            )
+        }
+
+        if readyUnitCount > 0 && controlledObjectiveCount < totalObjectiveCount {
+            return (
+                .active,
+                .objectiveAdvance,
+                "推进未控据点",
+                "仍有 \(readyUnitCount) 支部队可行动，优先用 OBJ 计划压向最近据点。"
+            )
+        }
+
+        if readyUnitCount > 0 {
+            return (
+                .stable,
+                .forceReadiness,
+                "整理战线",
+                "据点压力较低，利用待命、防御姿态、整补和部署巩固战线。"
+            )
+        }
+
+        return (
+            .spent,
+            .turnControl,
+            "本回合行动已接近完成",
+            "暂无可行动部队，确认战报和威胁后结束回合。"
+        )
+    }
+
     private func coordinateText(_ coordinate: HexCoordinate) -> String {
         "q\(coordinate.q),r\(coordinate.r)"
     }
@@ -5137,5 +5241,16 @@ final class GameState: ObservableObject {
 
     private static func openingLog(for scenario: Scenario) -> String {
         "\(scenario.year) \(scenario.name)开始，盟军必须在 \(scenario.turnLimit) 回合内夺取地图上的全部据点。"
+    }
+}
+
+private extension Sequence where Element: Hashable {
+    func uniquedStable() -> [Element] {
+        var seen: Set<Element> = []
+        var values: [Element] = []
+        for element in self where seen.insert(element).inserted {
+            values.append(element)
+        }
+        return values
     }
 }

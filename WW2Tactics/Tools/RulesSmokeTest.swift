@@ -138,6 +138,13 @@ struct RulesSmokeTest {
             require(game.earnedStars == 0, "mission stars should start at zero")
             require(game.missionObjectives.count == 3, "mission should expose three star objectives")
             require(game.missionObjectives.allSatisfy { $0.state == .pending }, "mission objectives should start pending")
+            let startingSituation = game.battlefieldSituationSummary
+            require(startingSituation.faction == .allies, "battlefield situation should describe active faction")
+            require(startingSituation.commandPoints == game.activeCommandPoints, "battlefield situation should expose active command points")
+            require(startingSituation.readyUnitCount == game.readyUnits.count, "battlefield situation should expose ready unit count")
+            require(startingSituation.totalUnitCount == game.units(for: .allies).count, "battlefield situation should expose active force size")
+            require(startingSituation.objectiveProgressText == "\(game.alliedScore)/\(game.objectiveTiles.count)", "battlefield situation should summarize objective progress")
+            require(startingSituation.metrics.count == 5, "battlefield situation should expose compact metrics")
             guard let suppliedTank = game.units.first(where: { $0.name == "第4装甲师" }) else {
                 require(false, "supplied tank should exist")
                 return
@@ -1348,6 +1355,16 @@ struct RulesSmokeTest {
             require(reinforceExpectedHPAfterThreat > reinforceBeforeHP, "reinforce survival impact should improve projected HP after the threat")
             require(reinforceRecoveryImpact.before == "HP \(reinforceBeforeHP)", "reinforce impact should expose before HP")
             require(reinforceRecoveryImpact.after == "HP \(reinforce.projectedFriendlyHPAfterAction ?? 0)", "reinforce impact should expose recovery HP")
+
+            let situationSummary = enemyThreatGame.battlefieldSituationSummary
+            require(situationSummary.enemyThreatCount == enemyThreatGame.enemyThreatIntentPreviews(against: .allies, limit: 6).count, "battlefield situation should reuse threat previews")
+            require(situationSummary.attackThreatCount == enemyThreatGame.enemyThreatIntentPreviews(against: .allies, limit: 6).filter(\.isAttackThreat).count, "battlefield situation should count attack threats")
+            require(situationSummary.objectiveThreatCount == enemyThreatGame.enemyThreatIntentPreviews(against: .allies, limit: 6).filter { $0.kind == .objectiveCapture }.count, "battlefield situation should count objective threats")
+            require(situationSummary.executableCountermeasureCount == enemyThreatGame.enemyThreatCountermeasurePreviews(for: enemyThreatGame.enemyThreatIntentPreviews(against: .allies, limit: 6), limit: 6).filter(\.canExecuteNow).count, "battlefield situation should count executable countermeasures")
+            require(situationSummary.threatenedObjectiveNames.contains("后方油库"), "battlefield situation should list threatened objectives")
+            require(situationSummary.priority == .threatened, "battlefield situation should mark threatened front")
+            require(situationSummary.focusKind == .countermeasure, "battlefield situation should recommend countermeasures when available")
+            require(situationSummary.threatenedObjectiveSummary.contains("后方油库"), "battlefield situation should summarize threatened objectives")
             require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "enemy threat countermeasures should not spend command points")
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "enemy threat countermeasures should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "enemy threat countermeasures should not mutate objectives")

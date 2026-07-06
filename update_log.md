@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.29 正在推进 AI 复盘结论关键事件定位，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判、AI 复盘和 OBJ/POS/反制建议操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判、AI 复盘、OBJ/POS/反制建议操作可读性和玩家回合战线态势汇总。
 
 ## 历史记录
 
@@ -1577,3 +1577,37 @@
 
 - 本轮只增强敌方回合复核的等级展示和地图定位，不改变敌方意图、反制建议排序、AI、移动、攻击、整补、部署、据点、胜负或战斗数值。
 - 复核等级是解释性派生字段，不重新模拟 AI，也不精确归因逐个 AI 行动。
+
+### v1.33 / 战线态势汇总
+
+日期：2026-07-06
+
+核心变更：
+
+- `GameModels` 新增 `BattlefieldSituationSummary`、态势等级、重点类型和紧凑指标模型，汇总当前阵营指令点、待命部队、据点进度、敌方意图、可执行反制、受威胁据点和首要建议。
+- `GameState` 新增只读 computed property `battlefieldSituationSummary`，复用敌方意图、反制建议、据点和待命部队派生，不新增 `@Published` 状态，不调用真实执行方法。
+- `ContentView` 在侧栏靠前显示“战线态势”卡，展示等级徽标、指标、受威胁据点和建议说明；UI 只消费 `GameState` 字段，不计算规则。
+- 扩展 XCTest 和规则 smoke test，覆盖默认战役态势字段、威胁/反制统计、受威胁据点、推进兜底建议和只读不变性。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.33（战线态势汇总）.md`
+
+验证结果：
+
+- 本地轻量检查和云端结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只增加态势总览，不新增态势卡的自动执行按钮，不改变敌方意图、反制建议、OBJ 计划、AI、移动、攻击、整补、部署、据点、胜负或战斗数值。
+- 下一轮可在态势汇总基础上增加更细的敌方行动解释或可定位行动入口，但仍需保持执行动作走既有 `GameState` 命令链。
