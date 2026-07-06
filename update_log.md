@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.26 正在推进 AI 复盘连续查看控制，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判、AI 复盘和 OBJ/POS/反制建议操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.27 正在推进 AI 复盘自动播放控制，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判、AI 复盘和 OBJ/POS/反制建议操作可读性。
 
 ## 历史记录
 
@@ -1321,4 +1321,45 @@
 遗留事项：
 
 - 本轮只增强最近一次 AI 时间线的手动连续查看，不新增自动播放、逐帧动画、时间轴滑块、历史 AI 回合列表、音效或真实美术资产。
+- 本轮不改变 AI 决策、战斗数值、移动、补给、士气、部署、整补、据点、胜负和反制建议语义。
+
+### v1.27 / AI 复盘自动播放控制
+
+日期：2026-07-06
+
+核心变更：
+
+- `GameModels` 新增 `AIPhaseTimelinePlaybackPace`，提供慢速、标准、快速三档复盘速度和 tick 间隔。
+- `GameState` 新增 AI 复盘播放状态、播放可用性、播放/暂停、速度切换和播放 tick 推进入口；无当前 order 时从第一条开始，有当前 order 时推进到下一条，到最后一条后自动暂停。
+- 播放 tick 复用 AI 时间线定位语义，只改变复盘焦点、当前 order、消息和派生 marker 强调；无 summary、无事件、无坐标、坐标不在当前地图或已在最后一条时只写提示并保持只读边界。
+- `ContentView` 在 AI 行动时间线标题行增加播放/暂停按钮和速度菜单；SwiftUI timer 只在播放中调用 `GameState.advanceAIPhaseTimelinePlayback()`，不自行计算下一个 order。
+- 扩展 XCTest 和规则 smoke test，覆盖播放开始、tick 推进、末尾自动暂停、末尾边界、手动暂停、速度切换、无 summary 和只读不变性。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.27（AI复盘自动播放控制）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions 和 Agent C artifact 验收待本轮 push 后补充。
+
+遗留事项：
+
+- 本轮只增强最近一次 AI 时间线的自动播放、暂停和速度控制，不新增逐帧动画、镜头动画、时间轴滑块、历史 AI 回合列表、音效或真实美术资产。
 - 本轮不改变 AI 决策、战斗数值、移动、补给、士气、部署、整补、据点、胜负和反制建议语义。

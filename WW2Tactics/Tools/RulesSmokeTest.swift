@@ -49,6 +49,61 @@ func requireAIPhaseMapMarker(
     )
 }
 
+func smokeAIPhaseSummary(timeline: [AIPhaseTimelineEvent]) -> AIPhaseSummary {
+    AIPhaseSummary(
+        faction: .axis,
+        turn: 1,
+        startingCommandPoints: 0,
+        endingCommandPoints: 0,
+        reinforcements: 0,
+        deployments: 0,
+        tacticalCommands: 0,
+        attacks: 0,
+        moves: timeline.filter { $0.kind == .move }.count,
+        objectivesCaptured: 0,
+        enemyUnitsDestroyed: 0,
+        friendlyUnitsDestroyed: 0,
+        damageDealt: 0,
+        damageTaken: 0,
+        timeline: timeline
+    )
+}
+
+func smokeAIPhaseTimelineEvent(
+    order: Int,
+    from: HexCoordinate?,
+    to: HexCoordinate?
+) -> AIPhaseTimelineEvent {
+    AIPhaseTimelineEvent(
+        order: order,
+        faction: .axis,
+        turn: 1,
+        kind: .move,
+        actorUnitID: nil,
+        actorName: "测试AI单位",
+        actorKind: .infantry,
+        targetUnitID: nil,
+        targetName: nil,
+        targetKind: nil,
+        from: from,
+        to: to,
+        tacticalCommand: nil,
+        deployedUnitKind: nil,
+        objectiveName: nil,
+        previousOwner: nil,
+        newOwner: nil,
+        damage: 0,
+        counterDamage: 0,
+        recoveredHP: 0,
+        commandPointCost: 0,
+        commandPointReward: 0,
+        commandPointsAfter: nil,
+        didDestroyTarget: false,
+        didCaptureObjective: false,
+        detail: "test"
+    )
+}
+
 @main
 struct RulesSmokeTest {
     static func main() async {
@@ -2028,6 +2083,203 @@ struct RulesSmokeTest {
                     axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageExpectedPreviousEvent.order,
                     "axis post-move barrage previous replay navigation should record adjacent event order"
                 )
+
+                let axisPostMoveBarragePlaybackGame = GameState(
+                    scenario: axisPostMoveBarrageScenario(),
+                    commandPoints: [.allies: 6, .axis: 1]
+                )
+                axisPostMoveBarragePlaybackGame.endTurn()
+                guard let axisPostMoveBarragePlaybackSummary = axisPostMoveBarragePlaybackGame.latestAIPhaseSummary,
+                      let axisPostMoveBarragePlaybackFirstEvent = axisPostMoveBarragePlaybackSummary.timeline.first,
+                      let axisPostMoveBarragePlaybackLastEvent = axisPostMoveBarragePlaybackSummary.timeline.last,
+                      let axisPostMoveBarragePlaybackFirstCoordinate = axisPostMoveBarragePlaybackFirstEvent.to ?? axisPostMoveBarragePlaybackFirstEvent.from else {
+                    require(false, "axis post-move barrage playback should publish replay events")
+                    return
+                }
+                let axisPostMoveBarragePlaybackMarkers = axisPostMoveBarragePlaybackGame.latestAIPhaseMapMarkers
+                let axisPostMoveBarragePlaybackUnitsBefore = axisPostMoveBarragePlaybackGame.scenario.units
+                let axisPostMoveBarragePlaybackCommandPointsBefore = axisPostMoveBarragePlaybackGame.commandPoints
+                require(
+                    axisPostMoveBarragePlaybackGame.canPlayAIPhaseTimeline,
+                    "axis post-move barrage playback should be playable before any event is focused"
+                )
+                axisPostMoveBarragePlaybackGame.setAIPhaseTimelinePlaybackPace(.fast)
+                require(
+                    axisPostMoveBarragePlaybackGame.aiPhaseTimelinePlaybackPace == .fast,
+                    "axis post-move barrage playback pace should switch to fast"
+                )
+                require(
+                    axisPostMoveBarragePlaybackGame.scenario.units == axisPostMoveBarragePlaybackUnitsBefore,
+                    "axis post-move barrage pace switch should not mutate units"
+                )
+                axisPostMoveBarragePlaybackGame.toggleAIPhaseTimelinePlayback()
+                require(
+                    axisPostMoveBarragePlaybackGame.isAIPhaseTimelinePlaybackActive,
+                    "axis post-move barrage playback toggle should start playback"
+                )
+                axisPostMoveBarragePlaybackGame.advanceAIPhaseTimelinePlayback()
+                require(
+                    axisPostMoveBarragePlaybackGame.focusedCoordinate == axisPostMoveBarragePlaybackFirstCoordinate,
+                    "axis post-move barrage playback first tick should focus first event"
+                )
+                require(
+                    axisPostMoveBarragePlaybackGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarragePlaybackFirstEvent.order,
+                    "axis post-move barrage playback first tick should record first order"
+                )
+                require(
+                    axisPostMoveBarragePlaybackGame.focusedAIPhaseMapMarkers == axisPostMoveBarragePlaybackMarkers.filter { $0.eventOrder == axisPostMoveBarragePlaybackFirstEvent.order },
+                    "axis post-move barrage playback markers should derive from current order"
+                )
+                var axisPostMoveBarragePlaybackGuard = axisPostMoveBarragePlaybackSummary.timeline.count + 2
+                while axisPostMoveBarragePlaybackGame.isAIPhaseTimelinePlaybackActive && axisPostMoveBarragePlaybackGuard > 0 {
+                    axisPostMoveBarragePlaybackGame.advanceAIPhaseTimelinePlayback()
+                    axisPostMoveBarragePlaybackGuard -= 1
+                }
+                require(
+                    !axisPostMoveBarragePlaybackGame.isAIPhaseTimelinePlaybackActive,
+                    "axis post-move barrage playback should auto-pause at the last event"
+                )
+                require(
+                    axisPostMoveBarragePlaybackGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarragePlaybackLastEvent.order,
+                    "axis post-move barrage playback should stop on last event order"
+                )
+                require(
+                    axisPostMoveBarragePlaybackGame.message.contains("自动暂停"),
+                    "axis post-move barrage playback should publish auto-pause message"
+                )
+                require(
+                    !axisPostMoveBarragePlaybackGame.canPlayAIPhaseTimeline,
+                    "axis post-move barrage playback should not be playable from last event"
+                )
+                require(
+                    axisPostMoveBarragePlaybackGame.scenario.units == axisPostMoveBarragePlaybackUnitsBefore,
+                    "axis post-move barrage playback should not mutate units"
+                )
+                require(
+                    axisPostMoveBarragePlaybackGame.commandPoints == axisPostMoveBarragePlaybackCommandPointsBefore,
+                    "axis post-move barrage playback should not mutate command points"
+                )
+                require(
+                    axisPostMoveBarragePlaybackGame.latestAIPhaseSummary == axisPostMoveBarragePlaybackSummary,
+                    "axis post-move barrage playback should not mutate summary"
+                )
+                require(
+                    axisPostMoveBarragePlaybackGame.latestAIPhaseMapMarkers == axisPostMoveBarragePlaybackMarkers,
+                    "axis post-move barrage playback should not mutate map markers"
+                )
+                axisPostMoveBarragePlaybackGame.toggleAIPhaseTimelinePlayback()
+                require(
+                    !axisPostMoveBarragePlaybackGame.isAIPhaseTimelinePlaybackActive,
+                    "axis post-move barrage playback should not restart from the last event"
+                )
+                require(
+                    axisPostMoveBarragePlaybackGame.message.contains("最后一条"),
+                    "axis post-move barrage playback last-event toggle should publish boundary message"
+                )
+                axisPostMoveBarragePlaybackGame.focusAIPhaseTimelineEvent(order: axisPostMoveBarragePlaybackFirstEvent.order)
+                axisPostMoveBarragePlaybackGame.toggleAIPhaseTimelinePlayback()
+                axisPostMoveBarragePlaybackGame.pauseAIPhaseTimelinePlayback()
+                require(
+                    !axisPostMoveBarragePlaybackGame.isAIPhaseTimelinePlaybackActive,
+                    "axis post-move barrage playback pause should stop active playback"
+                )
+                let axisPostMoveBarrageNoSummaryPlaybackGame = GameState(
+                    scenario: axisPostMoveBarrageScenario(),
+                    commandPoints: [.allies: 6, .axis: 1]
+                )
+                let axisPostMoveBarrageNoSummaryFocus = axisPostMoveBarrageNoSummaryPlaybackGame.focusedCoordinate
+                let axisPostMoveBarrageNoSummaryUnits = axisPostMoveBarrageNoSummaryPlaybackGame.scenario.units
+                axisPostMoveBarrageNoSummaryPlaybackGame.toggleAIPhaseTimelinePlayback()
+                axisPostMoveBarrageNoSummaryPlaybackGame.advanceAIPhaseTimelinePlayback()
+                require(
+                    !axisPostMoveBarrageNoSummaryPlaybackGame.isAIPhaseTimelinePlaybackActive,
+                    "AI replay playback should stay paused without a published summary"
+                )
+                require(
+                    axisPostMoveBarrageNoSummaryPlaybackGame.focusedCoordinate == axisPostMoveBarrageNoSummaryFocus,
+                    "AI replay playback without summary should preserve focus"
+                )
+                require(
+                    axisPostMoveBarrageNoSummaryPlaybackGame.scenario.units == axisPostMoveBarrageNoSummaryUnits,
+                    "AI replay playback without summary should not mutate units"
+                )
+                require(
+                    axisPostMoveBarrageNoSummaryPlaybackGame.latestAIPhaseSummary == nil,
+                    "AI replay playback without summary should not create summary"
+                )
+                let axisPostMoveBarrageInvalidPlaybackGame = GameState(
+                    scenario: axisPostMoveBarrageScenario(),
+                    commandPoints: [.allies: 6, .axis: 1]
+                )
+                guard let axisPostMoveBarrageValidFocus = axisPostMoveBarrageInvalidPlaybackGame.focusedCoordinate else {
+                    require(false, "invalid replay playback test should have an initial focus")
+                    return
+                }
+                axisPostMoveBarrageInvalidPlaybackGame.replaceLatestAIPhaseSummaryForTesting(
+                    smokeAIPhaseSummary(timeline: [])
+                )
+                axisPostMoveBarrageInvalidPlaybackGame.toggleAIPhaseTimelinePlayback()
+                axisPostMoveBarrageInvalidPlaybackGame.advanceAIPhaseTimelinePlayback()
+                require(
+                    !axisPostMoveBarrageInvalidPlaybackGame.isAIPhaseTimelinePlaybackActive,
+                    "AI replay playback should stay paused with empty timeline"
+                )
+                require(
+                    axisPostMoveBarrageInvalidPlaybackGame.focusedCoordinate == axisPostMoveBarrageValidFocus,
+                    "AI replay playback with empty timeline should preserve focus"
+                )
+                axisPostMoveBarrageInvalidPlaybackGame.replaceLatestAIPhaseSummaryForTesting(
+                    smokeAIPhaseSummary(timeline: [
+                        smokeAIPhaseTimelineEvent(order: 1, from: axisPostMoveBarrageValidFocus, to: axisPostMoveBarrageValidFocus)
+                    ])
+                )
+                axisPostMoveBarrageInvalidPlaybackGame.focusAIPhaseTimelineEvent(order: 1)
+                let axisPostMoveBarrageInvalidPlaybackFocus = axisPostMoveBarrageInvalidPlaybackGame.focusedCoordinate
+                let axisPostMoveBarrageInvalidPlaybackOrder = axisPostMoveBarrageInvalidPlaybackGame.focusedAIPhaseTimelineEventOrder
+                let axisPostMoveBarrageInvalidPlaybackUnits = axisPostMoveBarrageInvalidPlaybackGame.scenario.units
+                axisPostMoveBarrageInvalidPlaybackGame.replaceLatestAIPhaseSummaryForTesting(
+                    smokeAIPhaseSummary(timeline: [
+                        smokeAIPhaseTimelineEvent(order: 2, from: nil, to: nil)
+                    ])
+                )
+                axisPostMoveBarrageInvalidPlaybackGame.toggleAIPhaseTimelinePlayback()
+                axisPostMoveBarrageInvalidPlaybackGame.advanceAIPhaseTimelinePlayback()
+                require(
+                    !axisPostMoveBarrageInvalidPlaybackGame.isAIPhaseTimelinePlaybackActive,
+                    "AI replay playback should pause when next event has no coordinate"
+                )
+                require(
+                    axisPostMoveBarrageInvalidPlaybackGame.focusedCoordinate == axisPostMoveBarrageInvalidPlaybackFocus,
+                    "AI replay playback no-coordinate failure should preserve focus"
+                )
+                require(
+                    axisPostMoveBarrageInvalidPlaybackGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageInvalidPlaybackOrder,
+                    "AI replay playback no-coordinate failure should preserve order"
+                )
+                require(
+                    axisPostMoveBarrageInvalidPlaybackGame.scenario.units == axisPostMoveBarrageInvalidPlaybackUnits,
+                    "AI replay playback no-coordinate failure should not mutate units"
+                )
+                axisPostMoveBarrageInvalidPlaybackGame.replaceLatestAIPhaseSummaryForTesting(
+                    smokeAIPhaseSummary(timeline: [
+                        smokeAIPhaseTimelineEvent(order: 3, from: HexCoordinate(q: 999, r: 999), to: HexCoordinate(q: 999, r: 999))
+                    ])
+                )
+                axisPostMoveBarrageInvalidPlaybackGame.toggleAIPhaseTimelinePlayback()
+                axisPostMoveBarrageInvalidPlaybackGame.advanceAIPhaseTimelinePlayback()
+                require(
+                    !axisPostMoveBarrageInvalidPlaybackGame.isAIPhaseTimelinePlaybackActive,
+                    "AI replay playback should pause when next event coordinate is off-map"
+                )
+                require(
+                    axisPostMoveBarrageInvalidPlaybackGame.focusedCoordinate == axisPostMoveBarrageInvalidPlaybackFocus,
+                    "AI replay playback off-map failure should preserve focus"
+                )
+                require(
+                    axisPostMoveBarrageInvalidPlaybackGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageInvalidPlaybackOrder,
+                    "AI replay playback off-map failure should preserve order"
+                )
+
                 axisPostMoveBarrageGame.focusAIPhaseTimelineEvent(order: axisPostMoveBarrageReplayEvent.order)
                 let axisPostMoveBarrageFocusAfterReplay = axisPostMoveBarrageGame.focusedCoordinate
                 axisPostMoveBarrageGame.focusAIPhaseTimelineEvent(order: 999)

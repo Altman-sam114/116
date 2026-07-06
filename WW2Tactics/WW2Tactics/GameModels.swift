@@ -734,6 +734,38 @@ struct AIPhaseSummary: Identifiable, Equatable {
     }
 }
 
+enum AIPhaseTimelinePlaybackPace: String, CaseIterable, Identifiable {
+    case slow
+    case normal
+    case fast
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .slow: "慢速"
+        case .normal: "标准"
+        case .fast: "快速"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .slow: "慢"
+        case .normal: "中"
+        case .fast: "快"
+        }
+    }
+
+    var interval: TimeInterval {
+        switch self {
+        case .slow: 1.8
+        case .normal: 1.1
+        case .fast: 0.6
+        }
+    }
+}
+
 enum AIPhaseTimelineEventKind: String, Identifiable {
     case reinforcement
     case deployment

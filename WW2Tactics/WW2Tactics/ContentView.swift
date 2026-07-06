@@ -5530,6 +5530,16 @@ private struct AIPhaseSummaryView: View {
                         Spacer(minLength: 6)
 
                         AIPhaseTimelineNavigationButton(
+                            title: game.isAIPhaseTimelinePlaybackActive ? "暂停AI复盘播放" : "播放AI复盘",
+                            systemImage: game.isAIPhaseTimelinePlaybackActive ? "pause.fill" : "play.fill",
+                            isDisabled: !game.canPlayAIPhaseTimeline && !game.isAIPhaseTimelinePlaybackActive
+                        ) {
+                            game.toggleAIPhaseTimelinePlayback()
+                        }
+
+                        AIPhaseTimelinePlaybackPaceMenu()
+
+                        AIPhaseTimelineNavigationButton(
                             title: "上一条AI复盘",
                             systemImage: "chevron.left",
                             isDisabled: !game.canFocusPreviousAIPhaseTimelineEvent
@@ -5581,6 +5591,51 @@ private struct AIPhaseSummaryView: View {
                 .stroke(summary.faction.accentColor.opacity(0.24), lineWidth: 1)
         )
         .accessibilityElement(children: .contain)
+        .onReceive(Timer.publish(every: game.aiPhaseTimelinePlaybackPace.interval, on: .main, in: .common).autoconnect()) { _ in
+            if game.isAIPhaseTimelinePlaybackActive {
+                game.advanceAIPhaseTimelinePlayback()
+            }
+        }
+    }
+}
+
+private struct AIPhaseTimelinePlaybackPaceMenu: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        Menu {
+            ForEach(AIPhaseTimelinePlaybackPace.allCases) { pace in
+                Button {
+                    game.setAIPhaseTimelinePlaybackPace(pace)
+                } label: {
+                    Label(pace.title, systemImage: pace == game.aiPhaseTimelinePlaybackPace ? "checkmark" : "speedometer")
+                }
+            }
+        } label: {
+            Label("AI复盘速度 \(game.aiPhaseTimelinePlaybackPace.title)", systemImage: "speedometer")
+                .labelStyle(.iconOnly)
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.white.opacity(0.84))
+                .frame(width: 22, height: 20)
+                .overlay(alignment: .bottomTrailing) {
+                    Text(game.aiPhaseTimelinePlaybackPace.shortTitle)
+                        .font(.system(size: 8, weight: .black))
+                        .foregroundStyle(.yellow.opacity(0.96))
+                        .offset(x: 5, y: 5)
+                }
+                .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(Color.white.opacity(0.24), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
+        .accessibilityLabel("AI复盘速度")
+        .accessibilityValue(game.aiPhaseTimelinePlaybackPace.title)
+        .accessibilityHint("选择自动播放AI复盘事件的速度")
+        .help("AI复盘速度")
     }
 }
 

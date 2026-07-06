@@ -9,7 +9,7 @@
 ```text
 用户输入 / 快捷按钮
   -> ContentView 地图格和 HUD 事件
-  -> GameState handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusEnemyThreatCountermeasure / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent
+  -> GameState handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusEnemyThreatCountermeasure / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback
   -> GameModels 中的 Scenario / BattleUnit / TerrainTile / HexCoordinate / MapCommandPreview
   -> GameState 规则判定与状态更新
   -> @Published 状态变化
@@ -24,7 +24,7 @@
 职责：
 
 - 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、敌方威胁意图预判 `EnemyThreatIntentPreview`、敌方意图反制建议 `EnemyThreatCountermeasurePreview`、反制建议收益解释 `EnemyThreatCountermeasureBenefitMetric`、反制建议排序解释 `EnemyThreatCountermeasurePriorityFactor`、反制建议相邻对比 `EnemyThreatCountermeasureComparisonPreview`、反制建议执行前后预计对照 `EnemyThreatCountermeasureImpactComparison`、反制建议地图标记 `EnemyThreatCountermeasureMapMarker`、反制建议执行桥接预览 `EnemyThreatCountermeasureExecutionPreview`、反制建议执行回放 `EnemyThreatCountermeasureExecutionResultSummary`、反制建议敌方回合复核 `EnemyThreatCountermeasureFollowUpSummary`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary`、敌方回合行动时间线 `AIPhaseTimelineEvent`、敌方回合地图复盘标记 `AIPhaseMapMarker` 和敌方回合后的 `AIPhaseSummary`。
+- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、敌方威胁意图预判 `EnemyThreatIntentPreview`、敌方意图反制建议 `EnemyThreatCountermeasurePreview`、反制建议收益解释 `EnemyThreatCountermeasureBenefitMetric`、反制建议排序解释 `EnemyThreatCountermeasurePriorityFactor`、反制建议相邻对比 `EnemyThreatCountermeasureComparisonPreview`、反制建议执行前后预计对照 `EnemyThreatCountermeasureImpactComparison`、反制建议地图标记 `EnemyThreatCountermeasureMapMarker`、反制建议执行桥接预览 `EnemyThreatCountermeasureExecutionPreview`、反制建议执行回放 `EnemyThreatCountermeasureExecutionResultSummary`、反制建议敌方回合复核 `EnemyThreatCountermeasureFollowUpSummary`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary`、敌方回合行动时间线 `AIPhaseTimelineEvent`、敌方回合复盘播放速度 `AIPhaseTimelinePlaybackPace`、敌方回合地图复盘标记 `AIPhaseMapMarker` 和敌方回合后的 `AIPhaseSummary`。
 - 生成阿登反击战、诺曼底突破等战役初始数据。
 
 输入：
@@ -46,8 +46,8 @@
 职责：
 
 - 项目核心状态机。
-- 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、最新部署结果、最新整补结果、最新反制建议执行回放、最新反制建议敌方回合复核、最新 AI 回合摘要及其行动时间线、胜负、指令点。
-- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要和行动时间线、AI 行动地图复盘标记派生、当前 AI 复盘事件选中 order、上一条/下一条复盘导航及其地图标记派生、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选、敌方威胁意图预判、敌方意图反制建议、反制建议相邻排序对比、反制建议执行前后预计对照、当前反制建议地图标记派生、当前反制建议执行入口桥接派生、最近一次反制建议执行回放和敌方回合后复核。
+- 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、最新部署结果、最新整补结果、最新反制建议执行回放、最新反制建议敌方回合复核、最新 AI 回合摘要及其行动时间线、AI 复盘播放状态和速度、胜负、指令点。
+- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要和行动时间线、AI 行动地图复盘标记派生、当前 AI 复盘事件选中 order、上一条/下一条复盘导航、播放/暂停/速度控制及其地图标记派生、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选、敌方威胁意图预判、敌方意图反制建议、反制建议相邻排序对比、反制建议执行前后预计对照、当前反制建议地图标记派生、当前反制建议执行入口桥接派生、最近一次反制建议执行回放和敌方回合后复核。
 
 输入：
 
@@ -169,7 +169,7 @@
 3. 执行 `runAxisAI()`；AI 优先整补/增援，随后按可击毁攻击、战术命令、直取可达非己方据点、普通攻击、推进接敌的顺序行动。推进接敌后会先尝试普通攻击；若普通攻击不可用但战术命令可用，移动后的火炮等单位会继续执行战术压制。成功整补、部署、战术命令、攻击和移动会在规则成功路径记录动作计数，并追加结构化 `AIPhaseTimelineEvent`。
 4. `finishAIPhaseRecording()` 用前后状态差异生成 `latestAIPhaseSummary`：指令点变化、动作计数、占点、歼灭、己方损失、对敌伤害、己方承伤和真实成功动作时间线。被动据点休整、预览和失败动作不计入主动动作，也不会生成时间线事件。
 5. 若玩家回合结束前存在最近一次反制建议执行回放，`GameState` 会在清理即时回放前保存单位 HP/位置、威胁来源和据点归属基线，并在 `finishAIPhaseRecording()` 后、盟军新回合休整前发布 `latestEnemyThreatCountermeasureFollowUpResult`。
-6. 盟军新回合重置行动、获得指令点，自动选择可行动单位；AI 回合摘要、行动时间线、由时间线派生的地图复盘标记和反制建议敌方回合复核保留在侧栏/地图，点选时间线或使用上一条/下一条后还会保留当前复盘事件 order 和对应标记强调；这些复盘状态直到重开/切战役、下一次 AI 回合开始清理、下一次 AI 回合无基线清理或新的反制执行覆盖。
+6. 盟军新回合重置行动、获得指令点，自动选择可行动单位；AI 回合摘要、行动时间线、由时间线派生的地图复盘标记和反制建议敌方回合复核保留在侧栏/地图，点选时间线、使用上一条/下一条或播放 tick 后还会保留当前复盘事件 order 和对应标记强调；复盘播放状态会在播放到末尾、手动暂停、重开/切战役或下一次 AI 回合开始时清理，其他复盘状态直到重开/切战役、下一次 AI 回合开始清理、下一次 AI 回合无基线清理或新的反制执行覆盖。
 
 ### 3.8 战术命令结果
 
@@ -207,9 +207,10 @@
 7. `focusedAIPhaseTimelineEventOrder` 记录当前成功点选的 AI 时间线顺序号；`focusedAIPhaseMapMarkers` 从 `latestAIPhaseMapMarkers` 按该 order 过滤派生，不存第二份 marker。
 8. `focusAIPhaseTimelineEvent(order:)` 是侧栏时间线点选定位入口。它只从最新 `AIPhaseSummary.timeline` 查找事件，按 `event.to ?? event.from` 选择定位坐标，校验坐标仍在当前地图后更新 `focusedCoordinate`、`focusedAIPhaseTimelineEventOrder` 和 `message`，并清理 OBJ/SAFE/反制等临时引导。
 9. `focusPreviousAIPhaseTimelineEvent()` / `focusNextAIPhaseTimelineEvent()` 是连续复盘入口。它们从最新 timeline 和当前 order 选择相邻事件；无当前 order 时 next 从第一条开始、previous 从最后一条开始；到达首尾边界时只写边界提示并保留旧焦点和旧 order。
-10. 点选或连续切换 AI 时间线不会调用移动、攻击、战术命令、部署、整补或 AI 方法，不改变单位 HP/位置、行动状态、据点归属、指令点、AI summary、timeline 或 `latestAIPhaseMapMarkers`；无 summary、无事件、无坐标或坐标不在当前地图时只写提示并保留旧焦点和旧复盘选中 order。
-11. 侧栏展示顺序仍以普通攻击、战术命令、据点占领、部署、整补等单项结果卡优先，其后显示 AI 回合摘要卡和最多 5 条行动时间线，再显示 battleLog；地图将同坐标 AI 复盘标记聚合成紧凑徽标，并把复盘内容加入 tile 无障碍文案。时间线行和上一条/下一条按钮使用 `Button` 转发到 `GameState`，当前行显示选中符号和描边，地图自动滚动复用 `focusedCoordinate` 监听链，并把当前事件 marker 强调为当前 AI 复盘。
-12. `loadScenario()`、重开和切换战役会清理 `latestAIPhaseSummary`、当前复盘选中 order、内部 AI phase 记录器和 timeline 缓冲；复盘标记随 summary 变空而变空。下一次 AI 回合开始记录时也会清理旧复盘选中 order，避免跨回合残留。
+10. `toggleAIPhaseTimelinePlayback()` / `pauseAIPhaseTimelinePlayback()` / `setAIPhaseTimelinePlaybackPace(_:)` / `advanceAIPhaseTimelinePlayback()` 是自动复盘入口。播放可用性来自 `GameState.canPlayAIPhaseTimeline`；无当前 order 时第一次 tick 聚焦第一条，有当前 order 时 tick 聚焦下一条，到最后一条后自动暂停并保留最后焦点、order 和 marker 强调；已在最后一条时播放只写提示不启动。
+11. 点选、连续切换或自动播放 AI 时间线不会调用移动、攻击、战术命令、部署、整补或 AI 方法，不改变单位 HP/位置、行动状态、据点归属、指令点、AI summary、timeline 或 `latestAIPhaseMapMarkers`；无 summary、无事件、无坐标或坐标不在当前地图时只写提示并保留旧焦点和旧复盘选中 order，播放路径会同时暂停。
+12. 侧栏展示顺序仍以普通攻击、战术命令、据点占领、部署、整补等单项结果卡优先，其后显示 AI 回合摘要卡和最多 5 条行动时间线，再显示 battleLog；地图将同坐标 AI 复盘标记聚合成紧凑徽标，并把复盘内容加入 tile 无障碍文案。时间线行、播放/暂停、速度菜单和上一条/下一条按钮使用 `Button` / `Menu` 转发到 `GameState`，当前行显示选中符号和描边，地图自动滚动复用 `focusedCoordinate` 监听链，并把当前事件 marker 强调为当前 AI 复盘。
+13. `loadScenario()`、重开和切换战役会清理 `latestAIPhaseSummary`、当前复盘选中 order、复盘播放状态、内部 AI phase 记录器和 timeline 缓冲；复盘标记随 summary 变空而变空。下一次 AI 回合开始记录时也会清理旧复盘选中 order 和播放状态，避免跨回合残留。
 
 ### 3.12 敌方威胁意图预判
 
@@ -264,7 +265,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、敌方威胁意图预判、敌方意图反制建议、反制建议收益解释、排序对比解释、执行前后预计对照、反制建议点选聚焦、地图标记、执行入口桥接预览、执行回放、敌方回合复核、部署/整补结果摘要、AI 直取据点优先、AI 移动后火炮弹幕、AI 回合行动摘要、行动时间线、AI 时间线点选定位、复盘事件选中态、上一条/下一条连续查看和地图复盘标记强调：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、敌方威胁意图预判、敌方意图反制建议、反制建议收益解释、排序对比解释、执行前后预计对照、反制建议点选聚焦、地图标记、执行入口桥接预览、执行回放、敌方回合复核、部署/整补结果摘要、AI 直取据点优先、AI 移动后火炮弹幕、AI 回合行动摘要、行动时间线、AI 时间线点选定位、复盘事件选中态、上一条/下一条连续查看、自动播放控制和地图复盘标记强调：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

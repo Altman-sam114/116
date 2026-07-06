@@ -23,6 +23,8 @@ final class GameState: ObservableObject {
     @Published private(set) var latestEnemyThreatCountermeasureFollowUpResult: EnemyThreatCountermeasureFollowUpSummary?
     @Published private(set) var latestAIPhaseSummary: AIPhaseSummary?
     @Published private(set) var focusedAIPhaseTimelineEventOrder: Int?
+    @Published private(set) var isAIPhaseTimelinePlaybackActive = false
+    @Published private(set) var aiPhaseTimelinePlaybackPace: AIPhaseTimelinePlaybackPace = .normal
 
     private enum MapCommandInputMode {
         case directTap
@@ -269,6 +271,10 @@ final class GameState: ObservableObject {
         aiPhaseTimelineNavigationTargetOrder(offset: 1) != nil
     }
 
+    var canPlayAIPhaseTimeline: Bool {
+        aiPhaseTimelinePlaybackNextOrder() != nil
+    }
+
     var focusedEnemyThreatCountermeasureExecutionPreview: EnemyThreatCountermeasureExecutionPreview? {
         guard let preview = focusedEnemyThreatCountermeasurePreview,
               isEnemyThreatCountermeasureFocused(preview) else { return nil }
@@ -488,25 +494,34 @@ final class GameState: ObservableObject {
     }
 
     func focusAIPhaseTimelineEvent(order: Int) {
+        _ = focusAIPhaseTimelineEvent(order: order, pausesPlaybackOnFailure: false)
+    }
+
+    @discardableResult
+    private func focusAIPhaseTimelineEvent(order: Int, pausesPlaybackOnFailure: Bool) -> Bool {
         guard let event = latestAIPhaseSummary?.timeline.first(where: { $0.order == order }) else {
             message = "未找到AI复盘事件 #\(order)。"
-            return
+            pauseAIPhaseTimelinePlaybackIfNeeded(pausesPlaybackOnFailure)
+            return false
         }
 
         guard let coordinate = event.to ?? event.from else {
             message = "AI复盘 #\(order) 没有可定位坐标。"
-            return
+            pauseAIPhaseTimelinePlaybackIfNeeded(pausesPlaybackOnFailure)
+            return false
         }
 
         guard tile(at: coordinate) != nil else {
             message = "AI复盘 #\(order) 坐标不在当前地图。"
-            return
+            pauseAIPhaseTimelinePlaybackIfNeeded(pausesPlaybackOnFailure)
+            return false
         }
 
         clearObjectiveGuidance()
         focusedCoordinate = coordinate
         focusedAIPhaseTimelineEventOrder = event.order
         message = "AI复盘 #\(event.order)：\(event.summary)"
+        return true
     }
 
     func focusPreviousAIPhaseTimelineEvent() {
@@ -515,6 +530,63 @@ final class GameState: ObservableObject {
 
     func focusNextAIPhaseTimelineEvent() {
         focusAdjacentAIPhaseTimelineEvent(offset: 1)
+    }
+
+    func toggleAIPhaseTimelinePlayback() {
+        if isAIPhaseTimelinePlaybackActive {
+            pauseAIPhaseTimelinePlayback()
+            return
+        }
+
+        guard canPlayAIPhaseTimeline else {
+            guard let timeline = latestAIPhaseSummary?.timeline, !timeline.isEmpty else {
+                message = "没有可播放的AI复盘事件。"
+                return
+            }
+            message = "AI复盘已在最后一条。"
+            return
+        }
+
+        isAIPhaseTimelinePlaybackActive = true
+        message = "AI复盘自动播放：\(aiPhaseTimelinePlaybackPace.title)。"
+    }
+
+    func pauseAIPhaseTimelinePlayback() {
+        guard isAIPhaseTimelinePlaybackActive else { return }
+        isAIPhaseTimelinePlaybackActive = false
+        message = "AI复盘自动播放已暂停。"
+    }
+
+    func setAIPhaseTimelinePlaybackPace(_ pace: AIPhaseTimelinePlaybackPace) {
+        aiPhaseTimelinePlaybackPace = pace
+        message = "AI复盘速度：\(pace.title)。"
+    }
+
+    func replaceLatestAIPhaseSummaryForTesting(_ summary: AIPhaseSummary?) {
+        latestAIPhaseSummary = summary
+    }
+
+    func advanceAIPhaseTimelinePlayback() {
+        guard isAIPhaseTimelinePlaybackActive else { return }
+
+        guard let timeline = latestAIPhaseSummary?.timeline, !timeline.isEmpty else {
+            isAIPhaseTimelinePlaybackActive = false
+            message = "没有可播放的AI复盘事件。"
+            return
+        }
+
+        guard let targetOrder = aiPhaseTimelinePlaybackNextOrder() else {
+            isAIPhaseTimelinePlaybackActive = false
+            message = "AI复盘已播放到最后一条。"
+            return
+        }
+
+        guard focusAIPhaseTimelineEvent(order: targetOrder, pausesPlaybackOnFailure: true) else { return }
+
+        if timeline.last?.order == targetOrder {
+            isAIPhaseTimelinePlaybackActive = false
+            message += " 已到最后一条，自动暂停。"
+        }
     }
 
     private func focusAdjacentAIPhaseTimelineEvent(offset: Int) {
@@ -542,6 +614,24 @@ final class GameState: ObservableObject {
         let targetIndex = currentIndex + offset
         guard timeline.indices.contains(targetIndex) else { return nil }
         return timeline[targetIndex].order
+    }
+
+    private func aiPhaseTimelinePlaybackNextOrder() -> Int? {
+        guard let timeline = latestAIPhaseSummary?.timeline, !timeline.isEmpty else { return nil }
+
+        guard let focusedAIPhaseTimelineEventOrder,
+              let currentIndex = timeline.firstIndex(where: { $0.order == focusedAIPhaseTimelineEventOrder }) else {
+            return timeline.first?.order
+        }
+
+        let nextIndex = currentIndex + 1
+        guard timeline.indices.contains(nextIndex) else { return nil }
+        return timeline[nextIndex].order
+    }
+
+    private func pauseAIPhaseTimelinePlaybackIfNeeded(_ shouldPause: Bool) {
+        guard shouldPause else { return }
+        isAIPhaseTimelinePlaybackActive = false
     }
 
     func selectNextReadyUnitFromMap() {
@@ -3845,6 +3935,7 @@ final class GameState: ObservableObject {
         latestEnemyThreatCountermeasureFollowUpResult = nil
         latestAIPhaseSummary = nil
         focusedAIPhaseTimelineEventOrder = nil
+        isAIPhaseTimelinePlaybackActive = false
         activeAIPhaseBaseline = nil
         activeAIPhaseActionCounts = AIPhaseActionCounts()
         activeAIPhaseTimeline = []
@@ -4164,6 +4255,7 @@ final class GameState: ObservableObject {
 
     private func beginAIPhaseRecording(for faction: Faction) {
         focusedAIPhaseTimelineEventOrder = nil
+        isAIPhaseTimelinePlaybackActive = false
         let objectiveOwners = Dictionary(uniqueKeysWithValues: objectiveTiles.compactMap { tile -> (HexCoordinate, Faction)? in
             guard let owner = tile.owner else { return nil }
             return (tile.coordinate, owner)
