@@ -1125,11 +1125,13 @@ struct RulesSmokeTest {
             require(enemyThreatGame.enemyThreatIntentPreviews(against: .allies, limit: 0).isEmpty, "enemy threat intent limit zero should return no previews")
             require(enemyThreatGame.enemyThreatIntentPreviews(against: .allies, limit: 2) == Array(enemyThreats.prefix(2)), "enemy threat intent limit should preserve sorted prefix")
             require(enemyThreatGame.visibleEnemyThreatIntentPreviews == enemyThreatGame.enemyThreatIntentPreviews(against: .allies), "visible enemy threat intents should expose the allied preview")
-            guard let directThreat = enemyThreats.first(where: {
-                $0.kind == .directAttack &&
-                    $0.enemyUnitName == "威胁炮兵" &&
-                    $0.targetName == "前线装甲"
-            }) else {
+            func isExpectedDirectThreat(_ threat: EnemyThreatIntentPreview) -> Bool {
+                let isDirectAttack = threat.kind == .directAttack
+                let hasExpectedEnemy = threat.enemyUnitName == "威胁炮兵"
+                let hasExpectedTarget = threat.targetName == "前线装甲"
+                return isDirectAttack && hasExpectedEnemy && hasExpectedTarget
+            }
+            guard let directThreat = enemyThreats.first(where: isExpectedDirectThreat) else {
                 require(false, "enemy threat intents should include direct attack previews")
                 return
             }
@@ -1468,7 +1470,7 @@ struct RulesSmokeTest {
                 require(objectivePressure.actionHint.isExecutable == pressureCountermeasure.canExecuteNow, "objective pressure should mirror objective defense availability")
             } else {
                 require(objectivePressure.actionHint.kind == .defend, "objective pressure should fall back to DEF when no matching countermeasure is in the current list")
-                require(objectivePressure.actionHint.isExecutable == enemyThreatGame.readyUnitCount > 0, "objective pressure fallback should mirror ready unit availability")
+                require(objectivePressure.actionHint.isExecutable == (enemyThreatGame.readyUnitCount > 0), "objective pressure fallback should mirror ready unit availability")
             }
             guard let situationFocusTarget = situationSummary.primaryFocusTarget,
                   let situationCountermeasure = situationFocusTarget.countermeasurePreview else {
