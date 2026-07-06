@@ -3078,6 +3078,14 @@ private struct BattlefieldSituationSummaryView: View {
             return Color.mint
         case .objectiveCapture:
             return Color.yellow
+        case .combat:
+            return Color.orange
+        case .tacticalCommand:
+            return Color.purple
+        case .deployment:
+            return Color.green
+        case .reinforcement:
+            return Color.cyan
         }
     }
 

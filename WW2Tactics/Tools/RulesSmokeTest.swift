@@ -1641,6 +1641,18 @@ struct RulesSmokeTest {
             require(barrageSummary.statusEffect == .suppressed, "barrage summary should record suppression")
             require(barrageSummary.didAvoidCounterAttack, "barrage summary should record no counterattack")
             require(barrageSummary.target.startingHP == barrageTarget.hp && barrageSummary.target.endingHP == barrageTargetAfter.hp, "barrage summary should record HP before and after")
+            guard let barrageSituationResponse = commandGame.battlefieldSituationResponseSummary else {
+                require(false, "barrage should publish battlefield situation response")
+                return
+            }
+            require(barrageSituationResponse.kind == .tacticalCommand, "barrage situation response should use tactical command kind")
+            require(barrageSituationResponse.title.contains(barrageSummary.command.title), "barrage situation response should name command")
+            require(barrageSituationResponse.detail.contains(barrageSummary.caster.name), "barrage situation response should name caster")
+            require(barrageSituationResponse.detail.contains(barrageSummary.target.name), "barrage situation response should name target")
+            require(barrageSituationResponse.resultTitle.contains("-\(barrageSummary.damage)"), "barrage situation response should expose damage")
+            require(barrageSituationResponse.resultTitle.contains("-\(barrageSummary.commandCost)"), "barrage situation response should expose command cost")
+            require(barrageSituationResponse.resultDetail.contains(barrageSummary.statusEffect.title), "barrage situation response should expose status")
+            require(barrageSituationResponse.coordinate == barrageTargetAfter.position, "barrage situation response should point to target")
             require(commandGame.battleLog.contains { $0.contains("火炮弹幕") && $0.contains("无反击") }, "barrage log should mention no counterattack")
 
             let lowCommandGame = GameState(
@@ -2998,6 +3010,16 @@ struct RulesSmokeTest {
             require(game.latestTacticalCommandResult == nil, "deployment result should clear tactical command result")
             require(game.latestObjectiveCaptureResult == nil, "deployment result should clear objective capture result")
             require(game.latestReinforcementResult == nil, "deployment result should clear reinforcement result")
+            guard let deploymentSituationResponse = game.battlefieldSituationResponseSummary else {
+                require(false, "deployment should publish battlefield situation response")
+                return
+            }
+            require(deploymentSituationResponse.kind == .deployment, "deployment situation response should use deployment kind")
+            require(deploymentSituationResponse.title.contains(deploymentResult.unitName), "deployment situation response should name deployed unit")
+            require(deploymentSituationResponse.detail.contains(deploymentResult.sourceObjectiveName), "deployment situation response should name source objective")
+            require(deploymentSituationResponse.resultTitle.contains("-\(deploymentResult.commandCost)"), "deployment situation response should expose cost")
+            require(deploymentSituationResponse.resultTitle.contains("\(deploymentResult.commandPointsAfterDeployment)"), "deployment situation response should expose remaining points")
+            require(deploymentSituationResponse.coordinate == deploymentResult.coordinate, "deployment situation response should point to deployed coordinate")
 
             let reinforcementGame = GameState(
                 scenario: objectiveRestScenario(),
@@ -3029,6 +3051,16 @@ struct RulesSmokeTest {
             require(reinforcementGame.latestTacticalCommandResult == nil, "reinforcement result should clear tactical command result")
             require(reinforcementGame.latestObjectiveCaptureResult == nil, "reinforcement result should clear objective capture result")
             require(reinforcementGame.latestDeploymentResult == nil, "reinforcement result should clear deployment result")
+            guard let reinforcementSituationResponse = reinforcementGame.battlefieldSituationResponseSummary else {
+                require(false, "reinforcement should publish battlefield situation response")
+                return
+            }
+            require(reinforcementSituationResponse.kind == .reinforcement, "reinforcement situation response should use reinforcement kind")
+            require(reinforcementSituationResponse.title.contains(reinforcementResult.unitName), "reinforcement situation response should name reinforced unit")
+            require(reinforcementSituationResponse.detail.contains("\(reinforcementResult.startingHP)->\(reinforcementResult.endingHP)"), "reinforcement situation response should expose HP change")
+            require(reinforcementSituationResponse.resultTitle.contains("+\(reinforcementResult.recoveredHP)"), "reinforcement situation response should expose recovered HP")
+            require(reinforcementSituationResponse.resultTitle.contains("-\(reinforcementResult.commandCost)"), "reinforcement situation response should expose cost")
+            require(reinforcementSituationResponse.coordinate == reinforcementResult.coordinate, "reinforcement situation response should point to reinforced coordinate")
 
             let primaryInspectGame = GameState()
             primaryInspectGame.handlePrimaryAction(on: HexCoordinate(q: 0, r: 0))
@@ -3254,6 +3286,7 @@ struct RulesSmokeTest {
         ordinaryMoveGame.focus(coordinate: ordinaryRoute.destination)
         ordinaryMoveGame.executeFocusedCommand()
         require(ordinaryMoveGame.latestEnemyThreatCountermeasureExecutionResult == nil, "ordinary move without focused countermeasure should not publish replay")
+        require(ordinaryMoveGame.battlefieldSituationResponseSummary == nil, "ordinary move should not publish battlefield situation response")
 
         let ordinaryAttackGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
         guard let ordinaryArtillery = ordinaryAttackGame.units.first(where: { $0.name == "反击炮兵" }),
@@ -3264,9 +3297,17 @@ struct RulesSmokeTest {
         ordinaryAttackGame.handleTap(on: ordinaryArtillery.position)
         ordinaryAttackGame.focus(unitID: ordinaryTarget.id)
         ordinaryAttackGame.executeFocusedCommand()
-        require(ordinaryAttackGame.latestCombatResult != nil, "ordinary attack should still publish combat result")
+        guard let ordinaryAttackResult = ordinaryAttackGame.latestCombatResult,
+              let ordinaryAttackResponse = ordinaryAttackGame.battlefieldSituationResponseSummary else {
+            require(false, "ordinary attack should publish combat result and battlefield situation response")
+            return
+        }
         require(ordinaryAttackGame.latestEnemyThreatCountermeasureExecutionResult == nil, "ordinary attack without focused countermeasure should not publish replay")
-        require(ordinaryAttackGame.battlefieldSituationResponseSummary == nil, "ordinary attack without focused countermeasure should not publish battlefield situation response")
+        require(ordinaryAttackResponse.kind == .combat, "ordinary attack response should use combat kind")
+        require(ordinaryAttackResponse.detail.contains(ordinaryAttackResult.attacker.name), "ordinary attack response should name attacker")
+        require(ordinaryAttackResponse.detail.contains(ordinaryAttackResult.defender.name), "ordinary attack response should name defender")
+        require(ordinaryAttackResponse.resultTitle.contains("-\(ordinaryAttackResult.damage)"), "ordinary attack response should expose damage")
+        require(ordinaryAttackResponse.resultDetail.contains("\(ordinaryAttackResult.defender.startingHP)->\(ordinaryAttackResult.defender.endingHP)"), "ordinary attack response should expose defender HP change")
 
         let ordinaryReinforceGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
         guard let ordinaryReinforceUnit = ordinaryReinforceGame.units.first(where: { $0.name == "前线装甲" }) else {
@@ -3275,8 +3316,16 @@ struct RulesSmokeTest {
         }
         ordinaryReinforceGame.handleTap(on: ordinaryReinforceUnit.position)
         ordinaryReinforceGame.reinforceSelectedUnit()
-        require(ordinaryReinforceGame.latestReinforcementResult != nil, "ordinary reinforce should still publish reinforcement result")
+        guard let ordinaryReinforceResult = ordinaryReinforceGame.latestReinforcementResult,
+              let ordinaryReinforceResponse = ordinaryReinforceGame.battlefieldSituationResponseSummary else {
+            require(false, "ordinary reinforce should publish reinforcement result and battlefield situation response")
+            return
+        }
         require(ordinaryReinforceGame.latestEnemyThreatCountermeasureExecutionResult == nil, "ordinary reinforce without focused countermeasure should not publish replay")
+        require(ordinaryReinforceResponse.kind == .reinforcement, "ordinary reinforce response should use reinforcement kind")
+        require(ordinaryReinforceResponse.title.contains(ordinaryReinforceResult.unitName), "ordinary reinforce response should name unit")
+        require(ordinaryReinforceResponse.resultTitle.contains("+\(ordinaryReinforceResult.recoveredHP)"), "ordinary reinforce response should expose recovered HP")
+        require(ordinaryReinforceResponse.coordinate == ordinaryReinforceResult.coordinate, "ordinary reinforce response should point to unit coordinate")
     }
 
     @MainActor

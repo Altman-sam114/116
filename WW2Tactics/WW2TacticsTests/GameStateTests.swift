@@ -2613,7 +2613,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.latestObjectiveCaptureResult, capture)
     }
 
-    func testBattlefieldSituationResponseIgnoresUnrelatedCombat() throws {
+    func testBattlefieldSituationResponseSummarizesOrdinaryCombatReadOnly() throws {
         let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
         let artillery = try XCTUnwrap(game.units.first { $0.name == "反击炮兵" })
         let target = try XCTUnwrap(game.units.first { $0.name == "威胁炮兵" })
@@ -2624,10 +2624,178 @@ final class GameStateTests: XCTestCase {
         game.focus(unitID: target.id)
         game.executeFocusedCommand()
 
-        XCTAssertNotNil(game.latestCombatResult)
+        let combat = try XCTUnwrap(game.latestCombatResult)
+        let startingFaction = game.activeFaction
+        let startingCommandPoints = game.commandPoints
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+        let startingMessage = game.message
+
+        let response = try XCTUnwrap(game.battlefieldSituationResponseSummary)
+
         XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
         XCTAssertNil(game.latestObjectiveCaptureResult)
-        XCTAssertNil(game.battlefieldSituationResponseSummary)
+        XCTAssertEqual(response.kind, .combat)
+        XCTAssertEqual(response.kind.shortTitle, "ATK")
+        XCTAssertEqual(response.kind.iconName, "scope")
+        XCTAssertTrue(response.title.contains(combat.attacker.name))
+        XCTAssertTrue(response.detail.contains(combat.attacker.name))
+        XCTAssertTrue(response.detail.contains(combat.defender.name))
+        XCTAssertTrue(response.resultTitle.contains("-\(combat.damage)"))
+        XCTAssertTrue(response.resultDetail.contains("\(combat.defender.startingHP)->\(combat.defender.endingHP)"))
+        XCTAssertEqual(response.coordinate, target.position)
+        XCTAssertEqual(game.battlefieldSituationResponseSummary, response)
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertEqual(game.message, startingMessage)
+        XCTAssertEqual(game.latestCombatResult, combat)
+    }
+
+    func testBattlefieldSituationResponseSummarizesTacticalCommandReadOnly() throws {
+        let game = GameState(
+            scenario: Self.tacticalCommandScenario(),
+            commandPoints: [.allies: 6, .axis: 6]
+        )
+        let artillery = try XCTUnwrap(game.units.first { $0.name == "弹幕炮兵" })
+        let target = try XCTUnwrap(game.units.first { $0.name == "弹幕目标" })
+
+        game.useTacticalCommand(.artilleryBarrage, casterID: artillery.id, targetID: target.id)
+
+        let tactical = try XCTUnwrap(game.latestTacticalCommandResult)
+        let targetAfterCommand = try XCTUnwrap(game.units.first { $0.id == target.id })
+        let startingFaction = game.activeFaction
+        let startingCommandPoints = game.commandPoints
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+        let startingMessage = game.message
+
+        let response = try XCTUnwrap(game.battlefieldSituationResponseSummary)
+
+        XCTAssertEqual(response.kind, .tacticalCommand)
+        XCTAssertEqual(response.kind.shortTitle, "CMD")
+        XCTAssertEqual(response.kind.iconName, "bolt.fill")
+        XCTAssertTrue(response.title.contains(tactical.command.title))
+        XCTAssertTrue(response.detail.contains(tactical.caster.name))
+        XCTAssertTrue(response.detail.contains(tactical.target.name))
+        XCTAssertTrue(response.resultTitle.contains("-\(tactical.damage)"))
+        XCTAssertTrue(response.resultTitle.contains("-\(tactical.commandCost)"))
+        XCTAssertTrue(response.resultDetail.contains(tactical.statusEffect.title))
+        XCTAssertEqual(response.coordinate, targetAfterCommand.position)
+        XCTAssertEqual(game.battlefieldSituationResponseSummary, response)
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertEqual(game.message, startingMessage)
+        XCTAssertEqual(game.latestTacticalCommandResult, tactical)
+    }
+
+    func testBattlefieldSituationResponseSummarizesDeploymentAndReinforcementReadOnly() throws {
+        let deploymentGame = GameState()
+        let site = try XCTUnwrap(deploymentGame.deploymentSites(for: .allies).first)
+
+        deploymentGame.deploy(kind: .infantry, at: site.coordinate)
+
+        let deployment = try XCTUnwrap(deploymentGame.latestDeploymentResult)
+        let deploymentStartingFaction = deploymentGame.activeFaction
+        let deploymentStartingCommandPoints = deploymentGame.commandPoints
+        let deploymentStartingUnits = deploymentGame.scenario.units
+        let deploymentStartingTiles = deploymentGame.scenario.tiles
+        let deploymentStartingBattleLog = deploymentGame.battleLog
+        let deploymentStartingMessage = deploymentGame.message
+
+        let deploymentResponse = try XCTUnwrap(deploymentGame.battlefieldSituationResponseSummary)
+
+        XCTAssertEqual(deploymentResponse.kind, .deployment)
+        XCTAssertEqual(deploymentResponse.kind.shortTitle, "DEP")
+        XCTAssertEqual(deploymentResponse.kind.iconName, "shippingbox.fill")
+        XCTAssertTrue(deploymentResponse.title.contains(deployment.unitName))
+        XCTAssertTrue(deploymentResponse.detail.contains(deployment.sourceObjectiveName))
+        XCTAssertTrue(deploymentResponse.resultTitle.contains("-\(deployment.commandCost)"))
+        XCTAssertTrue(deploymentResponse.resultTitle.contains("\(deployment.commandPointsAfterDeployment)"))
+        XCTAssertEqual(deploymentResponse.coordinate, deployment.coordinate)
+        XCTAssertEqual(deploymentGame.battlefieldSituationResponseSummary, deploymentResponse)
+        XCTAssertEqual(deploymentGame.activeFaction, deploymentStartingFaction)
+        XCTAssertEqual(deploymentGame.commandPoints, deploymentStartingCommandPoints)
+        XCTAssertEqual(deploymentGame.scenario.units, deploymentStartingUnits)
+        XCTAssertEqual(deploymentGame.scenario.tiles, deploymentStartingTiles)
+        XCTAssertEqual(deploymentGame.battleLog, deploymentStartingBattleLog)
+        XCTAssertEqual(deploymentGame.message, deploymentStartingMessage)
+        XCTAssertEqual(deploymentGame.latestDeploymentResult, deployment)
+
+        var scenario = Scenario.ardennesPrototype()
+        let infantryIndex = try XCTUnwrap(scenario.units.firstIndex(where: { $0.name == "第101空降师" }))
+        scenario.units[infantryIndex].hp = 42
+        let reinforcementGame = GameState(scenario: scenario)
+        let infantry = try XCTUnwrap(reinforcementGame.units.first { $0.name == "第101空降师" })
+
+        reinforcementGame.handleTap(on: infantry.position)
+        reinforcementGame.reinforceSelectedUnit()
+
+        let reinforcement = try XCTUnwrap(reinforcementGame.latestReinforcementResult)
+        let startingFaction = reinforcementGame.activeFaction
+        let startingCommandPoints = reinforcementGame.commandPoints
+        let startingUnits = reinforcementGame.scenario.units
+        let startingTiles = reinforcementGame.scenario.tiles
+        let startingBattleLog = reinforcementGame.battleLog
+        let startingMessage = reinforcementGame.message
+
+        let reinforcementResponse = try XCTUnwrap(reinforcementGame.battlefieldSituationResponseSummary)
+
+        XCTAssertEqual(reinforcementResponse.kind, .reinforcement)
+        XCTAssertEqual(reinforcementResponse.kind.shortTitle, "REP")
+        XCTAssertEqual(reinforcementResponse.kind.iconName, "cross.case.fill")
+        XCTAssertTrue(reinforcementResponse.title.contains(reinforcement.unitName))
+        XCTAssertTrue(reinforcementResponse.detail.contains("\(reinforcement.startingHP)->\(reinforcement.endingHP)"))
+        XCTAssertTrue(reinforcementResponse.resultTitle.contains("+\(reinforcement.recoveredHP)"))
+        XCTAssertTrue(reinforcementResponse.resultTitle.contains("-\(reinforcement.commandCost)"))
+        XCTAssertEqual(reinforcementResponse.coordinate, reinforcement.coordinate)
+        XCTAssertEqual(reinforcementGame.battlefieldSituationResponseSummary, reinforcementResponse)
+        XCTAssertEqual(reinforcementGame.activeFaction, startingFaction)
+        XCTAssertEqual(reinforcementGame.commandPoints, startingCommandPoints)
+        XCTAssertEqual(reinforcementGame.scenario.units, startingUnits)
+        XCTAssertEqual(reinforcementGame.scenario.tiles, startingTiles)
+        XCTAssertEqual(reinforcementGame.battleLog, startingBattleLog)
+        XCTAssertEqual(reinforcementGame.message, startingMessage)
+        XCTAssertEqual(reinforcementGame.latestReinforcementResult, reinforcement)
+    }
+
+    func testBattlefieldSituationResponseIgnoresMovePreviewFocusAndFailedOrders() throws {
+        let moveGame = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let tank = try XCTUnwrap(moveGame.units.first { $0.name == "前线装甲" })
+        let route = try XCTUnwrap(
+            moveGame.movementRoutes(for: tank)
+                .values
+                .sorted { $0.destination.id < $1.destination.id }
+                .first
+        )
+
+        moveGame.handleTap(on: tank.position)
+        moveGame.focus(coordinate: route.destination)
+
+        XCTAssertNil(moveGame.battlefieldSituationResponseSummary)
+
+        moveGame.executeFocusedCommand()
+
+        XCTAssertNil(moveGame.latestCombatResult)
+        XCTAssertNil(moveGame.latestTacticalCommandResult)
+        XCTAssertNil(moveGame.latestDeploymentResult)
+        XCTAssertNil(moveGame.latestReinforcementResult)
+        XCTAssertNil(moveGame.battlefieldSituationResponseSummary)
+
+        let lowPointGame = GameState(commandPoints: [.allies: 0, .axis: 6])
+        let lowPointSite = try XCTUnwrap(lowPointGame.deploymentSites(for: .allies).first)
+
+        lowPointGame.deploy(kind: .infantry, at: lowPointSite.coordinate)
+
+        XCTAssertNil(lowPointGame.latestDeploymentResult)
+        XCTAssertNil(lowPointGame.battlefieldSituationResponseSummary)
     }
 
     func testBattlefieldSituationResponseSummarizesCountermeasureFollowUpReadOnly() throws {

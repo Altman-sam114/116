@@ -1812,9 +1812,46 @@
 
 验证结果：
 
-- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+- 本地轻量检查通过：`git diff --check`、macOS smoke test 编译/运行、iOS Simulator 源码 typecheck、`WW2Tactics.swiftmodule` emit、`GameStateTests.swift` 源码 typecheck。
+- 云端 GitHub Actions 通过：commit `631e788e99965be2f03ac098c99b41cdc7038719`，run `28791381710`，attempt `1`，artifact `ww2tactics-ci-v1.38-main-631e788-run28791381710-attempt1`，下载目录 `/private/tmp/ww2tactics-c-review-28791381710/`，artifact 约 `3.4M`。
+- Agent C 已核对 `origin/main`、manifest、JUnit、规则 smoke 日志、主构建日志和 `.xcresult`，commit/run/artifact 一致且通过。
 
 遗留事项：
 
 - 本轮只把战线态势卡和既有 AI 复盘关键事件定位连接起来，不新增 AI 行为、不改变关键事件排序、不改变战线态势首要定位、不新增自动执行。
 - 下一轮可继续处理普通战斗/后勤结果与态势影响解释的联动，或进一步增强地图反馈的可读性。
+
+### v1.39 / 普通行动态势响应
+
+日期：2026-07-06
+
+核心变更：
+
+- `BattlefieldSituationResponseKind` 新增普通战斗、战术命令、部署和整补响应类型，并提供对应短标签和 SF Symbols 图标。
+- `GameState.battlefieldSituationResponseSummary` 在敌方回合影响、反制执行和占点反馈之后，继续从最新普通攻击、战术命令、部署和整补结果纯派生态势响应。
+- 普通战斗响应展示攻击/目标、伤害、反击、HP 前后、防御姿态、夹击和机动追击；战术命令响应展示命令、施放者、目标、伤害、指令点、士气/状态和无反击；部署/整补响应展示来源、坐标、恢复、消耗和剩余指令点。
+- `ContentView` 为普通攻击、战术命令、部署和整补响应补齐颜色映射；UI 仍只消费 `GameState` 派生摘要，不在 View 中计算规则。
+- 扩展 XCTest 和规则 smoke test，覆盖普通攻击、战术命令、部署、整补响应的字段、优先级和读取无副作用，并确认普通移动、预览聚焦和失败命令不会伪造态势响应。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.39（普通行动态势响应）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只把已有成功行动结果接入战线态势响应，不新增行动类型、AI 行为、动画、自动执行、历史响应列表或复杂美术资源。
+- 下一轮可继续强化态势响应在地图上的定位/高亮，或进一步解释据点防守取舍。

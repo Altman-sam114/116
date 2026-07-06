@@ -12,7 +12,7 @@ flowchart TD
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusBattlefieldSituationPrimaryTarget / focusBattlefieldSituationReplayTarget / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback"]
   I --> S["GameState：核心状态机"]
   M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BattlefieldSituationSummary/FocusTarget/ActionHint/ResponseSummary/ReplayTarget、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、战线态势首要定位/下一步提示/执行反馈/敌方回合影响/AI关键复盘定位、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核、复核等级、复核目标定位"]
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、战线态势首要定位/下一步提示/执行反馈/普通行动响应/敌方回合影响/AI关键复盘定位、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核、复核等级、复核目标定位"]
   R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、焦点坐标、消息、攻击/战术/占领/后勤结果、反制回放、敌方回合复核、AI回合摘要、行动时间线、当前复盘order、播放状态/速度、战报、胜负"]
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
   EI --> EC["只读建议：EnemyThreatCountermeasurePreview 抢先打击 / 撤退 / 守点 / 整补"]
@@ -22,10 +22,11 @@ flowchart TD
   IP --> EB["只读入口：ATK / MOVE / 整补按钮提示"]
   EC --> BS["只读态势：指令 / 待命 / 据点 / 威胁 / 反制 / 首要建议"]
   EB --> XR["真实执行后回放：预计 / 实际 / 结果"]
-  XR --> BR["态势响应反馈：敌方回合影响 / 最近反制执行 / 据点占领结果"]
+  XR --> BR["态势响应反馈：敌方回合影响 / 最近反制执行 / 据点占领结果 / 普通攻击 / 战术命令 / 部署 / 整补"]
   XR --> FV["敌方回合后复核：HP / 位置 / 据点 / 威胁源 / 奏效等级 / 定位目标"]
   FV --> BR
   CAP["据点占领结果：奖励 / 归属 / 进度"] --> BR
+  ORD["普通成功行动结果：攻击 / 战术命令 / 部署 / 整补"] --> BR
   W --> P["@Published 状态变化"]
   P --> V
   EI --> V
@@ -100,7 +101,7 @@ flowchart LR
   CTR --> BS["BattlefieldSituationSummary 战线态势汇总"]
   BS --> BFT["BattlefieldSituationFocusTarget 首要定位目标"]
   BFT --> BAH["BattlefieldSituationActionHint 下一步入口提示"]
-  BS --> BRS["BattlefieldSituationResponseSummary 最近响应 / 敌方回合影响"]
+  BS --> BRS["BattlefieldSituationResponseSummary 最近响应 / 普通行动反馈 / 敌方回合影响"]
   CTR --> BM2["BenefitMetric 收益解释"]
   CTR --> PF["PriorityFactor / ComparisonPreview 排序对比解释"]
   CTR --> IP2["ImpactComparison 执行前后预计对照"]
@@ -176,6 +177,7 @@ flowchart LR
   BSR --> UI3
   UI3 --> BFF["定位按钮：focusBattlefieldSituationPrimaryTarget，只切换选择 / 焦点 / 引导 / 消息；下一步提示不执行命令"]
   UI3 --> BFR["复盘影响按钮：focusBattlefieldSituationReplayTarget -> focusAIPhaseTimelineEvent，只切换AI复盘焦点和地图标记强调"]
+  UI3 --> OBR["普通行动响应：ATK/CMD/DEP/REP 徽标展示战斗、战术、部署或整补结果，不执行命令"]
 ```
 
 ## 4. Agent X 主控迭代流程图

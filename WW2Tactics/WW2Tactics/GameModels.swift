@@ -1952,6 +1952,10 @@ enum BattlefieldSituationResponseKind: String, Identifiable {
     case countermeasureFollowUp
     case countermeasure
     case objectiveCapture
+    case combat
+    case tacticalCommand
+    case deployment
+    case reinforcement
 
     var id: String { rawValue }
 
@@ -1960,6 +1964,10 @@ enum BattlefieldSituationResponseKind: String, Identifiable {
         case .countermeasureFollowUp: "AI"
         case .countermeasure: "CTR"
         case .objectiveCapture: "CAP"
+        case .combat: "ATK"
+        case .tacticalCommand: "CMD"
+        case .deployment: "DEP"
+        case .reinforcement: "REP"
         }
     }
 
@@ -1968,6 +1976,10 @@ enum BattlefieldSituationResponseKind: String, Identifiable {
         case .countermeasureFollowUp: "shield.lefthalf.filled"
         case .countermeasure: "checkmark.shield.fill"
         case .objectiveCapture: "flag.checkered"
+        case .combat: "scope"
+        case .tacticalCommand: "bolt.fill"
+        case .deployment: "shippingbox.fill"
+        case .reinforcement: "cross.case.fill"
         }
     }
 }

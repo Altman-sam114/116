@@ -350,6 +350,22 @@ final class GameState: ObservableObject {
             return battlefieldSituationObjectiveCaptureResponseSummary(objectiveCaptureResult)
         }
 
+        if let combatResult = latestCombatResult {
+            return battlefieldSituationCombatResponseSummary(combatResult)
+        }
+
+        if let tacticalCommandResult = latestTacticalCommandResult {
+            return battlefieldSituationTacticalCommandResponseSummary(tacticalCommandResult)
+        }
+
+        if let deploymentResult = latestDeploymentResult {
+            return battlefieldSituationDeploymentResponseSummary(deploymentResult)
+        }
+
+        if let reinforcementResult = latestReinforcementResult {
+            return battlefieldSituationReinforcementResponseSummary(reinforcementResult)
+        }
+
         return nil
     }
 
@@ -4051,6 +4067,123 @@ final class GameState: ObservableObject {
             resultDetail: "指令 +\(result.commandPointReward)，士气 +\(result.moraleReward)，经验 +\(result.experienceReward)",
             coordinate: result.coordinate
         )
+    }
+
+    private func battlefieldSituationCombatResponseSummary(
+        _ result: CombatResultSummary
+    ) -> BattlefieldSituationResponseSummary {
+        let title: String
+        if result.didDestroyDefender {
+            title = "击毁\(result.defender.name)"
+        } else if result.didDestroyAttacker {
+            title = "\(result.attacker.name)受反击损失"
+        } else {
+            title = "\(result.attacker.name)攻击命中"
+        }
+
+        var impactDetails: [String] = [
+            "\(result.defender.startingHP)->\(result.defender.endingHP) HP"
+        ]
+        if result.didTriggerManeuverPursuit {
+            impactDetails.append("可机动追击")
+        }
+        if result.didConsumeDefenderEntrenchment {
+            impactDetails.append("破除防御姿态")
+        }
+        if result.hasFlankingSupport {
+            impactDetails.append("夹击 +\(result.supportDamageBonusPercent)%")
+        }
+
+        return BattlefieldSituationResponseSummary(
+            kind: .combat,
+            title: title,
+            detail: "\(result.attacker.name) -> \(result.defender.name)",
+            resultTitle: result.hasCounterAttack ?
+                "伤害 -\(result.damage)，反击 -\(result.counterDamage)" :
+                "伤害 -\(result.damage)，无反击",
+            resultDetail: impactDetails.joined(separator: "，"),
+            coordinate: battlefieldSituationResultCoordinate(
+                preferredUnitID: result.defender.unitID,
+                fallbackUnitID: result.attacker.unitID
+            )
+        )
+    }
+
+    private func battlefieldSituationTacticalCommandResponseSummary(
+        _ result: TacticalCommandResultSummary
+    ) -> BattlefieldSituationResponseSummary {
+        let title = result.didDestroyTarget ?
+            "\(result.command.title)击毁\(result.target.name)" :
+            "\(result.command.title)压制\(result.target.name)"
+        var impactDetails: [String] = []
+        if result.moraleDamage > 0 {
+            impactDetails.append("士气 -\(result.moraleDamage)")
+        }
+        if result.didApplyStatusEffect {
+            impactDetails.append(result.statusEffect.title)
+        }
+        if result.didAvoidCounterAttack {
+            impactDetails.append("无反击")
+        }
+        if result.didConsumeTargetEntrenchment {
+            impactDetails.append("破除防御姿态")
+        }
+        if impactDetails.isEmpty {
+            impactDetails.append(result.didDestroyTarget ? "目标已击毁" : "无额外状态")
+        }
+
+        return BattlefieldSituationResponseSummary(
+            kind: .tacticalCommand,
+            title: title,
+            detail: "\(result.caster.name) -> \(result.target.name)",
+            resultTitle: "伤害 -\(result.damage)，指令 -\(result.commandCost)",
+            resultDetail: impactDetails.joined(separator: "，"),
+            coordinate: battlefieldSituationResultCoordinate(
+                preferredUnitID: result.target.unitID,
+                fallbackUnitID: result.caster.unitID
+            )
+        )
+    }
+
+    private func battlefieldSituationDeploymentResponseSummary(
+        _ result: DeploymentResultSummary
+    ) -> BattlefieldSituationResponseSummary {
+        BattlefieldSituationResponseSummary(
+            kind: .deployment,
+            title: "部署\(result.unitName)",
+            detail: "\(result.sourceObjectiveName) -> \(result.unitKind.title)",
+            resultTitle: "指令 -\(result.commandCost)，剩余 \(result.commandPointsAfterDeployment)",
+            resultDetail: "部署至 \(coordinateText(result.coordinate))",
+            coordinate: result.coordinate
+        )
+    }
+
+    private func battlefieldSituationReinforcementResponseSummary(
+        _ result: ReinforcementResultSummary
+    ) -> BattlefieldSituationResponseSummary {
+        BattlefieldSituationResponseSummary(
+            kind: .reinforcement,
+            title: "整补\(result.unitName)",
+            detail: "HP \(result.startingHP)->\(result.endingHP)",
+            resultTitle: "恢复 +\(result.recoveredHP)，指令 -\(result.commandCost)",
+            resultDetail: "剩余指令 \(result.commandPointsAfterReinforcement)",
+            coordinate: result.coordinate
+        )
+    }
+
+    private func battlefieldSituationResultCoordinate(
+        preferredUnitID: BattleUnit.ID,
+        fallbackUnitID: BattleUnit.ID
+    ) -> HexCoordinate? {
+        if let preferred = units.first(where: { $0.id == preferredUnitID }),
+           tile(at: preferred.position) != nil {
+            return preferred.position
+        }
+        if let fallback = units.first(where: { $0.id == fallbackUnitID }),
+           tile(at: fallback.position) != nil {
+            return fallback.position
+        }
+        return nil
     }
 
     private func battlefieldSituationReplayTarget() -> BattlefieldSituationReplayTarget? {
