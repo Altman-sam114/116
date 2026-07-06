@@ -686,6 +686,22 @@ final class GameState: ObservableObject {
         focusAIPhaseTimelineEvent(order: replayTarget.order)
     }
 
+    func focusBattlefieldSituationResponseTarget() {
+        guard let marker = battlefieldSituationResponseMapMarker else {
+            message = "战线态势暂无可定位的响应标记。"
+            return
+        }
+
+        guard tile(at: marker.coordinate) != nil else {
+            message = "战线态势响应坐标已不在当前地图。"
+            return
+        }
+
+        clearObjectiveGuidance()
+        focusedCoordinate = marker.coordinate
+        message = "态势响应定位：\(marker.shortTitle) \(marker.title) @ \(coordinateText(marker.coordinate))。"
+    }
+
     func focusAIPhaseTimelineEvent(order: Int) {
         _ = focusAIPhaseTimelineEvent(order: order, pausesPlaybackOnFailure: false)
     }

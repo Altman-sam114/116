@@ -3338,6 +3338,14 @@ struct RulesSmokeTest {
         require(ordinaryMoveGame.latestEnemyThreatCountermeasureExecutionResult == nil, "ordinary move without focused countermeasure should not publish replay")
         require(ordinaryMoveGame.battlefieldSituationResponseSummary == nil, "ordinary move should not publish battlefield situation response")
         require(ordinaryMoveGame.battlefieldSituationResponseMapMarker == nil, "ordinary move should not publish battlefield situation response map marker")
+        let ordinaryMoveFocus = ordinaryMoveGame.focusedCoordinate
+        let ordinaryMoveUnits = ordinaryMoveGame.units
+        let ordinaryMoveTiles = ordinaryMoveGame.scenario.tiles
+        ordinaryMoveGame.focusBattlefieldSituationResponseTarget()
+        require(ordinaryMoveGame.focusedCoordinate == ordinaryMoveFocus, "ordinary move response focus should keep existing focus without marker")
+        require(ordinaryMoveGame.units == ordinaryMoveUnits, "ordinary move response focus should not alter units")
+        require(ordinaryMoveGame.scenario.tiles == ordinaryMoveTiles, "ordinary move response focus should not alter tiles")
+        require(ordinaryMoveGame.battlefieldSituationResponseMapMarker == nil, "ordinary move response focus should not create marker")
 
         let ordinaryAttackGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
         guard let ordinaryArtillery = ordinaryAttackGame.units.first(where: { $0.name == "反击炮兵" }),
@@ -3365,6 +3373,22 @@ struct RulesSmokeTest {
             kind: .combat,
             "ordinary attack situation response map marker"
         )
+        guard let ordinaryAttackMarker = ordinaryAttackGame.battlefieldSituationResponseMapMarker else {
+            require(false, "ordinary attack should keep a response marker before focus")
+            return
+        }
+        let ordinaryAttackUnitsBeforeFocus = ordinaryAttackGame.units
+        let ordinaryAttackTilesBeforeFocus = ordinaryAttackGame.scenario.tiles
+        let ordinaryAttackBattleLogBeforeFocus = ordinaryAttackGame.battleLog
+        ordinaryAttackGame.focusBattlefieldSituationResponseTarget()
+        require(ordinaryAttackGame.focusedCoordinate == ordinaryAttackMarker.coordinate, "ordinary attack response focus should move focus to marker coordinate")
+        require(ordinaryAttackGame.message.contains(ordinaryAttackMarker.shortTitle), "ordinary attack response focus message should include marker short title")
+        require(ordinaryAttackGame.units == ordinaryAttackUnitsBeforeFocus, "ordinary attack response focus should not alter units")
+        require(ordinaryAttackGame.scenario.tiles == ordinaryAttackTilesBeforeFocus, "ordinary attack response focus should not alter tiles")
+        require(ordinaryAttackGame.battleLog == ordinaryAttackBattleLogBeforeFocus, "ordinary attack response focus should not alter battle log")
+        require(ordinaryAttackGame.latestCombatResult == ordinaryAttackResult, "ordinary attack response focus should keep combat result")
+        require(ordinaryAttackGame.battlefieldSituationResponseSummary == ordinaryAttackResponse, "ordinary attack response focus should keep response")
+        require(ordinaryAttackGame.battlefieldSituationResponseMapMarker == ordinaryAttackMarker, "ordinary attack response focus should keep marker")
 
         let ordinaryReinforceGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
         guard let ordinaryReinforceUnit = ordinaryReinforceGame.units.first(where: { $0.name == "前线装甲" }) else {

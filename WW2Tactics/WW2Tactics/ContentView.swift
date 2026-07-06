@@ -3023,6 +3023,21 @@ private struct BattlefieldSituationSummaryView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.62)
                     }
+
+                    if let marker = game.battlefieldSituationResponseMapMarker {
+                        Spacer(minLength: 4)
+
+                        Button(action: game.focusBattlefieldSituationResponseTarget) {
+                            Label("定位", systemImage: "location.magnifyingglass")
+                                .labelStyle(.iconOnly)
+                                .font(.caption2.weight(.black))
+                                .foregroundStyle(responseColor.opacity(0.94))
+                                .frame(width: 26, height: 26)
+                                .background(Color.white.opacity(0.10), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("定位态势响应，\(marker.shortTitle)，\(marker.title)")
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 8)

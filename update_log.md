@@ -1892,3 +1892,36 @@
 
 - 本轮只显示当前最高优先级态势响应的单点地图标记，不新增历史响应列表、动画、镜头移动、自动滚动或自动执行。
 - 下一轮可继续处理态势响应定位入口/连续查看，或进一步解释据点防守取舍。
+
+### v1.41 / 态势响应定位入口
+
+日期：2026-07-06
+
+核心变更：
+
+- `GameState` 新增 `focusBattlefieldSituationResponseTarget()`，从当前 `battlefieldSituationResponseMapMarker` 重新读取合法响应坐标，只更新地图焦点和消息。
+- `ContentView` 的战线态势响应卡在存在合法响应 marker 时显示紧凑定位按钮，可直接把地图焦点切到最近响应发生格。
+- 响应定位会清理临时 OBJ/SAFE/反制引导，但不执行移动、攻击、战术命令、部署、整补、回合推进或 AI，也不改变响应摘要、marker、latest result、单位、据点、指令点或战报。
+- 扩展 XCTest 和规则 smoke test，覆盖普通攻击、部署和无响应场景的定位入口，确认只读边界和无 marker 退化。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.41（态势响应定位入口）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只做当前最高优先级态势响应的单点定位入口，不新增历史响应列表、上一条/下一条响应浏览、动画、自动播放或自动执行。
+- 下一轮可优先处理据点防守取舍的执行前后解释，或先设计态势响应历史模型后再做连续查看。

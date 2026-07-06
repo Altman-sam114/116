@@ -9,10 +9,10 @@
 ```mermaid
 flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
-  V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusBattlefieldSituationPrimaryTarget / focusBattlefieldSituationReplayTarget / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback"]
+  V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusBattlefieldSituationPrimaryTarget / focusBattlefieldSituationResponseTarget / focusBattlefieldSituationReplayTarget / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback"]
   I --> S["GameState：核心状态机"]
   M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BattlefieldSituationSummary/FocusTarget/ActionHint/ResponseSummary/ResponseMapMarker/ReplayTarget、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、战线态势首要定位/下一步提示/执行反馈/普通行动响应/敌方回合影响/AI关键复盘定位、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核、复核等级、复核目标定位"]
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、战线态势首要定位/响应定位/下一步提示/执行反馈/普通行动响应/敌方回合影响/AI关键复盘定位、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核、复核等级、复核目标定位"]
   R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、焦点坐标、消息、攻击/战术/占领/后勤结果、反制回放、敌方回合复核、AI回合摘要、行动时间线、当前复盘order、播放状态/速度、战报、胜负"]
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
   EI --> EC["只读建议：EnemyThreatCountermeasurePreview 抢先打击 / 撤退 / 守点 / 整补"]
@@ -28,6 +28,7 @@ flowchart TD
   CAP["据点占领结果：奖励 / 归属 / 进度"] --> BR
   ORD["普通成功行动结果：攻击 / 战术命令 / 部署 / 整补"] --> BR
   BR --> BRM["态势响应地图标记：合法坐标 -> RSP/ATK/CMD/DEP/REP/CAP/CTR/AI"]
+  BRM --> BRF["响应定位入口：focusBattlefieldSituationResponseTarget -> focusedCoordinate"]
   W --> P["@Published 状态变化"]
   P --> V
   EI --> V
@@ -35,6 +36,7 @@ flowchart TD
   BS --> V
   BR --> V
   BRM --> V
+  BRF --> V
   BM --> V
   PC --> V
   IP --> V
@@ -173,15 +175,18 @@ flowchart LR
   FLOC --> UI2
   CMR --> UI2
   FUR --> UI2
-  BS --> UI3["侧栏战线态势：指令 / 待命 / 据点 / 威胁 / 反制 / 受威胁据点 / 首要建议 / 执行反馈 / 敌方回合影响 / 复盘影响"]
+  BS --> UI3["侧栏战线态势：指令 / 待命 / 据点 / 威胁 / 反制 / 受威胁据点 / 首要建议 / 执行反馈 / 敌方回合影响 / 响应定位 / 复盘影响"]
   BFT --> UI3
   BAH --> UI3
   BRS --> UI3
   BRM2 --> UIM3["地图态势响应标记 / tile无障碍文案"]
+  BRM2 --> BRF2["响应定位按钮：focusBattlefieldSituationResponseTarget 只切换焦点和消息，不执行命令"]
   BSR --> UI3
   UI3 --> BFF["定位按钮：focusBattlefieldSituationPrimaryTarget，只切换选择 / 焦点 / 引导 / 消息；下一步提示不执行命令"]
+  UI3 --> BRF2
   UI3 --> BFR["复盘影响按钮：focusBattlefieldSituationReplayTarget -> focusAIPhaseTimelineEvent，只切换AI复盘焦点和地图标记强调"]
   UI3 --> OBR["普通行动响应：ATK/CMD/DEP/REP 徽标展示战斗、战术、部署或整补结果，不执行命令"]
+  BRF2 --> UIM3
   UIM3 --> OBR2["地图响应标记：只展示当前最高优先级响应，不执行命令"]
 ```
 

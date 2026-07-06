@@ -9,7 +9,7 @@
 ```text
 用户输入 / 快捷按钮
   -> ContentView 地图格和 HUD 事件
-  -> GameState handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusEnemyThreatCountermeasure / focusBattlefieldSituationPrimaryTarget / focusBattlefieldSituationReplayTarget / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback
+  -> GameState handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusEnemyThreatCountermeasure / focusBattlefieldSituationPrimaryTarget / focusBattlefieldSituationResponseTarget / focusBattlefieldSituationReplayTarget / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback
   -> GameModels 中的 Scenario / BattleUnit / TerrainTile / HexCoordinate / MapCommandPreview / BattlefieldSituationSummary / BattlefieldSituationResponseSummary / BattlefieldSituationResponseMapMarker / BattlefieldSituationReplayTarget
   -> GameState 规则判定与状态更新
   -> @Published 状态变化
@@ -47,7 +47,7 @@
 
 - 项目核心状态机。
 - 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、最新部署结果、最新整补结果、最新反制建议执行回放、最新反制建议敌方回合复核、最新 AI 回合摘要及其行动时间线、AI 复盘播放状态和速度、胜负、指令点。
-- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要和行动时间线、AI 行动地图复盘标记派生、当前 AI 复盘事件选中 order、上一条/下一条复盘导航、播放/暂停/速度控制及其地图标记派生、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、战线态势汇总、首要目标定位、下一步提示、执行反馈、敌方回合影响、普通行动态势响应、态势响应地图标记和 AI 关键复盘目标派生、反制建议相邻排序对比、反制建议执行前后预计对照、当前反制建议地图标记派生、当前反制建议执行入口桥接派生、最近一次反制建议执行回放、敌方回合后复核和复核目标定位。
+- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要和行动时间线、AI 行动地图复盘标记派生、当前 AI 复盘事件选中 order、上一条/下一条复盘导航、播放/暂停/速度控制及其地图标记派生、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、战线态势汇总、首要目标定位、下一步提示、执行反馈、敌方回合影响、普通行动态势响应、态势响应地图标记、态势响应定位入口和 AI 关键复盘目标派生、反制建议相邻排序对比、反制建议执行前后预计对照、当前反制建议地图标记派生、当前反制建议执行入口桥接派生、最近一次反制建议执行回放、敌方回合后复核和复核目标定位。
 
 输入：
 
@@ -73,7 +73,7 @@
 - 渲染 SwiftUI App 主界面。
 - 提供顶部状态栏、战区地图、地图工具栏、HUD、侧栏、图例、编队条、战报。
 - 将地图左键/点按/右键转换为 `GameState` 方法调用。
-- 显示 MOVE、ATK、POS、NEXT、OBJ、CAP、THR、INT、AI 复盘、战线态势汇总、态势响应地图标记、定位入口、下一步提示、执行反馈、普通行动态势响应、敌方回合影响和关联 AI 复盘入口、补给线、控制区、攻击覆盖等标记。
+- 显示 MOVE、ATK、POS、NEXT、OBJ、CAP、THR、INT、AI 复盘、战线态势汇总、态势响应地图标记、态势响应定位入口、首要定位入口、下一步提示、执行反馈、普通行动态势响应、敌方回合影响和关联 AI 复盘入口、补给线、控制区、攻击覆盖等标记。
 
 输入：
 
@@ -269,9 +269,10 @@
 11. 反制执行响应显示建议类型、执行单位、入口类型、首条预计/实际对照和执行坐标；占点响应显示占领/夺取据点、归属变化、奖励和据点进度；普通战斗响应显示攻击单位、目标、伤害、反击、目标 HP、防御姿态、追击和夹击影响；战术命令响应显示命令名、施放者、目标、伤害、指令点消耗、士气/状态和无反击；部署响应显示来源据点、新单位、部署坐标和剩余指令点；整补响应显示单位、HP 恢复和指令点消耗。普通移动、预览聚焦或失败命令不会伪造态势响应。
 12. 读取 `battlefieldSituationResponseSummary` 不调用移动、攻击、战术命令、部署、整补、AI、日志写入或任何真实执行方法，不改变单位、据点、指令点、战报、消息、AI 摘要或最新结果。
 13. `BattlefieldSituationResponseMapMarker` 是 `battlefieldSituationResponseSummary` 的只读地图投影；`GameState.battlefieldSituationResponseMapMarker` 只在响应坐标存在且仍属于当前地图时输出 marker，复用 response kind 的短码和图标，不新增 `@Published` 状态，不改变焦点、消息、单位、据点、指令点、战报、AI 摘要或 latest result。
-14. `BattlefieldSituationReplayTarget` 从最新 `AIPhaseSummary.replayConclusion.keyEvents.first` 纯派生，并用同一 summary 的 timeline 按 order 回查定位坐标；只有 `event.to ?? event.from` 存在且仍在当前地图内时才输出目标。它不新增 `@Published` 状态，不改变 AI summary、timeline、关键事件排序或地图 marker。
-15. `focusBattlefieldSituationReplayTarget()` 每次点击都重新读取最新 `battlefieldSituationSummary.replayTarget`，有目标时只调用既有 `focusAIPhaseTimelineEvent(order:)`，无目标时只写提示；它不直接设置坐标、不过滤 marker、不执行移动、攻击、战术命令、部署、整补或 AI。
-16. `ContentView` 在侧栏靠前显示“战线态势”卡，展示 summary 的等级、指标、受威胁据点、建议说明、态势响应反馈/敌方回合影响、“复盘影响”按钮、“定位”按钮和下一步入口提示；地图格展示同一响应派生的态势响应 marker，并把响应摘要加入 tile 无障碍文案。UI 不重新计算威胁、反制、据点、OBJ 计划、待命单位、入口类型、执行反馈、复核影响、AI timeline、关键事件坐标或地图 marker。
+14. `focusBattlefieldSituationResponseTarget()` 每次点击都重新读取最新 `battlefieldSituationResponseMapMarker`；有合法 marker 时清理临时 OBJ/SAFE/反制引导、更新 `focusedCoordinate` 和消息，无 marker 或坐标失效时只写提示。它不执行移动、攻击、战术命令、部署、整补、回合推进或 AI，也不改变 response、marker、latest result、单位、据点、指令点、战报或胜负。
+15. `BattlefieldSituationReplayTarget` 从最新 `AIPhaseSummary.replayConclusion.keyEvents.first` 纯派生，并用同一 summary 的 timeline 按 order 回查定位坐标；只有 `event.to ?? event.from` 存在且仍在当前地图内时才输出目标。它不新增 `@Published` 状态，不改变 AI summary、timeline、关键事件排序或地图 marker。
+16. `focusBattlefieldSituationReplayTarget()` 每次点击都重新读取最新 `battlefieldSituationSummary.replayTarget`，有目标时只调用既有 `focusAIPhaseTimelineEvent(order:)`，无目标时只写提示；它不直接设置坐标、不过滤 marker、不执行移动、攻击、战术命令、部署、整补或 AI。
+17. `ContentView` 在侧栏靠前显示“战线态势”卡，展示 summary 的等级、指标、受威胁据点、建议说明、态势响应反馈/敌方回合影响、响应定位按钮、“复盘影响”按钮、首要“定位”按钮和下一步入口提示；地图格展示同一响应派生的态势响应 marker，并把响应摘要加入 tile 无障碍文案。UI 不重新计算威胁、反制、据点、OBJ 计划、待命单位、入口类型、执行反馈、复核影响、AI timeline、关键事件坐标或地图 marker。
 
 ## 4. 架构边界
 
@@ -290,7 +291,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要、优先级解释和候选预览、安全接敌候选点选预览、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、反制建议收益解释、排序对比解释、执行前后预计对照、反制建议点选聚焦、地图标记、执行入口桥接预览、执行回放、敌方回合复核、复核等级和复核目标定位、战线态势汇总、首要定位、下一步提示、执行反馈、普通行动态势响应、态势响应地图标记、敌方回合影响和 AI 关键复盘联动定位、部署/整补结果摘要、AI 直取据点优先、AI 移动后火炮弹幕、AI 回合行动摘要、行动时间线、AI 时间线点选定位、复盘事件选中态、上一条/下一条连续查看、自动播放控制和地图复盘标记强调：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要、优先级解释和候选预览、安全接敌候选点选预览、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、反制建议收益解释、排序对比解释、执行前后预计对照、反制建议点选聚焦、地图标记、执行入口桥接预览、执行回放、敌方回合复核、复核等级和复核目标定位、战线态势汇总、首要定位、下一步提示、执行反馈、普通行动态势响应、态势响应地图标记、态势响应定位入口、敌方回合影响和 AI 关键复盘联动定位、部署/整补结果摘要、AI 直取据点优先、AI 移动后火炮弹幕、AI 回合行动摘要、行动时间线、AI 时间线点选定位、复盘事件选中态、上一条/下一条连续查看、自动播放控制和地图复盘标记强调：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

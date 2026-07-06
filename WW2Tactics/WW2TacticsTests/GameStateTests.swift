@@ -2690,6 +2690,29 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.battleLog, startingBattleLog)
         XCTAssertEqual(game.message, startingMessage)
         XCTAssertEqual(game.latestCombatResult, combat)
+
+        let marker = try XCTUnwrap(game.battlefieldSituationResponseMapMarker)
+        let unitsBeforeFocus = game.scenario.units
+        let tilesBeforeFocus = game.scenario.tiles
+        let commandPointsBeforeFocus = game.commandPoints
+        let battleLogBeforeFocus = game.battleLog
+        let responseBeforeFocus = game.battlefieldSituationResponseSummary
+        let combatBeforeFocus = game.latestCombatResult
+        let aiSummaryBeforeFocus = game.latestAIPhaseSummary
+
+        game.focusBattlefieldSituationResponseTarget()
+
+        XCTAssertEqual(game.focusedCoordinate, marker.coordinate)
+        XCTAssertTrue(game.message.contains(marker.shortTitle))
+        XCTAssertTrue(game.message.contains("q\(marker.coordinate.q),r\(marker.coordinate.r)"))
+        XCTAssertEqual(game.scenario.units, unitsBeforeFocus)
+        XCTAssertEqual(game.scenario.tiles, tilesBeforeFocus)
+        XCTAssertEqual(game.commandPoints, commandPointsBeforeFocus)
+        XCTAssertEqual(game.battleLog, battleLogBeforeFocus)
+        XCTAssertEqual(game.battlefieldSituationResponseSummary, responseBeforeFocus)
+        XCTAssertEqual(game.battlefieldSituationResponseMapMarker, marker)
+        XCTAssertEqual(game.latestCombatResult, combatBeforeFocus)
+        XCTAssertEqual(game.latestAIPhaseSummary, aiSummaryBeforeFocus)
     }
 
     func testBattlefieldSituationResponseSummarizesTacticalCommandReadOnly() throws {
@@ -2776,6 +2799,23 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(deploymentGame.message, deploymentStartingMessage)
         XCTAssertEqual(deploymentGame.latestDeploymentResult, deployment)
 
+        let deploymentMarker = try XCTUnwrap(deploymentGame.battlefieldSituationResponseMapMarker)
+        let deploymentUnitsBeforeFocus = deploymentGame.scenario.units
+        let deploymentTilesBeforeFocus = deploymentGame.scenario.tiles
+        let deploymentCommandPointsBeforeFocus = deploymentGame.commandPoints
+        let deploymentResponseBeforeFocus = deploymentGame.battlefieldSituationResponseSummary
+
+        deploymentGame.focusBattlefieldSituationResponseTarget()
+
+        XCTAssertEqual(deploymentGame.focusedCoordinate, deploymentMarker.coordinate)
+        XCTAssertTrue(deploymentGame.message.contains(deploymentMarker.shortTitle))
+        XCTAssertEqual(deploymentGame.scenario.units, deploymentUnitsBeforeFocus)
+        XCTAssertEqual(deploymentGame.scenario.tiles, deploymentTilesBeforeFocus)
+        XCTAssertEqual(deploymentGame.commandPoints, deploymentCommandPointsBeforeFocus)
+        XCTAssertEqual(deploymentGame.battlefieldSituationResponseSummary, deploymentResponseBeforeFocus)
+        XCTAssertEqual(deploymentGame.battlefieldSituationResponseMapMarker, deploymentMarker)
+        XCTAssertEqual(deploymentGame.latestDeploymentResult, deployment)
+
         var scenario = Scenario.ardennesPrototype()
         let infantryIndex = try XCTUnwrap(scenario.units.firstIndex(where: { $0.name == "第101空降师" }))
         scenario.units[infantryIndex].hp = 42
@@ -2835,6 +2875,25 @@ final class GameStateTests: XCTestCase {
 
         moveGame.executeFocusedCommand()
 
+        XCTAssertNil(moveGame.latestCombatResult)
+        XCTAssertNil(moveGame.latestTacticalCommandResult)
+        XCTAssertNil(moveGame.latestDeploymentResult)
+        XCTAssertNil(moveGame.latestReinforcementResult)
+        XCTAssertNil(moveGame.battlefieldSituationResponseSummary)
+        XCTAssertNil(moveGame.battlefieldSituationResponseMapMarker)
+
+        let focusBeforeMissingResponse = moveGame.focusedCoordinate
+        let unitsBeforeMissingResponseFocus = moveGame.scenario.units
+        let tilesBeforeMissingResponseFocus = moveGame.scenario.tiles
+        let commandPointsBeforeMissingResponseFocus = moveGame.commandPoints
+
+        moveGame.focusBattlefieldSituationResponseTarget()
+
+        XCTAssertEqual(moveGame.focusedCoordinate, focusBeforeMissingResponse)
+        XCTAssertTrue(moveGame.message.contains("暂无可定位"))
+        XCTAssertEqual(moveGame.scenario.units, unitsBeforeMissingResponseFocus)
+        XCTAssertEqual(moveGame.scenario.tiles, tilesBeforeMissingResponseFocus)
+        XCTAssertEqual(moveGame.commandPoints, commandPointsBeforeMissingResponseFocus)
         XCTAssertNil(moveGame.latestCombatResult)
         XCTAssertNil(moveGame.latestTacticalCommandResult)
         XCTAssertNil(moveGame.latestDeploymentResult)
