@@ -2912,6 +2912,18 @@ final class GameStateTests: XCTestCase {
             XCTAssertEqual(followUp.aiTurn, 1, file: file, line: line)
             XCTAssertFalse(followUp.conclusion.isEmpty, file: file, line: line)
             XCTAssertFalse(followUp.detailSummary.isEmpty, file: file, line: line)
+            XCTAssertFalse(followUp.outcomeTitle.isEmpty, file: file, line: line)
+            XCTAssertFalse(followUp.focusTargets.isEmpty, file: file, line: line)
+            XCTAssertTrue(
+                followUp.focusTargets.contains { $0.kind == .threatEnemy },
+                file: file,
+                line: line
+            )
+            XCTAssertTrue(
+                followUp.focusTargets.contains { $0.kind == .threatenedTarget },
+                file: file,
+                line: line
+            )
             for title in comparisonTitles {
                 XCTAssertTrue(
                     followUp.comparisons.contains { $0.title == title },
@@ -2925,6 +2937,19 @@ final class GameStateTests: XCTestCase {
                 file: file,
                 line: line
             )
+
+            let unitsBeforeFocus = game.units
+            let commandPointsBeforeFocus = game.commandPoints
+            let aiSummaryBeforeFocus = game.latestAIPhaseSummary
+            let followUpBeforeFocus = followUp
+            let target = try XCTUnwrap(followUp.focusTargets.first, file: file, line: line)
+            game.focusEnemyThreatCountermeasureFollowUpTarget(target)
+            XCTAssertNotNil(game.focusedCoordinate, file: file, line: line)
+            XCTAssertTrue(game.message.contains("复核定位"), file: file, line: line)
+            XCTAssertEqual(game.units, unitsBeforeFocus, file: file, line: line)
+            XCTAssertEqual(game.commandPoints, commandPointsBeforeFocus, file: file, line: line)
+            XCTAssertEqual(game.latestAIPhaseSummary, aiSummaryBeforeFocus, file: file, line: line)
+            XCTAssertEqual(game.latestEnemyThreatCountermeasureFollowUpResult, followUpBeforeFocus, file: file, line: line)
             return followUp
         }
 
@@ -2949,6 +2974,8 @@ final class GameStateTests: XCTestCase {
             comparisonTitles: ["威胁源", "受威胁目标", "AI总览"]
         )
         XCTAssertEqual(firstStrikeFollowUp.threatEnemyUnitID, firstStrike.threatEnemyUnitID)
+        XCTAssertNotEqual(firstStrikeFollowUp.outcomeLevel, .failed)
+        XCTAssertEqual(Set(firstStrikeFollowUp.focusTargets.map(\.kind)), [.actingUnit, .threatEnemy, .threatenedTarget])
 
         let withdrawGame = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
         let withdraw = try XCTUnwrap(countermeasures(in: withdrawGame).first {
@@ -2966,6 +2993,7 @@ final class GameStateTests: XCTestCase {
             comparisonTitles: ["撤离位置", "撤离单位", "AI总览"]
         )
         XCTAssertEqual(withdrawFollowUp.coordinate, withdrawDestination)
+        XCTAssertNotEqual(withdrawFollowUp.outcomeLevel, .failed)
 
         let objectiveDefenseGame = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
         let objectiveDefense = try XCTUnwrap(countermeasures(in: objectiveDefenseGame).first {
@@ -2981,6 +3009,7 @@ final class GameStateTests: XCTestCase {
             comparisonTitles: ["据点归属", "防守单位", "AI总览"]
         )
         XCTAssertEqual(objectiveFollowUp.threatTargetCoordinate, objectiveDefense.threatTargetCoordinate)
+        XCTAssertTrue(objectiveFollowUp.focusTargets.contains { $0.coordinate == objectiveDefense.threatTargetCoordinate })
 
         let reinforceGame = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
         let reinforce = try XCTUnwrap(countermeasures(in: reinforceGame).first {
@@ -2997,9 +3026,12 @@ final class GameStateTests: XCTestCase {
             comparisonTitles: ["整补单位", "威胁源", "AI总览"]
         )
         XCTAssertEqual(reinforceFollowUp.coordinate, reinforce.destination)
+        XCTAssertFalse(reinforceFollowUp.outcomeLevel.title.isEmpty)
 
         reinforceGame.restart()
         XCTAssertNil(reinforceGame.latestEnemyThreatCountermeasureFollowUpResult)
+        reinforceGame.focusEnemyThreatCountermeasureFollowUpTarget(reinforceFollowUp.focusTargets[0])
+        XCTAssertTrue(reinforceGame.message.contains("已过期"))
     }
 
     func testSelectingAndMovingUnitUpdatesBattlefieldState() throws {

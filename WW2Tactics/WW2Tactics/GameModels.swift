@@ -1694,6 +1694,57 @@ enum EnemyThreatCountermeasureFollowUpResultKind: String, Identifiable {
     var id: String { rawValue }
 }
 
+enum EnemyThreatCountermeasureFollowUpOutcomeLevel: String, Identifiable {
+    case effective
+    case partial
+    case failed
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .effective: "奏效"
+        case .partial: "部分奏效"
+        case .failed: "失败"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .effective: "OK"
+        case .partial: "MID"
+        case .failed: "FAIL"
+        }
+    }
+}
+
+enum EnemyThreatCountermeasureFollowUpFocusTargetKind: String, Identifiable {
+    case actingUnit
+    case threatEnemy
+    case threatenedTarget
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .actingUnit: "执行"
+        case .threatEnemy: "威胁"
+        case .threatenedTarget: "目标"
+        }
+    }
+}
+
+struct EnemyThreatCountermeasureFollowUpFocusTarget: Identifiable, Equatable {
+    let kind: EnemyThreatCountermeasureFollowUpFocusTargetKind
+    let title: String
+    let unitID: BattleUnit.ID?
+    let coordinate: HexCoordinate?
+
+    var id: String {
+        "\(kind.rawValue)-\(unitID?.uuidString ?? coordinate?.id ?? title)"
+    }
+}
+
 struct EnemyThreatCountermeasureFollowUpComparison: Identifiable, Equatable {
     let kind: EnemyThreatCountermeasureFollowUpResultKind
     let title: String
@@ -1731,6 +1782,65 @@ struct EnemyThreatCountermeasureFollowUpSummary: Identifiable, Equatable {
         comparisons
             .map { "\($0.title)：\($0.beforeEnemyPhase) -> \($0.afterEnemyPhase)，\($0.result)" }
             .joined(separator: "，")
+    }
+
+    var outcomeLevel: EnemyThreatCountermeasureFollowUpOutcomeLevel {
+        let results = comparisons.map(\.result)
+        if results.contains(where: { result in
+            result.contains("未能") ||
+                result.contains("击毁") ||
+                result.contains("失守") ||
+                result.contains("仍在原威胁射程")
+        }) {
+            return .failed
+        }
+        if results.contains(where: { result in
+            result.contains("威胁源仍在") ||
+                result.contains("损失") ||
+                result.contains("仍可能覆盖")
+        }) {
+            return .partial
+        }
+        return .effective
+    }
+
+    var outcomeTitle: String {
+        "\(outcomeLevel.title)：\(conclusion)"
+    }
+
+    var focusTargets: [EnemyThreatCountermeasureFollowUpFocusTarget] {
+        var targets: [EnemyThreatCountermeasureFollowUpFocusTarget] = []
+
+        if let actingUnitID {
+            targets.append(
+                EnemyThreatCountermeasureFollowUpFocusTarget(
+                    kind: .actingUnit,
+                    title: actingUnitName,
+                    unitID: actingUnitID,
+                    coordinate: coordinate
+                )
+            )
+        }
+
+        targets.append(
+            EnemyThreatCountermeasureFollowUpFocusTarget(
+                kind: .threatEnemy,
+                title: threatEnemyUnitName,
+                unitID: threatEnemyUnitID,
+                coordinate: nil
+            )
+        )
+
+        targets.append(
+            EnemyThreatCountermeasureFollowUpFocusTarget(
+                kind: .threatenedTarget,
+                title: targetName,
+                unitID: targetUnitID,
+                coordinate: threatTargetCoordinate
+            )
+        )
+
+        return targets
     }
 }
 

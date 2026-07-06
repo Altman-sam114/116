@@ -1534,3 +1534,43 @@
 
 - 本轮只解释现有 OBJ 排序输入，不新增据点评分公式，不改变目标计划排序。
 - 终点火力风险作为提示展示，不参与现有 OBJ 排序。
+
+### v1.32 / 反制复核结论定位
+
+日期：2026-07-06
+
+核心变更：
+
+- `EnemyThreatCountermeasureFollowUpSummary` 新增纯派生复核结论等级，按既有复核结论和 comparisons 区分奏效、部分奏效或失败。
+- 复核 summary 新增执行单位、威胁来源和受威胁目标/据点定位目标；`GameState.focusEnemyThreatCountermeasureFollowUpTarget(_:)` 负责校验当前复核并定位地图。
+- `ContentView` 的敌方回合复核卡显示等级徽标和定位按钮；按钮只转发到 `GameState`，不会执行命令。
+- 扩展 XCTest 和规则 smoke test，覆盖复核等级、定位目标、过期目标提示和定位只读不变性。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.32（反制复核结论定位）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions artifact：待本轮 push 后由 Agent C 下载核对。
+
+遗留事项：
+
+- 本轮只增强敌方回合复核的等级展示和地图定位，不改变敌方意图、反制建议排序、AI、移动、攻击、整补、部署、据点、胜负或战斗数值。
+- 复核等级是解释性派生字段，不重新模拟 AI，也不精确归因逐个 AI 行动。

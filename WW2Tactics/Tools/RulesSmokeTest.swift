@@ -3139,12 +3139,12 @@ struct RulesSmokeTest {
             for advice: EnemyThreatCountermeasurePreview,
             executionKind: EnemyThreatCountermeasureExecutionKind,
             comparisonTitles: [String]
-        ) {
+        ) -> EnemyThreatCountermeasureFollowUpSummary? {
             game.endTurn()
             guard let followUp = game.latestEnemyThreatCountermeasureFollowUpResult,
                   let aiSummary = game.latestAIPhaseSummary else {
                 require(false, "countermeasure follow-up should publish after enemy phase")
-                return
+                return nil
             }
             require(game.latestEnemyThreatCountermeasureExecutionResult == nil, "countermeasure follow-up should not keep immediate replay through end turn")
             require(followUp.countermeasureID == advice.id, "countermeasure follow-up should keep advice id")
@@ -3158,10 +3158,29 @@ struct RulesSmokeTest {
             require(followUp.aiTurn == aiSummary.turn, "countermeasure follow-up should bind to latest AI summary turn")
             require(!followUp.conclusion.isEmpty, "countermeasure follow-up should include a conclusion")
             require(!followUp.detailSummary.isEmpty, "countermeasure follow-up should include detail summary")
+            require(!followUp.outcomeTitle.isEmpty, "countermeasure follow-up should include outcome title")
+            require(followUp.focusTargets.contains(where: { $0.kind == .threatEnemy }), "countermeasure follow-up should expose threat focus target")
+            require(followUp.focusTargets.contains(where: { $0.kind == .threatenedTarget }), "countermeasure follow-up should expose threatened target focus")
             for title in comparisonTitles {
                 require(followUp.comparisons.contains(where: { $0.title == title }), "countermeasure follow-up should include \(title) comparison")
             }
             require(followUp.comparisons.contains(where: { $0.kind == .aiImpact }), "countermeasure follow-up should include AI impact comparison")
+
+            let unitsBeforeFocus = game.units
+            let commandPointsBeforeFocus = game.commandPoints
+            let aiSummaryBeforeFocus = game.latestAIPhaseSummary
+            let followUpBeforeFocus = followUp
+            if let focusTarget = followUp.focusTargets.first {
+                game.focusEnemyThreatCountermeasureFollowUpTarget(focusTarget)
+                require(game.focusedCoordinate != nil, "countermeasure follow-up focus should update map focus")
+                require(game.message.contains("复核定位"), "countermeasure follow-up focus should write a focus message")
+                require(game.units == unitsBeforeFocus, "countermeasure follow-up focus should not mutate units")
+                require(game.commandPoints == commandPointsBeforeFocus, "countermeasure follow-up focus should not mutate command points")
+                require(game.latestAIPhaseSummary == aiSummaryBeforeFocus, "countermeasure follow-up focus should not mutate AI summary")
+                require(game.latestEnemyThreatCountermeasureFollowUpResult == followUpBeforeFocus, "countermeasure follow-up focus should not mutate follow-up summary")
+            }
+
+            return followUp
         }
 
         let noBaselineGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))
@@ -3181,12 +3200,13 @@ struct RulesSmokeTest {
         firstStrikeGame.focusEnemyThreatCountermeasure(firstStrikeAdvice)
         firstStrikeGame.executeFocusedCommand()
         require(firstStrikeGame.latestEnemyThreatCountermeasureExecutionResult != nil, "first strike should publish immediate replay before follow-up")
-        requireFollowUp(
+        let firstStrikeFollowUp = requireFollowUp(
             in: firstStrikeGame,
             for: firstStrikeAdvice,
             executionKind: .attack,
             comparisonTitles: ["威胁源", "受威胁目标", "AI总览"]
         )
+        require(firstStrikeFollowUp?.outcomeLevel != .failed, "first strike follow-up should not classify as failed in smoke scenario")
 
         let withdrawGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))
         guard let withdrawAdvice = countermeasures(in: withdrawGame).first(where: {
@@ -3198,12 +3218,13 @@ struct RulesSmokeTest {
         }
         withdrawGame.focusEnemyThreatCountermeasure(withdrawAdvice)
         withdrawGame.executeFocusedCommand()
-        requireFollowUp(
+        let withdrawFollowUp = requireFollowUp(
             in: withdrawGame,
             for: withdrawAdvice,
             executionKind: .move,
             comparisonTitles: ["撤离位置", "撤离单位", "AI总览"]
         )
+        require(withdrawFollowUp?.outcomeLevel != .failed, "withdraw follow-up should not classify as failed in smoke scenario")
 
         let objectiveGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))
         guard let objectiveAdvice = countermeasures(in: objectiveGame).first(where: {
@@ -3215,11 +3236,15 @@ struct RulesSmokeTest {
         }
         objectiveGame.focusEnemyThreatCountermeasure(objectiveAdvice)
         objectiveGame.executeFocusedCommand()
-        requireFollowUp(
+        let objectiveFollowUp = requireFollowUp(
             in: objectiveGame,
             for: objectiveAdvice,
             executionKind: .move,
             comparisonTitles: ["据点归属", "防守单位", "AI总览"]
+        )
+        require(
+            objectiveFollowUp?.focusTargets.contains(where: { $0.coordinate == objectiveAdvice.threatTargetCoordinate }) == true,
+            "objective follow-up should expose objective coordinate focus"
         )
 
         let reinforceGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))
@@ -3232,14 +3257,19 @@ struct RulesSmokeTest {
         }
         reinforceGame.focusEnemyThreatCountermeasure(reinforceAdvice)
         reinforceGame.reinforceSelectedUnit()
-        requireFollowUp(
+        let reinforceFollowUp = requireFollowUp(
             in: reinforceGame,
             for: reinforceAdvice,
             executionKind: .reinforce,
             comparisonTitles: ["整补单位", "威胁源", "AI总览"]
         )
+        require(reinforceFollowUp?.outcomeLevel.title.isEmpty == false, "reinforce follow-up should expose an outcome level")
         reinforceGame.restart()
         require(reinforceGame.latestEnemyThreatCountermeasureFollowUpResult == nil, "restart should clear countermeasure follow-up")
+        if let staleTarget = reinforceFollowUp?.focusTargets.first {
+            reinforceGame.focusEnemyThreatCountermeasureFollowUpTarget(staleTarget)
+            require(reinforceGame.message.contains("已过期"), "stale follow-up focus should report expiration")
+        }
     }
 
     private static func isolatedSupplyScenario() -> Scenario {

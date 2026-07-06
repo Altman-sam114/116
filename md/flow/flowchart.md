@@ -12,7 +12,7 @@ flowchart TD
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback"]
   I --> S["GameState：核心状态机"]
   M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核"]
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核、复核等级、复核目标定位"]
   R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、焦点坐标、消息、攻击/战术/占领/后勤结果、反制回放、敌方回合复核、AI回合摘要、行动时间线、当前复盘order、播放状态/速度、战报、胜负"]
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
   EI --> EC["只读建议：EnemyThreatCountermeasurePreview 抢先打击 / 撤退 / 守点 / 整补"]
@@ -21,7 +21,7 @@ flowchart TD
   PC --> IP["只读对照：当前 / 采纳 / 改善"]
   IP --> EB["只读入口：ATK / MOVE / 整补按钮提示"]
   EB --> XR["真实执行后回放：预计 / 实际 / 结果"]
-  XR --> FV["敌方回合后复核：HP / 位置 / 据点 / 威胁源"]
+  XR --> FV["敌方回合后复核：HP / 位置 / 据点 / 威胁源 / 奏效等级 / 定位目标"]
   W --> P["@Published 状态变化"]
   P --> V
   EI --> V
@@ -96,7 +96,7 @@ flowchart LR
   CTR --> IP2["ImpactComparison 执行前后预计对照"]
   CTR --> EBP["EnemyThreatCountermeasureExecutionPreview 执行入口桥接"]
   CTR --> ERP["ExecutionResultSummary 真实执行回放"]
-  ERP --> FUP["FollowUpSummary 敌方回合复核"]
+  ERP --> FUP["FollowUpSummary 敌方回合复核 / 结论等级 / 定位目标"]
   MV --> RP["RouteStepPreview 步序、消耗、控制区、敌火"]
   MV --> PM["PostMoveAttackPreview 移动后伤害、反击、击毁"]
   MV --> FP["PostMoveFireExposurePreview 潜在承伤、HP 后果、风险等级"]
@@ -148,7 +148,8 @@ flowchart LR
   PF --> UI2
   IP2 --> UI2
   EBP --> UI2
-  FUP --> UI2
+  FUP --> FLOC["复核定位按钮：执行单位 / 威胁来源 / 受威胁目标"]
+  FLOC --> UI2
   CMR --> UI2
   FUR --> UI2
 ```

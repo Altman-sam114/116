@@ -501,6 +501,32 @@ final class GameState: ObservableObject {
         }
     }
 
+    func focusEnemyThreatCountermeasureFollowUpTarget(
+        _ target: EnemyThreatCountermeasureFollowUpFocusTarget
+    ) {
+        guard let summary = latestEnemyThreatCountermeasureFollowUpResult,
+              summary.focusTargets.contains(target) else {
+            message = "敌方回合复核目标已过期。"
+            return
+        }
+
+        if let unitID = target.unitID,
+           let unit = units.first(where: { $0.id == unitID }) {
+            focus(coordinate: unit.position)
+            message = "复核定位：\(target.kind.title) \(unit.name) @ q\(unit.position.q),r\(unit.position.r)。"
+            return
+        }
+
+        guard let coordinate = target.coordinate,
+              tile(at: coordinate) != nil else {
+            message = "复核定位：\(target.title) 已无可定位坐标。"
+            return
+        }
+
+        focus(coordinate: coordinate)
+        message = "复核定位：\(target.kind.title) \(target.title) @ q\(coordinate.q),r\(coordinate.r)。"
+    }
+
     func focusAIPhaseTimelineEvent(order: Int) {
         _ = focusAIPhaseTimelineEvent(order: order, pausesPlaybackOnFailure: false)
     }

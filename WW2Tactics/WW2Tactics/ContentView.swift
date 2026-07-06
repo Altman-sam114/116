@@ -5167,6 +5167,7 @@ private struct EnemyThreatCountermeasureExecutionResultSummaryView: View {
 }
 
 private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
+    @EnvironmentObject private var game: GameState
     let summary: EnemyThreatCountermeasureFollowUpSummary
 
     var body: some View {
@@ -5177,6 +5178,15 @@ private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
                     .foregroundStyle(color)
 
                 Spacer(minLength: 8)
+
+                Text(summary.outcomeLevel.shortTitle)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.black.opacity(0.84))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(outcomeColor.opacity(0.90), in: RoundedRectangle(cornerRadius: 5))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
 
                 Text("T\(summary.aiTurn)")
                     .font(.caption.weight(.black))
@@ -5199,10 +5209,35 @@ private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
                     .foregroundStyle(.white.opacity(0.62))
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text(summary.conclusion)
+                Text(summary.outcomeTitle)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.78))
                     .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 6) {
+                ForEach(summary.focusTargets) { target in
+                    Button {
+                        game.focusEnemyThreatCountermeasureFollowUpTarget(target)
+                    } label: {
+                        Label(target.kind.title, systemImage: focusIcon(for: target.kind))
+                            .font(.caption2.weight(.black))
+                            .labelStyle(.titleAndIcon)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 5)
+                            .background(focusColor(for: target.kind).opacity(0.16), in: RoundedRectangle(cornerRadius: 6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(focusColor(for: target.kind).opacity(0.34), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(focusColor(for: target.kind))
+                    .accessibilityLabel("定位\(target.kind.title)，\(target.title)")
+                    .accessibilityHint("只定位敌方回合复核目标，不执行命令")
+                }
             }
 
             HStack(spacing: 7) {
@@ -5228,7 +5263,7 @@ private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
                 .stroke(color.opacity(0.24), lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("敌方回合复核，\(summary.countermeasureKind.title)，\(locationText)，\(summary.conclusion)，\(summary.detailSummary)")
+        .accessibilityLabel("敌方回合复核，\(summary.countermeasureKind.title)，\(locationText)，\(summary.outcomeTitle)，\(summary.detailSummary)")
     }
 
     private var locationText: String {
@@ -5246,6 +5281,39 @@ private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
             return .yellow
         case .reinforce:
             return .green
+        }
+    }
+
+    private var outcomeColor: Color {
+        switch summary.outcomeLevel {
+        case .effective:
+            return .green
+        case .partial:
+            return .yellow
+        case .failed:
+            return .red
+        }
+    }
+
+    private func focusIcon(for kind: EnemyThreatCountermeasureFollowUpFocusTargetKind) -> String {
+        switch kind {
+        case .actingUnit:
+            return "scope"
+        case .threatEnemy:
+            return "exclamationmark.triangle.fill"
+        case .threatenedTarget:
+            return "flag.checkered"
+        }
+    }
+
+    private func focusColor(for kind: EnemyThreatCountermeasureFollowUpFocusTargetKind) -> Color {
+        switch kind {
+        case .actingUnit:
+            return .cyan
+        case .threatEnemy:
+            return .orange
+        case .threatenedTarget:
+            return .yellow
         }
     }
 
