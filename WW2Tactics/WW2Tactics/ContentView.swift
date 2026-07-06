@@ -5520,6 +5520,8 @@ private struct AIPhaseSummaryView: View {
                 CombatResultMetric(title: "指令", value: commandPointChangeText, color: summary.commandPointDelta < 0 ? .yellow : .white.opacity(0.82))
             }
 
+            AIPhaseReplayConclusionView(conclusion: summary.replayConclusion)
+
             if !visibleTimeline.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 6) {
@@ -5595,6 +5597,90 @@ private struct AIPhaseSummaryView: View {
             if game.isAIPhaseTimelinePlaybackActive {
                 game.advanceAIPhaseTimelinePlayback()
             }
+        }
+    }
+}
+
+private struct AIPhaseReplayConclusionView: View {
+    let conclusion: AIPhaseReplayConclusion
+    private let metricColumns = [
+        GridItem(.flexible(minimum: 72), spacing: 6),
+        GridItem(.flexible(minimum: 72), spacing: 6)
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Label(conclusion.title, systemImage: conclusion.kind.systemImage)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(conclusionColor)
+
+                Spacer(minLength: 6)
+
+                Text(conclusion.kind.shortTitle)
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(conclusionColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+
+            Text(conclusion.summary)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.74))
+                .fixedSize(horizontal: false, vertical: true)
+
+            LazyVGrid(columns: metricColumns, alignment: .leading, spacing: 6) {
+                ForEach(conclusion.metrics) { metric in
+                    CombatResultMetric(
+                        title: metric.title,
+                        value: metric.value,
+                        color: metricColor(for: metric.kind)
+                    )
+                    .accessibilityLabel("\(metric.title)，\(metric.value)，\(metric.detail)")
+                }
+            }
+
+            if !conclusion.keyEvents.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(conclusion.keyEvents) { event in
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(event.title)
+                                .font(.caption2.weight(.black))
+                                .foregroundStyle(conclusionColor)
+                                .frame(width: 58, alignment: .leading)
+
+                            Text(event.detail)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.68))
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("关键AI事件，\(event.title)，\(event.detail)")
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .contain)
+    }
+
+    private var conclusionColor: Color {
+        switch conclusion.kind {
+        case .objectiveBreakthrough: .yellow
+        case .fireSuppression: .orange
+        case .logistics: .green
+        case .maneuver: .cyan
+        case .quiet: .white.opacity(0.72)
+        }
+    }
+
+    private func metricColor(for kind: AIPhaseReplayConclusionMetricKind) -> Color {
+        switch kind {
+        case .damage: .orange
+        case .objectives: .yellow
+        case .logistics: .green
+        case .command: .white.opacity(0.82)
         }
     }
 }

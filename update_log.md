@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.27 正在推进 AI 复盘自动播放控制，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判、AI 复盘和 OBJ/POS/反制建议操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.28 正在推进 AI 复盘战果结论面板，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判、AI 复盘和 OBJ/POS/反制建议操作可读性。
 
 ## 历史记录
 
@@ -1358,11 +1358,50 @@
 - 测试模块 emit：通过，退出码 0。
 - `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
 - GitHub Actions `WW2Tactics CI Results` run `28768207176` / attempt `1`：completed / success。
-- Artifact `ww2tactics-ci-v1.27-main-0d2d840-run28768207176-attempt1`：Agent C 已下载到 `/private/tmp/ww2tactics-c-review-28768207176/`，目录大小 `2.9M`。
-- Manifest `commitSha=0d2d840f4a5344f16ddcc49c6191a89aa268b88c`、`branch=main`、`runId=28768207176`、`runAttempt=1` 与 `origin/main` 功能提交一致。
+- Artifact `ww2tactics-ci-v1.27-main-9b11c5c-run28768394430-attempt1`：Agent C 已下载到 `/private/tmp/ww2tactics-c-review-28768394430/`，目录大小 `2.9M`。
+- Manifest `commitSha=9b11c5c3c49f84f5a9eaf4fd2159ce7bffef372b`、`branch=main`、`runId=28768394430`、`runAttempt=1` 与 `origin/main` 最新提交一致。
 - `ci-failure-summary.md`、`junit.xml`、`static-checks.log`、`rules-smoke.log`、`xcodebuild.log` 和 `WW2Tactics.xcresult` 均已核对；静态检查、规则 smoke 和 Xcode build-for-testing 均为 success，XCTest 执行按当前 CI 策略为 skipped。
 
 遗留事项：
 
 - 本轮只增强最近一次 AI 时间线的自动播放、暂停和速度控制，不新增逐帧动画、镜头动画、时间轴滑块、历史 AI 回合列表、音效或真实美术资产。
+- 本轮不改变 AI 决策、战斗数值、移动、补给、士气、部署、整补、据点、胜负和反制建议语义。
+
+### v1.28 / AI 复盘战果结论面板
+
+日期：2026-07-06
+
+核心变更：
+
+- `GameModels` 新增纯派生 `AIPhaseSummary.replayConclusion`、结论类型、指标和关键事件模型，将最近一次敌方 AI 回合归类为夺点突破、火力压制、后勤整备、机动推进或低强度回合。
+- 复盘结论固定汇总伤害、占点、后勤和指令点变化，并从时间线中按占点、击毁/高伤害、战术命令和后勤优先级选择最多 3 条关键事件。
+- `ContentView` 在 AI 摘要指标之后、行动时间线之前显示复盘结论；结论区只展示模型派生字段，不调用 `GameState` 写状态方法。
+- 扩展 XCTest 和规则 smoke test，覆盖移动后火炮弹幕、后勤部署/整补、机动追击占点、直取据点和低强度空时间线的结论分类、指标和关键事件。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.28（AI复盘战果结论面板）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- 待 Agent C 下载并核对最新 GitHub Actions artifact。
+
+遗留事项：
+
+- 本轮只新增最近一次 AI 回合的结论和关键事件摘要，不新增历史 AI 回合列表、镜头动画、音效或真实美术资产。
 - 本轮不改变 AI 决策、战斗数值、移动、补给、士气、部署、整补、据点、胜负和反制建议语义。

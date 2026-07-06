@@ -1730,6 +1730,11 @@ struct RulesSmokeTest {
             require(axisDeploymentPhaseSummary.startingCommandPoints == 6, "deployment AI phase summary should record post-income command points")
             require(axisDeploymentPhaseSummary.endingCommandPoints == axisDeploymentPhaseGame.commandPoints(for: .axis), "deployment AI phase summary should record ending command points")
             require(axisDeploymentPhaseSummary.damageDealt == 0, "deployment-only AI phase should not record damage")
+            let axisDeploymentConclusion = axisDeploymentPhaseSummary.replayConclusion
+            require(axisDeploymentConclusion.kind == .logistics, "deployment AI phase conclusion should classify as logistics")
+            require(axisDeploymentConclusion.metrics.contains { $0.kind == .logistics }, "deployment AI phase conclusion should include logistics metric")
+            require(axisDeploymentConclusion.metrics.contains { $0.kind == .command }, "deployment AI phase conclusion should include command metric")
+            require(axisDeploymentConclusion.keyEvents.contains { $0.kind == .deployment }, "deployment AI phase conclusion should include deployment key event")
             requireSequentialTimelineOrders(axisDeploymentPhaseSummary.timeline, "axis deployment timeline should use sequential orders")
             guard let axisDeploymentEvent = axisDeploymentPhaseSummary.timeline.first(where: { $0.kind == .deployment }) else {
                 require(false, "axis deployment timeline should include deployment event")
@@ -1766,6 +1771,11 @@ struct RulesSmokeTest {
             require(axisReinforcementPhaseSummary.deployments == 0, "reinforcement AI phase summary should not count blocked deployment")
             require(axisReinforcementPhaseSummary.damageDealt == 0, "reinforcement-only AI phase should not record damage dealt")
             require(axisReinforcementPhaseSummary.damageTaken == 0, "reinforcement-only AI phase should not record damage taken")
+            let axisReinforcementConclusion = axisReinforcementPhaseSummary.replayConclusion
+            require(axisReinforcementConclusion.kind == .logistics, "reinforcement AI phase conclusion should classify as logistics")
+            require(axisReinforcementConclusion.metrics.contains { $0.kind == .logistics }, "reinforcement AI phase conclusion should include logistics metric")
+            require(axisReinforcementConclusion.metrics.contains { $0.kind == .command }, "reinforcement AI phase conclusion should include command metric")
+            require(axisReinforcementConclusion.keyEvents.contains { $0.kind == .reinforcement }, "reinforcement AI phase conclusion should include reinforcement key event")
             requireSequentialTimelineOrders(axisReinforcementPhaseSummary.timeline, "axis reinforcement timeline should use sequential orders")
             guard let axisReinforcementEvent = axisReinforcementPhaseSummary.timeline.first(where: { $0.kind == .reinforcement }) else {
                 require(false, "axis reinforcement timeline should include reinforcement event")
@@ -1902,6 +1912,11 @@ struct RulesSmokeTest {
                 require(axisPostMoveBarragePhaseSummary.damageDealt == axisPostMoveBarrageCommandSummary.damage, "axis post-move barrage summary should record command damage")
                 require(axisPostMoveBarragePhaseSummary.startingCommandPoints == TacticalCommand.artilleryBarrage.commandCost, "axis post-move barrage should start AI phase with barrage cost")
                 require(axisPostMoveBarragePhaseSummary.endingCommandPoints == 0, "axis post-move barrage should spend all available command points")
+                let axisPostMoveBarrageConclusion = axisPostMoveBarragePhaseSummary.replayConclusion
+                require(axisPostMoveBarrageConclusion.kind == .fireSuppression, "axis post-move barrage conclusion should classify as fire suppression")
+                require(axisPostMoveBarrageConclusion.metrics.contains { $0.kind == .damage }, "axis post-move barrage conclusion should include damage metric")
+                require(axisPostMoveBarrageConclusion.metrics.contains { $0.kind == .command }, "axis post-move barrage conclusion should include command metric")
+                require(axisPostMoveBarrageConclusion.keyEvents.contains { $0.kind == .tacticalCommand }, "axis post-move barrage conclusion should include tactical key event")
                 requireSequentialTimelineOrders(axisPostMoveBarragePhaseSummary.timeline, "axis post-move barrage timeline should use sequential orders")
                 require(axisPostMoveBarragePhaseSummary.timeline.count >= 2, "axis post-move barrage timeline should include move and tactical command")
                 require(axisPostMoveBarragePhaseSummary.timeline[0].kind == .move, "axis post-move barrage timeline should record move first")
@@ -2340,6 +2355,12 @@ struct RulesSmokeTest {
                 require(axisPursuitPhaseSummary.objectivesCaptured == 1, "AI phase summary should count captured objective")
                 require(axisPursuitPhaseSummary.enemyUnitsDestroyed == 1, "AI phase summary should count destroyed allied units")
                 require(axisPursuitPhaseSummary.friendlyUnitsDestroyed == 0, "AI phase summary should count zero axis losses")
+                let axisPursuitConclusion = axisPursuitPhaseSummary.replayConclusion
+                require(axisPursuitConclusion.kind == .objectiveBreakthrough, "axis pursuit conclusion should classify as objective breakthrough")
+                require(axisPursuitConclusion.metrics.contains { $0.kind == .objectives }, "axis pursuit conclusion should include objective metric")
+                require(axisPursuitConclusion.metrics.contains { $0.kind == .damage }, "axis pursuit conclusion should include damage metric")
+                require(axisPursuitConclusion.keyEvents.first?.kind == .objectiveCapture, "axis pursuit conclusion should prioritize objective capture")
+                require(axisPursuitConclusion.keyEvents.contains { $0.kind == .attack }, "axis pursuit conclusion should include attack key event")
                 requireSequentialTimelineOrders(axisPursuitPhaseSummary.timeline, "axis pursuit timeline should use sequential orders")
                 guard let axisPursuitAttackIndex = axisPursuitPhaseSummary.timeline.firstIndex(where: { $0.kind == .attack }),
                       let axisPursuitMoveIndex = axisPursuitPhaseSummary.timeline.firstIndex(where: { $0.kind == .move }),
@@ -2419,6 +2440,12 @@ struct RulesSmokeTest {
                 require(axisImmediatePhaseSummary.moves == 1, "axis immediate objective summary should count one move")
                 require(axisImmediatePhaseSummary.attacks == 0, "axis immediate objective summary should not count skipped nonlethal attack")
                 require(axisImmediatePhaseSummary.objectivesCaptured == 1, "axis immediate objective summary should count captured objective")
+                let axisImmediateConclusion = axisImmediatePhaseSummary.replayConclusion
+                require(axisImmediateConclusion.kind == .objectiveBreakthrough, "axis immediate objective conclusion should classify as objective breakthrough")
+                require(axisImmediateConclusion.metrics.contains { $0.kind == .objectives }, "axis immediate objective conclusion should include objective metric")
+                require(axisImmediateConclusion.metrics.contains { $0.kind == .damage && $0.value == "-0" }, "axis immediate objective conclusion should show zero damage")
+                require(axisImmediateConclusion.keyEvents.contains { $0.kind == .objectiveCapture }, "axis immediate objective conclusion should include capture key event")
+                require(!axisImmediateConclusion.keyEvents.contains { $0.kind == .attack }, "axis immediate objective conclusion should not invent attack key event")
                 requireSequentialTimelineOrders(axisImmediatePhaseSummary.timeline, "axis immediate objective timeline should use sequential orders")
                 guard let axisImmediateMoveIndex = axisImmediatePhaseSummary.timeline.firstIndex(where: { $0.kind == .move }),
                       let axisImmediateCaptureIndex = axisImmediatePhaseSummary.timeline.firstIndex(where: { $0.kind == .objectiveCapture }) else {

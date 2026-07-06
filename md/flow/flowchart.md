@@ -11,7 +11,7 @@ flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback"]
   I --> S["GameState：核心状态机"]
-  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary"] --> S
+  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
   S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、敌方意图、反制建议、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核"]
   R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、焦点坐标、消息、攻击/战术/占领/后勤结果、反制回放、敌方回合复核、AI回合摘要、行动时间线、当前复盘order、播放状态/速度、战报、胜负"]
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
@@ -123,11 +123,13 @@ flowchart LR
   RES --> WIN["checkVictory / checkTurnLimit"]
   RES --> AI["runAxisAI：后勤 -> 可击毁 -> 战术 -> 直取据点 -> 普通攻击/推进 -> 移动后攻击/战术"]
   AI --> AIS["AIPhaseSummary：动作计数、指令点、占点、歼灭、伤害、行动时间线"]
+  AIS --> AIC["AIPhaseReplayConclusion：战果分类 / 指标 / 最多3条关键事件"]
   AIS --> TL["AIPhaseTimelineEvent：整补 / 部署 / 战术 / 攻击 / 移动 / 占点"]
   TL --> AIM["latestAIPhaseMapMarkers：起点 / 终点 / 行动单位 / 目标 / 据点"]
   AIS --> FUR["latestEnemyThreatCountermeasureFollowUpResult HP/位置/据点/威胁源复核"]
   AIS --> RES
-  TL --> UIA["侧栏AI摘要：最多5条行动时间线"]
+  TL --> UIA["侧栏AI摘要：复盘结论 + 最多5条行动时间线"]
+  AIC --> UIA
   UIA --> AIP["播放/暂停/速度：GameState 管理播放状态，SwiftUI timer 只触发 tick"]
   AIP --> AIN["播放tick或上一条/下一条按钮：GameState 选择目标order或边界提示，不执行命令"]
   UIA --> AIF["点选时间线：focusAIPhaseTimelineEvent 更新 focusedCoordinate / focusedAIPhaseTimelineEventOrder / message，不执行命令"]

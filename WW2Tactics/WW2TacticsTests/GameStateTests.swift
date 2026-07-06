@@ -47,6 +47,32 @@ final class GameStateTests: XCTestCase {
         )
     }
 
+    private func assertAIPhaseReplayConclusion(
+        _ conclusion: AIPhaseReplayConclusion,
+        kind: AIPhaseReplayConclusionKind,
+        metricKinds: Set<AIPhaseReplayConclusionMetricKind>,
+        keyEventKinds: Set<AIPhaseTimelineEventKind>,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(conclusion.kind, kind, file: file, line: line)
+        XCTAssertEqual(conclusion.metrics.count, 4, file: file, line: line)
+        XCTAssertEqual(Set(conclusion.metrics.map(\.kind)).count, 4, file: file, line: line)
+        XCTAssertTrue(
+            metricKinds.isSubset(of: Set(conclusion.metrics.map(\.kind))),
+            "missing replay conclusion metrics",
+            file: file,
+            line: line
+        )
+        XCTAssertTrue(
+            keyEventKinds.isSubset(of: Set(conclusion.keyEvents.map(\.kind))),
+            "missing replay conclusion key events",
+            file: file,
+            line: line
+        )
+        XCTAssertLessThanOrEqual(conclusion.keyEvents.count, 3, file: file, line: line)
+    }
+
     private func testAIPhaseSummary(timeline: [AIPhaseTimelineEvent]) -> AIPhaseSummary {
         AIPhaseSummary(
             faction: .axis,
@@ -69,20 +95,23 @@ final class GameStateTests: XCTestCase {
 
     private func testAIPhaseTimelineEvent(
         order: Int,
+        kind: AIPhaseTimelineEventKind = .move,
         from: HexCoordinate?,
-        to: HexCoordinate?
+        to: HexCoordinate?,
+        damage: Int = 0,
+        didDestroyTarget: Bool = false
     ) -> AIPhaseTimelineEvent {
         AIPhaseTimelineEvent(
             order: order,
             faction: .axis,
             turn: 1,
-            kind: .move,
+            kind: kind,
             actorUnitID: nil,
             actorName: "测试AI单位",
             actorKind: .infantry,
             targetUnitID: nil,
-            targetName: nil,
-            targetKind: nil,
+            targetName: kind == .attack ? "测试目标" : nil,
+            targetKind: kind == .attack ? .infantry : nil,
             from: from,
             to: to,
             tacticalCommand: nil,
@@ -90,13 +119,13 @@ final class GameStateTests: XCTestCase {
             objectiveName: nil,
             previousOwner: nil,
             newOwner: nil,
-            damage: 0,
+            damage: damage,
             counterDamage: 0,
             recoveredHP: 0,
             commandPointCost: 0,
             commandPointReward: 0,
             commandPointsAfter: nil,
-            didDestroyTarget: false,
+            didDestroyTarget: didDestroyTarget,
             didCaptureObjective: false,
             detail: "test"
         )
@@ -885,6 +914,15 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(summary.timeline[1].tacticalCommand, .artilleryBarrage)
         XCTAssertEqual(summary.timeline[1].damage, commandResult.damage)
         XCTAssertEqual(summary.timeline[1].commandPointCost, TacticalCommand.artilleryBarrage.commandCost)
+        let replayConclusion = summary.replayConclusion
+        assertAIPhaseReplayConclusion(
+            replayConclusion,
+            kind: .fireSuppression,
+            metricKinds: [.damage, .command],
+            keyEventKinds: [.tacticalCommand]
+        )
+        XCTAssertTrue(replayConclusion.summary.contains("\(summary.damageDealt)"))
+        XCTAssertEqual(replayConclusion.keyEvents.first?.order, summary.timeline[1].order)
 
         let markers = game.latestAIPhaseMapMarkers
         assertAIPhaseMapMarkers(markers, match: summary)
@@ -1147,8 +1185,60 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.focusedAIPhaseTimelineEventOrder)
         XCTAssertFalse(game.isAIPhaseTimelinePlaybackActive)
         XCTAssertTrue(game.message.contains("没有可播放的AI复盘事件"))
+        assertAIPhaseReplayConclusion(
+            try XCTUnwrap(game.latestAIPhaseSummary).replayConclusion,
+            kind: .quiet,
+            metricKinds: [.damage, .objectives, .logistics, .command],
+            keyEventKinds: []
+        )
+        XCTAssertTrue(try XCTUnwrap(game.latestAIPhaseSummary).replayConclusion.keyEvents.isEmpty)
 
         let validCoordinate = try XCTUnwrap(game.focusedCoordinate)
+        let maneuverConclusion = testAIPhaseSummary(
+            timeline: [
+                testAIPhaseTimelineEvent(order: 1, from: validCoordinate, to: validCoordinate)
+            ]
+        ).replayConclusion
+        assertAIPhaseReplayConclusion(
+            maneuverConclusion,
+            kind: .maneuver,
+            metricKinds: [.damage, .objectives, .logistics, .command],
+            keyEventKinds: [.move]
+        )
+
+        let lowDamageAttackConclusion = AIPhaseSummary(
+            faction: .axis,
+            turn: 1,
+            startingCommandPoints: 2,
+            endingCommandPoints: 2,
+            reinforcements: 0,
+            deployments: 0,
+            tacticalCommands: 0,
+            attacks: 1,
+            moves: 0,
+            objectivesCaptured: 0,
+            enemyUnitsDestroyed: 0,
+            friendlyUnitsDestroyed: 0,
+            damageDealt: 6,
+            damageTaken: 2,
+            timeline: [
+                testAIPhaseTimelineEvent(
+                    order: 1,
+                    kind: .attack,
+                    from: validCoordinate,
+                    to: validCoordinate,
+                    damage: 6
+                )
+            ]
+        ).replayConclusion
+        assertAIPhaseReplayConclusion(
+            lowDamageAttackConclusion,
+            kind: .fireSuppression,
+            metricKinds: [.damage, .objectives, .logistics, .command],
+            keyEventKinds: [.attack]
+        )
+        XCTAssertEqual(lowDamageAttackConclusion.metrics.first { $0.kind == .damage }?.detail, "承伤 2")
+
         game.replaceLatestAIPhaseSummaryForTesting(
             testAIPhaseSummary(timeline: [
                 testAIPhaseTimelineEvent(order: 1, from: validCoordinate, to: validCoordinate)
@@ -1257,6 +1347,15 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(captureEvent.previousOwner, .allies)
         XCTAssertEqual(captureEvent.newOwner, .axis)
         XCTAssertEqual(captureEvent.commandPointReward, 3)
+        let replayConclusion = summary.replayConclusion
+        assertAIPhaseReplayConclusion(
+            replayConclusion,
+            kind: .objectiveBreakthrough,
+            metricKinds: [.objectives, .damage],
+            keyEventKinds: [.objectiveCapture]
+        )
+        XCTAssertEqual(replayConclusion.metrics.first { $0.kind == .damage }?.value, "-0")
+        XCTAssertFalse(replayConclusion.keyEvents.contains { $0.kind == .attack })
 
         let markers = game.latestAIPhaseMapMarkers
         assertAIPhaseMapMarkers(markers, match: summary)
@@ -1415,6 +1514,12 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(deploymentEvent.deployedUnitKind, deploymentResult.unitKind)
         XCTAssertEqual(deploymentEvent.commandPointCost, deploymentResult.commandCost)
         XCTAssertEqual(deploymentEvent.commandPointsAfter, deploymentGame.commandPoints(for: .axis))
+        assertAIPhaseReplayConclusion(
+            deploymentSummary.replayConclusion,
+            kind: .logistics,
+            metricKinds: [.logistics, .command],
+            keyEventKinds: [.deployment]
+        )
         let deploymentMarkers = deploymentGame.latestAIPhaseMapMarkers
         assertAIPhaseMapMarkers(deploymentMarkers, match: deploymentSummary)
         assertContainsAIPhaseMapMarker(
@@ -1443,6 +1548,12 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(reinforcementEvent.to, HexCoordinate(q: 0, r: 0))
         XCTAssertEqual(reinforcementEvent.recoveredHP, reinforcementResult.recoveredHP)
         XCTAssertEqual(reinforcementEvent.commandPointCost, reinforcementResult.commandCost)
+        assertAIPhaseReplayConclusion(
+            reinforcementSummary.replayConclusion,
+            kind: .logistics,
+            metricKinds: [.logistics, .command],
+            keyEventKinds: [.reinforcement]
+        )
         let reinforcementMarkers = reinforcementGame.latestAIPhaseMapMarkers
         assertAIPhaseMapMarkers(reinforcementMarkers, match: reinforcementSummary)
         assertContainsAIPhaseMapMarker(
@@ -1489,6 +1600,14 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(captureEvent.commandPointReward, 3)
         XCTAssertEqual(captureEvent.commandPointsAfter, game.commandPoints(for: .axis))
         XCTAssertGreaterThan(summary.timeline.count, summary.totalActions)
+        let replayConclusion = summary.replayConclusion
+        assertAIPhaseReplayConclusion(
+            replayConclusion,
+            kind: .objectiveBreakthrough,
+            metricKinds: [.objectives, .damage],
+            keyEventKinds: [.objectiveCapture, .attack]
+        )
+        XCTAssertEqual(replayConclusion.keyEvents.first?.kind, .objectiveCapture)
 
         let markers = game.latestAIPhaseMapMarkers
         assertAIPhaseMapMarkers(markers, match: summary)

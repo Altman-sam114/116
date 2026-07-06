@@ -732,6 +732,176 @@ struct AIPhaseSummary: Identifiable, Equatable {
     var commandPointDelta: Int {
         endingCommandPoints - startingCommandPoints
     }
+
+    var replayConclusion: AIPhaseReplayConclusion {
+        let kind = AIPhaseReplayConclusionKind.classify(summary: self)
+        return AIPhaseReplayConclusion(
+            kind: kind,
+            title: kind.title,
+            summary: kind.summary(for: self),
+            metrics: AIPhaseReplayConclusionMetric.metrics(for: self),
+            keyEvents: AIPhaseReplayKeyEvent.keyEvents(for: timeline)
+        )
+    }
+}
+
+enum AIPhaseReplayConclusionKind: String, Identifiable, Hashable {
+    case objectiveBreakthrough
+    case fireSuppression
+    case logistics
+    case maneuver
+    case quiet
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .objectiveBreakthrough: "夺点突破"
+        case .fireSuppression: "火力压制"
+        case .logistics: "后勤整备"
+        case .maneuver: "机动推进"
+        case .quiet: "低强度回合"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .objectiveBreakthrough: "夺点"
+        case .fireSuppression: "压制"
+        case .logistics: "后勤"
+        case .maneuver: "机动"
+        case .quiet: "低烈度"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .objectiveBreakthrough: "flag.fill"
+        case .fireSuppression: "scope"
+        case .logistics: "shippingbox.fill"
+        case .maneuver: "arrow.triangle.turn.up.right.diamond.fill"
+        case .quiet: "moon.zzz.fill"
+        }
+    }
+
+    static func classify(summary: AIPhaseSummary) -> AIPhaseReplayConclusionKind {
+        if summary.objectivesCaptured > 0 {
+            return .objectiveBreakthrough
+        }
+        if summary.attacks > 0 || summary.damageDealt >= 18 || summary.enemyUnitsDestroyed > 0 || summary.tacticalCommands > 0 {
+            return .fireSuppression
+        }
+        if summary.logisticsActions > 0 {
+            return .logistics
+        }
+        if summary.moves > 0 {
+            return .maneuver
+        }
+        return .quiet
+    }
+
+    func summary(for summary: AIPhaseSummary) -> String {
+        switch self {
+        case .objectiveBreakthrough:
+            return "敌军夺取 \(summary.objectivesCaptured) 个据点，造成 \(summary.damageDealt) 伤害。"
+        case .fireSuppression:
+            return "敌军以攻击或战术命令压制我方，造成 \(summary.damageDealt) 伤害。"
+        case .logistics:
+            return "敌军主要投入 \(summary.logisticsActions) 次后勤动作，巩固据点和兵力。"
+        case .maneuver:
+            return "敌军进行了 \(summary.moves) 次机动，尚未形成明显战果。"
+        case .quiet:
+            return "敌军本回合没有形成有效推进或火力战果。"
+        }
+    }
+}
+
+enum AIPhaseReplayConclusionMetricKind: String, Identifiable, Hashable {
+    case damage
+    case objectives
+    case logistics
+    case command
+
+    var id: String { rawValue }
+}
+
+struct AIPhaseReplayConclusionMetric: Identifiable, Equatable {
+    let kind: AIPhaseReplayConclusionMetricKind
+    let title: String
+    let value: String
+    let detail: String
+
+    var id: String {
+        "\(kind.rawValue)-\(title)-\(value)"
+    }
+
+    static func metrics(for summary: AIPhaseSummary) -> [AIPhaseReplayConclusionMetric] {
+        [
+            AIPhaseReplayConclusionMetric(
+                kind: .damage,
+                title: "伤害",
+                value: "-\(summary.damageDealt)",
+                detail: summary.damageTaken > 0 ? "承伤 \(summary.damageTaken)" : "无承伤"
+            ),
+            AIPhaseReplayConclusionMetric(
+                kind: .objectives,
+                title: "占点",
+                value: "\(summary.objectivesCaptured)",
+                detail: summary.enemyUnitsDestroyed > 0 ? "歼灭 \(summary.enemyUnitsDestroyed)" : "无歼灭"
+            ),
+            AIPhaseReplayConclusionMetric(
+                kind: .logistics,
+                title: "后勤",
+                value: "\(summary.logisticsActions)",
+                detail: "整补 \(summary.reinforcements)，部署 \(summary.deployments)"
+            ),
+            AIPhaseReplayConclusionMetric(
+                kind: .command,
+                title: "指令",
+                value: summary.commandPointDelta >= 0 ? "+\(summary.commandPointDelta)" : "\(summary.commandPointDelta)",
+                detail: "\(summary.startingCommandPoints)->\(summary.endingCommandPoints)"
+            )
+        ]
+    }
+}
+
+struct AIPhaseReplayKeyEvent: Identifiable, Equatable {
+    let order: Int
+    let kind: AIPhaseTimelineEventKind
+    let title: String
+    let detail: String
+
+    var id: Int { order }
+
+    static func keyEvents(for timeline: [AIPhaseTimelineEvent]) -> [AIPhaseReplayKeyEvent] {
+        timeline
+            .filter { $0.replayConclusionPriority > 0 }
+            .sorted { left, right in
+                if left.replayConclusionPriority != right.replayConclusionPriority {
+                    return left.replayConclusionPriority > right.replayConclusionPriority
+                }
+                return left.order < right.order
+            }
+            .prefix(3)
+            .map {
+                AIPhaseReplayKeyEvent(
+                    order: $0.order,
+                    kind: $0.kind,
+                    title: "#\($0.order) \($0.kind.title)",
+                    detail: $0.summary
+                )
+            }
+    }
+}
+
+struct AIPhaseReplayConclusion: Identifiable, Equatable {
+    var id: String { kind.rawValue }
+
+    let kind: AIPhaseReplayConclusionKind
+    let title: String
+    let summary: String
+    let metrics: [AIPhaseReplayConclusionMetric]
+    let keyEvents: [AIPhaseReplayKeyEvent]
 }
 
 enum AIPhaseTimelinePlaybackPace: String, CaseIterable, Identifiable {
@@ -766,7 +936,7 @@ enum AIPhaseTimelinePlaybackPace: String, CaseIterable, Identifiable {
     }
 }
 
-enum AIPhaseTimelineEventKind: String, Identifiable {
+enum AIPhaseTimelineEventKind: String, Identifiable, Hashable {
     case reinforcement
     case deployment
     case tacticalCommand
@@ -865,6 +1035,29 @@ struct AIPhaseTimelineEvent: Identifiable, Equatable {
 
     private var commandPointText: String {
         commandPointCost > 0 ? "，指令 -\(commandPointCost)" : ""
+    }
+
+    var replayConclusionPriority: Int {
+        var priority = 0
+        if didCaptureObjective || kind == .objectiveCapture {
+            priority += 100
+        }
+        if didDestroyTarget {
+            priority += 80
+        }
+        if damage > 0 {
+            priority += min(60, damage)
+        }
+        if kind == .tacticalCommand {
+            priority += 25
+        }
+        if kind == .deployment || kind == .reinforcement {
+            priority += 18 + recoveredHP / 2
+        }
+        if kind == .move && priority == 0 {
+            priority = 6
+        }
+        return priority
     }
 }
 
