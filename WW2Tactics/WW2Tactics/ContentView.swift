@@ -5839,6 +5839,14 @@ private struct EnemyThreatCountermeasureRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            if let tradeoff = preview.objectiveDefenseTradeoff {
+                Label(tradeoff.summary, systemImage: "shield.lefthalf.filled")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(accentColor.opacity(0.84))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("据点防守取舍，\(tradeoff.summary)，\(tradeoff.impactTitle)，\(tradeoff.impactDetail)")
+            }
+
             Label(preview.prioritySummary, systemImage: "list.number")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.62))

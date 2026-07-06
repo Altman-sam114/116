@@ -1324,6 +1324,33 @@ struct EnemyThreatCountermeasurePreview: Identifiable, Equatable {
         return "\(canExecuteNow ? "当前可执行" : "暂不可执行")，\(impact)，优先值 \(score)，\(route)"
     }
 
+    var objectiveDefenseTradeoff: EnemyThreatObjectiveDefenseTradeoff? {
+        guard kind == .objectiveDefense else { return nil }
+
+        let actionTitle = destination == threatTargetCoordinate ? "进驻" : "封堵"
+        let routeTitle = routeCost.map { "路线 \($0)" } ?? "无需移动"
+        let objectiveImpact = impactComparisons.first { $0.kind == .objective }
+        let impactTitle = objectiveImpact.map {
+            "\($0.before) -> \($0.after)"
+        } ?? "被夺风险 -> \(actionTitle)"
+        let impactDetail = objectiveImpact?.impact ?? "\(actionTitle)\(targetName)"
+        let tradeoffDetail = actionTitle == "进驻" ?
+            "直接占位，优先阻止夺点" :
+            "相邻卡位，封堵敌方抢点路线"
+        let summary = "\(actionTitle)\(targetName)：\(tradeoffDetail)，\(routeTitle)，优先值 \(score)"
+
+        return EnemyThreatObjectiveDefenseTradeoff(
+            actionTitle: actionTitle,
+            targetName: targetName,
+            positionTitle: destinationText,
+            routeTitle: routeTitle,
+            impactTitle: impactTitle,
+            impactDetail: impactDetail,
+            priorityTitle: "优先值 \(score)",
+            summary: summary
+        )
+    }
+
     var priorityFactors: [EnemyThreatCountermeasurePriorityFactor] {
         var factors: [EnemyThreatCountermeasurePriorityFactor] = [
             EnemyThreatCountermeasurePriorityFactor(
@@ -1511,6 +1538,29 @@ struct EnemyThreatCountermeasurePreview: Identifiable, Equatable {
         )
 
         return metrics
+    }
+}
+
+struct EnemyThreatObjectiveDefenseTradeoff: Identifiable, Equatable {
+    let actionTitle: String
+    let targetName: String
+    let positionTitle: String
+    let routeTitle: String
+    let impactTitle: String
+    let impactDetail: String
+    let priorityTitle: String
+    let summary: String
+
+    var id: String {
+        [
+            actionTitle,
+            targetName,
+            positionTitle,
+            routeTitle,
+            impactTitle,
+            impactDetail,
+            priorityTitle
+        ].joined(separator: "-")
     }
 }
 

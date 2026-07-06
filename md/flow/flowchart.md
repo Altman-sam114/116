@@ -17,7 +17,8 @@ flowchart TD
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
   EI --> EC["只读建议：EnemyThreatCountermeasurePreview 抢先打击 / 撤退 / 守点 / 整补"]
   EC --> BM["只读收益：战果 / 生存 / 守点 / 恢复 / 路线 / 优先值"]
-  BM --> PC["只读排序：可执行 / 击毁 / 优先值 / 路线 / 相邻对比"]
+  BM --> DT["据点防守取舍：进驻 / 封堵 / 路线 / 优先值"]
+  DT --> PC["只读排序：可执行 / 击毁 / 优先值 / 路线 / 相邻对比"]
   PC --> IP["只读对照：当前 / 采纳 / 改善"]
   IP --> EB["只读入口：ATK / MOVE / 整补按钮提示"]
   EC --> BS["只读态势：指令 / 待命 / 据点 / 威胁 / 反制 / 首要建议"]
@@ -38,6 +39,7 @@ flowchart TD
   BRM --> V
   BRF --> V
   BM --> V
+  DT --> V
   PC --> V
   IP --> V
   EB --> V
@@ -108,6 +110,7 @@ flowchart LR
   BS --> BRS["BattlefieldSituationResponseSummary 最近响应 / 普通行动反馈 / 敌方回合影响"]
   BRS --> BRM2["BattlefieldSituationResponseMapMarker：响应坐标 / 短码 / 图标 / 无障碍摘要"]
   CTR --> BM2["BenefitMetric 收益解释"]
+  CTR --> DT2["ObjectiveDefenseTradeoff 进驻/封堵取舍解释"]
   CTR --> PF["PriorityFactor / ComparisonPreview 排序对比解释"]
   CTR --> IP2["ImpactComparison 执行前后预计对照"]
   CTR --> EBP["EnemyThreatCountermeasureExecutionPreview 执行入口桥接"]
@@ -168,6 +171,7 @@ flowchart LR
   INT --> UI["侧栏敌方意图面板 / 地图 INT 标记"]
   CTR --> UI2["侧栏反制建议面板 / 地图 ACT-SRC-CTR-TGT 标记"]
   BM2 --> UI2
+  DT2 --> UI2
   PF --> UI2
   IP2 --> UI2
   EBP --> UI2

@@ -3194,6 +3194,11 @@ final class GameStateTests: XCTestCase {
             $0.kind == .objectiveDefense &&
                 $0.targetName == "后方油库"
         })
+        let countermeasureIDsBeforeTradeoff = countermeasures.map(\.id)
+        let limitedCountermeasureIDsBeforeTradeoff = game.enemyThreatCountermeasurePreviews(
+            for: threats,
+            limit: 2
+        ).map(\.id)
         let objectiveDestination = try XCTUnwrap(objectiveDefense.destination)
         XCTAssertLessThanOrEqual(objectiveDestination.distance(to: HexCoordinate(q: 2, r: 2)), 1)
         XCTAssertGreaterThanOrEqual(objectiveDefense.routeCost ?? 0, 0)
@@ -3207,6 +3212,27 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(objectiveImpact.before, "被夺风险")
         XCTAssertTrue(objectiveImpact.after == "进驻" || objectiveImpact.after == "封堵")
         XCTAssertTrue(objectiveImpact.impact.contains(objectiveDefense.targetName))
+        let tradeoff = try XCTUnwrap(objectiveDefense.objectiveDefenseTradeoff)
+        XCTAssertEqual(tradeoff.actionTitle, objectiveDestination == objectiveDefense.threatTargetCoordinate ? "进驻" : "封堵")
+        XCTAssertEqual(tradeoff.targetName, objectiveDefense.targetName)
+        XCTAssertEqual(tradeoff.positionTitle, objectiveDefense.destinationText)
+        XCTAssertEqual(tradeoff.routeTitle, "路线 \(objectiveDefense.routeCost ?? 0)")
+        XCTAssertEqual(tradeoff.impactTitle, "\(objectiveImpact.before) -> \(objectiveImpact.after)")
+        XCTAssertEqual(tradeoff.impactDetail, objectiveImpact.impact)
+        XCTAssertEqual(tradeoff.priorityTitle, "优先值 \(objectiveDefense.score)")
+        XCTAssertTrue(tradeoff.summary.contains(tradeoff.actionTitle))
+        XCTAssertTrue(tradeoff.summary.contains(objectiveDefense.targetName))
+        XCTAssertTrue(tradeoff.summary.contains(tradeoff.routeTitle))
+        XCTAssertTrue(tradeoff.summary.contains(tradeoff.priorityTitle))
+        XCTAssertNil(firstStrike.objectiveDefenseTradeoff)
+        XCTAssertNil(withdraw.objectiveDefenseTradeoff)
+        XCTAssertEqual(game.enemyThreatCountermeasurePreviews(for: threats, limit: 10).map(\.id), countermeasureIDsBeforeTradeoff)
+        XCTAssertEqual(
+            game.enemyThreatCountermeasurePreviews(for: threats, limit: 2).map(\.id),
+            limitedCountermeasureIDsBeforeTradeoff
+        )
+        XCTAssertEqual(objectiveDefense.prioritySummary.contains(objectiveDefense.kind.title), true)
+        XCTAssertEqual(objectiveDefense.priorityFactors.first?.kind, .availability)
 
         let reinforce = try XCTUnwrap(countermeasures.first {
             $0.kind == .reinforce &&

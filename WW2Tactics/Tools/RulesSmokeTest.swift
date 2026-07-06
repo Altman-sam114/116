@@ -1384,6 +1384,20 @@ struct RulesSmokeTest {
             }
             require(objectiveImpact.before == "被夺风险", "objective impact should expose capture risk")
             require(objectiveImpact.after == "进驻" || objectiveImpact.after == "封堵", "objective impact should expose defense action")
+            guard let objectiveTradeoff = objectiveDefense.objectiveDefenseTradeoff else {
+                require(false, "objective defense should expose defense tradeoff explanation")
+                return
+            }
+            let objectiveDefenseAction = objectiveDefense.destination == objectiveDefense.threatTargetCoordinate ? "进驻" : "封堵"
+            require(objectiveTradeoff.actionTitle == objectiveDefenseAction, "objective defense tradeoff should match destination choice")
+            require(objectiveTradeoff.targetName == objectiveDefense.targetName, "objective defense tradeoff should name objective")
+            require(objectiveTradeoff.routeTitle == "路线 \(objectiveDefense.routeCost ?? 0)", "objective defense tradeoff should expose route cost")
+            require(objectiveTradeoff.impactTitle == "\(objectiveImpact.before) -> \(objectiveImpact.after)", "objective defense tradeoff should expose before-after objective impact")
+            require(objectiveTradeoff.impactDetail == objectiveImpact.impact, "objective defense tradeoff should expose impact detail")
+            require(objectiveTradeoff.priorityTitle == "优先值 \(objectiveDefense.score)", "objective defense tradeoff should expose priority score")
+            require(objectiveTradeoff.summary.contains(objectiveDefense.targetName), "objective defense tradeoff summary should include target")
+            require(firstStrike.objectiveDefenseTradeoff == nil, "first strike should not expose objective defense tradeoff")
+            require(withdraw.objectiveDefenseTradeoff == nil, "withdraw should not expose objective defense tradeoff")
 
             guard let reinforce = enemyCountermeasures.first(where: {
                 $0.kind == .reinforce &&
@@ -1556,6 +1570,8 @@ struct RulesSmokeTest {
             require(objectiveDefenseExecution.isExecutable, "objective defense execution bridge should be executable")
             require(objectiveDefenseExecution.coordinate == defenseDestination, "objective defense execution bridge should point to the defense destination")
             require(objectiveDefenseExecution.unitName == defenseUnit.name, "objective defense execution bridge should name the acting unit")
+            require(enemyThreatGame.latestEnemyThreatCountermeasureExecutionResult == nil, "objective defense tradeoff focus should not publish execution replay")
+            require(objectiveDefense.objectiveDefenseTradeoff?.summary == objectiveTradeoff.summary, "objective defense tradeoff should stay stable after focus")
 
             enemyThreatGame.focusEnemyThreatCountermeasure(reinforce)
             guard let reinforceUnit = enemyThreatGame.units.first(where: { $0.id == reinforce.actingUnitID }) else {

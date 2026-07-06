@@ -1925,3 +1925,36 @@
 
 - 本轮只做当前最高优先级态势响应的单点定位入口，不新增历史响应列表、上一条/下一条响应浏览、动画、自动播放或自动执行。
 - 下一轮可优先处理据点防守取舍的执行前后解释，或先设计态势响应历史模型后再做连续查看。
+
+### v1.42 / 据点防守取舍解释
+
+日期：2026-07-06
+
+核心变更：
+
+- `GameModels` 新增 `EnemyThreatObjectiveDefenseTradeoff`，并让 `EnemyThreatCountermeasurePreview.objectiveDefenseTradeoff` 从现有守点建议字段纯派生进驻/封堵取舍说明。
+- 取舍解释只读取 `destination`、`threatTargetCoordinate`、`targetName`、`routeCost`、`score` 和 objective impact；非 `.objectiveDefense` 建议返回空，不新增 `@Published` 状态。
+- `ContentView` 的反制建议行在据点防守建议上显示进驻/封堵、路线代价和优先值说明；UI 不重算路线、score 或守点规则。
+- 扩展 XCTest 和规则 smoke test，覆盖“后方油库”守点建议的取舍字段、非守点建议退化、排序/limit 不变、聚焦和执行桥接语义不变。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.42（据点防守取舍解释）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只解释当前守点建议为什么进驻或封堵，不改变守点候选选择、score、排序、聚焦、执行桥接、真实 MOVE 或 AI 行为。
+- 下一轮可处理态势响应连续查看，或细化据点防守执行后的敌方回合复核归因。
