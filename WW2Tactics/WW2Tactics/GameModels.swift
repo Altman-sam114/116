@@ -1807,6 +1807,35 @@ struct EnemyThreatCountermeasureFollowUpComparison: Identifiable, Equatable {
     }
 }
 
+enum EnemyThreatCountermeasureFollowUpAIEventRelation: String, Identifiable {
+    case threatenedObjective
+    case actingUnit
+    case threatEnemy
+    case targetUnit
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .threatenedObjective: "据点"
+        case .actingUnit: "防守"
+        case .threatEnemy: "威胁"
+        case .targetUnit: "目标"
+        }
+    }
+}
+
+struct EnemyThreatCountermeasureFollowUpAIEvent: Identifiable, Equatable {
+    let order: Int
+    let kind: AIPhaseTimelineEventKind
+    let title: String
+    let summary: String
+    let coordinate: HexCoordinate?
+    let relation: EnemyThreatCountermeasureFollowUpAIEventRelation
+
+    var id: Int { order }
+}
+
 enum EnemyThreatObjectiveDefenseFollowUpAction: String, Identifiable {
     case occupy
     case screen
@@ -1912,6 +1941,7 @@ struct EnemyThreatCountermeasureFollowUpSummary: Identifiable, Equatable {
     let conclusion: String
     let comparisons: [EnemyThreatCountermeasureFollowUpComparison]
     let objectiveDefenseDetail: EnemyThreatObjectiveDefenseFollowUpDetail?
+    let relatedAIEvents: [EnemyThreatCountermeasureFollowUpAIEvent]
 
     var id: String {
         "\(countermeasureID)-follow-up-\(aiFaction.rawValue)-\(aiTurn)-\(coordinate?.id ?? "none")"

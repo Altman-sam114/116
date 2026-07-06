@@ -3827,6 +3827,29 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(objectiveFollowUp.detailSummary.contains("守点位置"))
         XCTAssertTrue(objectiveFollowUp.conclusion.contains("进驻已复核"))
         let objectiveDefenseTimeline = try XCTUnwrap(objectiveDefenseGame.latestAIPhaseSummary?.timeline)
+        let objectiveTimelineOrders = Set(objectiveDefenseTimeline.map(\.order))
+        XCTAssertFalse(objectiveFollowUp.relatedAIEvents.isEmpty)
+        XCTAssertLessThanOrEqual(objectiveFollowUp.relatedAIEvents.count, 3)
+        for relatedEvent in objectiveFollowUp.relatedAIEvents {
+            XCTAssertTrue(objectiveTimelineOrders.contains(relatedEvent.order))
+            XCTAssertTrue([.move, .attack, .tacticalCommand, .objectiveCapture, .deployment, .reinforcement].contains(relatedEvent.kind))
+            XCTAssertFalse(relatedEvent.summary.isEmpty)
+            let sourceEvent = try XCTUnwrap(objectiveDefenseTimeline.first { $0.order == relatedEvent.order })
+            XCTAssertEqual(relatedEvent.coordinate, sourceEvent.to ?? sourceEvent.from)
+        }
+        XCTAssertTrue(objectiveFollowUp.relatedAIEvents.contains { $0.relation == .threatEnemy })
+
+        let objectiveUnitsBeforeRelatedEventFocus = objectiveDefenseGame.scenario.units
+        let objectiveTilesBeforeRelatedEventFocus = objectiveDefenseGame.scenario.tiles
+        let objectiveAISummaryBeforeRelatedEventFocus = objectiveDefenseGame.latestAIPhaseSummary
+        let objectiveFollowUpBeforeRelatedEventFocus = objectiveDefenseGame.latestEnemyThreatCountermeasureFollowUpResult
+        objectiveDefenseGame.focusAIPhaseTimelineEvent(order: objectiveFollowUp.relatedAIEvents[0].order)
+        XCTAssertEqual(objectiveDefenseGame.focusedAIPhaseTimelineEventOrder, objectiveFollowUp.relatedAIEvents[0].order)
+        XCTAssertEqual(objectiveDefenseGame.scenario.units, objectiveUnitsBeforeRelatedEventFocus)
+        XCTAssertEqual(objectiveDefenseGame.scenario.tiles, objectiveTilesBeforeRelatedEventFocus)
+        XCTAssertEqual(objectiveDefenseGame.latestAIPhaseSummary, objectiveAISummaryBeforeRelatedEventFocus)
+        XCTAssertEqual(objectiveDefenseGame.latestEnemyThreatCountermeasureFollowUpResult, objectiveFollowUpBeforeRelatedEventFocus)
+
         let axisCapturedObjective = objectiveDefenseTimeline.contains(where: { event in
             let capturedTarget = event.to == objectiveDefense.threatTargetCoordinate
             return event.kind == .objectiveCapture &&

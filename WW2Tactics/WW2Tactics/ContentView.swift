@@ -5636,6 +5636,27 @@ private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
                     .foregroundStyle(.yellow.opacity(0.82))
                     .fixedSize(horizontal: false, vertical: true)
                 }
+
+                if !summary.relatedAIEvents.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("关联AI行动", systemImage: "timeline.selection")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white.opacity(0.72))
+
+                        ForEach(summary.relatedAIEvents) { event in
+                            Button {
+                                game.focusAIPhaseTimelineEvent(order: event.order)
+                            } label: {
+                                EnemyThreatCountermeasureFollowUpAIEventRow(event: event)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("关联AI行动 \(event.order)，\(event.relation.title)，\(event.title)，\(event.summary)")
+                            .accessibilityHint("只定位 AI 复盘事件，不执行命令")
+                        }
+                    }
+                    .padding(.top, 2)
+                }
             }
 
             HStack(spacing: 6) {
@@ -5983,6 +6004,46 @@ private struct EnemyThreatCountermeasureRow: View {
         case .reinforce:
             return "cross.case.fill"
         }
+    }
+}
+
+private struct EnemyThreatCountermeasureFollowUpAIEventRow: View {
+    let event: EnemyThreatCountermeasureFollowUpAIEvent
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("#\(event.order)")
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.white.opacity(0.82))
+                .monospacedDigit()
+                .frame(width: 24, alignment: .leading)
+
+            Text(event.kind.shortCode)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.yellow.opacity(0.92))
+                .frame(width: 28, alignment: .leading)
+
+            Text(event.relation.title)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.black.opacity(0.82))
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(Color.yellow.opacity(0.86), in: RoundedRectangle(cornerRadius: 4))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            Text(event.summary)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.68))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
+        .overlay(
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(Color.yellow.opacity(0.24), lineWidth: 1)
+        )
     }
 }
 

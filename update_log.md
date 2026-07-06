@@ -2029,3 +2029,38 @@
 
 - 本轮只细分执行后的守点复核，不新增 AI 行动归因、不模拟未防守分支、不改变 objectiveDefense 建议排序、score、移动攻击规则或敌方 AI 行为。
 - 下一轮可继续补充据点攻防的敌方行动归因，或强化 AI 复盘与战线态势地图反馈。
+
+### v1.45 / 复核关联 AI 行动
+
+日期：2026-07-07
+
+核心变更：
+
+- `GameModels` 新增 `EnemyThreatCountermeasureFollowUpAIEventRelation` 和 `EnemyThreatCountermeasureFollowUpAIEvent`，让敌方回合复核能保存来自真实 AI 时间线的轻量关联行动。
+- `EnemyThreatCountermeasureFollowUpSummary` 新增 `relatedAIEvents`，据点防守复核会按目标据点坐标、防守单位、原威胁源和受威胁目标从同一 `AIPhaseSummary.timeline` 中保守筛选最多 3 条事件。
+- `GameState` 只读取真实 AI 后 summary 和 timeline，不调用移动、攻击、战术命令、AI 或模拟分支；关联行动只表达“相关真实事件”，不声明精确因果。
+- `ContentView` 的敌方回合复核卡显示“关联AI行动”，每条用现有 `focusAIPhaseTimelineEvent(order:)` 做只读定位，不新增执行入口。
+- 扩展 XCTest 和规则 smoke test，覆盖关联事件 order 来自最新 timeline、kind 合法、威胁源关联存在、成功守点不出现敌方夺取目标据点事件，以及点击关联事件不改变单位、据点、AI summary 或 follow-up。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.45（复核关联AI行动）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只做真实 AI 时间线的保守关联，不做精确逐行动因果归因，不模拟未防守分支，不改变 AI 行为、时间线记录、守点评分或执行规则。
+- 下一轮可继续强化 AI 复盘与战线态势地图反馈，或补充更多据点攻防的非模拟解释。

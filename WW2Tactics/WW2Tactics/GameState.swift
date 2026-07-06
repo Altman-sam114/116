@@ -1723,8 +1723,63 @@ final class GameState: ObservableObject {
             aiTurn: aiSummary.turn,
             conclusion: outcome.conclusion,
             comparisons: outcome.comparisons,
-            objectiveDefenseDetail: outcome.objectiveDefenseDetail
+            objectiveDefenseDetail: outcome.objectiveDefenseDetail,
+            relatedAIEvents: countermeasureFollowUpRelatedAIEvents(from: execution, aiSummary: aiSummary)
         )
+    }
+
+    private func countermeasureFollowUpRelatedAIEvents(
+        from execution: EnemyThreatCountermeasureExecutionResultSummary,
+        aiSummary: AIPhaseSummary
+    ) -> [EnemyThreatCountermeasureFollowUpAIEvent] {
+        guard execution.countermeasureKind == .objectiveDefense else { return [] }
+
+        var seenOrders: Set<Int> = []
+        var relatedEvents: [EnemyThreatCountermeasureFollowUpAIEvent] = []
+
+        func appendIfNeeded(
+            _ event: AIPhaseTimelineEvent,
+            relation: EnemyThreatCountermeasureFollowUpAIEventRelation
+        ) {
+            guard seenOrders.insert(event.order).inserted else { return }
+            relatedEvents.append(
+                EnemyThreatCountermeasureFollowUpAIEvent(
+                    order: event.order,
+                    kind: event.kind,
+                    title: event.kind.title,
+                    summary: event.summary,
+                    coordinate: event.to ?? event.from,
+                    relation: relation
+                )
+            )
+        }
+
+        for event in aiSummary.timeline {
+            if event.to == execution.threatTargetCoordinate ||
+                event.from == execution.threatTargetCoordinate {
+                appendIfNeeded(event, relation: .threatenedObjective)
+                continue
+            }
+
+            if let actingUnitID = execution.actingUnitID,
+               event.actorUnitID == actingUnitID || event.targetUnitID == actingUnitID {
+                appendIfNeeded(event, relation: .actingUnit)
+                continue
+            }
+
+            if event.actorUnitID == execution.threatEnemyUnitID ||
+                event.targetUnitID == execution.threatEnemyUnitID {
+                appendIfNeeded(event, relation: .threatEnemy)
+                continue
+            }
+
+            if let targetUnitID = execution.targetUnitID,
+               event.actorUnitID == targetUnitID || event.targetUnitID == targetUnitID {
+                appendIfNeeded(event, relation: .targetUnit)
+            }
+        }
+
+        return Array(relatedEvents.prefix(3))
     }
 
     private func countermeasureFollowUpOutcome(

@@ -3631,6 +3631,34 @@ struct RulesSmokeTest {
             objectiveFollowUp?.conclusion.contains("进驻已复核") == true,
             "objective follow-up should mention the reviewed defense action"
         )
+        let objectiveTimeline = objectiveGame.latestAIPhaseSummary?.timeline ?? []
+        let objectiveTimelineOrders = Set(objectiveTimeline.map(\.order))
+        require(
+            objectiveFollowUp?.relatedAIEvents.isEmpty == false,
+            "objective follow-up should expose related AI timeline events"
+        )
+        objectiveFollowUp?.relatedAIEvents.forEach { relatedEvent in
+            require(
+                objectiveTimelineOrders.contains(relatedEvent.order),
+                "objective follow-up related AI event should come from the latest timeline"
+            )
+            require(
+                [.move, .attack, .tacticalCommand, .objectiveCapture, .deployment, .reinforcement].contains(relatedEvent.kind),
+                "objective follow-up related AI event should keep a valid timeline kind"
+            )
+        }
+        require(
+            objectiveFollowUp?.relatedAIEvents.contains(where: { $0.relation == .threatEnemy }) == true,
+            "objective follow-up should associate the original threat enemy with a real AI event"
+        )
+        require(
+            objectiveTimeline.contains(where: {
+                $0.kind == .objectiveCapture &&
+                    $0.to == objectiveAdvice.threatTargetCoordinate &&
+                    $0.newOwner == .axis
+            }) == false,
+            "objective follow-up smoke scenario should not lose the defended objective"
+        )
 
         let reinforceGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))
         guard let reinforceAdvice = countermeasures(in: reinforceGame).first(where: {
