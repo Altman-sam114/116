@@ -5626,6 +5626,16 @@ private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.78))
                     .fixedSize(horizontal: false, vertical: true)
+
+                if let objectiveDefenseDetail = summary.objectiveDefenseDetail {
+                    Label(
+                        "\(objectiveDefenseDetail.title)：\(objectiveDefenseDetail.summary)",
+                        systemImage: "shield.checkered"
+                    )
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.yellow.opacity(0.82))
+                    .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             HStack(spacing: 6) {

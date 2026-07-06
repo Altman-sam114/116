@@ -1807,6 +1807,94 @@ struct EnemyThreatCountermeasureFollowUpComparison: Identifiable, Equatable {
     }
 }
 
+enum EnemyThreatObjectiveDefenseFollowUpAction: String, Identifiable {
+    case occupy
+    case screen
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .occupy: "进驻"
+        case .screen: "封堵"
+        }
+    }
+}
+
+enum EnemyThreatObjectiveDefenseFollowUpResult: String, Identifiable {
+    case occupiedHeld
+    case screenedHeld
+    case heldWithLosses
+    case lostObjective
+    case defenderDestroyed
+    case stillContested
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .occupiedHeld: "进驻守住"
+        case .screenedHeld: "封堵奏效"
+        case .heldWithLosses: "守住但受损"
+        case .lostObjective: "据点失守"
+        case .defenderDestroyed: "防守单位损毁"
+        case .stillContested: "据点未被敌军占领"
+        }
+    }
+
+    var outcomeLevel: EnemyThreatCountermeasureFollowUpOutcomeLevel {
+        switch self {
+        case .occupiedHeld, .screenedHeld:
+            return .effective
+        case .heldWithLosses, .defenderDestroyed, .stillContested:
+            return .partial
+        case .lostObjective:
+            return .failed
+        }
+    }
+}
+
+struct EnemyThreatObjectiveDefenseFollowUpDetail: Equatable {
+    let plannedAction: EnemyThreatObjectiveDefenseFollowUpAction
+    let result: EnemyThreatObjectiveDefenseFollowUpResult
+    let objectiveOwnerBefore: Faction?
+    let objectiveOwnerAfter: Faction?
+    let defenderHPBefore: Int?
+    let defenderHPAfter: Int?
+    let defenderCoordinateAfter: HexCoordinate?
+    let threatEnemyHPAfter: Int?
+    let threatEnemyCoordinateAfter: HexCoordinate?
+    let positionResult: String
+    let threatResult: String
+
+    var title: String {
+        "\(plannedAction.title)：\(result.title)"
+    }
+
+    var summary: String {
+        let ownerText = objectiveOwnerAfter?.title ?? "中立"
+        let defenderText: String
+        if let defenderHPAfter, let defenderCoordinateAfter {
+            defenderText = "防守单位 HP \(defenderHPAfter) @ q\(defenderCoordinateAfter.q),r\(defenderCoordinateAfter.r)"
+        } else {
+            defenderText = "防守单位已不可用"
+        }
+
+        let threatText: String
+        if let threatEnemyHPAfter, let threatEnemyCoordinateAfter {
+            threatText = "威胁源 HP \(threatEnemyHPAfter) @ q\(threatEnemyCoordinateAfter.q),r\(threatEnemyCoordinateAfter.r)"
+        } else {
+            threatText = "威胁源已解除"
+        }
+
+        return "\(ownerText)，\(positionResult)，\(defenderText)，\(threatResult)，\(threatText)"
+    }
+
+    var outcomeLevel: EnemyThreatCountermeasureFollowUpOutcomeLevel {
+        result.outcomeLevel
+    }
+}
+
 struct EnemyThreatCountermeasureFollowUpSummary: Identifiable, Equatable {
     let countermeasureID: String
     let countermeasureKind: EnemyThreatCountermeasureKind
@@ -1823,6 +1911,7 @@ struct EnemyThreatCountermeasureFollowUpSummary: Identifiable, Equatable {
     let aiTurn: Int
     let conclusion: String
     let comparisons: [EnemyThreatCountermeasureFollowUpComparison]
+    let objectiveDefenseDetail: EnemyThreatObjectiveDefenseFollowUpDetail?
 
     var id: String {
         "\(countermeasureID)-follow-up-\(aiFaction.rawValue)-\(aiTurn)-\(coordinate?.id ?? "none")"
@@ -1835,6 +1924,10 @@ struct EnemyThreatCountermeasureFollowUpSummary: Identifiable, Equatable {
     }
 
     var outcomeLevel: EnemyThreatCountermeasureFollowUpOutcomeLevel {
+        if let objectiveDefenseDetail {
+            return objectiveDefenseDetail.outcomeLevel
+        }
+
         let results = comparisons.map(\.result)
         if results.contains(where: { result in
             result.contains("未能") ||

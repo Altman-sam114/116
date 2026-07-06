@@ -1994,3 +1994,38 @@
 
 - 本轮只做最近 5 条响应历史和手动连续查看，不新增自动播放、筛选器、搜索、大型日志或新战斗/AI 规则。
 - 下一轮可细化据点防守执行后的敌方回合复核归因，或继续强化 AI 复盘与战线态势地图反馈。
+
+### v1.44 / 据点防守复核细分
+
+日期：2026-07-07
+
+核心变更：
+
+- `GameModels` 新增 `EnemyThreatObjectiveDefenseFollowUpDetail`，为据点防守复核结构化记录进驻/封堵动作、据点归属、防守单位、威胁源、守点位置结果和威胁压迫结果。
+- `EnemyThreatCountermeasureFollowUpSummary` 为 `.objectiveDefense` 保留可选细分字段，并优先从结构化结果派生奏效/部分奏效/失败等级；其他反制仍沿用既有 comparisons 派生逻辑。
+- `GameState` 的据点防守复核新增“守点位置”和“威胁来源”对照，结论会说明进驻或封堵已复核、目标据点是否仍由盟军控制、威胁源是否仍压迫据点；该复核只读取真实 AI 后状态，不改变反制建议、AI 或执行规则。
+- `ContentView` 的敌方回合复核卡展示据点防守细分摘要，UI 只读展示 `GameState`/`GameModels` 字段，不重算守点规则。
+- 扩展 XCTest 和规则 smoke test，覆盖据点防守复核新增 comparison、结构化 detail、态势响应 leading result 和守点成功但允许防守单位受损的基线。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.44（据点防守复核细分）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只细分执行后的守点复核，不新增 AI 行动归因、不模拟未防守分支、不改变 objectiveDefense 建议排序、score、移动攻击规则或敌方 AI 行为。
+- 下一轮可继续补充据点攻防的敌方行动归因，或强化 AI 复盘与战线态势地图反馈。

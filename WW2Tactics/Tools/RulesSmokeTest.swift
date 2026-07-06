@@ -3605,11 +3605,31 @@ struct RulesSmokeTest {
             in: objectiveGame,
             for: objectiveAdvice,
             executionKind: .move,
-            comparisonTitles: ["据点归属", "防守单位", "AI总览"]
+            comparisonTitles: ["据点归属", "守点位置", "威胁来源", "防守单位", "AI总览"]
         )
         require(
             objectiveFollowUp?.focusTargets.contains(where: { $0.coordinate == objectiveAdvice.threatTargetCoordinate }) == true,
             "objective follow-up should expose objective coordinate focus"
+        )
+        require(
+            objectiveFollowUp?.objectiveDefenseDetail?.plannedAction == .occupy,
+            "objective follow-up should classify the executed defense action"
+        )
+        require(
+            objectiveFollowUp?.objectiveDefenseDetail?.objectiveOwnerAfter == .allies,
+            "objective follow-up should classify the successful objective hold"
+        )
+        require(
+            objectiveFollowUp?.objectiveDefenseDetail?.result != .lostObjective,
+            "objective follow-up should not classify the successful hold as lost"
+        )
+        require(
+            objectiveFollowUp?.comparisons.first?.result == "据点守住",
+            "objective follow-up should keep objective ownership as the leading result"
+        )
+        require(
+            objectiveFollowUp?.conclusion.contains("进驻已复核") == true,
+            "objective follow-up should mention the reviewed defense action"
         )
 
         let reinforceGame = GameState(scenario: enemyThreatFollowUpScenario(axisSpent: true))

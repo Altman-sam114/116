@@ -1722,14 +1722,19 @@ final class GameState: ObservableObject {
             aiFaction: aiSummary.faction,
             aiTurn: aiSummary.turn,
             conclusion: outcome.conclusion,
-            comparisons: outcome.comparisons
+            comparisons: outcome.comparisons,
+            objectiveDefenseDetail: outcome.objectiveDefenseDetail
         )
     }
 
     private func countermeasureFollowUpOutcome(
         from baseline: EnemyThreatCountermeasureFollowUpBaseline,
         aiSummary: AIPhaseSummary
-    ) -> (conclusion: String, comparisons: [EnemyThreatCountermeasureFollowUpComparison]) {
+    ) -> (
+        conclusion: String,
+        comparisons: [EnemyThreatCountermeasureFollowUpComparison],
+        objectiveDefenseDetail: EnemyThreatObjectiveDefenseFollowUpDetail?
+    ) {
         let execution = baseline.execution
         let threatAfter = currentUnit(matching: baseline.threatEnemyUnit)
         let trackedBefore = baseline.targetUnit ?? baseline.actingUnit
@@ -1737,6 +1742,7 @@ final class GameState: ObservableObject {
         let actingAfter = currentUnit(matching: baseline.actingUnit)
         let objectiveOwnerAfter = tile(at: execution.threatTargetCoordinate)?.owner
         var comparisons: [EnemyThreatCountermeasureFollowUpComparison]
+        var objectiveDefenseDetail: EnemyThreatObjectiveDefenseFollowUpDetail?
         let conclusion: String
 
         switch execution.countermeasureKind {
@@ -1792,6 +1798,37 @@ final class GameState: ObservableObject {
         case .objectiveDefense:
             let ownerResult = objectiveOwnerAfter == .allies ? "据点守住" :
                 (objectiveOwnerAfter == .axis ? "据点失守" : "据点未被敌军占领")
+            let plannedAction: EnemyThreatObjectiveDefenseFollowUpAction =
+                execution.coordinate == execution.threatTargetCoordinate ? .occupy : .screen
+            let positionResult = followUpObjectiveDefensePositionResult(
+                action: plannedAction,
+                executionCoordinate: execution.coordinate,
+                objectiveCoordinate: execution.threatTargetCoordinate,
+                defender: actingAfter
+            )
+            let threatResult = followUpObjectiveThreatResult(
+                threat: threatAfter,
+                objectiveCoordinate: execution.threatTargetCoordinate
+            )
+            let defenseResult = followUpObjectiveDefenseResult(
+                action: plannedAction,
+                ownerAfter: objectiveOwnerAfter,
+                defenderBefore: baseline.actingUnit,
+                defenderAfter: actingAfter
+            )
+            objectiveDefenseDetail = EnemyThreatObjectiveDefenseFollowUpDetail(
+                plannedAction: plannedAction,
+                result: defenseResult,
+                objectiveOwnerBefore: baseline.objectiveOwner,
+                objectiveOwnerAfter: objectiveOwnerAfter,
+                defenderHPBefore: baseline.actingUnit?.hp,
+                defenderHPAfter: actingAfter.map { max(0, $0.hp) },
+                defenderCoordinateAfter: actingAfter?.isDestroyed == false ? actingAfter?.position : nil,
+                threatEnemyHPAfter: threatAfter.map { max(0, $0.hp) },
+                threatEnemyCoordinateAfter: threatAfter?.isDestroyed == false ? threatAfter?.position : nil,
+                positionResult: positionResult,
+                threatResult: threatResult
+            )
             comparisons = [
                 EnemyThreatCountermeasureFollowUpComparison(
                     kind: .objective,
@@ -1801,6 +1838,20 @@ final class GameState: ObservableObject {
                     result: ownerResult
                 ),
                 EnemyThreatCountermeasureFollowUpComparison(
+                    kind: .position,
+                    title: "守点位置",
+                    beforeEnemyPhase: execution.coordinate.map(coordinateText) ?? "未移动",
+                    afterEnemyPhase: followUpStatusText(actingAfter),
+                    result: positionResult
+                ),
+                EnemyThreatCountermeasureFollowUpComparison(
+                    kind: .enemyHP,
+                    title: "威胁来源",
+                    beforeEnemyPhase: followUpStatusText(baseline.threatEnemyUnit),
+                    afterEnemyPhase: followUpStatusText(threatAfter),
+                    result: threatResult
+                ),
+                EnemyThreatCountermeasureFollowUpComparison(
                     kind: .survival,
                     title: "防守单位",
                     beforeEnemyPhase: followUpStatusText(baseline.actingUnit),
@@ -1808,9 +1859,11 @@ final class GameState: ObservableObject {
                     result: followUpSurvivalResult(before: baseline.actingUnit, after: actingAfter)
                 )
             ]
-            conclusion = objectiveOwnerAfter == .allies ?
-                "据点防守后，目标据点仍由盟军控制。" :
-                "据点防守后，目标据点归属已变化。"
+            if objectiveOwnerAfter == .allies {
+                conclusion = "据点防守后，\(plannedAction.title)已复核，目标据点仍由盟军控制，\(threatResult)。"
+            } else {
+                conclusion = "据点防守后，\(plannedAction.title)已复核，目标据点归属已变化，\(threatResult)。"
+            }
         case .reinforce:
             comparisons = [
                 EnemyThreatCountermeasureFollowUpComparison(
@@ -1847,7 +1900,7 @@ final class GameState: ObservableObject {
             )
         )
 
-        return (conclusion, comparisons)
+        return (conclusion, comparisons, objectiveDefenseDetail)
     }
 
     private func currentUnit(
@@ -1900,6 +1953,53 @@ final class GameState: ObservableObject {
         return threat.position.distance(to: target.position) <= threat.range ?
             "仍在原威胁射程" :
             "避开原威胁射程"
+    }
+
+    private func followUpObjectiveThreatResult(
+        threat: BattleUnit?,
+        objectiveCoordinate: HexCoordinate
+    ) -> String {
+        guard let threat, !threat.isDestroyed else { return "威胁源已解除" }
+        return threat.position.distance(to: objectiveCoordinate) <= threat.range ?
+            "仍压迫据点" :
+            "已脱离据点威胁"
+    }
+
+    private func followUpObjectiveDefensePositionResult(
+        action: EnemyThreatObjectiveDefenseFollowUpAction,
+        executionCoordinate: HexCoordinate?,
+        objectiveCoordinate: HexCoordinate,
+        defender: BattleUnit?
+    ) -> String {
+        guard let defender, !defender.isDestroyed else { return "防守单位已被击毁" }
+        switch action {
+        case .occupy:
+            return defender.position == objectiveCoordinate ? "进驻守点到位" : "已离开守点"
+        case .screen:
+            guard let executionCoordinate else { return "封堵位未记录" }
+            return defender.position == executionCoordinate ? "封堵线仍在" : "防线脱节"
+        }
+    }
+
+    private func followUpObjectiveDefenseResult(
+        action: EnemyThreatObjectiveDefenseFollowUpAction,
+        ownerAfter: Faction?,
+        defenderBefore: EnemyThreatCountermeasureFollowUpUnitSnapshot?,
+        defenderAfter: BattleUnit?
+    ) -> EnemyThreatObjectiveDefenseFollowUpResult {
+        if ownerAfter == .axis {
+            return .lostObjective
+        }
+        guard let defenderAfter, !defenderAfter.isDestroyed else {
+            return .defenderDestroyed
+        }
+        if let defenderBefore, max(0, defenderAfter.hp) < defenderBefore.hp {
+            return .heldWithLosses
+        }
+        if ownerAfter == .allies {
+            return action == .occupy ? .occupiedHeld : .screenedHeld
+        }
+        return .stillContested
     }
 
     private func ownerText(_ owner: Faction?) -> String {

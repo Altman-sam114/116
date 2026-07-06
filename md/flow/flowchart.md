@@ -11,9 +11,9 @@ flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusBattlefieldSituationPrimaryTarget / focusBattlefieldSituationResponseTarget / focusPreviousBattlefieldSituationResponse / focusNextBattlefieldSituationResponse / focusBattlefieldSituationReplayTarget / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback"]
   I --> S["GameState：核心状态机"]
-  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BattlefieldSituationSummary/FocusTarget/ActionHint/ResponseSummary/ResponseHistoryEntry/ResponseMapMarker/ReplayTarget、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、战线态势首要定位/响应历史导航/响应定位/下一步提示/执行反馈/普通行动响应/敌方回合影响/AI关键复盘定位、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核、复核等级、复核目标定位"]
-  R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、焦点坐标、消息、攻击/战术/占领/后勤结果、反制回放、敌方回合复核、最近5条态势响应历史、当前响应order、AI回合摘要、行动时间线、当前复盘order、播放状态/速度、战报、胜负"]
+  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BattlefieldSituationSummary/FocusTarget/ActionHint/ResponseSummary/ResponseHistoryEntry/ResponseMapMarker/ReplayTarget、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary/ObjectiveDefenseFollowUpDetail、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、战线态势首要定位/响应历史导航/响应定位/下一步提示/执行反馈/普通行动响应/敌方回合影响/AI关键复盘定位、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核、据点防守复核细分、复核等级、复核目标定位"]
+  R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、焦点坐标、消息、攻击/战术/占领/后勤结果、反制回放、敌方回合复核、据点防守复核细分、最近5条态势响应历史、当前响应order、AI回合摘要、行动时间线、当前复盘order、播放状态/速度、战报、胜负"]
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
   EI --> EC["只读建议：EnemyThreatCountermeasurePreview 抢先打击 / 撤退 / 守点 / 整补"]
   EC --> BM["只读收益：战果 / 生存 / 守点 / 恢复 / 路线 / 优先值"]
@@ -24,7 +24,7 @@ flowchart TD
   EC --> BS["只读态势：指令 / 待命 / 据点 / 威胁 / 反制 / 首要建议"]
   EB --> XR["真实执行后回放：预计 / 实际 / 结果"]
   XR --> BR["态势响应反馈快照：敌方回合影响 / 最近反制执行 / 据点占领结果 / 普通攻击 / 战术命令 / 部署 / 整补"]
-  XR --> FV["敌方回合后复核：HP / 位置 / 据点 / 威胁源 / 奏效等级 / 定位目标"]
+  XR --> FV["敌方回合后复核：HP / 位置 / 据点 / 威胁源 / 守点进驻或封堵 / 奏效等级 / 定位目标"]
   FV --> BR
   CAP["据点占领结果：奖励 / 归属 / 进度"] --> BR
   ORD["普通成功行动结果：攻击 / 战术命令 / 部署 / 整补"] --> BR
@@ -121,7 +121,7 @@ flowchart LR
   CTR --> EBP["EnemyThreatCountermeasureExecutionPreview 执行入口桥接"]
   CTR --> ERP["ExecutionResultSummary 真实执行回放"]
   ERP --> BRS
-  ERP --> FUP["FollowUpSummary 敌方回合复核 / 结论等级 / 定位目标"]
+  ERP --> FUP["FollowUpSummary 敌方回合复核 / 据点防守细分 / 结论等级 / 定位目标"]
   FUP --> BRS
   MV --> RP["RouteStepPreview 步序、消耗、控制区、敌火"]
   MV --> PM["PostMoveAttackPreview 移动后伤害、反击、击毁"]

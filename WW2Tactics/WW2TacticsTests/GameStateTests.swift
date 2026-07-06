@@ -3078,6 +3078,41 @@ final class GameStateTests: XCTestCase {
         XCTAssertNotEqual(game.battlefieldSituationResponseSummary?.kind, .countermeasureFollowUp)
     }
 
+    func testBattlefieldSituationResponseSummarizesObjectiveDefenseFollowUpDetail() throws {
+        let game = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
+        let objectiveDefense = try XCTUnwrap(game.enemyThreatCountermeasurePreviews(
+            for: game.enemyThreatIntentPreviews(against: .allies, limit: 10),
+            limit: 10
+        ).first {
+            $0.kind == .objectiveDefense &&
+                $0.targetName == "后方油库"
+        })
+
+        game.focusEnemyThreatCountermeasure(objectiveDefense)
+        game.executeFocusedCommand()
+        game.endTurn()
+
+        let followUp = try XCTUnwrap(game.latestEnemyThreatCountermeasureFollowUpResult)
+        let detail = try XCTUnwrap(followUp.objectiveDefenseDetail)
+        let response = try XCTUnwrap(game.battlefieldSituationResponseSummary)
+
+        XCTAssertEqual(response.kind, .countermeasureFollowUp)
+        XCTAssertEqual(followUp.countermeasureKind, .objectiveDefense)
+        XCTAssertEqual(detail.plannedAction, .occupy)
+        XCTAssertEqual(detail.objectiveOwnerAfter, .allies)
+        XCTAssertNotEqual(detail.result, .lostObjective)
+        XCTAssertEqual(response.title, "\(followUp.outcomeLevel.title)：\(followUp.countermeasureKind.title)")
+        XCTAssertEqual(response.resultTitle, "据点归属 据点守住")
+        XCTAssertEqual(response.coordinate, followUp.coordinate ?? followUp.threatTargetCoordinate)
+        XCTAssertTrue(response.detail.contains("后方油库"))
+        XCTAssertTrue(response.detail.contains("进驻已复核"))
+        assertBattlefieldSituationResponseMapMarker(
+            game.battlefieldSituationResponseMapMarker,
+            matches: response,
+            kind: .countermeasureFollowUp
+        )
+    }
+
     func testEnemyThreatCountermeasuresCoverActionsLimitAndReadOnly() throws {
         let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
         let startingFaction = game.activeFaction
@@ -3779,10 +3814,26 @@ final class GameStateTests: XCTestCase {
             in: objectiveDefenseGame,
             for: objectiveDefense,
             executionKind: .move,
-            comparisonTitles: ["据点归属", "防守单位", "AI总览"]
+            comparisonTitles: ["据点归属", "守点位置", "威胁来源", "防守单位", "AI总览"]
         )
         XCTAssertEqual(objectiveFollowUp.threatTargetCoordinate, objectiveDefense.threatTargetCoordinate)
         XCTAssertTrue(objectiveFollowUp.focusTargets.contains { $0.coordinate == objectiveDefense.threatTargetCoordinate })
+        XCTAssertEqual(objectiveFollowUp.objectiveDefenseDetail?.plannedAction, .occupy)
+        XCTAssertNotEqual(objectiveFollowUp.objectiveDefenseDetail?.result, .lostObjective)
+        XCTAssertEqual(objectiveFollowUp.objectiveDefenseDetail?.objectiveOwnerBefore, .allies)
+        XCTAssertEqual(objectiveFollowUp.objectiveDefenseDetail?.objectiveOwnerAfter, .allies)
+        XCTAssertEqual(objectiveFollowUp.objectiveDefenseDetail?.positionResult, "进驻守点到位")
+        XCTAssertEqual(objectiveFollowUp.comparisons.first?.result, "据点守住")
+        XCTAssertTrue(objectiveFollowUp.detailSummary.contains("守点位置"))
+        XCTAssertTrue(objectiveFollowUp.conclusion.contains("进驻已复核"))
+        let objectiveDefenseTimeline = try XCTUnwrap(objectiveDefenseGame.latestAIPhaseSummary?.timeline)
+        let axisCapturedObjective = objectiveDefenseTimeline.contains(where: { event in
+            let capturedTarget = event.to == objectiveDefense.threatTargetCoordinate
+            return event.kind == .objectiveCapture &&
+                capturedTarget &&
+                event.newOwner == .axis
+        })
+        XCTAssertFalse(axisCapturedObjective)
 
         let reinforceGame = GameState(scenario: Self.enemyThreatFollowUpScenario(axisSpent: true))
         let reinforce = try XCTUnwrap(countermeasures(in: reinforceGame).first {
