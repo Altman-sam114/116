@@ -1568,7 +1568,10 @@
 - iOS app 源码级 typecheck：通过，退出码 0。
 - 测试模块 emit：通过，退出码 0。
 - `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
-- GitHub Actions artifact：待本轮 push 后由 Agent C 下载核对。
+- GitHub Actions `WW2Tactics CI Results` run `28778275990` / attempt `1`：completed / success。
+- Artifact `ww2tactics-ci-v1.32-main-f6af271-run28778275990-attempt1`：Agent C 已下载到 `/private/tmp/ww2tactics-c-review-28778275990/`，目录大小 `3.0M`。
+- Manifest `commitSha=f6af2718c924577481a31d74f09c23e1f1794e13`、`branch=main`、`runId=28778275990`、`runAttempt=1` 与 `origin/main` 功能提交一致。
+- `ci-failure-summary.md`、`junit.xml`、`static-checks.log`、`rules-smoke.log`、`xcodebuild.log` 和 `WW2Tactics.xcresult` 均已核对；静态检查、规则 smoke 和 Xcode build-for-testing 均为 success，XCTest 执行按当前 CI 策略为 skipped。
 
 遗留事项：
 
