@@ -746,7 +746,6 @@ final class GameState: ObservableObject {
             return
         }
 
-        clearObjectiveGuidance()
         focusedCoordinate = marker.coordinate
         message = "态势响应定位：\(marker.shortTitle) \(marker.title) @ \(coordinateText(marker.coordinate))。"
     }
@@ -760,7 +759,6 @@ final class GameState: ObservableObject {
         focusedBattlefieldSituationResponseOrder = target.order
         if let coordinate = target.response.coordinate,
            tile(at: coordinate) != nil {
-            clearObjectiveGuidance()
             focusedCoordinate = coordinate
             message = "查看态势响应：\(target.response.kind.shortTitle) \(target.response.title) @ \(coordinateText(coordinate))。"
         } else {

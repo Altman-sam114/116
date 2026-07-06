@@ -2945,6 +2945,10 @@ final class GameStateTests: XCTestCase {
         let battleLogBeforeNavigation = game.battleLog
         let latestDeploymentBeforeNavigation = game.latestDeploymentResult
         let latestAIPhaseSummaryBeforeNavigation = game.latestAIPhaseSummary
+        let objectiveUnit = try XCTUnwrap(game.units.first { $0.name == "历史推进装甲" })
+        game.handleTap(on: objectiveUnit.position)
+        game.focusObjectiveAdvanceTarget(coordinate: HexCoordinate(q: 7, r: 0))
+        let guidedObjectiveBeforeNavigation = try XCTUnwrap(game.guidedObjectiveCoordinate)
 
         game.focusPreviousBattlefieldSituationResponse()
 
@@ -2962,6 +2966,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.battleLog, battleLogBeforeNavigation)
         XCTAssertEqual(game.latestDeploymentResult, latestDeploymentBeforeNavigation)
         XCTAssertEqual(game.latestAIPhaseSummary, latestAIPhaseSummaryBeforeNavigation)
+        XCTAssertEqual(game.guidedObjectiveCoordinate, guidedObjectiveBeforeNavigation)
 
         while game.canFocusPreviousBattlefieldSituationResponse {
             game.focusPreviousBattlefieldSituationResponse()
@@ -2982,6 +2987,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.scenario.tiles, tilesBeforeNavigation)
         XCTAssertEqual(game.commandPoints, commandPointsBeforeNavigation)
         XCTAssertEqual(game.battleLog, battleLogBeforeNavigation)
+        XCTAssertEqual(game.guidedObjectiveCoordinate, guidedObjectiveBeforeNavigation)
 
         while game.canFocusNextBattlefieldSituationResponse {
             game.focusNextBattlefieldSituationResponse()
@@ -4984,13 +4990,18 @@ final class GameStateTests: XCTestCase {
 
     private static func responseHistoryDeploymentScenario() -> Scenario {
         var tiles: [TerrainTile] = []
-        for q in 0..<7 {
+        for q in 0..<9 {
             var tile = TerrainTile(
                 coordinate: HexCoordinate(q: q, r: 0),
                 terrain: .plains
             )
-            tile.objectiveName = q == 6 ? "轴心阻滞点" : "响应补给\(q + 1)"
-            tile.owner = q == 6 ? .axis : .allies
+            if q <= 6 {
+                tile.objectiveName = "响应补给\(q + 1)"
+                tile.owner = .allies
+            } else if q == 7 {
+                tile.objectiveName = "轴心阻滞点"
+                tile.owner = .axis
+            }
             tiles.append(tile)
         }
 
@@ -5000,15 +5011,23 @@ final class GameStateTests: XCTestCase {
             year: "1944",
             briefing: "测试最近态势响应历史的裁剪和连续查看。",
             initialFocus: HexCoordinate(q: 0, r: 0),
-            mapColumns: 7,
+            mapColumns: 9,
             mapRows: 1,
             tiles: tiles,
             units: [
                 BattleUnit(
+                    name: "历史推进装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
                     name: "历史测试守军",
                     kind: .infantry,
                     faction: .axis,
-                    position: HexCoordinate(q: 6, r: 0),
+                    position: HexCoordinate(q: 8, r: 0),
                     hp: UnitKind.infantry.baseHP,
                     commander: nil
                 )
