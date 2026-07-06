@@ -2054,6 +2054,15 @@ struct BattlefieldSituationResponseSummary: Identifiable, Equatable {
     }
 }
 
+struct BattlefieldSituationResponseHistoryEntry: Identifiable, Equatable {
+    let order: Int
+    let response: BattlefieldSituationResponseSummary
+
+    var id: String {
+        "\(order)-\(response.id)"
+    }
+}
+
 struct BattlefieldSituationResponseMapMarker: Identifiable, Equatable {
     let kind: BattlefieldSituationResponseKind
     let coordinate: HexCoordinate

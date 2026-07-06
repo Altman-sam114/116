@@ -1958,3 +1958,38 @@
 
 - 本轮只解释当前守点建议为什么进驻或封堵，不改变守点候选选择、score、排序、聚焦、执行桥接、真实 MOVE 或 AI 行为。
 - 下一轮可处理态势响应连续查看，或细化据点防守执行后的敌方回合复核归因。
+
+### v1.43 / 态势响应连续查看
+
+日期：2026-07-06
+
+核心变更：
+
+- `GameModels` 新增 `BattlefieldSituationResponseHistoryEntry`，用稳定 order 保存态势响应摘要快照。
+- `GameState` 新增最近 5 条态势响应历史、当前查看响应 order、历史追加/裁剪/清空和上一条/下一条导航；真实攻击、战术命令、占点、部署、整补、反制执行和反制敌方回合复核成功发布点会追加响应历史。
+- `battlefieldSituationResponseSummary` 和 `battlefieldSituationResponseMapMarker` 改为从当前查看的历史响应派生；普通移动、预览、聚焦和失败命令不追加历史；重开/切战役会清空历史。
+- `ContentView` 的战线态势响应卡显示历史位置，并提供上一条/下一条按钮；响应定位和地图 RSP 标记跟随当前查看的历史响应。
+- 扩展 XCTest 和规则 smoke test，覆盖最近 5 条容量裁剪、上一条/下一条只读导航、marker 跟随当前响应、普通移动/失败部署不追加历史和 restart 清理历史。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.43（态势响应连续查看）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只做最近 5 条响应历史和手动连续查看，不新增自动播放、筛选器、搜索、大型日志或新战斗/AI 规则。
+- 下一轮可细化据点防守执行后的敌方回合复核归因，或继续强化 AI 复盘与战线态势地图反馈。

@@ -21,6 +21,8 @@ final class GameState: ObservableObject {
     @Published private(set) var latestReinforcementResult: ReinforcementResultSummary?
     @Published private(set) var latestEnemyThreatCountermeasureExecutionResult: EnemyThreatCountermeasureExecutionResultSummary?
     @Published private(set) var latestEnemyThreatCountermeasureFollowUpResult: EnemyThreatCountermeasureFollowUpSummary?
+    @Published private(set) var battlefieldSituationResponseHistory: [BattlefieldSituationResponseHistoryEntry] = []
+    @Published private(set) var focusedBattlefieldSituationResponseOrder: Int?
     @Published private(set) var latestAIPhaseSummary: AIPhaseSummary?
     @Published private(set) var focusedAIPhaseTimelineEventOrder: Int?
     @Published private(set) var isAIPhaseTimelinePlaybackActive = false
@@ -103,7 +105,9 @@ final class GameState: ObservableObject {
     private var activeAIPhaseActionCounts = AIPhaseActionCounts()
     private var activeAIPhaseTimeline: [AIPhaseTimelineEvent] = []
     private var pendingEnemyThreatCountermeasureFollowUpBaseline: EnemyThreatCountermeasureFollowUpBaseline?
+    private var nextBattlefieldSituationResponseOrder = 1
 
+    private static let battlefieldSituationResponseHistoryLimit = 5
     private static let objectiveCaptureCommandReward = 3
     private static let objectiveCaptureMoraleReward = 8
     private static let objectiveCaptureExperienceReward = 10
@@ -338,6 +342,31 @@ final class GameState: ObservableObject {
     }
 
     var battlefieldSituationResponseSummary: BattlefieldSituationResponseSummary? {
+        focusedBattlefieldSituationResponseEntry?.response
+    }
+
+    var focusedBattlefieldSituationResponseEntry: BattlefieldSituationResponseHistoryEntry? {
+        guard let focusedBattlefieldSituationResponseOrder else {
+            return battlefieldSituationResponseHistory.last
+        }
+        return battlefieldSituationResponseHistory.first { $0.order == focusedBattlefieldSituationResponseOrder }
+    }
+
+    var battlefieldSituationResponseHistoryPositionText: String? {
+        guard let entry = focusedBattlefieldSituationResponseEntry,
+              let index = battlefieldSituationResponseHistory.firstIndex(where: { $0.order == entry.order }) else { return nil }
+        return "\(index + 1)/\(battlefieldSituationResponseHistory.count)"
+    }
+
+    var canFocusPreviousBattlefieldSituationResponse: Bool {
+        battlefieldSituationResponseNavigationTarget(offset: -1) != nil
+    }
+
+    var canFocusNextBattlefieldSituationResponse: Bool {
+        battlefieldSituationResponseNavigationTarget(offset: 1) != nil
+    }
+
+    private var latestBattlefieldSituationResponseSummary: BattlefieldSituationResponseSummary? {
         if let followUpResult = latestEnemyThreatCountermeasureFollowUpResult {
             return battlefieldSituationCountermeasureFollowUpResponseSummary(followUpResult)
         }
@@ -380,6 +409,18 @@ final class GameState: ObservableObject {
             resultTitle: response.resultTitle,
             resultDetail: response.resultDetail
         )
+    }
+
+    private func battlefieldSituationResponseNavigationTarget(
+        offset: Int
+    ) -> BattlefieldSituationResponseHistoryEntry? {
+        guard offset != 0,
+              let entry = focusedBattlefieldSituationResponseEntry,
+              let index = battlefieldSituationResponseHistory.firstIndex(where: { $0.order == entry.order }) else { return nil }
+
+        let targetIndex = index + offset
+        guard battlefieldSituationResponseHistory.indices.contains(targetIndex) else { return nil }
+        return battlefieldSituationResponseHistory[targetIndex]
     }
 
     var objectiveTiles: [TerrainTile] {
@@ -686,6 +727,14 @@ final class GameState: ObservableObject {
         focusAIPhaseTimelineEvent(order: replayTarget.order)
     }
 
+    func focusPreviousBattlefieldSituationResponse() {
+        focusBattlefieldSituationResponseHistory(offset: -1)
+    }
+
+    func focusNextBattlefieldSituationResponse() {
+        focusBattlefieldSituationResponseHistory(offset: 1)
+    }
+
     func focusBattlefieldSituationResponseTarget() {
         guard let marker = battlefieldSituationResponseMapMarker else {
             message = "战线态势暂无可定位的响应标记。"
@@ -700,6 +749,23 @@ final class GameState: ObservableObject {
         clearObjectiveGuidance()
         focusedCoordinate = marker.coordinate
         message = "态势响应定位：\(marker.shortTitle) \(marker.title) @ \(coordinateText(marker.coordinate))。"
+    }
+
+    private func focusBattlefieldSituationResponseHistory(offset: Int) {
+        guard let target = battlefieldSituationResponseNavigationTarget(offset: offset) else {
+            message = offset < 0 ? "已经是最早的态势响应。" : "已经是最新的态势响应。"
+            return
+        }
+
+        focusedBattlefieldSituationResponseOrder = target.order
+        if let coordinate = target.response.coordinate,
+           tile(at: coordinate) != nil {
+            clearObjectiveGuidance()
+            focusedCoordinate = coordinate
+            message = "查看态势响应：\(target.response.kind.shortTitle) \(target.response.title) @ \(coordinateText(coordinate))。"
+        } else {
+            message = "查看态势响应：\(target.response.kind.shortTitle) \(target.response.title)，坐标已不可定位。"
+        }
     }
 
     func focusAIPhaseTimelineEvent(order: Int) {
@@ -1464,6 +1530,7 @@ final class GameState: ObservableObject {
             coordinate: enemyCoordinate,
             comparisons: comparisons
         )
+        recordLatestBattlefieldSituationResponse()
     }
 
     private func publishCountermeasureMoveExecutionResult(
@@ -1531,6 +1598,7 @@ final class GameState: ObservableObject {
             coordinate: movedUnit.position,
             comparisons: comparisons
         )
+        recordLatestBattlefieldSituationResponse()
     }
 
     private func publishCountermeasureReinforceExecutionResult(
@@ -1563,6 +1631,7 @@ final class GameState: ObservableObject {
             coordinate: reinforcementResult.coordinate,
             comparisons: comparisons
         )
+        recordLatestBattlefieldSituationResponse()
     }
 
     private func countermeasureExecutionResultSummary(
@@ -1616,6 +1685,7 @@ final class GameState: ObservableObject {
             from: baseline,
             aiSummary: aiSummary
         )
+        recordLatestBattlefieldSituationResponse()
         pendingEnemyThreatCountermeasureFollowUpBaseline = nil
     }
 
@@ -2081,6 +2151,7 @@ final class GameState: ObservableObject {
             latestReinforcementResult = nil
             latestEnemyThreatCountermeasureExecutionResult = nil
             latestEnemyThreatCountermeasureFollowUpResult = nil
+            recordLatestBattlefieldSituationResponse()
             recordAIPhaseTimelineEvent(
                 kind: .tacticalCommand,
                 actorUnitID: finalCaster.id,
@@ -2636,7 +2707,10 @@ final class GameState: ObservableObject {
             executionKind: .reinforce,
             coordinate: unit.position
         )
-        reinforce(unitID: unit.id)
+        reinforce(
+            unitID: unit.id,
+            recordsBattlefieldSituationResponse: countermeasureExecution == nil
+        )
         if let countermeasureExecution {
             publishCountermeasureReinforceExecutionResult(for: countermeasureExecution)
         }
@@ -2681,6 +2755,7 @@ final class GameState: ObservableObject {
         latestReinforcementResult = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
         latestEnemyThreatCountermeasureFollowUpResult = nil
+        recordLatestBattlefieldSituationResponse()
         recordAIPhaseTimelineEvent(
             kind: .deployment,
             actorUnitID: unit.id,
@@ -2886,7 +2961,11 @@ final class GameState: ObservableObject {
                 executionKind: .attack,
                 coordinate: coordinate
             )
-            attack(attackerID: attacker.id, targetID: target.id)
+            attack(
+                attackerID: attacker.id,
+                targetID: target.id,
+                recordsBattlefieldSituationResponse: countermeasureExecution == nil
+            )
             if let countermeasureExecution {
                 publishCountermeasureAttackExecutionResult(for: countermeasureExecution)
             }
@@ -4047,6 +4126,32 @@ final class GameState: ObservableObject {
         )
     }
 
+    private func recordLatestBattlefieldSituationResponse() {
+        guard let response = latestBattlefieldSituationResponseSummary else { return }
+        recordBattlefieldSituationResponse(response)
+    }
+
+    private func recordBattlefieldSituationResponse(_ response: BattlefieldSituationResponseSummary) {
+        let entry = BattlefieldSituationResponseHistoryEntry(
+            order: nextBattlefieldSituationResponseOrder,
+            response: response
+        )
+        nextBattlefieldSituationResponseOrder += 1
+        battlefieldSituationResponseHistory.append(entry)
+        if battlefieldSituationResponseHistory.count > Self.battlefieldSituationResponseHistoryLimit {
+            battlefieldSituationResponseHistory.removeFirst(
+                battlefieldSituationResponseHistory.count - Self.battlefieldSituationResponseHistoryLimit
+            )
+        }
+        focusedBattlefieldSituationResponseOrder = entry.order
+    }
+
+    private func clearBattlefieldSituationResponseHistory() {
+        battlefieldSituationResponseHistory = []
+        focusedBattlefieldSituationResponseOrder = nil
+        nextBattlefieldSituationResponseOrder = 1
+    }
+
     private func battlefieldSituationCountermeasureFollowUpResponseSummary(
         _ result: EnemyThreatCountermeasureFollowUpSummary
     ) -> BattlefieldSituationResponseSummary {
@@ -4572,6 +4677,7 @@ final class GameState: ObservableObject {
         latestReinforcementResult = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
         latestEnemyThreatCountermeasureFollowUpResult = nil
+        clearBattlefieldSituationResponseHistory()
         latestAIPhaseSummary = nil
         focusedAIPhaseTimelineEventOrder = nil
         isAIPhaseTimelinePlaybackActive = false
@@ -4670,7 +4776,11 @@ final class GameState: ObservableObject {
         return false
     }
 
-    private func attack(attackerID: BattleUnit.ID, targetID: BattleUnit.ID) {
+    private func attack(
+        attackerID: BattleUnit.ID,
+        targetID: BattleUnit.ID,
+        recordsBattlefieldSituationResponse: Bool = true
+    ) {
         guard let attackerIndex = scenario.units.firstIndex(where: { $0.id == attackerID }),
               let targetIndex = scenario.units.firstIndex(where: { $0.id == targetID }) else { return }
 
@@ -4731,6 +4841,9 @@ final class GameState: ObservableObject {
             latestReinforcementResult = nil
             latestEnemyThreatCountermeasureExecutionResult = nil
             latestEnemyThreatCountermeasureFollowUpResult = nil
+            if recordsBattlefieldSituationResponse {
+                recordLatestBattlefieldSituationResponse()
+            }
             recordAIPhaseTimelineEvent(
                 kind: .attack,
                 actorUnitID: finalAttacker.id,
@@ -4829,7 +4942,10 @@ final class GameState: ObservableObject {
         defender.isEntrenched ? Self.entrenchedDamageMultiplierPercent : 100
     }
 
-    private func reinforce(unitID: BattleUnit.ID) {
+    private func reinforce(
+        unitID: BattleUnit.ID,
+        recordsBattlefieldSituationResponse: Bool = true
+    ) {
         guard let index = scenario.units.firstIndex(where: { $0.id == unitID }) else { return }
         let unit = scenario.units[index]
         guard canReinforce(unit) else {
@@ -4867,6 +4983,9 @@ final class GameState: ObservableObject {
         latestDeploymentResult = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
         latestEnemyThreatCountermeasureFollowUpResult = nil
+        if recordsBattlefieldSituationResponse {
+            recordLatestBattlefieldSituationResponse()
+        }
         recordAIPhaseTimelineEvent(
             kind: .reinforcement,
             actorUnitID: scenario.units[index].id,
@@ -5571,6 +5690,7 @@ final class GameState: ObservableObject {
         latestReinforcementResult = nil
         latestEnemyThreatCountermeasureExecutionResult = nil
         latestEnemyThreatCountermeasureFollowUpResult = nil
+        recordLatestBattlefieldSituationResponse()
         recordAIPhaseTimelineEvent(
             kind: .objectiveCapture,
             actorUnitID: unit.id,

@@ -2909,6 +2909,95 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(lowPointGame.latestDeploymentResult)
         XCTAssertNil(lowPointGame.battlefieldSituationResponseSummary)
         XCTAssertNil(lowPointGame.battlefieldSituationResponseMapMarker)
+        XCTAssertTrue(lowPointGame.battlefieldSituationResponseHistory.isEmpty)
+        XCTAssertNil(lowPointGame.focusedBattlefieldSituationResponseOrder)
+    }
+
+    func testBattlefieldSituationResponseHistorySupportsContinuousNavigationReadOnly() throws {
+        let game = GameState(
+            scenario: Self.responseHistoryDeploymentScenario(),
+            commandPoints: [.allies: 60, .axis: 6]
+        )
+        let deploymentSites = Array(game.deploymentSites(for: .allies).prefix(6))
+        XCTAssertEqual(deploymentSites.count, 6)
+
+        for (index, site) in deploymentSites.enumerated() {
+            game.deploy(kind: .infantry, at: site.coordinate)
+
+            XCTAssertEqual(game.battlefieldSituationResponseSummary?.kind, .deployment)
+            XCTAssertEqual(game.battlefieldSituationResponseHistory.count, min(index + 1, 5))
+            XCTAssertEqual(
+                game.focusedBattlefieldSituationResponseOrder,
+                game.battlefieldSituationResponseHistory.last?.order
+            )
+            XCTAssertEqual(game.battlefieldSituationResponseHistory.last?.response.coordinate, site.coordinate)
+            XCTAssertEqual(game.battlefieldSituationResponseHistoryPositionText, "\(min(index + 1, 5))/\(min(index + 1, 5))")
+        }
+
+        XCTAssertEqual(game.battlefieldSituationResponseHistory.map(\.order), [2, 3, 4, 5, 6])
+        XCTAssertEqual(game.battlefieldSituationResponseHistory.map(\.response.kind), Array(repeating: .deployment, count: 5))
+        XCTAssertTrue(game.canFocusPreviousBattlefieldSituationResponse)
+        XCTAssertFalse(game.canFocusNextBattlefieldSituationResponse)
+
+        let unitsBeforeNavigation = game.scenario.units
+        let tilesBeforeNavigation = game.scenario.tiles
+        let commandPointsBeforeNavigation = game.commandPoints
+        let battleLogBeforeNavigation = game.battleLog
+        let latestDeploymentBeforeNavigation = game.latestDeploymentResult
+        let latestAIPhaseSummaryBeforeNavigation = game.latestAIPhaseSummary
+
+        game.focusPreviousBattlefieldSituationResponse()
+
+        let previousEntry = game.battlefieldSituationResponseHistory[3]
+        XCTAssertEqual(game.focusedBattlefieldSituationResponseOrder, previousEntry.order)
+        XCTAssertEqual(game.battlefieldSituationResponseSummary, previousEntry.response)
+        XCTAssertEqual(game.battlefieldSituationResponseHistoryPositionText, "4/5")
+        XCTAssertEqual(game.battlefieldSituationResponseMapMarker?.coordinate, previousEntry.response.coordinate)
+        XCTAssertEqual(game.focusedCoordinate, previousEntry.response.coordinate)
+        XCTAssertTrue(game.canFocusPreviousBattlefieldSituationResponse)
+        XCTAssertTrue(game.canFocusNextBattlefieldSituationResponse)
+        XCTAssertEqual(game.scenario.units, unitsBeforeNavigation)
+        XCTAssertEqual(game.scenario.tiles, tilesBeforeNavigation)
+        XCTAssertEqual(game.commandPoints, commandPointsBeforeNavigation)
+        XCTAssertEqual(game.battleLog, battleLogBeforeNavigation)
+        XCTAssertEqual(game.latestDeploymentResult, latestDeploymentBeforeNavigation)
+        XCTAssertEqual(game.latestAIPhaseSummary, latestAIPhaseSummaryBeforeNavigation)
+
+        while game.canFocusPreviousBattlefieldSituationResponse {
+            game.focusPreviousBattlefieldSituationResponse()
+        }
+
+        let oldestEntry = try XCTUnwrap(game.battlefieldSituationResponseHistory.first)
+        XCTAssertEqual(game.focusedBattlefieldSituationResponseOrder, oldestEntry.order)
+        XCTAssertEqual(game.battlefieldSituationResponseSummary, oldestEntry.response)
+        XCTAssertEqual(game.battlefieldSituationResponseHistoryPositionText, "1/5")
+        XCTAssertFalse(game.canFocusPreviousBattlefieldSituationResponse)
+        XCTAssertTrue(game.canFocusNextBattlefieldSituationResponse)
+
+        let marker = try XCTUnwrap(game.battlefieldSituationResponseMapMarker)
+        game.focusBattlefieldSituationResponseTarget()
+        XCTAssertEqual(game.focusedCoordinate, marker.coordinate)
+        XCTAssertTrue(game.message.contains(marker.shortTitle))
+        XCTAssertEqual(game.scenario.units, unitsBeforeNavigation)
+        XCTAssertEqual(game.scenario.tiles, tilesBeforeNavigation)
+        XCTAssertEqual(game.commandPoints, commandPointsBeforeNavigation)
+        XCTAssertEqual(game.battleLog, battleLogBeforeNavigation)
+
+        while game.canFocusNextBattlefieldSituationResponse {
+            game.focusNextBattlefieldSituationResponse()
+        }
+
+        let newestEntry = try XCTUnwrap(game.battlefieldSituationResponseHistory.last)
+        XCTAssertEqual(game.focusedBattlefieldSituationResponseOrder, newestEntry.order)
+        XCTAssertEqual(game.battlefieldSituationResponseSummary, newestEntry.response)
+        XCTAssertEqual(game.battlefieldSituationResponseHistoryPositionText, "5/5")
+
+        game.restart()
+
+        XCTAssertTrue(game.battlefieldSituationResponseHistory.isEmpty)
+        XCTAssertNil(game.focusedBattlefieldSituationResponseOrder)
+        XCTAssertNil(game.battlefieldSituationResponseSummary)
+        XCTAssertNil(game.battlefieldSituationResponseMapMarker)
     }
 
     func testBattlefieldSituationResponseSummarizesCountermeasureFollowUpReadOnly() throws {
@@ -4891,6 +4980,43 @@ final class GameStateTests: XCTestCase {
         case .reinforce:
             return .reinforce
         }
+    }
+
+    private static func responseHistoryDeploymentScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<7 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .plains
+            )
+            tile.objectiveName = q == 6 ? "轴心阻滞点" : "响应补给\(q + 1)"
+            tile.owner = q == 6 ? .axis : .allies
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "response-history-deployment-test",
+            name: "态势响应历史部署测试",
+            year: "1944",
+            briefing: "测试最近态势响应历史的裁剪和连续查看。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 7,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "历史测试守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 6, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
     }
 
     private static func commanderAuraScenario(includeCommander: Bool) -> Scenario {

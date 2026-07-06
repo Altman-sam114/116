@@ -3429,6 +3429,37 @@ struct RulesSmokeTest {
             kind: .reinforcement,
             "ordinary reinforce situation response map marker"
         )
+
+        let historyGame = GameState(
+            scenario: responseHistoryDeploymentScenario(),
+            commandPoints: [.allies: 60, .axis: 6]
+        )
+        let historySites = Array(historyGame.deploymentSites(for: .allies).prefix(6))
+        require(historySites.count == 6, "response history smoke should find six deployment sites")
+        for site in historySites {
+            historyGame.deploy(kind: .infantry, at: site.coordinate)
+            require(historyGame.battlefieldSituationResponseSummary?.kind == .deployment, "response history should focus latest deployment")
+            require(historyGame.focusedBattlefieldSituationResponseOrder == historyGame.battlefieldSituationResponseHistory.last?.order, "response history should focus newest response")
+        }
+        require(historyGame.battlefieldSituationResponseHistory.map(\.order) == [2, 3, 4, 5, 6], "response history should keep newest five entries")
+        require(historyGame.battlefieldSituationResponseHistoryPositionText == "5/5", "response history should expose newest position")
+        require(historyGame.canFocusPreviousBattlefieldSituationResponse, "response history should allow previous navigation")
+        require(!historyGame.canFocusNextBattlefieldSituationResponse, "response history should not navigate beyond newest")
+        let historyUnitsBeforeNavigation = historyGame.units
+        let historyTilesBeforeNavigation = historyGame.scenario.tiles
+        let historyCommandPointsBeforeNavigation = historyGame.commandPoints
+        let historyBattleLogBeforeNavigation = historyGame.battleLog
+        historyGame.focusPreviousBattlefieldSituationResponse()
+        require(historyGame.battlefieldSituationResponseHistoryPositionText == "4/5", "response history previous should update position")
+        require(historyGame.battlefieldSituationResponseSummary == historyGame.battlefieldSituationResponseHistory[3].response, "response history previous should select previous response")
+        require(historyGame.battlefieldSituationResponseMapMarker?.coordinate == historyGame.battlefieldSituationResponseHistory[3].response.coordinate, "response history marker should follow selected response")
+        require(historyGame.units == historyUnitsBeforeNavigation, "response history navigation should not alter units")
+        require(historyGame.scenario.tiles == historyTilesBeforeNavigation, "response history navigation should not alter tiles")
+        require(historyGame.commandPoints == historyCommandPointsBeforeNavigation, "response history navigation should not alter command points")
+        require(historyGame.battleLog == historyBattleLogBeforeNavigation, "response history navigation should not alter battle log")
+        historyGame.restart()
+        require(historyGame.battlefieldSituationResponseHistory.isEmpty, "restart should clear response history")
+        require(historyGame.battlefieldSituationResponseSummary == nil, "restart should clear selected response")
     }
 
     @MainActor
@@ -4835,6 +4866,43 @@ struct RulesSmokeTest {
             mapRows: 2,
             tiles: tiles,
             units: units,
+            turnLimit: 4,
+            decisiveTurnLimit: 2,
+            survivalStarThreshold: 1
+        )
+    }
+
+    private static func responseHistoryDeploymentScenario() -> Scenario {
+        var tiles: [TerrainTile] = []
+        for q in 0..<7 {
+            var tile = TerrainTile(
+                coordinate: HexCoordinate(q: q, r: 0),
+                terrain: .plains
+            )
+            tile.objectiveName = q == 6 ? "轴心阻滞点" : "响应补给\(q + 1)"
+            tile.owner = q == 6 ? .axis : .allies
+            tiles.append(tile)
+        }
+
+        return Scenario(
+            id: "response-history-deployment-smoke",
+            name: "态势响应历史部署测试",
+            year: "1944",
+            briefing: "测试最近态势响应历史的裁剪和连续查看。",
+            initialFocus: HexCoordinate(q: 0, r: 0),
+            mapColumns: 7,
+            mapRows: 1,
+            tiles: tiles,
+            units: [
+                BattleUnit(
+                    name: "历史测试守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 6, r: 0),
+                    hp: UnitKind.infantry.baseHP,
+                    commander: nil
+                )
+            ],
             turnLimit: 4,
             decisiveTurnLimit: 2,
             survivalStarThreshold: 1

@@ -3022,6 +3022,30 @@ private struct BattlefieldSituationSummaryView: View {
                             .foregroundStyle(responseColor.opacity(0.86))
                             .lineLimit(1)
                             .minimumScaleFactor(0.62)
+                        if let positionText = game.battlefieldSituationResponseHistoryPositionText,
+                           game.battlefieldSituationResponseHistory.count > 1 {
+                            HStack(spacing: 6) {
+                                Button("上一条", systemImage: "chevron.left", action: game.focusPreviousBattlefieldSituationResponse)
+                                    .labelStyle(.iconOnly)
+                                    .disabled(!game.canFocusPreviousBattlefieldSituationResponse)
+                                    .accessibilityLabel("查看上一条态势响应")
+
+                                Text(positionText)
+                                    .font(.system(size: 9, weight: .black, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.72))
+                                    .monospacedDigit()
+                                    .frame(minWidth: 24)
+
+                                Button("下一条", systemImage: "chevron.right", action: game.focusNextBattlefieldSituationResponse)
+                                    .labelStyle(.iconOnly)
+                                    .disabled(!game.canFocusNextBattlefieldSituationResponse)
+                                    .accessibilityLabel("查看下一条态势响应")
+                            }
+                            .font(.caption2.weight(.black))
+                            .foregroundStyle(responseColor.opacity(0.90))
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("态势响应历史 \(positionText)")
+                        }
                     }
 
                     if let marker = game.battlefieldSituationResponseMapMarker {
