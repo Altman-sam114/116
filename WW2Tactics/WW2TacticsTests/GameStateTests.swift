@@ -2359,9 +2359,16 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(summary.focusKind, .countermeasure)
         XCTAssertTrue(summary.title.contains("威胁"))
         XCTAssertTrue(summary.detail.contains("可执行反制"))
+        let primaryCountermeasure = try XCTUnwrap(countermeasures.first(where: \.canExecuteNow))
         XCTAssertEqual(summary.primaryFocusTarget?.kind, .countermeasure)
-        XCTAssertEqual(summary.primaryFocusTarget?.countermeasurePreview, countermeasures.first(where: \.canExecuteNow))
+        XCTAssertEqual(summary.primaryFocusTarget?.countermeasurePreview, primaryCountermeasure)
         XCTAssertEqual(summary.primaryFocusTarget?.objectiveAdvancePreview, nil)
+        XCTAssertEqual(
+            summary.primaryFocusTarget?.actionHint.kind,
+            Self.expectedBattlefieldSituationActionKind(for: primaryCountermeasure.kind)
+        )
+        XCTAssertTrue(summary.primaryFocusTarget?.actionHint.entryTitle.isEmpty == false)
+        XCTAssertEqual(summary.primaryFocusTarget?.actionHint.isExecutable, primaryCountermeasure.canExecuteNow)
         XCTAssertEqual(summary.objectiveProgressText, "\(summary.controlledObjectiveCount)/\(summary.totalObjectiveCount)")
         XCTAssertEqual(summary.readinessText, "\(summary.readyUnitCount)/\(summary.totalUnitCount)")
         XCTAssertEqual(summary.metrics.count, 5)
@@ -2400,6 +2407,9 @@ final class GameStateTests: XCTestCase {
         XCTAssertNotNil(summary.primaryFocusTarget?.unitID)
         XCTAssertNotNil(summary.primaryFocusTarget?.objectiveAdvancePreview)
         XCTAssertNil(summary.primaryFocusTarget?.countermeasurePreview)
+        XCTAssertEqual(summary.primaryFocusTarget?.actionHint.kind, .move)
+        XCTAssertTrue(summary.primaryFocusTarget?.actionHint.entryTitle.contains("MOVE") == true)
+        XCTAssertEqual(summary.primaryFocusTarget?.actionHint.isExecutable, true)
     }
 
     func testBattlefieldSituationFocusesPrimaryCountermeasureWithoutExecuting() throws {
@@ -2420,8 +2430,12 @@ final class GameStateTests: XCTestCase {
         game.focusBattlefieldSituationPrimaryTarget()
 
         XCTAssertEqual(target.kind, .countermeasure)
+        XCTAssertEqual(target.actionHint.kind, Self.expectedBattlefieldSituationActionKind(for: preview.kind))
+        XCTAssertTrue(target.actionHint.detail.contains("既有"))
         XCTAssertEqual(game.selectedUnit?.id, preview.actingUnitID)
         XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(preview))
+        let executionPreview = try XCTUnwrap(game.focusedEnemyThreatCountermeasureExecutionPreview)
+        XCTAssertEqual(executionPreview.kind, Self.expectedCountermeasureExecutionKind(for: preview.kind))
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
         XCTAssertEqual(game.scenario.units, startingUnits)
@@ -2456,6 +2470,8 @@ final class GameStateTests: XCTestCase {
         game.focusBattlefieldSituationPrimaryTarget()
 
         XCTAssertEqual(target.kind, .objectiveAdvance)
+        XCTAssertEqual(target.actionHint.kind, .move)
+        XCTAssertTrue(target.actionHint.entryTitle.contains("MOVE"))
         XCTAssertEqual(game.selectedUnit?.id, unitID)
         XCTAssertEqual(game.focusedCoordinate, preview.reachesObjective ? preview.coordinate : preview.route.destination)
         XCTAssertEqual(game.guidedObjectiveCoordinate, preview.coordinate)
@@ -4329,6 +4345,32 @@ final class GameStateTests: XCTestCase {
             XCTAssertEqual(game.turn, startingTurn + 1)
         } else {
             XCTAssertNotNil(game.winner)
+        }
+    }
+
+    private static func expectedBattlefieldSituationActionKind(
+        for kind: EnemyThreatCountermeasureKind
+    ) -> BattlefieldSituationActionHintKind {
+        switch kind {
+        case .firstStrike:
+            return .attack
+        case .withdraw, .objectiveDefense:
+            return .move
+        case .reinforce:
+            return .reinforce
+        }
+    }
+
+    private static func expectedCountermeasureExecutionKind(
+        for kind: EnemyThreatCountermeasureKind
+    ) -> EnemyThreatCountermeasureExecutionKind {
+        switch kind {
+        case .firstStrike:
+            return .attack
+        case .withdraw, .objectiveDefense:
+            return .move
+        case .reinforce:
+            return .reinforce
         }
     }
 

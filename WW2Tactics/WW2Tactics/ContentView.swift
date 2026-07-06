@@ -2912,11 +2912,16 @@ private struct BattlefieldSituationSummaryView: View {
                                 .foregroundStyle(.white.opacity(0.58))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.66)
+                            Label(target.actionHint.entryTitle, systemImage: target.actionHint.kind.iconName)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(priorityColor.opacity(target.actionHint.isExecutable ? 0.92 : 0.58))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.62)
                         }
 
                         Spacer(minLength: 4)
 
-                        Text(target.kind.shortTitle)
+                        Text(target.actionHint.kind.shortTitle)
                             .font(.system(size: 9, weight: .black, design: .rounded))
                             .foregroundStyle(.white.opacity(0.84))
                             .padding(.horizontal, 5)
@@ -2934,7 +2939,7 @@ private struct BattlefieldSituationSummaryView: View {
                     RoundedRectangle(cornerRadius: 7)
                         .stroke(priorityColor.opacity(0.28), lineWidth: 1)
                 )
-                .accessibilityLabel("定位战线态势首要目标，\(target.kind.title)，\(target.title)，\(target.detail)")
+                .accessibilityLabel("定位战线态势首要目标，\(target.kind.title)，\(target.title)，\(target.detail)，下一步，\(target.actionHint.entryTitle)，\(target.actionHint.detail)")
             }
 
             LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 7) {

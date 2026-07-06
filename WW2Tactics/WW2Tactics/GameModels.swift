@@ -1906,6 +1906,48 @@ struct BattlefieldSituationMetric: Identifiable, Equatable {
     }
 }
 
+enum BattlefieldSituationActionHintKind: String, Identifiable {
+    case attack
+    case move
+    case reinforce
+    case select
+    case defend
+
+    var id: String { rawValue }
+
+    var shortTitle: String {
+        switch self {
+        case .attack: "ATK"
+        case .move: "MOVE"
+        case .reinforce: "整补"
+        case .select: "SEL"
+        case .defend: "DEF"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .attack: "scope"
+        case .move: "arrow.right.circle.fill"
+        case .reinforce: "cross.case.fill"
+        case .select: "cursorarrow.click.2"
+        case .defend: "shield.lefthalf.filled"
+        }
+    }
+}
+
+struct BattlefieldSituationActionHint: Identifiable, Equatable {
+    let kind: BattlefieldSituationActionHintKind
+    let title: String
+    let entryTitle: String
+    let detail: String
+    let isExecutable: Bool
+
+    var id: String {
+        "\(kind.rawValue)-\(title)-\(entryTitle)-\(detail)-\(isExecutable)"
+    }
+}
+
 enum BattlefieldSituationFocusTargetKind: String, Identifiable {
     case countermeasure
     case objectiveDefense
@@ -1941,6 +1983,7 @@ struct BattlefieldSituationFocusTarget: Identifiable, Equatable {
     let unitID: BattleUnit.ID?
     let countermeasurePreview: EnemyThreatCountermeasurePreview?
     let objectiveAdvancePreview: ObjectiveAdvancePreview?
+    let actionHint: BattlefieldSituationActionHint
 
     var id: String {
         [
@@ -1948,7 +1991,8 @@ struct BattlefieldSituationFocusTarget: Identifiable, Equatable {
             unitID?.uuidString ?? "none",
             coordinate?.id ?? "none",
             countermeasurePreview?.id ?? "none",
-            objectiveAdvancePreview?.id ?? "none"
+            objectiveAdvancePreview?.id ?? "none",
+            actionHint.id
         ].joined(separator: "-")
     }
 }

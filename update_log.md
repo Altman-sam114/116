@@ -1645,9 +1645,58 @@
 
 验证结果：
 
-- 本地轻量检查和云端结果以本轮最终交付记录为准。
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions `WW2Tactics CI Results` run `28783232525` / attempt `1`：completed / success。
+- Artifact `ww2tactics-ci-v1.34-main-daec553-run28783232525-attempt1`：Agent C 已下载到 `/private/tmp/ww2tactics-c-review-28783232525/`，目录大小 `3.2M`。
+- Manifest `commitSha=daec55392f5a469977ff24cff691e41dd5746710`、`branch=main`、`runId=28783232525`、`runAttempt=1` 与 `origin/main` 功能提交一致。
+- `ci-failure-summary.md`、`junit.xml`、`static-checks.log`、`rules-smoke.log`、`xcodebuild.log` 和 `WW2Tactics.xcresult` 均已核对；静态检查、规则 smoke 和 Xcode build-for-testing 均为 success，XCTest 执行按当前 CI 策略为 skipped。
 
 遗留事项：
 
 - 本轮只增加态势卡首要目标定位，不新增自动执行、不改变反制建议、OBJ 计划、AI、移动、攻击、整补、部署、据点、胜负或战斗数值。
 - 下一轮可继续强化定位后的执行前后解释或敌方行动解释，但仍需保持真实动作走既有 `GameState` 命令链。
+
+### v1.35 / 战线态势下一步提示
+
+日期：2026-07-06
+
+核心变更：
+
+- `BattlefieldSituationFocusTarget` 新增 `BattlefieldSituationActionHint`，把首要定位目标和下一步入口提示绑定在同一纯派生模型上。
+- `GameState` 在派生态势目标时同步给出 ATK、MOVE、整补、选择或防守查看提示；提示只说明下一步应走的既有入口，不执行命令。
+- `ContentView` 的“战线态势”定位按钮新增下一步入口行和入口短码，并把说明纳入无障碍文案。
+- 扩展 XCTest 和规则 smoke test，覆盖反制/OBJ action hint、定位后的反制执行桥接一致性和只读不变性。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.35（战线态势下一步提示）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- 云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只增加态势定位后的入口提示，不新增自动执行、不改变反制建议、OBJ 计划、AI、移动、攻击、整补、部署、据点、胜负或战斗数值。
+- 下一轮可继续强化执行后的闭环解释，或补充更细的敌方行动解释。

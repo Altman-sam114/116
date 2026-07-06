@@ -820,6 +820,9 @@ struct RulesSmokeTest {
             let objectiveSituationTiles = objectiveSituationGame.scenario.tiles
             let objectiveSituationLog = objectiveSituationGame.battleLog
             require(objectiveSituationTarget.kind == .objectiveAdvance, "battlefield situation focus should fall back to objective advance")
+            require(objectiveSituationTarget.actionHint.kind == .move, "battlefield situation objective focus should expose a MOVE action hint")
+            require(objectiveSituationTarget.actionHint.entryTitle.contains("MOVE"), "battlefield situation objective action hint should name the MOVE entry")
+            require(objectiveSituationTarget.actionHint.isExecutable, "battlefield situation objective action hint should be executable")
             objectiveSituationGame.focusBattlefieldSituationPrimaryTarget()
             require(objectiveSituationGame.selectedUnit?.id == objectiveSituationTarget.unitID, "battlefield situation objective focus should select the planned unit")
             require(objectiveSituationGame.focusedCoordinate == (objectiveSituationPreview.reachesObjective ? objectiveSituationPreview.coordinate : objectiveSituationPreview.route.destination), "battlefield situation objective focus should target the plan destination")
@@ -1392,9 +1395,35 @@ struct RulesSmokeTest {
                 return
             }
             require(situationFocusTarget.kind == .countermeasure, "battlefield situation focus should prioritize executable countermeasures")
+            let expectedSituationActionKind: BattlefieldSituationActionHintKind
+            switch situationCountermeasure.kind {
+            case .firstStrike:
+                expectedSituationActionKind = .attack
+            case .withdraw, .objectiveDefense:
+                expectedSituationActionKind = .move
+            case .reinforce:
+                expectedSituationActionKind = .reinforce
+            }
+            require(situationFocusTarget.actionHint.kind == expectedSituationActionKind, "battlefield situation countermeasure focus should expose the matching action hint")
+            require(situationFocusTarget.actionHint.entryTitle.isEmpty == false, "battlefield situation countermeasure action hint should name an entry")
+            require(situationFocusTarget.actionHint.isExecutable == situationCountermeasure.canExecuteNow, "battlefield situation countermeasure action hint should mirror availability")
             enemyThreatGame.focusBattlefieldSituationPrimaryTarget()
             require(enemyThreatGame.selectedUnit?.id == situationCountermeasure.actingUnitID, "battlefield situation focus should select the countermeasure unit")
             require(enemyThreatGame.isEnemyThreatCountermeasureFocused(situationCountermeasure), "battlefield situation focus should reuse countermeasure focusing")
+            guard let situationExecutionPreview = enemyThreatGame.focusedEnemyThreatCountermeasureExecutionPreview else {
+                require(false, "battlefield situation focus should expose the existing countermeasure execution bridge")
+                return
+            }
+            let expectedSituationExecutionKind: EnemyThreatCountermeasureExecutionKind
+            switch situationCountermeasure.kind {
+            case .firstStrike:
+                expectedSituationExecutionKind = .attack
+            case .withdraw, .objectiveDefense:
+                expectedSituationExecutionKind = .move
+            case .reinforce:
+                expectedSituationExecutionKind = .reinforce
+            }
+            require(situationExecutionPreview.kind == expectedSituationExecutionKind, "battlefield situation action hint should match the focused execution bridge")
             require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "enemy threat countermeasures should not spend command points")
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "enemy threat countermeasures should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "enemy threat countermeasures should not mutate objectives")

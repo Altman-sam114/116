@@ -3988,7 +3988,8 @@ final class GameState: ObservableObject {
                 coordinate: battlefieldSituationCountermeasureCoordinate(countermeasure),
                 unitID: countermeasure.actingUnitID,
                 countermeasurePreview: countermeasure,
-                objectiveAdvancePreview: nil
+                objectiveAdvancePreview: nil,
+                actionHint: battlefieldSituationCountermeasureActionHint(countermeasure)
             )
         }
 
@@ -4000,7 +4001,14 @@ final class GameState: ObservableObject {
                 coordinate: objectiveThreat.targetCoordinate,
                 unitID: objectiveThreat.targetUnitID,
                 countermeasurePreview: nil,
-                objectiveAdvancePreview: nil
+                objectiveAdvancePreview: nil,
+                actionHint: BattlefieldSituationActionHint(
+                    kind: .defend,
+                    title: "补防据点",
+                    entryTitle: "定位后选择待命部队封堵或进驻",
+                    detail: "该提示只指向防守热点，不会自动移动部队。",
+                    isExecutable: readyUnitCount > 0
+                )
             )
         }
 
@@ -4022,7 +4030,8 @@ final class GameState: ObservableObject {
                 coordinate: preview.route.destination,
                 unitID: unit.id,
                 countermeasurePreview: nil,
-                objectiveAdvancePreview: preview
+                objectiveAdvancePreview: preview,
+                actionHint: battlefieldSituationObjectiveAdvanceActionHint(preview)
             )
         }
 
@@ -4034,7 +4043,68 @@ final class GameState: ObservableObject {
             coordinate: readyUnit.position,
             unitID: readyUnit.id,
             countermeasurePreview: nil,
-            objectiveAdvancePreview: nil
+            objectiveAdvancePreview: nil,
+            actionHint: BattlefieldSituationActionHint(
+                kind: .select,
+                title: "查看单位入口",
+                entryTitle: "选择后查看 MOVE、ATK 或整补",
+                detail: "定位只选择待命单位，真实命令仍走地图或单位详情按钮。",
+                isExecutable: true
+            )
+        )
+    }
+
+    private func battlefieldSituationCountermeasureActionHint(
+        _ preview: EnemyThreatCountermeasurePreview
+    ) -> BattlefieldSituationActionHint {
+        switch preview.kind {
+        case .firstStrike:
+            return BattlefieldSituationActionHint(
+                kind: .attack,
+                title: "执行抢先打击",
+                entryTitle: "定位后点地图 ATK 或执行按钮",
+                detail: "建议行只聚焦敌军，攻击仍走既有 ATK 命令链。",
+                isExecutable: preview.canExecuteNow
+            )
+        case .withdraw:
+            return BattlefieldSituationActionHint(
+                kind: .move,
+                title: "撤出危险区",
+                entryTitle: "定位后点地图 MOVE 或执行按钮",
+                detail: "建议行只聚焦撤退格，移动仍走既有 MOVE 命令链。",
+                isExecutable: preview.canExecuteNow
+            )
+        case .objectiveDefense:
+            return BattlefieldSituationActionHint(
+                kind: .move,
+                title: "执行据点防守",
+                entryTitle: "定位后点地图 MOVE 或执行按钮",
+                detail: "建议行只聚焦防守格，进驻或封堵仍走既有 MOVE 命令链。",
+                isExecutable: preview.canExecuteNow
+            )
+        case .reinforce:
+            return BattlefieldSituationActionHint(
+                kind: .reinforce,
+                title: "执行整补支撑",
+                entryTitle: "定位后用单位详情整补按钮",
+                detail: "建议行只聚焦单位，整补仍走既有后勤按钮。",
+                isExecutable: preview.canExecuteNow
+            )
+        }
+    }
+
+    private func battlefieldSituationObjectiveAdvanceActionHint(
+        _ preview: ObjectiveAdvancePreview
+    ) -> BattlefieldSituationActionHint {
+        let entry = preview.reachesObjective ?
+            "定位后点 MOVE \(preview.actionTitle)据点" :
+            "定位后点 MOVE 推进到目标方向"
+        return BattlefieldSituationActionHint(
+            kind: .move,
+            title: "执行 OBJ 推进",
+            entryTitle: entry,
+            detail: "态势卡只定位计划，真实推进仍走既有 MOVE 命令链。",
+            isExecutable: true
         )
     }
 
