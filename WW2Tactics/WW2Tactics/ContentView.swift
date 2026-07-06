@@ -3092,7 +3092,7 @@ private struct ObjectiveAdvancePlanPanel: View {
     private func accessibilityLabel(for preview: ObjectiveAdvancePreview, index: Int, isFocused: Bool) -> String {
         let slot = index == 0 ? "OBJ 首选" : "目标计划 \(index + 1)"
         let focused = isFocused ? "，当前预览" : ""
-        return "\(slot)，\(preview.objectiveName)\(focused)，\(preview.actionTitle) \(preview.destinationText)，消耗 \(preview.route.totalCost) 移动力。"
+        return "\(slot)，\(preview.objectiveName)\(focused)，\(preview.prioritySummaryText)。"
     }
 }
 
@@ -3132,6 +3132,12 @@ private struct ObjectiveAdvancePlanRow: View {
                     .foregroundStyle(.white.opacity(0.68))
                     .lineLimit(2)
                     .minimumScaleFactor(0.72)
+
+                Text(preview.prioritySummaryText)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.66))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 6) {
                     ObjectiveAdvanceMetric(text: "\(preview.route.stepCount) 步", color: .cyan)

@@ -1492,3 +1492,42 @@
 
 - 本轮只增强 POS 安全接敌路线对比，不改变安全候选排序、默认 POS 执行路线、移动、攻击、战斗数值、AI、据点、补给、士气、后勤、胜负和反制建议语义。
 - 路线受威胁步数是解释性对比字段；现有安全接敌场景的最优候选明确降低终点承伤，但中途路线暴露可能相同，UI 会照实显示。
+
+### v1.31 / 据点推进优先级解释
+
+日期：2026-07-06
+
+核心变更：
+
+- `ObjectiveAdvancePreview` 新增纯派生优先级说明字段，解释据点归属、本回合可占/可夺或推进距离、当前距离到剩余距离、路线消耗、步数、控制区惩罚和终点火力风险。
+- `ContentView` 的目标计划行和无障碍文案展示同一优先级说明，让 OBJ 候选更容易理解为什么首项优先。
+- 不改变 `objectiveAdvancePlanSort`、OBJ 快捷按钮顺序、移动、占点奖励、胜负或 AI 语义。
+- 扩展 XCTest 和规则 smoke test，覆盖直达据点、远距推进、火力风险和多目标排序场景的解释字段。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.31（据点推进优先级解释）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions artifact：待本轮 push 后由 Agent C 下载核对。
+
+遗留事项：
+
+- 本轮只解释现有 OBJ 排序输入，不新增据点评分公式，不改变目标计划排序。
+- 终点火力风险作为提示展示，不参与现有 OBJ 排序。

@@ -147,13 +147,14 @@
 ### 3.5 OBJ 目标推进
 
 1. `objectiveAdvancePlans(for:)` 选择未占据、未归属己方的据点，并按当前距离、是否直达、剩余距离、路线消耗、步数和名称稳定排序。
-2. `objectiveAdvancePreviews(for:limit:)` 将同一套计划转换为最多 3 条 `ObjectiveAdvancePreview`，附带路线、距离变化、直达/推进状态和终点火力风险；首项必须与 OBJ 快捷目标一致。
-3. 侧栏目标计划行点击只调用 `focusObjectiveAdvancePreview(_:)` / `focusObjectiveAdvanceTarget(coordinate:)`，由 `GameState` 重新查当前计划，避免 UI 使用过期路线。
-4. `focusNearestObjectiveTarget` 复用同一套计划首项；候选计划点击也复用同一私有聚焦 helper。若可直达，聚焦据点并设置 `guidedObjectiveCoordinate`。
-5. 若不可直达，聚焦本回合推进格，同时保留最终目标据点。
-6. 点选计划只更新 `focusedCoordinate`、`guidedObjectiveCoordinate` 和消息，不消耗行动、不移动单位、不生成结果摘要；右键或执行按钮才通过既有 MOVE 链执行。
-7. 普通聚焦、攻击、待命、回合切换等应清理目标引导，避免状态残留。
-8. 只有单位实际进入中立或敌方据点并改变归属时，才生成据点占领结果；远距离 OBJ 中继推进不会生成虚假占领摘要。
+2. `objectiveAdvancePreviews(for:limit:)` 将同一套计划转换为最多 3 条 `ObjectiveAdvancePreview`，附带路线、距离变化、直达/推进状态、终点火力风险和优先级解释；首项必须与 OBJ 快捷目标一致。
+3. `ObjectiveAdvancePreview` 的优先级解释从已有字段纯派生，说明据点归属、本回合可占/可夺或推进几格、当前距离到剩余距离、路线消耗、步数、控制区惩罚和终点风险；它不改变 `objectiveAdvancePlanSort`，也不新增据点评分。
+4. 侧栏目标计划行点击只调用 `focusObjectiveAdvancePreview(_:)` / `focusObjectiveAdvanceTarget(coordinate:)`，由 `GameState` 重新查当前计划，避免 UI 使用过期路线。
+5. `focusNearestObjectiveTarget` 复用同一套计划首项；候选计划点击也复用同一私有聚焦 helper。若可直达，聚焦据点并设置 `guidedObjectiveCoordinate`。
+6. 若不可直达，聚焦本回合推进格，同时保留最终目标据点。
+7. 点选计划只更新 `focusedCoordinate`、`guidedObjectiveCoordinate` 和消息，不消耗行动、不移动单位、不生成结果摘要；右键或执行按钮才通过既有 MOVE 链执行。
+8. 普通聚焦、攻击、待命、回合切换等应清理目标引导，避免状态残留。
+9. 只有单位实际进入中立或敌方据点并改变归属时，才生成据点占领结果；远距离 OBJ 中继推进不会生成虚假占领摘要。
 
 ### 3.6 THR 敌火覆盖
 
@@ -268,7 +269,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、反制建议收益解释、排序对比解释、执行前后预计对照、反制建议点选聚焦、地图标记、执行入口桥接预览、执行回放、敌方回合复核、部署/整补结果摘要、AI 直取据点优先、AI 移动后火炮弹幕、AI 回合行动摘要、行动时间线、AI 时间线点选定位、复盘事件选中态、上一条/下一条连续查看、自动播放控制和地图复盘标记强调：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要、优先级解释和候选预览、安全接敌候选点选预览、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、反制建议收益解释、排序对比解释、执行前后预计对照、反制建议点选聚焦、地图标记、执行入口桥接预览、执行回放、敌方回合复核、部署/整补结果摘要、AI 直取据点优先、AI 移动后火炮弹幕、AI 回合行动摘要、行动时间线、AI 时间线点选定位、复盘事件选中态、上一条/下一条连续查看、自动播放控制和地图复盘标记强调：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

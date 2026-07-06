@@ -770,6 +770,14 @@ struct RulesSmokeTest {
             require(objectiveAdvancePreview.reachesObjective, "direct objective advance preview should mark reachable capture")
             require(objectiveAdvancePreview.remainingDistance == 0, "direct objective advance preview should report zero remaining distance")
             require(objectiveAdvancePreview.fireExposure?.riskLevel == FireRiskLevel.none, "direct objective advance preview should include terminal fire exposure")
+            require(objectiveAdvancePreview.distanceClosed == 2, "direct objective advance preview should report closed distance")
+            require(objectiveAdvancePreview.priorityReasonText == "本回合可夺取", "direct objective priority should explain reachable capture")
+            require(objectiveAdvancePreview.distanceSummaryText == "距 2->0", "direct objective priority should summarize distance")
+            require(objectiveAdvancePreview.riskSummaryText == "终点 SAFE", "direct objective priority should summarize safe terminal risk")
+            require(
+                objectiveAdvancePreview.prioritySummaryText.contains("\(objectiveAdvancePreview.ownerTitle)目标"),
+                "direct objective priority should include owner"
+            )
             require(
                 objectiveAdvanceGame.focusedObjectiveAdvancePreviews == objectiveAdvancePreviews,
                 "focused objective advance previews should mirror selected unit previews"
@@ -811,6 +819,10 @@ struct RulesSmokeTest {
             require(
                 riskyObjectiveExposure.sources.first?.sourceName == "火力警戒炮",
                 "risky objective preview should preserve terminal fire source names"
+            )
+            require(
+                riskyObjectivePreview.riskSummaryText == "终点 \(riskyObjectiveExposure.riskLevel.shortTitle) -\(riskyObjectiveExposure.totalPotentialDamage)",
+                "risky objective priority should summarize terminal fire risk"
             )
             guard let objectiveAdvanceRoute = objectiveAdvanceGame.objectiveAdvanceRoute(for: objectiveAdvanceTank, to: targetObjective) else {
                 require(false, "objective shortcut should expose a route to the target objective")
@@ -871,6 +883,9 @@ struct RulesSmokeTest {
             require(!distantObjectivePreview.reachesObjective, "distant objective preview should not mark capture this turn")
             require(distantObjectivePreview.remainingDistance == 1, "distant objective preview should report remaining distance")
             require(distantObjectivePreview.fireExposure?.coordinate == expectedAdvance, "distant objective preview should evaluate fire risk at the forward tile")
+            require(distantObjectivePreview.distanceClosed == 4, "distant objective priority should report distance closed")
+            require(distantObjectivePreview.priorityReasonText == "推进 4 格，剩 1 格", "distant objective priority should explain partial advance")
+            require(distantObjectivePreview.distanceSummaryText == "距 5->1", "distant objective priority should summarize distance")
             guard let distantAdvanceRoute = distantObjectiveGame.objectiveAdvanceRoute(for: distantAdvanceTank, to: distantObjective) else {
                 require(false, "objective shortcut should expose an advance route toward distant objectives")
                 return
@@ -943,6 +958,14 @@ struct RulesSmokeTest {
             require(
                 defaultObjectivePreviews.first?.coordinate == multipleObjectiveGame.nearestObjectiveTarget(for: multipleObjectiveTank)?.coordinate,
                 "first sorted objective preview should match nearest objective shortcut"
+            )
+            require(
+                defaultObjectivePreviews.allSatisfy { !$0.prioritySummaryText.isEmpty },
+                "objective advance previews should expose priority summaries"
+            )
+            require(
+                defaultObjectivePreviews.map(\.priorityReasonText) == ["本回合可夺取", "本回合可夺取", "本回合可占领"],
+                "objective priority summaries should explain direct capture or occupation"
             )
             require(
                 multipleObjectiveGame.objectiveAdvancePreviews(for: multipleObjectiveTank, limit: 10).map(\.objectiveName) == ["一号据点", "二号据点", "三号据点", "四号据点"],

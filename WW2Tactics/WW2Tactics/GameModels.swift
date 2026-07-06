@@ -1912,12 +1912,41 @@ struct ObjectiveAdvancePreview: Identifiable, Equatable {
     var id: String { coordinate.id }
     var ownerTitle: String { owner?.title ?? "中立" }
     var destinationText: String { "q\(route.destination.q),r\(route.destination.r)" }
+    var distanceClosed: Int { max(0, currentDistance - remainingDistance) }
 
     var actionTitle: String {
         if reachesObjective {
             return owner == nil ? "占领" : "夺取"
         }
         return "推进"
+    }
+
+    var priorityReasonText: String {
+        if reachesObjective {
+            return "本回合可\(actionTitle)"
+        }
+        return "推进 \(distanceClosed) 格，剩 \(remainingDistance) 格"
+    }
+
+    var distanceSummaryText: String {
+        "距 \(currentDistance)->\(remainingDistance)"
+    }
+
+    var routeCostSummaryText: String {
+        let zoneText = route.controlZonePenalty > 0 ? "，ZOC +\(route.controlZonePenalty)" : ""
+        return "消耗 \(route.totalCost)，\(route.stepCount) 步\(zoneText)"
+    }
+
+    var riskSummaryText: String {
+        guard let fireExposure else { return "终点 SAFE" }
+        guard fireExposure.totalPotentialDamage > 0 else {
+            return "终点 \(fireExposure.riskLevel.shortTitle)"
+        }
+        return "终点 \(fireExposure.riskLevel.shortTitle) -\(fireExposure.totalPotentialDamage)"
+    }
+
+    var prioritySummaryText: String {
+        "\(ownerTitle)目标，\(priorityReasonText)，\(distanceSummaryText)，\(routeCostSummaryText)，\(riskSummaryText)"
     }
 }
 

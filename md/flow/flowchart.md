@@ -50,7 +50,8 @@ flowchart TD
   X --> SC["安全接敌对比：默认POS vs 候选，承伤 / 风险 / 移动 / 控区 / 路线暴露"]
   SC --> SP["点击安全接敌候选：GameState 重新查候选并聚焦 POS 路线"]
   SP --> OP["OBJ计划摘要：ObjectiveAdvancePreview 最多 3 条"]
-  OP --> OC["点击目标计划：GameState 重新查计划并聚焦路线"]
+  OP --> OPR["优先级解释：归属 / 可占可夺或推进 / 距离 / 路线代价 / 终点风险"]
+  OPR --> OC["点击目标计划：GameState 重新查计划并聚焦路线"]
   OC --> CM["点击反制建议：GameState 重新校验并聚焦单位、敌军或目的格"]
   CM --> MK["地图反制标记：ACT 执行 / SRC 威胁 / CTR 目标 / TGT 受威胁"]
   MK --> PR["排序对比提示：首选依据 / 优先值 / 路线差异，不执行"]
@@ -99,7 +100,7 @@ flowchart LR
   MV --> RP["RouteStepPreview 步序、消耗、控制区、敌火"]
   MV --> PM["PostMoveAttackPreview 移动后伤害、反击、击毁"]
   MV --> FP["PostMoveFireExposurePreview 潜在承伤、HP 后果、风险等级"]
-  MV --> OP["ObjectiveAdvancePreview 据点推进计划"]
+  MV --> OP["ObjectiveAdvancePreview 据点推进计划 + 优先级解释"]
   MV --> SE["SafeEngagementOption 安全接敌候选"]
   SE --> SEC["SafeEngagementComparisonPreview 默认POS vs 候选路径风险对比"]
   MV --> INT

@@ -3880,6 +3880,13 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(preview.remainingDistance, 0)
         XCTAssertEqual(preview.fireExposure?.coordinate, targetObjective.coordinate)
         XCTAssertEqual(preview.fireExposure?.riskLevel, FireRiskLevel.none)
+        XCTAssertEqual(preview.distanceClosed, 2)
+        XCTAssertEqual(preview.priorityReasonText, "本回合可夺取")
+        XCTAssertEqual(preview.distanceSummaryText, "距 2->0")
+        XCTAssertEqual(preview.routeCostSummaryText, "消耗 2，2 步")
+        XCTAssertEqual(preview.riskSummaryText, "终点 SAFE")
+        XCTAssertTrue(preview.prioritySummaryText.contains("\(preview.ownerTitle)目标"))
+        XCTAssertTrue(preview.prioritySummaryText.contains("本回合可夺取"))
         XCTAssertEqual(game.focusedObjectiveAdvancePreviews, previews)
     }
 
@@ -3899,6 +3906,8 @@ final class GameStateTests: XCTestCase {
         XCTAssertGreaterThan(exposure.totalPotentialDamage, 0)
         XCTAssertNotEqual(exposure.riskLevel, FireRiskLevel.none)
         XCTAssertEqual(exposure.sources.first?.sourceName, "火力警戒炮")
+        XCTAssertEqual(preview.riskSummaryText, "终点 \(exposure.riskLevel.shortTitle) -\(exposure.totalPotentialDamage)")
+        XCTAssertTrue(preview.prioritySummaryText.contains("终点 \(exposure.riskLevel.shortTitle) -\(exposure.totalPotentialDamage)"))
     }
 
     func testObjectiveQuickFocusAdvancesTowardDistantObjective() throws {
@@ -3957,6 +3966,11 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(preview.remainingDistance, 1)
         XCTAssertEqual(preview.fireExposure?.coordinate, expectedAdvance)
         XCTAssertEqual(preview.fireExposure?.riskLevel, FireRiskLevel.none)
+        XCTAssertEqual(preview.distanceClosed, 4)
+        XCTAssertEqual(preview.priorityReasonText, "推进 4 格，剩 1 格")
+        XCTAssertEqual(preview.distanceSummaryText, "距 5->1")
+        XCTAssertEqual(preview.routeCostSummaryText, "消耗 4，4 步")
+        XCTAssertEqual(preview.riskSummaryText, "终点 SAFE")
     }
 
     func testObjectiveAdvancePreviewsLimitAndPreserveShortcutOrder() throws {
@@ -3972,6 +3986,10 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.focusedObjectiveAdvancePreviews, defaultPreviews)
         XCTAssertEqual(game.objectiveAdvancePreviews(for: tank, limit: 10).map(\.objectiveName), ["一号据点", "二号据点", "三号据点", "四号据点"])
         XCTAssertTrue(game.objectiveAdvancePreviews(for: tank, limit: 0).isEmpty)
+        XCTAssertTrue(defaultPreviews.allSatisfy { !$0.prioritySummaryText.isEmpty })
+        XCTAssertEqual(defaultPreviews.first?.priorityReasonText, "本回合可夺取")
+        XCTAssertEqual(defaultPreviews[1].priorityReasonText, "本回合可夺取")
+        XCTAssertEqual(defaultPreviews[2].priorityReasonText, "本回合可占领")
 
         game.focusNearestObjectiveTarget()
         XCTAssertEqual(game.focusedCoordinate, HexCoordinate(q: 1, r: 0))
