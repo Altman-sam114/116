@@ -228,6 +228,14 @@ final class GameState: ObservableObject {
         return safeEngagementOptions(for: selectedUnit, against: focusedUnit)
     }
 
+    var focusedSafeEngagementComparisons: [SafeEngagementComparisonPreview] {
+        guard let selectedUnit,
+              let focusedUnit,
+              focusedUnit.faction != selectedUnit.faction,
+              !attackableTiles(for: selectedUnit).contains(focusedUnit.position) else { return [] }
+        return safeEngagementComparisons(for: selectedUnit, against: focusedUnit)
+    }
+
     var visibleEnemyThreatIntentPreviews: [EnemyThreatIntentPreview] {
         enemyThreatIntentPreviews(against: .allies)
     }
@@ -2255,6 +2263,33 @@ final class GameState: ObservableObject {
             .sorted(by: safeEngagementOptionSort)
     }
 
+    func safeEngagementComparisons(
+        for unit: BattleUnit,
+        against target: BattleUnit
+    ) -> [SafeEngagementComparisonPreview] {
+        let defaultRoute = attackPositionRoutes(for: unit, against: target).first
+        guard let defaultRoute,
+              let defaultExposure = fireExposurePreview(for: unit, at: defaultRoute.destination) else { return [] }
+        let referenceSteps = routeStepPreviews(for: unit, route: defaultRoute)
+        let referenceThreatenedSteps = referenceSteps.filter(\.isThreatened)
+
+        return safeEngagementOptions(for: unit, against: target).map { option in
+            let optionSteps = routeStepPreviews(for: unit, route: option.route)
+            let optionThreatenedSteps = optionSteps.filter(\.isThreatened)
+            return SafeEngagementComparisonPreview(
+                option: option,
+                referenceRoute: defaultRoute,
+                referenceExposure: defaultExposure,
+                optionThreatenedStepCount: optionThreatenedSteps.count,
+                referenceThreatenedStepCount: referenceThreatenedSteps.count,
+                optionRouteThreatNames: uniqueRouteThreatNames(from: optionThreatenedSteps),
+                referenceRouteThreatNames: uniqueRouteThreatNames(from: referenceThreatenedSteps),
+                isFocused: focusedSafeEngagementTargetID == target.id &&
+                    focusedSafeEngagementDestination == option.route.destination
+            )
+        }
+    }
+
     func mapActionHint(for coordinate: HexCoordinate) -> MapActionHint {
         guard winner == nil else { return .none }
 
@@ -2918,6 +2953,16 @@ final class GameState: ObservableObject {
             return left.route.stepCount < right.route.stepCount
         }
         return left.route.destination.id < right.route.destination.id
+    }
+
+    private func uniqueRouteThreatNames(from steps: [RouteStepPreview]) -> [String] {
+        var names: [String] = []
+        for step in steps {
+            for name in step.threatNames where !names.contains(name) {
+                names.append(name)
+            }
+        }
+        return names
     }
 
     private func readyThreatPreviewUnit(_ unit: BattleUnit) -> BattleUnit {

@@ -1449,3 +1449,43 @@
 
 - 本轮只增强最近一次 AI 复盘结论关键事件的地图定位，不新增历史 AI 回合列表、镜头动画、音效或真实美术资产。
 - 本轮不改变 AI 决策、战斗数值、移动、补给、士气、部署、整补、据点、胜负、播放控制和反制建议语义。
+
+### v1.30 / 路径风险对比
+
+日期：2026-07-06
+
+核心变更：
+
+- `GameModels` 新增 `SafeEngagementComparisonPreview`，将安全接敌候选与默认 POS 路线的风险等级、潜在承伤、最高单源伤害、敌火来源数量、路线受威胁步数、移动力消耗和控制区惩罚做成纯派生对比。
+- `GameState` 新增 `focusedSafeEngagementComparisons` 和对比 helper，稳定以未切换安全候选前的默认 POS 首选路线为参考；点选安全候选后，对比参考不会漂移成候选自身。
+- `ContentView` 的安全接敌面板和地图命令预览改为消费同一对比模型，显示少承伤、风险变化、移动代价、路线暴露和控制区差异；按钮仍只切换预览，不移动、不攻击。
+- 扩展 XCTest 和规则 smoke test，覆盖候选对比字段、默认路线基线、聚焦候选后的只读边界和执行预览不变性。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.30（路径风险对比）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- GitHub Actions artifact：待本轮 push 后由 Agent C 下载核对。
+
+遗留事项：
+
+- 本轮只增强 POS 安全接敌路线对比，不改变安全候选排序、默认 POS 执行路线、移动、攻击、战斗数值、AI、据点、补给、士气、后勤、胜负和反制建议语义。
+- 路线受威胁步数是解释性对比字段；现有安全接敌场景的最优候选明确降低终点承伤，但中途路线暴露可能相同，UI 会照实显示。

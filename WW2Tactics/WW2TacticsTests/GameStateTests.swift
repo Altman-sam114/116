@@ -3432,6 +3432,24 @@ final class GameStateTests: XCTestCase {
             game.focusedAttackPositionRoutes.contains(option.route)
         })
 
+        let comparisons = game.focusedSafeEngagementComparisons
+        let saferComparison = try XCTUnwrap(comparisons.first)
+        XCTAssertEqual(comparisons.count, options.count)
+        XCTAssertEqual(saferComparison.destination, saferDestination)
+        XCTAssertEqual(saferComparison.referenceDestination, defaultDestination)
+        XCTAssertEqual(saferComparison.referenceExposure.coordinate, defaultDestination)
+        XCTAssertLessThan(saferComparison.potentialDamageDelta, 0)
+        XCTAssertLessThanOrEqual(saferComparison.riskRankDelta, 0)
+        XCTAssertLessThanOrEqual(saferComparison.sourceCountDelta, 0)
+        XCTAssertGreaterThanOrEqual(saferComparison.referenceThreatenedStepCount, 1)
+        XCTAssertGreaterThanOrEqual(saferComparison.optionThreatenedStepCount, 0)
+        XCTAssertTrue(saferComparison.referenceRouteThreatNames.contains("侧翼装甲"))
+        XCTAssertGreaterThanOrEqual(saferComparison.movementCostDelta, 0)
+        XCTAssertFalse(saferComparison.isFocused)
+        XCTAssertTrue(saferComparison.improvesExposure)
+        XCTAssertTrue(saferComparison.summaryText.contains("少承伤"))
+        XCTAssertTrue(saferComparison.summaryText.contains("路线"))
+
         game.executeFocusedCommand()
 
         let movedTank = try XCTUnwrap(game.units.first { $0.id == tank.id })
@@ -3469,6 +3487,15 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.latestCombatResult)
         XCTAssertNil(game.latestTacticalCommandResult)
         XCTAssertNil(game.latestObjectiveCaptureResult)
+
+        let focusedComparison = try XCTUnwrap(game.focusedSafeEngagementComparisons.first)
+        XCTAssertEqual(focusedComparison.destination, saferDestination)
+        XCTAssertEqual(focusedComparison.referenceDestination, defaultDestination)
+        XCTAssertEqual(focusedComparison.referenceExposure.coordinate, defaultDestination)
+        XCTAssertTrue(focusedComparison.isFocused)
+        XCTAssertLessThan(focusedComparison.potentialDamageDelta, 0)
+        XCTAssertGreaterThanOrEqual(focusedComparison.referenceThreatenedStepCount, 1)
+        XCTAssertTrue(focusedComparison.summaryText.contains("路线"))
 
         guard case let .approachAttack(_, defenderName, route) = game.focusedCommandPreview else {
             return XCTFail("safe engagement focus should keep an executable POS preview")

@@ -11,8 +11,8 @@ flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback"]
   I --> S["GameState：核心状态机"]
-  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、敌方意图、反制建议、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核"]
+  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核"]
   R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、焦点坐标、消息、攻击/战术/占领/后勤结果、反制回放、敌方回合复核、AI回合摘要、行动时间线、当前复盘order、播放状态/速度、战报、胜负"]
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
   EI --> EC["只读建议：EnemyThreatCountermeasurePreview 抢先打击 / 撤退 / 守点 / 整补"]
@@ -47,7 +47,8 @@ flowchart TD
   D --> E["生成地图预览 MapCommandPreview"]
   E --> R["路线情报：RouteStepPreview / PostMoveAttackPreview"]
   R --> X["火力风险：PostMoveFireExposurePreview / SafeEngagementOption"]
-  X --> SP["点击安全接敌候选：GameState 重新查候选并聚焦 POS 路线"]
+  X --> SC["安全接敌对比：默认POS vs 候选，承伤 / 风险 / 移动 / 控区 / 路线暴露"]
+  SC --> SP["点击安全接敌候选：GameState 重新查候选并聚焦 POS 路线"]
   SP --> OP["OBJ计划摘要：ObjectiveAdvancePreview 最多 3 条"]
   OP --> OC["点击目标计划：GameState 重新查计划并聚焦路线"]
   OC --> CM["点击反制建议：GameState 重新校验并聚焦单位、敌军或目的格"]
@@ -100,6 +101,7 @@ flowchart LR
   MV --> FP["PostMoveFireExposurePreview 潜在承伤、HP 后果、风险等级"]
   MV --> OP["ObjectiveAdvancePreview 据点推进计划"]
   MV --> SE["SafeEngagementOption 安全接敌候选"]
+  SE --> SEC["SafeEngagementComparisonPreview 默认POS vs 候选路径风险对比"]
   MV --> INT
   AT --> PM
   AT --> FP
@@ -116,6 +118,7 @@ flowchart LR
   FP --> CMD
   OP --> CMD
   SE --> CMD
+  SEC --> CMD
   CMD --> EX["executeMapCommand"]
   EX --> RES["更新单位、据点、消息、攻击/战术/占领/后勤结果、战报"]
   LOG --> RES

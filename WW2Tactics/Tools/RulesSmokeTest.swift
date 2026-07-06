@@ -416,6 +416,30 @@ struct RulesSmokeTest {
                     (safeOptionGame.focusedFireExposurePreview?.totalPotentialDamage ?? 0),
                 "safe engagement option should reduce projected exposure damage"
             )
+            let safeComparisons = safeOptionGame.focusedSafeEngagementComparisons
+            require(
+                safeComparisons.count == safeOptionGame.focusedSafeEngagementOptions.count,
+                "safe engagement comparisons should mirror option count"
+            )
+            guard let saferComparison = safeComparisons.first else {
+                require(false, "safe engagement comparison should exist")
+                return
+            }
+            require(saferComparison.destination == HexCoordinate(q: 3, r: 1), "safe comparison should describe the safer destination")
+            require(saferComparison.referenceDestination == HexCoordinate(q: 3, r: 0), "safe comparison should keep the default POS route as baseline")
+            require(saferComparison.potentialDamageDelta < 0, "safe comparison should report reduced potential damage")
+            require(saferComparison.riskRankDelta <= 0, "safe comparison should not report higher risk for the safer option")
+            require(saferComparison.sourceCountDelta <= 0, "safe comparison should report same or fewer fire sources")
+            require(saferComparison.referenceThreatenedStepCount > 0, "safe comparison should report default route threatened steps")
+            require(saferComparison.optionThreatenedStepCount >= 0, "safe comparison should report option route threatened steps")
+            require(
+                saferComparison.referenceRouteThreatNames.contains("侧翼装甲"),
+                "safe comparison should list the default route threat source"
+            )
+            require(saferComparison.movementCostDelta >= 0, "safe comparison should expose the route cost tradeoff")
+            require(!saferComparison.isFocused, "safe comparison should not be focused before choosing the option")
+            require(saferComparison.summaryText.contains("少承伤"), "safe comparison summary should explain reduced damage")
+            require(saferComparison.summaryText.contains("路线"), "safe comparison summary should explain route exposure")
             guard let saferOption = safeOptionGame.focusedSafeEngagementOptions.first else {
                 require(false, "safe engagement option should exist")
                 return
@@ -425,6 +449,16 @@ struct RulesSmokeTest {
             require(safeOptionGame.focusedSafeEngagementDestination == HexCoordinate(q: 3, r: 1), "safe engagement focus should remember the selected destination")
             require(safeOptionGame.focusedAttackPositionRoute?.destination == HexCoordinate(q: 3, r: 1), "safe engagement focus should switch the POS route")
             require(safeOptionGame.focusedFireExposurePreview?.coordinate == HexCoordinate(q: 3, r: 1), "safe engagement focus should switch fire exposure preview")
+            guard let focusedSafeComparison = safeOptionGame.focusedSafeEngagementComparisons.first else {
+                require(false, "focused safe engagement comparison should still exist")
+                return
+            }
+            require(focusedSafeComparison.referenceDestination == HexCoordinate(q: 3, r: 0), "focused comparison should still compare against the default POS route")
+            require(focusedSafeComparison.isFocused, "focused comparison should mark the selected safe route")
+            require(
+                focusedSafeComparison.threatenedStepDelta == saferComparison.threatenedStepDelta,
+                "focused comparison should preserve route exposure delta"
+            )
             guard case let .approachAttack(_, _, saferRoute) = safeOptionGame.focusedCommandPreview else {
                 require(false, "safe engagement focus should keep an executable approach preview")
                 return

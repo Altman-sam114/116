@@ -1039,9 +1039,9 @@ private struct InlineMapCommandPreview: View {
     }
 
     private func safeEngagementSuggestionText(currentRoute: MovementRoute) -> String {
-        guard let option = game.focusedSafeEngagementOptions.first,
-              option.route.destination != currentRoute.destination else { return "" }
-        return "更安全攻击位 q\(option.route.destination.q),r\(option.route.destination.r)：\(option.exposure.riskLevel.shortTitle)，潜在 -\(option.exposure.totalPotentialDamage)。"
+        guard let comparison = game.focusedSafeEngagementComparisons.first,
+              comparison.destination != currentRoute.destination else { return "" }
+        return "更安全攻击位 q\(comparison.destination.q),r\(comparison.destination.r)：\(comparison.summaryText)。"
     }
 
     private func accentColor(for preview: MapCommandPreview) -> Color {
@@ -3209,15 +3209,14 @@ private struct SafeEngagementOptionsPanel: View {
                 }
                 .foregroundStyle(.green.opacity(0.92))
 
-                ForEach(Array(game.focusedSafeEngagementOptions.prefix(3))) { option in
-                    let isFocused = game.focusedAttackPositionRoute?.destination == option.route.destination
+                ForEach(Array(game.focusedSafeEngagementComparisons.prefix(3))) { comparison in
                     Button {
-                        game.focusSafeEngagementOption(option)
+                        game.focusSafeEngagementOption(comparison.option)
                     } label: {
-                        SafeEngagementOptionRow(option: option, isFocused: isFocused)
+                        SafeEngagementOptionRow(comparison: comparison)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(accessibilityLabel(for: option, isFocused: isFocused))
+                    .accessibilityLabel(accessibilityLabel(for: comparison))
                     .accessibilityHint("只切换接敌路线预览，不会移动或攻击")
                 }
             }
@@ -3235,21 +3234,24 @@ private struct SafeEngagementOptionsPanel: View {
               let focusedUnit = game.focusedUnit,
               focusedUnit.faction != selectedUnit.faction,
               !game.attackableTiles(for: selectedUnit).contains(focusedUnit.position) else { return false }
-        return !game.focusedSafeEngagementOptions.isEmpty
+        return !game.focusedSafeEngagementComparisons.isEmpty
     }
 
-    private func accessibilityLabel(for option: SafeEngagementOption, isFocused: Bool) -> String {
-        let focused = isFocused ? "，当前预览" : ""
+    private func accessibilityLabel(for comparison: SafeEngagementComparisonPreview) -> String {
+        let option = comparison.option
+        let focused = comparison.isFocused ? "，当前预览" : ""
         let sourceText = option.exposure.sources.isEmpty
             ? "无主要敌火"
             : "主要敌火\(option.exposure.sources.prefix(2).map(\.sourceName).joined(separator: "、"))"
-        return "安全接敌\(focused)，目的地 q\(option.route.destination.q),r\(option.route.destination.r)，\(option.exposure.riskLevel.title)，潜在承伤\(option.exposure.totalPotentialDamage)，消耗\(option.route.totalCost)移动力，\(sourceText)"
+        return "安全接敌\(focused)，目的地 q\(option.route.destination.q),r\(option.route.destination.r)，\(comparison.summaryText)，\(sourceText)"
     }
 }
 
 private struct SafeEngagementOptionRow: View {
-    let option: SafeEngagementOption
-    let isFocused: Bool
+    let comparison: SafeEngagementComparisonPreview
+
+    private var option: SafeEngagementOption { comparison.option }
+    private var isFocused: Bool { comparison.isFocused }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -3275,6 +3277,12 @@ private struct SafeEngagementOptionRow: View {
                     .lineLimit(1)
             }
 
+            Text(comparisonText)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white.opacity(0.78))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
             Text(detailText)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.white.opacity(0.66))
@@ -3288,6 +3296,10 @@ private struct SafeEngagementOptionRow: View {
             RoundedRectangle(cornerRadius: 7)
                 .stroke(borderColor, lineWidth: isFocused ? 2 : 1)
         )
+    }
+
+    private var comparisonText: String {
+        "\(comparison.damageDeltaText)，\(comparison.riskDeltaText)，\(comparison.movementDeltaText)，\(comparison.routeThreatDeltaText)，\(comparison.controlZoneDeltaText)"
     }
 
     private var detailText: String {
@@ -3803,9 +3815,9 @@ private struct FocusedCommandPreviewPanel: View {
     }
 
     private func safeEngagementSuggestionText(currentRoute: MovementRoute) -> String {
-        guard let option = game.focusedSafeEngagementOptions.first,
-              option.route.destination != currentRoute.destination else { return "" }
-        return "安全接敌建议：q\(option.route.destination.q),r\(option.route.destination.r)，\(option.exposure.riskLevel.shortTitle)，潜在承伤 \(option.exposure.totalPotentialDamage)。"
+        guard let comparison = game.focusedSafeEngagementComparisons.first,
+              comparison.destination != currentRoute.destination else { return "" }
+        return "安全接敌建议：q\(comparison.destination.q),r\(comparison.destination.r)，\(comparison.summaryText)。"
     }
 
     private func attackPositionText() -> String {

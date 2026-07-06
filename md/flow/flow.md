@@ -24,7 +24,7 @@
 职责：
 
 - 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、敌方威胁意图预判 `EnemyThreatIntentPreview`、敌方意图反制建议 `EnemyThreatCountermeasurePreview`、反制建议收益解释 `EnemyThreatCountermeasureBenefitMetric`、反制建议排序解释 `EnemyThreatCountermeasurePriorityFactor`、反制建议相邻对比 `EnemyThreatCountermeasureComparisonPreview`、反制建议执行前后预计对照 `EnemyThreatCountermeasureImpactComparison`、反制建议地图标记 `EnemyThreatCountermeasureMapMarker`、反制建议执行桥接预览 `EnemyThreatCountermeasureExecutionPreview`、反制建议执行回放 `EnemyThreatCountermeasureExecutionResultSummary`、反制建议敌方回合复核 `EnemyThreatCountermeasureFollowUpSummary`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary`、敌方回合行动时间线 `AIPhaseTimelineEvent`、敌方回合复盘播放速度 `AIPhaseTimelinePlaybackPace`、敌方回合地图复盘标记 `AIPhaseMapMarker`、敌方回合后的 `AIPhaseSummary` 和纯派生复盘结论 `AIPhaseReplayConclusion`。
+- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、安全接敌路径风险对比 `SafeEngagementComparisonPreview`、敌方威胁意图预判 `EnemyThreatIntentPreview`、敌方意图反制建议 `EnemyThreatCountermeasurePreview`、反制建议收益解释 `EnemyThreatCountermeasureBenefitMetric`、反制建议排序解释 `EnemyThreatCountermeasurePriorityFactor`、反制建议相邻对比 `EnemyThreatCountermeasureComparisonPreview`、反制建议执行前后预计对照 `EnemyThreatCountermeasureImpactComparison`、反制建议地图标记 `EnemyThreatCountermeasureMapMarker`、反制建议执行桥接预览 `EnemyThreatCountermeasureExecutionPreview`、反制建议执行回放 `EnemyThreatCountermeasureExecutionResultSummary`、反制建议敌方回合复核 `EnemyThreatCountermeasureFollowUpSummary`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary`、敌方回合行动时间线 `AIPhaseTimelineEvent`、敌方回合复盘播放速度 `AIPhaseTimelinePlaybackPace`、敌方回合地图复盘标记 `AIPhaseMapMarker`、敌方回合后的 `AIPhaseSummary` 和纯派生复盘结论 `AIPhaseReplayConclusion`。
 - 生成阿登反击战、诺曼底突破等战役初始数据。
 
 输入：
@@ -47,7 +47,7 @@
 
 - 项目核心状态机。
 - 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、最新部署结果、最新整补结果、最新反制建议执行回放、最新反制建议敌方回合复核、最新 AI 回合摘要及其行动时间线、AI 复盘播放状态和速度、胜负、指令点。
-- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要和行动时间线、AI 行动地图复盘标记派生、当前 AI 复盘事件选中 order、上一条/下一条复盘导航、播放/暂停/速度控制及其地图标记派生、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选、敌方威胁意图预判、敌方意图反制建议、反制建议相邻排序对比、反制建议执行前后预计对照、当前反制建议地图标记派生、当前反制建议执行入口桥接派生、最近一次反制建议执行回放和敌方回合后复核。
+- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要和行动时间线、AI 行动地图复盘标记派生、当前 AI 复盘事件选中 order、上一条/下一条复盘导航、播放/暂停/速度控制及其地图标记派生、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、反制建议相邻排序对比、反制建议执行前后预计对照、当前反制建议地图标记派生、当前反制建议执行入口桥接派生、最近一次反制建议执行回放和敌方回合后复核。
 
 输入：
 
@@ -137,9 +137,10 @@
 1. 敌军射程外但存在可进入攻击位时，`attackPositionRoutes` 返回路线。
 2. `focusedRouteStepPreviews` 对推荐 `focusedAttackPositionRoute` 同样生成路线风险，展示到攻击位的消耗、控制区和敌火来源。
 3. `focusedFireExposurePreview` 对推荐攻击位估算潜在承伤；`focusedSafeEngagementOptions` 从所有攻击位中按风险、潜在伤害、路线消耗和坐标稳定排序，给出更安全接敌建议，但不改变默认 POS 执行目的地。
-4. 侧栏安全接敌候选点击只调用 `focusSafeEngagementOption(_:)` / `focusSafeEngagement(targetID:destination:)`，由 `GameState` 基于当前单位和目标敌军重新查候选路线，避免 UI 使用过期路线。
-5. 点选安全候选只切换 `focusedSafeEngagementDestination` 和当前 POS 预览路线，不消耗行动、不移动单位、不自动攻击、不生成结果摘要。
-6. 地图显示 `POS`、路线步序/风险和终点风险短码；安全候选聚焦后，路线和火力风险切到被点选的攻击位。
+4. `focusedSafeEngagementComparisons` 以未切换安全候选前的默认 POS 首选路线为稳定参考，把候选路线与默认路线的风险等级、潜在承伤、最高单源伤害、敌火来源数量、移动力消耗、控制区惩罚和路线受威胁步数做成纯派生对比；即使当前已点选某安全候选，对比参考也不漂移成“候选和自己比”。
+5. 侧栏安全接敌候选点击只调用 `focusSafeEngagementOption(_:)` / `focusSafeEngagement(targetID:destination:)`，由 `GameState` 基于当前单位和目标敌军重新查候选路线，避免 UI 使用过期路线。
+6. 点选安全候选只切换 `focusedSafeEngagementDestination` 和当前 POS 预览路线，不消耗行动、不移动单位、不自动攻击、不生成结果摘要。
+7. 地图显示 `POS`、路线步序/风险和终点风险短码；安全候选聚焦后，路线和火力风险切到被点选的攻击位，候选行继续显示相对默认 POS 路线的风险/承伤/移动代价对比。
 7. 右键敌军或执行按钮移动到当前预览的攻击位。
 8. 移动后聚焦敌军，提示继续点按或右键攻击；POS 本身不直接执行攻击。
 
@@ -267,7 +268,7 @@
 
 ## 6. 测试映射
 
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、敌方威胁意图预判、敌方意图反制建议、反制建议收益解释、排序对比解释、执行前后预计对照、反制建议点选聚焦、地图标记、执行入口桥接预览、执行回放、敌方回合复核、部署/整补结果摘要、AI 直取据点优先、AI 移动后火炮弹幕、AI 回合行动摘要、行动时间线、AI 时间线点选定位、复盘事件选中态、上一条/下一条连续查看、自动播放控制和地图复盘标记强调：`GameStateTests.swift` + `RulesSmokeTest.swift`。
+- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要和候选预览、安全接敌候选点选预览、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、反制建议收益解释、排序对比解释、执行前后预计对照、反制建议点选聚焦、地图标记、执行入口桥接预览、执行回放、敌方回合复核、部署/整补结果摘要、AI 直取据点优先、AI 移动后火炮弹幕、AI 回合行动摘要、行动时间线、AI 时间线点选定位、复盘事件选中态、上一条/下一条连续查看、自动播放控制和地图复盘标记强调：`GameStateTests.swift` + `RulesSmokeTest.swift`。
 - SwiftUI 编译：iPhone Simulator SDK typecheck。
 - Xcode 集成：`xcodebuild build-for-testing`。
 - 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。

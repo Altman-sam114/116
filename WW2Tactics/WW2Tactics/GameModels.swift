@@ -1930,6 +1930,100 @@ struct SafeEngagementOption: Identifiable, Equatable {
     var id: String { "\(targetID.uuidString)-\(route.destination.id)" }
 }
 
+struct SafeEngagementComparisonPreview: Identifiable, Equatable {
+    let option: SafeEngagementOption
+    let referenceRoute: MovementRoute
+    let referenceExposure: PostMoveFireExposurePreview
+    let optionThreatenedStepCount: Int
+    let referenceThreatenedStepCount: Int
+    let optionRouteThreatNames: [String]
+    let referenceRouteThreatNames: [String]
+    let isFocused: Bool
+
+    var id: String { option.id }
+    var destination: HexCoordinate { option.route.destination }
+    var referenceDestination: HexCoordinate { referenceRoute.destination }
+    var riskRankDelta: Int { option.exposure.riskLevel.sortRank - referenceExposure.riskLevel.sortRank }
+    var potentialDamageDelta: Int { option.exposure.totalPotentialDamage - referenceExposure.totalPotentialDamage }
+    var highestSingleDamageDelta: Int { option.exposure.highestSingleDamage - referenceExposure.highestSingleDamage }
+    var sourceCountDelta: Int { option.exposure.sources.count - referenceExposure.sources.count }
+    var movementCostDelta: Int { option.route.totalCost - referenceRoute.totalCost }
+    var controlZonePenaltyDelta: Int { option.route.controlZonePenalty - referenceRoute.controlZonePenalty }
+    var threatenedStepDelta: Int { optionThreatenedStepCount - referenceThreatenedStepCount }
+
+    var improvesExposure: Bool {
+        riskRankDelta < 0 ||
+            potentialDamageDelta < 0 ||
+            highestSingleDamageDelta < 0 ||
+            sourceCountDelta < 0 ||
+            threatenedStepDelta < 0
+    }
+
+    var riskDeltaText: String {
+        if riskRankDelta < 0 {
+            return "风险降至 \(option.exposure.riskLevel.shortTitle)"
+        }
+        if riskRankDelta > 0 {
+            return "风险升至 \(option.exposure.riskLevel.shortTitle)"
+        }
+        return "风险同为 \(option.exposure.riskLevel.shortTitle)"
+    }
+
+    var damageDeltaText: String {
+        if potentialDamageDelta < 0 {
+            return "少承伤 \(abs(potentialDamageDelta))"
+        }
+        if potentialDamageDelta > 0 {
+            return "多承伤 \(potentialDamageDelta)"
+        }
+        return "承伤相同"
+    }
+
+    var sourceDeltaText: String {
+        if sourceCountDelta < 0 {
+            return "少 \(abs(sourceCountDelta)) 个敌火"
+        }
+        if sourceCountDelta > 0 {
+            return "多 \(sourceCountDelta) 个敌火"
+        }
+        return "敌火数相同"
+    }
+
+    var movementDeltaText: String {
+        if movementCostDelta < 0 {
+            return "少走 \(abs(movementCostDelta))"
+        }
+        if movementCostDelta > 0 {
+            return "多走 \(movementCostDelta)"
+        }
+        return "移动相同"
+    }
+
+    var routeThreatDeltaText: String {
+        if threatenedStepDelta < 0 {
+            return "路线少 \(abs(threatenedStepDelta)) 步暴露"
+        }
+        if threatenedStepDelta > 0 {
+            return "路线多 \(threatenedStepDelta) 步暴露"
+        }
+        return "路线暴露相同"
+    }
+
+    var controlZoneDeltaText: String {
+        if controlZonePenaltyDelta < 0 {
+            return "少控区 +\(abs(controlZonePenaltyDelta))"
+        }
+        if controlZonePenaltyDelta > 0 {
+            return "多控区 +\(controlZonePenaltyDelta)"
+        }
+        return "控区相同"
+    }
+
+    var summaryText: String {
+        "\(damageDeltaText)，\(riskDeltaText)，\(movementDeltaText)，\(routeThreatDeltaText)"
+    }
+}
+
 enum MapCommandPreview: Equatable {
     case inspectTerrain(terrainName: String)
     case selectedUnit(unitName: String)
