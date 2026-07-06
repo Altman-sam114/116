@@ -1605,9 +1605,49 @@
 
 验证结果：
 
-- 本地轻量检查和云端结果以本轮最终交付记录为准。
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- 云端 GitHub Actions 结果以本轮最终交付记录为准。
 
 遗留事项：
 
 - 本轮只增加态势总览，不新增态势卡的自动执行按钮，不改变敌方意图、反制建议、OBJ 计划、AI、移动、攻击、整补、部署、据点、胜负或战斗数值。
 - 下一轮可在态势汇总基础上增加更细的敌方行动解释或可定位行动入口，但仍需保持执行动作走既有 `GameState` 命令链。
+
+### v1.34 / 战线态势定位入口
+
+日期：2026-07-06
+
+核心变更：
+
+- `BattlefieldSituationSummary` 新增首要定位目标，按可执行反制、受威胁据点、OBJ 推进计划和待命单位的顺序从当前态势纯派生。
+- `GameState.focusBattlefieldSituationPrimaryTarget()` 新增态势卡定位入口，每次点击都基于最新 summary 重新取目标，并复用既有反制聚焦、OBJ 聚焦或单位选择逻辑。
+- `ContentView` 的“战线态势”卡新增紧凑定位按钮，展示目标类型、标题和说明；按钮只转发到 `GameState`，不会自动执行命令。
+- 扩展 XCTest 和规则 smoke test，覆盖反制定位、OBJ 兜底定位、目标派生和定位只读不变性。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.34（战线态势定位入口）.md`
+
+验证结果：
+
+- 本地轻量检查和云端结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只增加态势卡首要目标定位，不新增自动执行、不改变反制建议、OBJ 计划、AI、移动、攻击、整补、部署、据点、胜负或战斗数值。
+- 下一轮可继续强化定位后的执行前后解释或敌方行动解释，但仍需保持真实动作走既有 `GameState` 命令链。

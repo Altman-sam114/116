@@ -328,7 +328,11 @@ final class GameState: ObservableObject {
             attackThreatCount: threats.filter(\.isAttackThreat).count,
             objectiveThreatCount: objectiveThreats.count,
             executableCountermeasureCount: executableCountermeasures.count,
-            threatenedObjectiveNames: threatenedObjectiveNames
+            threatenedObjectiveNames: threatenedObjectiveNames,
+            primaryFocusTarget: battlefieldSituationPrimaryFocusTarget(
+                threats: threats,
+                countermeasures: countermeasures
+            )
         )
     }
 
@@ -568,6 +572,63 @@ final class GameState: ObservableObject {
 
         focus(coordinate: coordinate)
         message = "复核定位：\(target.kind.title) \(target.title) @ q\(coordinate.q),r\(coordinate.r)。"
+    }
+
+    func focusBattlefieldSituationPrimaryTarget() {
+        guard winner == nil else {
+            message = "战役已结算，可复盘战报或重新开局。"
+            return
+        }
+
+        guard let target = battlefieldSituationSummary.primaryFocusTarget else {
+            message = "当前战线态势没有可定位目标。"
+            return
+        }
+
+        switch target.kind {
+        case .countermeasure:
+            guard let preview = target.countermeasurePreview else {
+                message = "战线态势反制目标已过期。"
+                return
+            }
+            focusEnemyThreatCountermeasure(preview)
+        case .objectiveDefense:
+            guard let coordinate = target.coordinate,
+                  let tile = tile(at: coordinate) else {
+                message = "战线态势守点目标已不可定位。"
+                return
+            }
+            clearObjectiveGuidance()
+            focusedCoordinate = coordinate
+            if tile.isObjective {
+                guidedObjectiveCoordinate = coordinate
+            }
+            message = "战线态势定位：守住\(target.title) @ \(coordinateText(coordinate))。"
+        case .objectiveAdvance:
+            guard let preview = target.objectiveAdvancePreview,
+                  let unitID = target.unitID,
+                  let unit = units.first(where: {
+                      $0.id == unitID &&
+                          $0.faction == activeFaction &&
+                          !$0.isDestroyed
+                  }) else {
+                message = "战线态势推进目标已过期。"
+                return
+            }
+            selectedUnitID = unit.id
+            focusObjectiveAdvancePreview(preview)
+        case .readyUnit:
+            guard let unitID = target.unitID,
+                  units.contains(where: {
+                      $0.id == unitID &&
+                          $0.faction == activeFaction &&
+                          !$0.isDestroyed
+                  }) else {
+                message = "战线态势待命单位已不可用。"
+                return
+            }
+            select(unitID: unitID)
+        }
     }
 
     func focusAIPhaseTimelineEvent(order: Int) {
@@ -3915,6 +3976,83 @@ final class GameState: ObservableObject {
         )
     }
 
+    private func battlefieldSituationPrimaryFocusTarget(
+        threats: [EnemyThreatIntentPreview],
+        countermeasures: [EnemyThreatCountermeasurePreview]
+    ) -> BattlefieldSituationFocusTarget? {
+        if let countermeasure = countermeasures.first(where: \.canExecuteNow) {
+            return BattlefieldSituationFocusTarget(
+                kind: .countermeasure,
+                title: countermeasure.kind.title,
+                detail: "\(countermeasure.actingUnitName) -> \(countermeasure.targetName)",
+                coordinate: battlefieldSituationCountermeasureCoordinate(countermeasure),
+                unitID: countermeasure.actingUnitID,
+                countermeasurePreview: countermeasure,
+                objectiveAdvancePreview: nil
+            )
+        }
+
+        if let objectiveThreat = threats.first(where: { $0.kind == .objectiveCapture }) {
+            return BattlefieldSituationFocusTarget(
+                kind: .objectiveDefense,
+                title: objectiveThreat.targetName,
+                detail: "\(objectiveThreat.enemyUnitName) 威胁\(objectiveThreat.threatLabel)",
+                coordinate: objectiveThreat.targetCoordinate,
+                unitID: objectiveThreat.targetUnitID,
+                countermeasurePreview: nil,
+                objectiveAdvancePreview: nil
+            )
+        }
+
+        let selectedCandidate = selectedUnit.flatMap { unit -> BattleUnit? in
+            guard unit.faction == activeFaction,
+                  !unit.isDestroyed,
+                  (!unit.hasMoved || !unit.hasAttacked) else { return nil }
+            return unit
+        }
+        let objectiveCandidates = ([selectedCandidate].compactMap { $0 } + readyUnits)
+            .uniquedStable { $0.id }
+
+        for unit in objectiveCandidates {
+            guard let preview = objectiveAdvancePreviews(for: unit, limit: 1).first else { continue }
+            return BattlefieldSituationFocusTarget(
+                kind: .objectiveAdvance,
+                title: preview.objectiveName,
+                detail: "\(unit.name) \(preview.priorityReasonText)",
+                coordinate: preview.route.destination,
+                unitID: unit.id,
+                countermeasurePreview: nil,
+                objectiveAdvancePreview: preview
+            )
+        }
+
+        guard let readyUnit = readyUnits.first else { return nil }
+        return BattlefieldSituationFocusTarget(
+            kind: .readyUnit,
+            title: readyUnit.name,
+            detail: "待命部队，可选择后查看移动、攻击或整补入口",
+            coordinate: readyUnit.position,
+            unitID: readyUnit.id,
+            countermeasurePreview: nil,
+            objectiveAdvancePreview: nil
+        )
+    }
+
+    private func battlefieldSituationCountermeasureCoordinate(
+        _ preview: EnemyThreatCountermeasurePreview
+    ) -> HexCoordinate? {
+        switch preview.kind {
+        case .firstStrike:
+            return units.first(where: { $0.id == preview.threatEnemyUnitID })?.position ?? preview.threatTargetCoordinate
+        case .withdraw, .objectiveDefense:
+            return preview.destination ?? preview.threatTargetCoordinate
+        case .reinforce:
+            return preview.actingUnitID.flatMap { unitID in
+                units.first(where: { $0.id == unitID })?.position
+            } ?? preview.threatTargetCoordinate
+        }
+    }
+
     private func coordinateText(_ coordinate: HexCoordinate) -> String {
         "q\(coordinate.q),r\(coordinate.r)"
     }
@@ -5249,6 +5387,17 @@ private extension Sequence where Element: Hashable {
         var seen: Set<Element> = []
         var values: [Element] = []
         for element in self where seen.insert(element).inserted {
+            values.append(element)
+        }
+        return values
+    }
+}
+
+private extension Sequence {
+    func uniquedStable<Key: Hashable>(_ key: (Element) -> Key) -> [Element] {
+        var seen: Set<Key> = []
+        var values: [Element] = []
+        for element in self where seen.insert(key(element)).inserted {
             values.append(element)
         }
         return values

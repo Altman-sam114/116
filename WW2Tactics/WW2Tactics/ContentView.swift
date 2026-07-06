@@ -2866,6 +2866,7 @@ private struct InspectorPanel: View {
 }
 
 private struct BattlefieldSituationSummaryView: View {
+    @EnvironmentObject private var game: GameState
     let summary: BattlefieldSituationSummary
 
     var body: some View {
@@ -2895,6 +2896,47 @@ private struct BattlefieldSituationSummaryView: View {
                 .foregroundStyle(.white.opacity(0.66))
                 .fixedSize(horizontal: false, vertical: true)
 
+            if let target = summary.primaryFocusTarget {
+                Button(action: game.focusBattlefieldSituationPrimaryTarget) {
+                    HStack(spacing: 7) {
+                        Label("定位", systemImage: "location.magnifyingglass")
+                            .font(.caption2.weight(.bold))
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(target.title)
+                                .font(.caption2.weight(.bold))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+                            Text(target.detail)
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.white.opacity(0.58))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.66)
+                        }
+
+                        Spacer(minLength: 4)
+
+                        Text(target.kind.shortTitle)
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.84))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 3)
+                            .background(Color.white.opacity(0.10), in: Capsule())
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white.opacity(0.86))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 7)
+                .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(priorityColor.opacity(0.28), lineWidth: 1)
+                )
+                .accessibilityLabel("定位战线态势首要目标，\(target.kind.title)，\(target.title)，\(target.detail)")
+            }
+
             LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 7) {
                 ForEach(summary.metrics) { metric in
                     BattlefieldSituationMetricPill(metric: metric)
@@ -2923,8 +2965,7 @@ private struct BattlefieldSituationSummaryView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(priorityColor.opacity(0.22), lineWidth: 1)
         )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("战线态势，\(summary.priority.title)，\(summary.title)，\(summary.detail)，据点\(summary.objectiveProgressText)，待命\(summary.readinessText)，威胁\(summary.enemyThreatCount)，反制\(summary.executableCountermeasureCount)")
+        .accessibilityElement(children: .contain)
     }
 
     private var gridColumns: [GridItem] {

@@ -1906,6 +1906,53 @@ struct BattlefieldSituationMetric: Identifiable, Equatable {
     }
 }
 
+enum BattlefieldSituationFocusTargetKind: String, Identifiable {
+    case countermeasure
+    case objectiveDefense
+    case objectiveAdvance
+    case readyUnit
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .countermeasure: "反制定位"
+        case .objectiveDefense: "守点定位"
+        case .objectiveAdvance: "推进定位"
+        case .readyUnit: "待命定位"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .countermeasure: "CTR"
+        case .objectiveDefense: "DEF"
+        case .objectiveAdvance: "OBJ"
+        case .readyUnit: "RDY"
+        }
+    }
+}
+
+struct BattlefieldSituationFocusTarget: Identifiable, Equatable {
+    let kind: BattlefieldSituationFocusTargetKind
+    let title: String
+    let detail: String
+    let coordinate: HexCoordinate?
+    let unitID: BattleUnit.ID?
+    let countermeasurePreview: EnemyThreatCountermeasurePreview?
+    let objectiveAdvancePreview: ObjectiveAdvancePreview?
+
+    var id: String {
+        [
+            kind.rawValue,
+            unitID?.uuidString ?? "none",
+            coordinate?.id ?? "none",
+            countermeasurePreview?.id ?? "none",
+            objectiveAdvancePreview?.id ?? "none"
+        ].joined(separator: "-")
+    }
+}
+
 struct BattlefieldSituationSummary: Equatable {
     let faction: Faction
     let priority: BattlefieldSituationPriority
@@ -1922,9 +1969,10 @@ struct BattlefieldSituationSummary: Equatable {
     let objectiveThreatCount: Int
     let executableCountermeasureCount: Int
     let threatenedObjectiveNames: [String]
+    let primaryFocusTarget: BattlefieldSituationFocusTarget?
 
     var id: String {
-        "\(faction.rawValue)-\(priority.rawValue)-\(focusKind.rawValue)-\(commandPoints)-\(readyUnitCount)-\(controlledObjectiveCount)-\(enemyThreatCount)-\(executableCountermeasureCount)"
+        "\(faction.rawValue)-\(priority.rawValue)-\(focusKind.rawValue)-\(commandPoints)-\(readyUnitCount)-\(controlledObjectiveCount)-\(enemyThreatCount)-\(executableCountermeasureCount)-\(primaryFocusTarget?.id ?? "none")"
     }
 
     var objectiveProgressText: String {

@@ -145,6 +145,7 @@ struct RulesSmokeTest {
             require(startingSituation.totalUnitCount == game.units(for: .allies).count, "battlefield situation should expose active force size")
             require(startingSituation.objectiveProgressText == "\(game.alliedScore)/\(game.objectiveTiles.count)", "battlefield situation should summarize objective progress")
             require(startingSituation.metrics.count == 5, "battlefield situation should expose compact metrics")
+            require(startingSituation.primaryFocusTarget != nil, "battlefield situation should expose a primary focus target when action remains")
             guard let suppliedTank = game.units.first(where: { $0.name == "第4装甲师" }) else {
                 require(false, "supplied tank should exist")
                 return
@@ -807,6 +808,26 @@ struct RulesSmokeTest {
                     objectiveAdvanceGame.guidedObjectiveCoordinate == nil,
                 "allied objective preview clicks should clear stale objective guidance without moving"
             )
+            let objectiveSituationGame = GameState(scenario: objectiveAdvanceScenario(includeOccupiedDecoy: false))
+            let objectiveSituationSummary = objectiveSituationGame.battlefieldSituationSummary
+            guard let objectiveSituationTarget = objectiveSituationSummary.primaryFocusTarget,
+                  let objectiveSituationPreview = objectiveSituationTarget.objectiveAdvancePreview else {
+                require(false, "battlefield situation should expose an objective advance focus target")
+                return
+            }
+            let objectiveSituationCommandPoints = objectiveSituationGame.commandPoints
+            let objectiveSituationUnits = objectiveSituationGame.scenario.units
+            let objectiveSituationTiles = objectiveSituationGame.scenario.tiles
+            let objectiveSituationLog = objectiveSituationGame.battleLog
+            require(objectiveSituationTarget.kind == .objectiveAdvance, "battlefield situation focus should fall back to objective advance")
+            objectiveSituationGame.focusBattlefieldSituationPrimaryTarget()
+            require(objectiveSituationGame.selectedUnit?.id == objectiveSituationTarget.unitID, "battlefield situation objective focus should select the planned unit")
+            require(objectiveSituationGame.focusedCoordinate == (objectiveSituationPreview.reachesObjective ? objectiveSituationPreview.coordinate : objectiveSituationPreview.route.destination), "battlefield situation objective focus should target the plan destination")
+            require(objectiveSituationGame.guidedObjectiveCoordinate == objectiveSituationPreview.coordinate, "battlefield situation objective focus should preserve final objective guidance")
+            require(objectiveSituationGame.commandPoints == objectiveSituationCommandPoints, "battlefield situation objective focus should not spend command points")
+            require(objectiveSituationGame.scenario.units == objectiveSituationUnits, "battlefield situation objective focus should not mutate units")
+            require(objectiveSituationGame.scenario.tiles == objectiveSituationTiles, "battlefield situation objective focus should not mutate objectives")
+            require(objectiveSituationGame.battleLog == objectiveSituationLog, "battlefield situation objective focus should not write battle log entries")
             let objectiveFireRiskGame = GameState(scenario: objectiveAdvanceFireRiskScenario())
             guard let riskyObjectiveTank = objectiveFireRiskGame.units.first(where: { $0.name == "冒险装甲" }),
                   let riskyObjective = objectiveFireRiskGame.objectiveTiles.first(where: { $0.objectiveName == "炮火据点" }) else {
@@ -1365,6 +1386,15 @@ struct RulesSmokeTest {
             require(situationSummary.priority == .threatened, "battlefield situation should mark threatened front")
             require(situationSummary.focusKind == .countermeasure, "battlefield situation should recommend countermeasures when available")
             require(situationSummary.threatenedObjectiveSummary.contains("后方油库"), "battlefield situation should summarize threatened objectives")
+            guard let situationFocusTarget = situationSummary.primaryFocusTarget,
+                  let situationCountermeasure = situationFocusTarget.countermeasurePreview else {
+                require(false, "battlefield situation should expose a countermeasure focus target")
+                return
+            }
+            require(situationFocusTarget.kind == .countermeasure, "battlefield situation focus should prioritize executable countermeasures")
+            enemyThreatGame.focusBattlefieldSituationPrimaryTarget()
+            require(enemyThreatGame.selectedUnit?.id == situationCountermeasure.actingUnitID, "battlefield situation focus should select the countermeasure unit")
+            require(enemyThreatGame.isEnemyThreatCountermeasureFocused(situationCountermeasure), "battlefield situation focus should reuse countermeasure focusing")
             require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "enemy threat countermeasures should not spend command points")
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "enemy threat countermeasures should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "enemy threat countermeasures should not mutate objectives")

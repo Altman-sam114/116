@@ -2359,6 +2359,9 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(summary.focusKind, .countermeasure)
         XCTAssertTrue(summary.title.contains("威胁"))
         XCTAssertTrue(summary.detail.contains("可执行反制"))
+        XCTAssertEqual(summary.primaryFocusTarget?.kind, .countermeasure)
+        XCTAssertEqual(summary.primaryFocusTarget?.countermeasurePreview, countermeasures.first(where: \.canExecuteNow))
+        XCTAssertEqual(summary.primaryFocusTarget?.objectiveAdvancePreview, nil)
         XCTAssertEqual(summary.objectiveProgressText, "\(summary.controlledObjectiveCount)/\(summary.totalObjectiveCount)")
         XCTAssertEqual(summary.readinessText, "\(summary.readyUnitCount)/\(summary.totalUnitCount)")
         XCTAssertEqual(summary.metrics.count, 5)
@@ -2393,6 +2396,82 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(summary.title.contains("推进"))
         XCTAssertEqual(summary.threatenedObjectiveNames, [])
         XCTAssertEqual(summary.threatenedObjectiveSummary, "暂无据点威胁")
+        XCTAssertEqual(summary.primaryFocusTarget?.kind, .objectiveAdvance)
+        XCTAssertNotNil(summary.primaryFocusTarget?.unitID)
+        XCTAssertNotNil(summary.primaryFocusTarget?.objectiveAdvancePreview)
+        XCTAssertNil(summary.primaryFocusTarget?.countermeasurePreview)
+    }
+
+    func testBattlefieldSituationFocusesPrimaryCountermeasureWithoutExecuting() throws {
+        let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let summary = game.battlefieldSituationSummary
+        let startingFaction = game.activeFaction
+        let startingCommandPoints = game.commandPoints
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+
+        guard let target = summary.primaryFocusTarget,
+              let preview = target.countermeasurePreview else {
+            XCTFail("Expected a battlefield situation countermeasure focus target")
+            return
+        }
+
+        game.focusBattlefieldSituationPrimaryTarget()
+
+        XCTAssertEqual(target.kind, .countermeasure)
+        XCTAssertEqual(game.selectedUnit?.id, preview.actingUnitID)
+        XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(preview))
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertNil(game.latestTacticalCommandResult)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNil(game.latestDeploymentResult)
+        XCTAssertNil(game.latestReinforcementResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureFollowUpResult)
+        XCTAssertNil(game.latestAIPhaseSummary)
+    }
+
+    func testBattlefieldSituationFocusesObjectiveAdvanceWithoutExecuting() throws {
+        let game = GameState(scenario: Self.objectiveAdvanceScenario(includeOccupiedDecoy: false))
+        let summary = game.battlefieldSituationSummary
+        let startingFaction = game.activeFaction
+        let startingCommandPoints = game.commandPoints
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+
+        guard let target = summary.primaryFocusTarget,
+              let unitID = target.unitID,
+              let preview = target.objectiveAdvancePreview else {
+            XCTFail("Expected a battlefield situation objective advance focus target")
+            return
+        }
+
+        game.focusBattlefieldSituationPrimaryTarget()
+
+        XCTAssertEqual(target.kind, .objectiveAdvance)
+        XCTAssertEqual(game.selectedUnit?.id, unitID)
+        XCTAssertEqual(game.focusedCoordinate, preview.reachesObjective ? preview.coordinate : preview.route.destination)
+        XCTAssertEqual(game.guidedObjectiveCoordinate, preview.coordinate)
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertNil(game.latestTacticalCommandResult)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNil(game.latestDeploymentResult)
+        XCTAssertNil(game.latestReinforcementResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureFollowUpResult)
+        XCTAssertNil(game.latestAIPhaseSummary)
     }
 
     func testEnemyThreatCountermeasuresCoverActionsLimitAndReadOnly() throws {
