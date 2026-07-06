@@ -5520,7 +5520,12 @@ private struct AIPhaseSummaryView: View {
                 CombatResultMetric(title: "指令", value: commandPointChangeText, color: summary.commandPointDelta < 0 ? .yellow : .white.opacity(0.82))
             }
 
-            AIPhaseReplayConclusionView(conclusion: summary.replayConclusion)
+            AIPhaseReplayConclusionView(
+                conclusion: summary.replayConclusion,
+                focusedOrder: game.focusedAIPhaseTimelineEventOrder
+            ) { order in
+                game.focusAIPhaseTimelineEvent(order: order)
+            }
 
             if !visibleTimeline.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
@@ -5603,6 +5608,9 @@ private struct AIPhaseSummaryView: View {
 
 private struct AIPhaseReplayConclusionView: View {
     let conclusion: AIPhaseReplayConclusion
+    let focusedOrder: Int?
+    let onSelectKeyEvent: (Int) -> Void
+
     private let metricColumns = [
         GridItem(.flexible(minimum: 72), spacing: 6),
         GridItem(.flexible(minimum: 72), spacing: 6)
@@ -5643,20 +5651,33 @@ private struct AIPhaseReplayConclusionView: View {
             if !conclusion.keyEvents.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(conclusion.keyEvents) { event in
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text(event.title)
-                                .font(.caption2.weight(.black))
-                                .foregroundStyle(conclusionColor)
-                                .frame(width: 58, alignment: .leading)
+                        let isFocusedEvent = focusedOrder == event.order
+                        Button {
+                            onSelectKeyEvent(event.order)
+                        } label: {
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Text(event.title)
+                                    .font(.caption2.weight(.black))
+                                    .foregroundStyle(isFocusedEvent ? .black : conclusionColor)
+                                    .frame(width: 58, alignment: .leading)
 
-                            Text(event.detail)
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.68))
-                                .lineLimit(2)
-                                .fixedSize(horizontal: false, vertical: true)
+                                Text(event.detail)
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(isFocusedEvent ? .black.opacity(0.82) : .white.opacity(0.68))
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(.vertical, 3)
+                            .padding(.horizontal, 5)
+                            .background(
+                                isFocusedEvent ? conclusionColor.opacity(0.86) : Color.white.opacity(0.04),
+                                in: RoundedRectangle(cornerRadius: 5)
+                            )
                         }
+                        .buttonStyle(.plain)
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("关键AI事件，\(event.title)，\(event.detail)")
+                        .accessibilityLabel("\(isFocusedEvent ? "当前复盘关键事件，" : "")关键AI事件，\(event.title)，\(event.detail)")
+                        .accessibilityHint("只定位地图复盘，不执行命令")
                     }
                 }
             }

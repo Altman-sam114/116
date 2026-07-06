@@ -128,11 +128,11 @@ flowchart LR
   TL --> AIM["latestAIPhaseMapMarkers：起点 / 终点 / 行动单位 / 目标 / 据点"]
   AIS --> FUR["latestEnemyThreatCountermeasureFollowUpResult HP/位置/据点/威胁源复核"]
   AIS --> RES
-  TL --> UIA["侧栏AI摘要：复盘结论 + 最多5条行动时间线"]
+  TL --> UIA["侧栏AI摘要：复盘结论关键事件 + 最多5条行动时间线"]
   AIC --> UIA
   UIA --> AIP["播放/暂停/速度：GameState 管理播放状态，SwiftUI timer 只触发 tick"]
   AIP --> AIN["播放tick或上一条/下一条按钮：GameState 选择目标order或边界提示，不执行命令"]
-  UIA --> AIF["点选时间线：focusAIPhaseTimelineEvent 更新 focusedCoordinate / focusedAIPhaseTimelineEventOrder / message，不执行命令"]
+  UIA --> AIF["点选结论关键事件或时间线：focusAIPhaseTimelineEvent 更新 focusedCoordinate / focusedAIPhaseTimelineEventOrder / message，不执行命令"]
   AIN --> AIF
   AIF --> AIO["focusedAIPhaseMapMarkers：按当前order过滤复盘标记"]
   AIM --> UIM["地图AI复盘标记 / tile无障碍文案"]

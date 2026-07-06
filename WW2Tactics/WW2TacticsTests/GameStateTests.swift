@@ -1031,6 +1031,36 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.commandPoints, commandPointsBeforeReplayFocus)
         XCTAssertEqual(game.latestAIPhaseSummary, summaryBeforeReplayFocus)
         XCTAssertEqual(game.latestAIPhaseMapMarkers, markersBeforeReplayFocus)
+        XCTAssertFalse(game.isAIPhaseTimelinePlaybackActive)
+
+        let conclusionKeyEvent = try XCTUnwrap(replayConclusion.keyEvents.first)
+        let conclusionTimelineEvent = try XCTUnwrap(
+            summary.timeline.first { $0.order == conclusionKeyEvent.order }
+        )
+        let conclusionReplayCoordinate = try XCTUnwrap(
+            conclusionTimelineEvent.to ?? conclusionTimelineEvent.from
+        )
+        let unitsBeforeConclusionFocus = game.scenario.units
+        let commandPointsBeforeConclusionFocus = game.commandPoints
+        let summaryBeforeConclusionFocus = game.latestAIPhaseSummary
+        let markersBeforeConclusionFocus = game.latestAIPhaseMapMarkers
+        let playbackBeforeConclusionFocus = game.isAIPhaseTimelinePlaybackActive
+
+        game.focusAIPhaseTimelineEvent(order: conclusionKeyEvent.order)
+
+        XCTAssertEqual(game.focusedCoordinate, conclusionReplayCoordinate)
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, conclusionKeyEvent.order)
+        XCTAssertEqual(
+            game.focusedAIPhaseMapMarkers,
+            markersBeforeReplayFocus.filter { $0.eventOrder == conclusionKeyEvent.order }
+        )
+        XCTAssertTrue(game.message.contains("AI复盘 #\(conclusionKeyEvent.order)"))
+        XCTAssertTrue(game.message.contains(conclusionTimelineEvent.summary))
+        XCTAssertEqual(game.scenario.units, unitsBeforeConclusionFocus)
+        XCTAssertEqual(game.commandPoints, commandPointsBeforeConclusionFocus)
+        XCTAssertEqual(game.latestAIPhaseSummary, summaryBeforeConclusionFocus)
+        XCTAssertEqual(game.latestAIPhaseMapMarkers, markersBeforeConclusionFocus)
+        XCTAssertEqual(game.isAIPhaseTimelinePlaybackActive, playbackBeforeConclusionFocus)
 
         let reverseGame = GameState(
             scenario: Self.axisPostMoveBarrageScenario(),

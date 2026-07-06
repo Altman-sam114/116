@@ -2059,6 +2059,55 @@ struct RulesSmokeTest {
                     axisPostMoveBarrageGame.canFocusPreviousAIPhaseTimelineEvent,
                     "axis post-move barrage focused tactical replay should allow previous navigation"
                 )
+                guard let axisPostMoveBarrageConclusionEvent = axisPostMoveBarrageConclusion.keyEvents.first,
+                      let axisPostMoveBarrageConclusionTimelineEvent = axisPostMoveBarragePhaseSummary.timeline.first(where: { $0.order == axisPostMoveBarrageConclusionEvent.order }),
+                      let axisPostMoveBarrageConclusionCoordinate = axisPostMoveBarrageConclusionTimelineEvent.to ?? axisPostMoveBarrageConclusionTimelineEvent.from else {
+                    require(false, "axis post-move barrage conclusion should expose a focusable key event")
+                    return
+                }
+                let axisPostMoveBarrageUnitsBeforeConclusionFocus = axisPostMoveBarrageGame.scenario.units
+                let axisPostMoveBarrageCommandPointsBeforeConclusionFocus = axisPostMoveBarrageGame.commandPoints
+                let axisPostMoveBarrageSummaryBeforeConclusionFocus = axisPostMoveBarrageGame.latestAIPhaseSummary
+                let axisPostMoveBarrageMarkersBeforeConclusionFocus = axisPostMoveBarrageGame.latestAIPhaseMapMarkers
+                let axisPostMoveBarragePlaybackBeforeConclusionFocus = axisPostMoveBarrageGame.isAIPhaseTimelinePlaybackActive
+                axisPostMoveBarrageGame.focusAIPhaseTimelineEvent(order: axisPostMoveBarrageConclusionEvent.order)
+                require(
+                    axisPostMoveBarrageGame.focusedCoordinate == axisPostMoveBarrageConclusionCoordinate,
+                    "axis post-move barrage conclusion key event should focus its replay coordinate"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageConclusionEvent.order,
+                    "axis post-move barrage conclusion key event should record focused order"
+                )
+                require(
+                    axisPostMoveBarrageGame.focusedAIPhaseMapMarkers == axisPostMoveBarrageMarkers.filter { $0.eventOrder == axisPostMoveBarrageConclusionEvent.order },
+                    "axis post-move barrage conclusion key event markers should derive from latest map markers"
+                )
+                require(
+                    axisPostMoveBarrageGame.message.contains("AI复盘 #\(axisPostMoveBarrageConclusionEvent.order)") &&
+                        axisPostMoveBarrageGame.message.contains(axisPostMoveBarrageConclusionTimelineEvent.summary),
+                    "axis post-move barrage conclusion key event should publish replay focus message"
+                )
+                require(
+                    axisPostMoveBarrageGame.scenario.units == axisPostMoveBarrageUnitsBeforeConclusionFocus,
+                    "axis post-move barrage conclusion key event focus should not mutate units"
+                )
+                require(
+                    axisPostMoveBarrageGame.commandPoints == axisPostMoveBarrageCommandPointsBeforeConclusionFocus,
+                    "axis post-move barrage conclusion key event focus should not mutate command points"
+                )
+                require(
+                    axisPostMoveBarrageGame.latestAIPhaseSummary == axisPostMoveBarrageSummaryBeforeConclusionFocus,
+                    "axis post-move barrage conclusion key event focus should not mutate AI summary"
+                )
+                require(
+                    axisPostMoveBarrageGame.latestAIPhaseMapMarkers == axisPostMoveBarrageMarkersBeforeConclusionFocus,
+                    "axis post-move barrage conclusion key event focus should not mutate map replay markers"
+                )
+                require(
+                    axisPostMoveBarrageGame.isAIPhaseTimelinePlaybackActive == axisPostMoveBarragePlaybackBeforeConclusionFocus,
+                    "axis post-move barrage conclusion key event focus should preserve playback state"
+                )
                 axisPostMoveBarrageGame.focusAIPhaseTimelineEvent(order: axisPostMoveBarrageLastEvent.order)
                 require(
                     axisPostMoveBarrageGame.focusedCoordinate == axisPostMoveBarrageLastCoordinate,

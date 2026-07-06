@@ -17,7 +17,7 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：v1.28 正在推进 AI 复盘战果结论面板，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判、AI 复盘和 OBJ/POS/反制建议操作可读性。
+- 近期规划已进入 `v1（地图操作体验）`：v1.29 正在推进 AI 复盘结论关键事件定位，已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判、AI 复盘和 OBJ/POS/反制建议操作可读性。
 
 ## 历史记录
 
@@ -1408,3 +1408,41 @@
 
 - 本轮只新增最近一次 AI 回合的结论和关键事件摘要，不新增历史 AI 回合列表、镜头动画、音效或真实美术资产。
 - 本轮不改变 AI 决策、战斗数值、移动、补给、士气、部署、整补、据点、胜负和反制建议语义。
+
+### v1.29 / AI 复盘结论关键事件定位
+
+日期：2026-07-06
+
+核心变更：
+
+- `ContentView` 将 AI 复盘结论关键事件改为可点选行，按钮只把 key event 的 order 转发给既有 `GameState.focusAIPhaseTimelineEvent(order:)`。
+- 结论关键事件和时间线行共享 `focusedAIPhaseTimelineEventOrder` 选中态；点选后地图焦点、消息和 `focusedAIPhaseMapMarkers` 与同 order 时间线事件一致。
+- 不新增 `@Published` 状态，不改变 `AIPhaseSummary.replayConclusion` 分类、指标、关键事件排序或地图 marker 派生规则。
+- 扩展 XCTest 和规则 smoke test，覆盖结论关键事件 order 定位、marker 强调、消息和单位/指令点/summary/timeline/marker/播放状态只读不变性。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.29（AI复盘结论关键事件定位）.md`
+
+验证结果：
+
+- `git diff --check`：通过，退出码 0。
+- 规则 smoke 编译：通过，退出码 0。
+- `/private/tmp/WW2TacticsRulesSmokeTest`：通过，输出 `Rules smoke test passed`。
+- iOS app 源码级 typecheck：通过，退出码 0。
+- 测试模块 emit：通过，退出码 0。
+- `GameStateTests.swift` 源码级 typecheck：通过，退出码 0。
+- 待 Agent C 下载并核对最新 GitHub Actions artifact。
+
+遗留事项：
+
+- 本轮只增强最近一次 AI 复盘结论关键事件的地图定位，不新增历史 AI 回合列表、镜头动画、音效或真实美术资产。
+- 本轮不改变 AI 决策、战斗数值、移动、补给、士气、部署、整补、据点、胜负、播放控制和反制建议语义。
