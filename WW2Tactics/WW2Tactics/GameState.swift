@@ -369,6 +369,19 @@ final class GameState: ObservableObject {
         return nil
     }
 
+    var battlefieldSituationResponseMapMarker: BattlefieldSituationResponseMapMarker? {
+        guard let response = battlefieldSituationResponseSummary,
+              let coordinate = response.coordinate,
+              tile(at: coordinate) != nil else { return nil }
+        return BattlefieldSituationResponseMapMarker(
+            kind: response.kind,
+            coordinate: coordinate,
+            title: response.title,
+            resultTitle: response.resultTitle,
+            resultDetail: response.resultDetail
+        )
+    }
+
     var objectiveTiles: [TerrainTile] {
         scenario.tiles.filter(\.isObjective)
     }

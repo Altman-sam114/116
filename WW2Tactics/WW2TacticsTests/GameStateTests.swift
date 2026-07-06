@@ -47,6 +47,26 @@ final class GameStateTests: XCTestCase {
         )
     }
 
+    private func assertBattlefieldSituationResponseMapMarker(
+        _ marker: BattlefieldSituationResponseMapMarker?,
+        matches response: BattlefieldSituationResponseSummary,
+        kind: BattlefieldSituationResponseKind,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard let marker else {
+            XCTFail("expected battlefield situation response map marker", file: file, line: line)
+            return
+        }
+        XCTAssertEqual(marker.kind, kind, file: file, line: line)
+        XCTAssertEqual(marker.shortTitle, response.kind.shortTitle, file: file, line: line)
+        XCTAssertEqual(marker.iconName, response.kind.iconName, file: file, line: line)
+        XCTAssertEqual(Optional(marker.coordinate), response.coordinate, file: file, line: line)
+        XCTAssertEqual(marker.title, response.title, file: file, line: line)
+        XCTAssertTrue(marker.summary.contains(response.resultTitle), file: file, line: line)
+        XCTAssertTrue(marker.summary.contains(response.resultDetail), file: file, line: line)
+    }
+
     private func assertAIPhaseReplayConclusion(
         _ conclusion: AIPhaseReplayConclusion,
         kind: AIPhaseReplayConclusionKind,
@@ -2542,6 +2562,7 @@ final class GameStateTests: XCTestCase {
         })
 
         XCTAssertNil(game.battlefieldSituationResponseSummary)
+        XCTAssertNil(game.battlefieldSituationResponseMapMarker)
 
         game.focusEnemyThreatCountermeasure(firstStrike)
         game.executeFocusedCommand()
@@ -2566,6 +2587,11 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(response.resultDetail.contains("->"))
         XCTAssertEqual(response.coordinate, replay.coordinate ?? replay.threatTargetCoordinate)
         XCTAssertEqual(game.battlefieldSituationResponseSummary, response)
+        assertBattlefieldSituationResponseMapMarker(
+            game.battlefieldSituationResponseMapMarker,
+            matches: response,
+            kind: .countermeasure
+        )
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
         XCTAssertEqual(game.scenario.units, startingUnits)
@@ -2604,6 +2630,11 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(response.resultDetail.contains("指令 +\(capture.commandPointReward)"))
         XCTAssertEqual(response.coordinate, capture.coordinate)
         XCTAssertEqual(game.battlefieldSituationResponseSummary, response)
+        assertBattlefieldSituationResponseMapMarker(
+            game.battlefieldSituationResponseMapMarker,
+            matches: response,
+            kind: .objectiveCapture
+        )
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
         XCTAssertEqual(game.scenario.units, startingUnits)
@@ -2619,6 +2650,7 @@ final class GameStateTests: XCTestCase {
         let target = try XCTUnwrap(game.units.first { $0.name == "威胁炮兵" })
 
         XCTAssertNil(game.battlefieldSituationResponseSummary)
+        XCTAssertNil(game.battlefieldSituationResponseMapMarker)
 
         game.handleTap(on: artillery.position)
         game.focus(unitID: target.id)
@@ -2646,6 +2678,11 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(response.resultDetail.contains("\(combat.defender.startingHP)->\(combat.defender.endingHP)"))
         XCTAssertEqual(response.coordinate, target.position)
         XCTAssertEqual(game.battlefieldSituationResponseSummary, response)
+        assertBattlefieldSituationResponseMapMarker(
+            game.battlefieldSituationResponseMapMarker,
+            matches: response,
+            kind: .combat
+        )
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
         XCTAssertEqual(game.scenario.units, startingUnits)
@@ -2687,6 +2724,11 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(response.resultDetail.contains(tactical.statusEffect.title))
         XCTAssertEqual(response.coordinate, targetAfterCommand.position)
         XCTAssertEqual(game.battlefieldSituationResponseSummary, response)
+        assertBattlefieldSituationResponseMapMarker(
+            game.battlefieldSituationResponseMapMarker,
+            matches: response,
+            kind: .tacticalCommand
+        )
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
         XCTAssertEqual(game.scenario.units, startingUnits)
@@ -2721,6 +2763,11 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(deploymentResponse.resultTitle.contains("\(deployment.commandPointsAfterDeployment)"))
         XCTAssertEqual(deploymentResponse.coordinate, deployment.coordinate)
         XCTAssertEqual(deploymentGame.battlefieldSituationResponseSummary, deploymentResponse)
+        assertBattlefieldSituationResponseMapMarker(
+            deploymentGame.battlefieldSituationResponseMapMarker,
+            matches: deploymentResponse,
+            kind: .deployment
+        )
         XCTAssertEqual(deploymentGame.activeFaction, deploymentStartingFaction)
         XCTAssertEqual(deploymentGame.commandPoints, deploymentStartingCommandPoints)
         XCTAssertEqual(deploymentGame.scenario.units, deploymentStartingUnits)
@@ -2757,6 +2804,11 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(reinforcementResponse.resultTitle.contains("-\(reinforcement.commandCost)"))
         XCTAssertEqual(reinforcementResponse.coordinate, reinforcement.coordinate)
         XCTAssertEqual(reinforcementGame.battlefieldSituationResponseSummary, reinforcementResponse)
+        assertBattlefieldSituationResponseMapMarker(
+            reinforcementGame.battlefieldSituationResponseMapMarker,
+            matches: reinforcementResponse,
+            kind: .reinforcement
+        )
         XCTAssertEqual(reinforcementGame.activeFaction, startingFaction)
         XCTAssertEqual(reinforcementGame.commandPoints, startingCommandPoints)
         XCTAssertEqual(reinforcementGame.scenario.units, startingUnits)
@@ -2788,6 +2840,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(moveGame.latestDeploymentResult)
         XCTAssertNil(moveGame.latestReinforcementResult)
         XCTAssertNil(moveGame.battlefieldSituationResponseSummary)
+        XCTAssertNil(moveGame.battlefieldSituationResponseMapMarker)
 
         let lowPointGame = GameState(commandPoints: [.allies: 0, .axis: 6])
         let lowPointSite = try XCTUnwrap(lowPointGame.deploymentSites(for: .allies).first)
@@ -2796,6 +2849,7 @@ final class GameStateTests: XCTestCase {
 
         XCTAssertNil(lowPointGame.latestDeploymentResult)
         XCTAssertNil(lowPointGame.battlefieldSituationResponseSummary)
+        XCTAssertNil(lowPointGame.battlefieldSituationResponseMapMarker)
     }
 
     func testBattlefieldSituationResponseSummarizesCountermeasureFollowUpReadOnly() throws {
@@ -2810,6 +2864,7 @@ final class GameStateTests: XCTestCase {
         })
 
         XCTAssertNil(game.battlefieldSituationResponseSummary)
+        XCTAssertNil(game.battlefieldSituationResponseMapMarker)
 
         game.focusEnemyThreatCountermeasure(firstStrike)
         game.executeFocusedCommand()
@@ -2843,6 +2898,11 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(response.resultDetail, "\(leadingComparison.beforeEnemyPhase) -> \(leadingComparison.afterEnemyPhase)")
         XCTAssertEqual(response.coordinate, followUp.coordinate ?? followUp.threatTargetCoordinate)
         XCTAssertEqual(game.battlefieldSituationResponseSummary, response)
+        assertBattlefieldSituationResponseMapMarker(
+            game.battlefieldSituationResponseMapMarker,
+            matches: response,
+            kind: .countermeasureFollowUp
+        )
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
         XCTAssertEqual(game.scenario.units, startingUnits)

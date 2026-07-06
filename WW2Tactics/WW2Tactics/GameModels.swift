@@ -2004,6 +2004,36 @@ struct BattlefieldSituationResponseSummary: Identifiable, Equatable {
     }
 }
 
+struct BattlefieldSituationResponseMapMarker: Identifiable, Equatable {
+    let kind: BattlefieldSituationResponseKind
+    let coordinate: HexCoordinate
+    let title: String
+    let resultTitle: String
+    let resultDetail: String
+
+    var shortTitle: String {
+        kind.shortTitle
+    }
+
+    var iconName: String {
+        kind.iconName
+    }
+
+    var summary: String {
+        "\(title)，\(resultTitle)，\(resultDetail)"
+    }
+
+    var id: String {
+        [
+            kind.rawValue,
+            coordinate.id,
+            title,
+            resultTitle,
+            resultDetail
+        ].joined(separator: "-")
+    }
+}
+
 struct BattlefieldSituationReplayTarget: Identifiable, Equatable {
     let order: Int
     let title: String

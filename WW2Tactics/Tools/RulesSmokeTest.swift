@@ -49,6 +49,26 @@ func requireAIPhaseMapMarker(
     )
 }
 
+@MainActor
+func requireBattlefieldSituationResponseMapMarker(
+    in game: GameState,
+    matches response: BattlefieldSituationResponseSummary,
+    kind: BattlefieldSituationResponseKind,
+    _ message: String
+) {
+    guard let marker = game.battlefieldSituationResponseMapMarker else {
+        require(false, "\(message): marker should exist")
+        return
+    }
+    require(marker.kind == kind, "\(message): marker should use expected kind")
+    require(marker.shortTitle == response.kind.shortTitle, "\(message): marker should reuse response short title")
+    require(marker.iconName == response.kind.iconName, "\(message): marker should reuse response icon")
+    require(Optional(marker.coordinate) == response.coordinate, "\(message): marker should point to response coordinate")
+    require(marker.title == response.title, "\(message): marker should reuse response title")
+    require(marker.summary.contains(response.resultTitle), "\(message): marker summary should include result title")
+    require(marker.summary.contains(response.resultDetail), "\(message): marker summary should include result detail")
+}
+
 func smokeAIPhaseSummary(timeline: [AIPhaseTimelineEvent]) -> AIPhaseSummary {
     AIPhaseSummary(
         faction: .axis,
@@ -901,6 +921,12 @@ struct RulesSmokeTest {
             require(objectiveSituationResponse.resultTitle.contains(objectiveAdvanceCapture.progressText), "objective capture response should expose objective progress")
             require(objectiveSituationResponse.resultDetail.contains("指令 +\(objectiveAdvanceCapture.commandPointReward)"), "objective capture response should expose command reward")
             require(objectiveSituationResponse.coordinate == targetObjective.coordinate, "objective capture response should point to capture coordinate")
+            requireBattlefieldSituationResponseMapMarker(
+                in: objectiveAdvanceGame,
+                matches: objectiveSituationResponse,
+                kind: .objectiveCapture,
+                "objective capture situation response map marker"
+            )
 
             let distantObjectiveGame = GameState(scenario: distantObjectiveAdvanceScenario())
             guard let distantAdvanceTank = distantObjectiveGame.units.first(where: { $0.name == "目标推进装甲" }),
@@ -1653,6 +1679,12 @@ struct RulesSmokeTest {
             require(barrageSituationResponse.resultTitle.contains("-\(barrageSummary.commandCost)"), "barrage situation response should expose command cost")
             require(barrageSituationResponse.resultDetail.contains(barrageSummary.statusEffect.title), "barrage situation response should expose status")
             require(barrageSituationResponse.coordinate == barrageTargetAfter.position, "barrage situation response should point to target")
+            requireBattlefieldSituationResponseMapMarker(
+                in: commandGame,
+                matches: barrageSituationResponse,
+                kind: .tacticalCommand,
+                "barrage situation response map marker"
+            )
             require(commandGame.battleLog.contains { $0.contains("火炮弹幕") && $0.contains("无反击") }, "barrage log should mention no counterattack")
 
             let lowCommandGame = GameState(
@@ -3020,6 +3052,12 @@ struct RulesSmokeTest {
             require(deploymentSituationResponse.resultTitle.contains("-\(deploymentResult.commandCost)"), "deployment situation response should expose cost")
             require(deploymentSituationResponse.resultTitle.contains("\(deploymentResult.commandPointsAfterDeployment)"), "deployment situation response should expose remaining points")
             require(deploymentSituationResponse.coordinate == deploymentResult.coordinate, "deployment situation response should point to deployed coordinate")
+            requireBattlefieldSituationResponseMapMarker(
+                in: game,
+                matches: deploymentSituationResponse,
+                kind: .deployment,
+                "deployment situation response map marker"
+            )
 
             let reinforcementGame = GameState(
                 scenario: objectiveRestScenario(),
@@ -3061,6 +3099,12 @@ struct RulesSmokeTest {
             require(reinforcementSituationResponse.resultTitle.contains("+\(reinforcementResult.recoveredHP)"), "reinforcement situation response should expose recovered HP")
             require(reinforcementSituationResponse.resultTitle.contains("-\(reinforcementResult.commandCost)"), "reinforcement situation response should expose cost")
             require(reinforcementSituationResponse.coordinate == reinforcementResult.coordinate, "reinforcement situation response should point to reinforced coordinate")
+            requireBattlefieldSituationResponseMapMarker(
+                in: reinforcementGame,
+                matches: reinforcementSituationResponse,
+                kind: .reinforcement,
+                "reinforcement situation response map marker"
+            )
 
             let primaryInspectGame = GameState()
             primaryInspectGame.handlePrimaryAction(on: HexCoordinate(q: 0, r: 0))
@@ -3176,6 +3220,12 @@ struct RulesSmokeTest {
         require(firstStrikeSituationResponse.detail.contains(firstStrikeExecutionAdvice.actingUnitName), "first strike response should name acting unit")
         require(firstStrikeSituationResponse.resultDetail.contains("->"), "first strike response should expose expected to actual comparison")
         require(firstStrikeSituationResponse.coordinate == (firstStrikeReplay.coordinate ?? firstStrikeReplay.threatTargetCoordinate), "first strike response should point to replay coordinate")
+        requireBattlefieldSituationResponseMapMarker(
+            in: firstStrikeExecutionGame,
+            matches: firstStrikeSituationResponse,
+            kind: .countermeasure,
+            "first strike situation response map marker"
+        )
 
         let withdrawExecutionGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
         guard let withdrawExecutionAdvice = countermeasures(in: withdrawExecutionGame).first(where: {
@@ -3287,6 +3337,7 @@ struct RulesSmokeTest {
         ordinaryMoveGame.executeFocusedCommand()
         require(ordinaryMoveGame.latestEnemyThreatCountermeasureExecutionResult == nil, "ordinary move without focused countermeasure should not publish replay")
         require(ordinaryMoveGame.battlefieldSituationResponseSummary == nil, "ordinary move should not publish battlefield situation response")
+        require(ordinaryMoveGame.battlefieldSituationResponseMapMarker == nil, "ordinary move should not publish battlefield situation response map marker")
 
         let ordinaryAttackGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
         guard let ordinaryArtillery = ordinaryAttackGame.units.first(where: { $0.name == "反击炮兵" }),
@@ -3308,6 +3359,12 @@ struct RulesSmokeTest {
         require(ordinaryAttackResponse.detail.contains(ordinaryAttackResult.defender.name), "ordinary attack response should name defender")
         require(ordinaryAttackResponse.resultTitle.contains("-\(ordinaryAttackResult.damage)"), "ordinary attack response should expose damage")
         require(ordinaryAttackResponse.resultDetail.contains("\(ordinaryAttackResult.defender.startingHP)->\(ordinaryAttackResult.defender.endingHP)"), "ordinary attack response should expose defender HP change")
+        requireBattlefieldSituationResponseMapMarker(
+            in: ordinaryAttackGame,
+            matches: ordinaryAttackResponse,
+            kind: .combat,
+            "ordinary attack situation response map marker"
+        )
 
         let ordinaryReinforceGame = GameState(scenario: enemyThreatIntentScenario(axisSpent: true))
         guard let ordinaryReinforceUnit = ordinaryReinforceGame.units.first(where: { $0.name == "前线装甲" }) else {
@@ -3326,6 +3383,12 @@ struct RulesSmokeTest {
         require(ordinaryReinforceResponse.title.contains(ordinaryReinforceResult.unitName), "ordinary reinforce response should name unit")
         require(ordinaryReinforceResponse.resultTitle.contains("+\(ordinaryReinforceResult.recoveredHP)"), "ordinary reinforce response should expose recovered HP")
         require(ordinaryReinforceResponse.coordinate == ordinaryReinforceResult.coordinate, "ordinary reinforce response should point to unit coordinate")
+        requireBattlefieldSituationResponseMapMarker(
+            in: ordinaryReinforceGame,
+            matches: ordinaryReinforceResponse,
+            kind: .reinforcement,
+            "ordinary reinforce situation response map marker"
+        )
     }
 
     @MainActor
@@ -3385,6 +3448,12 @@ struct RulesSmokeTest {
             require(
                 situationResponse.coordinate == (followUp.coordinate ?? followUp.threatTargetCoordinate),
                 "follow-up situation response should point to follow-up coordinate"
+            )
+            requireBattlefieldSituationResponseMapMarker(
+                in: game,
+                matches: situationResponse,
+                kind: .countermeasureFollowUp,
+                "follow-up situation response map marker"
             )
 
             let unitsBeforeFocus = game.units

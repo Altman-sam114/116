@@ -1849,9 +1849,46 @@
 
 验证结果：
 
-- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+- 本地轻量检查通过：`git diff --check`、macOS smoke test 编译/运行、iOS Simulator 源码 typecheck、`WW2Tactics.swiftmodule` emit、`GameStateTests.swift` 源码 typecheck。
+- 云端 GitHub Actions 通过：commit `36cb166133ff2f3b83428b194d838386252c772b`，run `28793320521`，attempt `1`，artifact `ww2tactics-ci-v1.39-main-36cb166-run28793320521-attempt1`，下载目录 `/private/tmp/ww2tactics-c-review-28793320521/`，artifact 约 `3.4M`。
+- Agent C 已核对 `origin/main`、manifest、JUnit、规则 smoke 日志、主构建日志和 `.xcresult`，commit/run/artifact 一致且通过。
 
 遗留事项：
 
 - 本轮只把已有成功行动结果接入战线态势响应，不新增行动类型、AI 行为、动画、自动执行、历史响应列表或复杂美术资源。
 - 下一轮可继续强化态势响应在地图上的定位/高亮，或进一步解释据点防守取舍。
+
+### v1.40 / 态势响应地图标记
+
+日期：2026-07-06
+
+核心变更：
+
+- `GameModels` 新增 `BattlefieldSituationResponseMapMarker`，复用战线态势响应类型的短标签和 SF Symbols 图标，为地图格提供只读响应投影。
+- `GameState.battlefieldSituationResponseMapMarker` 从当前最高优先级 `battlefieldSituationResponseSummary` 纯派生；只有响应坐标存在且仍在当前地图内时才输出 marker，不新增 `@Published` 状态。
+- `ContentView.HexMapView` 将响应 marker 传入对应 `HexTileView`，地图格显示紧凑态势响应胶囊标记，并把响应摘要加入 tile 无障碍文案。
+- 地图边框和图例补充态势响应语义；响应 marker 避让 INT、OBJ/CAP、火力风险和反制聚焦标记，UI 只展示 `GameState` 派生数据，不回查单位或计算规则。
+- 扩展 XCTest 和规则 smoke test，覆盖反制、敌方回合影响、占点、普通攻击、战术命令、部署、整补响应 marker，以及普通移动、预览和失败命令不生成 marker。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.40（态势响应地图标记）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只显示当前最高优先级态势响应的单点地图标记，不新增历史响应列表、动画、镜头移动、自动滚动或自动执行。
+- 下一轮可继续处理态势响应定位入口/连续查看，或进一步解释据点防守取舍。
