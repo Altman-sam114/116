@@ -4617,7 +4617,7 @@ final class GameState: ObservableObject {
             }
         }
 
-        return groupedThreats
+        let currentPressures = groupedThreats
             .compactMap { group -> BattlefieldSituationObjectivePressure? in
                 guard let primaryThreat = group.threats.first else { return nil }
                 let sourceCount = Set(group.threats.map(\.enemyUnitID)).count
@@ -4653,6 +4653,9 @@ final class GameState: ObservableObject {
                     countermeasure: matchingCountermeasure,
                     replayTarget: replayTarget
                 )
+                let enemyPhaseImpact = battlefieldSituationObjectivePressureEnemyPhaseImpact(
+                    for: group.coordinate
+                )
 
                 return BattlefieldSituationObjectivePressure(
                     objectiveName: objectiveName,
@@ -4665,10 +4668,18 @@ final class GameState: ObservableObject {
                     actionHint: actionHint,
                     countermeasurePreview: matchingCountermeasure,
                     replayTarget: replayTarget,
-                    comparison: comparison
+                    comparison: comparison,
+                    enemyPhaseImpact: enemyPhaseImpact
                 )
             }
-            .sorted(by: battlefieldSituationObjectivePressureSort)
+
+        if let followUpPressure = battlefieldSituationFollowUpObjectivePressure(),
+           !currentPressures.contains(where: { $0.coordinate == followUpPressure.coordinate }) {
+            return (currentPressures + [followUpPressure])
+                .sorted(by: battlefieldSituationObjectivePressureSort)
+        }
+
+        return currentPressures.sorted(by: battlefieldSituationObjectivePressureSort)
     }
 
     private func battlefieldSituationObjectivePressureThreatSourceCoordinates(
@@ -4693,6 +4704,66 @@ final class GameState: ObservableObject {
             matching.first { $0.kind == .objectiveDefense } ??
             matching.first { $0.canExecuteNow } ??
             matching.first
+    }
+
+    private func battlefieldSituationFollowUpObjectivePressure() -> BattlefieldSituationObjectivePressure? {
+        guard let followUp = latestEnemyThreatCountermeasureFollowUpResult,
+              followUp.countermeasureKind == .objectiveDefense,
+              let enemyPhaseImpact = battlefieldSituationObjectivePressureEnemyPhaseImpact(
+                  for: followUp.threatTargetCoordinate
+              ) else {
+            return nil
+        }
+
+        let objectiveTile = tile(at: followUp.threatTargetCoordinate)
+        let objectiveName = objectiveTile?.objectiveName ?? followUp.targetName
+        let threatSourceCoordinates = battlefieldSituationObjectivePressureFollowUpThreatSourceCoordinates(
+            from: followUp
+        )
+        let sourceCount = max(1, threatSourceCoordinates.count)
+        let actionHint = BattlefieldSituationActionHint(
+            kind: .defend,
+            title: "查看守点复核",
+            entryTitle: "查看敌方回合影响",
+            detail: "该压力来自真实守点复核，只解释回合前后结果，不会自动执行命令。",
+            isExecutable: false
+        )
+        let replayTarget = battlefieldSituationObjectivePressureFollowUpReplayTarget(from: followUp)
+        let comparison = battlefieldSituationObjectivePressureComparison(
+            owner: objectiveTile?.owner,
+            threatSourceCount: sourceCount,
+            routeText: "敌方回合已复核",
+            actionHint: actionHint,
+            countermeasure: nil,
+            replayTarget: replayTarget
+        )
+
+        return BattlefieldSituationObjectivePressure(
+            objectiveName: objectiveName,
+            coordinate: followUp.threatTargetCoordinate,
+            owner: objectiveTile?.owner,
+            threatSourceCount: sourceCount,
+            threatSourceCoordinates: threatSourceCoordinates,
+            primaryThreatTitle: enemyPhaseImpact.outcomeLevel.shortTitle,
+            primaryThreatDetail: "\(followUp.threatEnemyUnitName) 回合后复核，\(enemyPhaseImpact.result)",
+            actionHint: actionHint,
+            countermeasurePreview: nil,
+            replayTarget: replayTarget,
+            comparison: comparison,
+            enemyPhaseImpact: enemyPhaseImpact
+        )
+    }
+
+    private func battlefieldSituationObjectivePressureFollowUpThreatSourceCoordinates(
+        from followUp: EnemyThreatCountermeasureFollowUpSummary
+    ) -> [HexCoordinate] {
+        let detailCoordinate = followUp.objectiveDefenseDetail?.threatEnemyCoordinateAfter
+        let unitCoordinate = units.first { $0.id == followUp.threatEnemyUnitID }?.position
+        return [detailCoordinate, unitCoordinate]
+            .compactMap { $0 }
+            .filter { tile(at: $0) != nil }
+            .uniquedStable()
+            .sorted { $0.id < $1.id }
     }
 
     private func battlefieldSituationObjectivePressureComparison(
@@ -4740,6 +4811,63 @@ final class GameState: ObservableObject {
             currentDetail: currentDetail,
             responseTitle: responseTitle,
             responseDetail: responseDetail
+        )
+    }
+
+    private func battlefieldSituationObjectivePressureEnemyPhaseImpact(
+        for coordinate: HexCoordinate
+    ) -> BattlefieldSituationObjectivePressureEnemyPhaseImpact? {
+        guard let followUp = latestEnemyThreatCountermeasureFollowUpResult,
+              followUp.countermeasureKind == .objectiveDefense,
+              followUp.threatTargetCoordinate == coordinate,
+              latestAIPhaseSummary?.turn == followUp.aiTurn else {
+            return nil
+        }
+
+        let leadingComparison = followUp.comparisons.first { $0.kind == .objective } ??
+            followUp.comparisons.first
+        guard let leadingComparison else { return nil }
+
+        let detail: String
+        if let objectiveDefenseDetail = followUp.objectiveDefenseDetail {
+            detail = "\(objectiveDefenseDetail.title)，\(objectiveDefenseDetail.summary)"
+        } else {
+            detail = followUp.conclusion
+        }
+
+        return BattlefieldSituationObjectivePressureEnemyPhaseImpact(
+            outcomeLevel: followUp.outcomeLevel,
+            title: "\(followUp.outcomeLevel.title)：敌方回合后",
+            detail: detail,
+            beforeEnemyPhase: leadingComparison.beforeEnemyPhase,
+            afterEnemyPhase: leadingComparison.afterEnemyPhase,
+            result: leadingComparison.result,
+            aiTurn: followUp.aiTurn,
+            sourceTitle: "\(followUp.countermeasureKind.title)复核"
+        )
+    }
+
+    private func battlefieldSituationObjectivePressureFollowUpReplayTarget(
+        from followUp: EnemyThreatCountermeasureFollowUpSummary
+    ) -> BattlefieldSituationReplayTarget? {
+        guard let aiSummary = latestAIPhaseSummary,
+              aiSummary.turn == followUp.aiTurn else { return nil }
+
+        let relatedOrders = followUp.relatedAIEvents.map(\.order)
+        let relatedEvent = relatedOrders
+            .compactMap { order in aiSummary.timeline.first { $0.order == order } }
+            .first { ($0.to ?? $0.from).map { tile(at: $0) != nil } == true }
+        guard let relatedEvent,
+              let coordinate = relatedEvent.to ?? relatedEvent.from else {
+            return nil
+        }
+
+        return BattlefieldSituationReplayTarget(
+            order: relatedEvent.order,
+            title: "守点复核关联：\(relatedEvent.kind.title)",
+            detail: relatedEvent.summary,
+            coordinate: coordinate,
+            source: .objectivePressure
         )
     }
 

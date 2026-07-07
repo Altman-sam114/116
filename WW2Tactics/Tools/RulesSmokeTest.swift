@@ -1530,6 +1530,7 @@ struct RulesSmokeTest {
             require(objectivePressure.comparison.currentDetail.contains("1 个威胁源"), "objective pressure comparison should include threat source count")
             require(objectivePressure.comparison.responseDetail.contains(objectivePressure.actionHint.entryTitle), "objective pressure comparison should include response entry")
             require(objectivePressure.comparison.responseDetail.contains("暂无复盘线索"), "objective pressure comparison should explain missing replay clue")
+            require(objectivePressure.enemyPhaseImpact == nil, "objective pressure should not invent enemy phase impact without follow-up")
             require(objectivePressure.replayTarget == nil, "objective pressure should not invent replay clues without AI summary")
             require(objectivePressure.primaryThreatTitle.isEmpty == false, "objective pressure should expose a risk title")
             require(objectivePressure.primaryThreatDetail.contains(situationObjectiveThreat.enemyUnitName), "objective pressure should describe the primary threat")
@@ -1588,6 +1589,7 @@ struct RulesSmokeTest {
             require(objectivePressureReplayTarget.detail == objectivePressureReplayEvent.summary, "objective pressure replay clue should reuse AI event summary")
             require(objectivePressureWithReplay.comparison.level == .held, "objective pressure comparison should stay stable when replay clue appears")
             require(objectivePressureWithReplay.comparison.responseDetail.contains("有复盘线索"), "objective pressure comparison should expose replay clue availability")
+            require(objectivePressureWithReplay.enemyPhaseImpact == nil, "objective pressure should not infer enemy phase impact from replay clue alone")
             require(objectivePressureWithReplay.id == objectivePressure.id, "objective pressure replay comparison should not change pressure identity")
             enemyThreatGame.focusBattlefieldSituationObjectivePressure(id: objectivePressureWithReplay.id)
             guard let refreshedPressure = enemyThreatGame.battlefieldSituationSummary.objectivePressures.first(where: { $0.objectiveName == "后方油库" }) else {
@@ -3875,6 +3877,23 @@ struct RulesSmokeTest {
             objectiveFollowUp?.conclusion.contains("进驻已复核") == true,
             "objective follow-up should mention the reviewed defense action"
         )
+        if let objectiveFollowUp,
+           let objectiveLeadingComparison = objectiveFollowUp.comparisons.first(where: { $0.kind == .objective }) {
+            guard let objectivePressureImpact = objectiveGame.battlefieldSituationSummary.objectivePressures.first(where: {
+                $0.coordinate == objectiveFollowUp.threatTargetCoordinate
+            })?.enemyPhaseImpact else {
+                require(false, "objective pressure should expose matching enemy phase impact after defense follow-up")
+                return
+            }
+            require(objectivePressureImpact.outcomeLevel == objectiveFollowUp.outcomeLevel, "objective pressure impact should mirror follow-up outcome")
+            require(objectivePressureImpact.title == "\(objectiveFollowUp.outcomeLevel.title)：敌方回合后", "objective pressure impact should expose enemy phase title")
+            require(objectivePressureImpact.beforeEnemyPhase == objectiveLeadingComparison.beforeEnemyPhase, "objective pressure impact should reuse follow-up before value")
+            require(objectivePressureImpact.afterEnemyPhase == objectiveLeadingComparison.afterEnemyPhase, "objective pressure impact should reuse follow-up after value")
+            require(objectivePressureImpact.result == objectiveLeadingComparison.result, "objective pressure impact should reuse follow-up result")
+            require(objectivePressureImpact.aiTurn == objectiveFollowUp.aiTurn, "objective pressure impact should bind to follow-up AI turn")
+            require(objectivePressureImpact.sourceTitle == "\(objectiveFollowUp.countermeasureKind.title)复核", "objective pressure impact should expose follow-up source")
+            require(objectivePressureImpact.detail.contains(objectiveFollowUp.objectiveDefenseDetail?.title ?? ""), "objective pressure impact should include defense detail title")
+        }
         let objectiveTimeline = objectiveGame.latestAIPhaseSummary?.timeline ?? []
         let objectiveTimelineOrders = Set(objectiveTimeline.map(\.order))
         require(

@@ -2346,6 +2346,30 @@ struct BattlefieldSituationObjectivePressureComparison: Identifiable, Equatable 
     }
 }
 
+struct BattlefieldSituationObjectivePressureEnemyPhaseImpact: Identifiable, Equatable {
+    let outcomeLevel: EnemyThreatCountermeasureFollowUpOutcomeLevel
+    let title: String
+    let detail: String
+    let beforeEnemyPhase: String
+    let afterEnemyPhase: String
+    let result: String
+    let aiTurn: Int
+    let sourceTitle: String
+
+    var id: String {
+        [
+            outcomeLevel.rawValue,
+            title,
+            detail,
+            beforeEnemyPhase,
+            afterEnemyPhase,
+            result,
+            "\(aiTurn)",
+            sourceTitle
+        ].joined(separator: "-")
+    }
+}
+
 struct BattlefieldSituationObjectivePressure: Identifiable, Equatable {
     let objectiveName: String
     let coordinate: HexCoordinate
@@ -2358,6 +2382,7 @@ struct BattlefieldSituationObjectivePressure: Identifiable, Equatable {
     let countermeasurePreview: EnemyThreatCountermeasurePreview?
     let replayTarget: BattlefieldSituationReplayTarget?
     let comparison: BattlefieldSituationObjectivePressureComparison
+    let enemyPhaseImpact: BattlefieldSituationObjectivePressureEnemyPhaseImpact?
 
     var ownerTitle: String {
         owner?.title ?? "中立"

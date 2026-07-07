@@ -2326,3 +2326,35 @@
 遗留事项：
 
 - 本轮只筛选和解释既有 AI 时间线事件，不新增 AI 因果归因、未来分支模拟、自动防守、自动移动、自动攻击、动画、音效或新美术资源。
+
+### v1.54 / 据点压力敌方回合影响
+
+日期：2026-07-07
+
+核心变更：
+
+- `BattlefieldSituationObjectivePressure` 新增 `enemyPhaseImpact`，从最新守点反制 follow-up 和最新 AI summary 纯派生据点压力的敌方回合后影响。
+- `GameState` 只在 follow-up 为据点防守、受威胁据点坐标匹配且 AI 回合号匹配时生成压力影响；无真实 follow-up 时不从普通 AI 复盘线索或全局关键事件伪造影响。
+- `ContentView` 在据点压力行显示敌方回合前后对比和结果，UI 仍只消费 `GameState` 派生字段。
+- 扩展 XCTest 和规则 smoke test，覆盖初始压力无影响、复盘线索不伪造影响、守点 follow-up 后压力行显示影响、pressure id 稳定和只读边界。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.54（据点压力敌方回合影响）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只把真实守点 follow-up 映射回据点压力行，不新增 AI 因果归因、未来分支模拟、自动防守、自动移动、自动攻击、动画、音效或新美术资源。

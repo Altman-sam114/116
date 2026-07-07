@@ -11,8 +11,8 @@ flowchart TD
   U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusBattlefieldSituationPrimaryTarget / focusBattlefieldSituationObjectivePressure / focusBattlefieldSituationObjectivePressureReplayTarget / focusBattlefieldSituationResponseTarget / focusPreviousBattlefieldSituationResponse / focusNextBattlefieldSituationResponse / focusBattlefieldSituationReplayTarget / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback"]
   I --> S["GameState：核心状态机"]
-  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BattlefieldSituationSummary/ObjectivePressure/ObjectivePressureComparison/ObjectivePressureMapMarker/FocusTarget/ActionHint/ResponseSummary/ResponseHistoryEntry/ResponseMapMarker/ReplayTarget/ReplayTargetSource、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary/ObjectiveDefenseFollowUpDetail、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
-  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、战线态势首要定位/压力行当前态/压力态势对照/复盘影响来源筛选/响应历史导航/响应定位/下一步提示/执行反馈/普通行动响应/敌方回合影响/AI关键复盘定位、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核、据点防守复核细分、关联AI行动、复核等级、复核目标定位"]
+  M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BattlefieldSituationSummary/ObjectivePressure/ObjectivePressureComparison/ObjectivePressureEnemyPhaseImpact/ObjectivePressureMapMarker/FocusTarget/ActionHint/ResponseSummary/ResponseHistoryEntry/ResponseMapMarker/ReplayTarget/ReplayTargetSource、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary/ObjectiveDefenseFollowUpDetail、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
+  S --> R["规则判定：移动、攻击、战术命令、部署、整补、补给、控制区、士气、AI、AI回合摘要、AI行动时间线、AI地图复盘标记、AI时间线点选定位、AI复盘选中态、上一条/下一条复盘导航、播放/暂停/速度控制、OBJ计划、THR、安全接敌路径对比、敌方意图、反制建议、战线态势首要定位/压力行当前态/压力态势对照/压力敌方回合影响/复盘影响来源筛选/响应历史导航/响应定位/下一步提示/执行反馈/普通行动响应/敌方回合影响/AI关键复盘定位、排序对比、执行前后对照、执行入口桥接、执行回放、敌方回合复核、据点防守复核细分、关联AI行动、复核等级、复核目标定位"]
   R --> W["状态写回：单位位置、HP、行动状态、据点归属、目标引导、焦点坐标、消息、攻击/战术/占领/后勤结果、反制回放、敌方回合复核、据点防守复核细分、关联AI行动、最近5条态势响应历史、当前响应order、AI回合摘要、行动时间线、当前复盘order、播放状态/速度、战报、胜负"]
   R --> EI["只读预判：EnemyThreatIntentPreview 直接攻击 / 接敌攻击 / 据点威胁"]
   EI --> EC["只读建议：EnemyThreatCountermeasurePreview 抢先打击 / 撤退 / 守点 / 整补"]
@@ -112,6 +112,7 @@ flowchart LR
   BS --> BOP["BattlefieldSituationObjectivePressure 据点防守压力：据点 / 归属 / 威胁来源 / 占点风险 / 推荐入口 / 态势对照 / 复盘线索"]
   BOP --> BOPM["ObjectivePressureMapMarker：PRS 受压据点 / SRC 威胁来源 / DEF 守点目的格"]
   BOP --> BOPC2["压力态势对照：当前守势/敌控/中立 + 应对入口，只读派生"]
+  BOP --> BOPE["压力敌方回合影响：匹配守点follow-up + 据点前后对比，只读派生"]
   BS --> BFT["BattlefieldSituationFocusTarget 首要定位目标"]
   BFT --> BAH["BattlefieldSituationActionHint 下一步入口提示"]
   BS --> BRS["BattlefieldSituationResponseSummary 当前查看响应 / 普通行动反馈 / 敌方回合影响"]
@@ -187,12 +188,13 @@ flowchart LR
   FLOC --> UI2
   CMR --> UI2
   FUR --> UI2
-  BS --> UI3["侧栏战线态势：指令 / 待命 / 据点 / 威胁 / 反制 / 受威胁据点 / 据点压力 / 压力行当前态 / 压力态势对照 / 压力复盘线索 / 复盘影响来源 / 首要建议 / 执行反馈 / 敌方回合影响 / 响应历史 / 响应定位 / 复盘影响"]
+  BS --> UI3["侧栏战线态势：指令 / 待命 / 据点 / 威胁 / 反制 / 受威胁据点 / 据点压力 / 压力行当前态 / 压力态势对照 / 压力敌方回合影响 / 压力复盘线索 / 复盘影响来源 / 首要建议 / 执行反馈 / 敌方回合影响 / 响应历史 / 响应定位 / 复盘影响"]
   BOP --> UI3
   BOPC2 --> UI3
   BOP --> BOPF["压力行定位：focusBattlefieldSituationObjectivePressure 重新校验压力id，复用反制聚焦或定位据点，不执行命令"]
   BOPF --> BOPC["压力行当前态：isBattlefieldSituationObjectivePressureFocused 从当前压力id和最新压力列表派生"]
   BOPC --> UI3
+  BOPE --> UI3
   BOP --> BOPR["压力复盘线索：从最新AI时间线保守匹配威胁来源或受压据点"]
   BOPR --> BOPRF["线索按钮：focusBattlefieldSituationObjectivePressureReplayTarget -> focusAIPhaseTimelineEvent"]
   BOPRF --> AIF

@@ -3482,6 +3482,14 @@ private struct BattlefieldSituationObjectivePressureRow: View {
                         .foregroundStyle(color.opacity(0.74))
                         .lineLimit(1)
                         .minimumScaleFactor(0.60)
+
+                    if let enemyPhaseImpact = pressure.enemyPhaseImpact {
+                        Text("\(enemyPhaseImpact.title)：\(enemyPhaseImpact.beforeEnemyPhase) -> \(enemyPhaseImpact.afterEnemyPhase)，\(enemyPhaseImpact.result)")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.blue.opacity(0.82))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.58)
+                    }
                 }
 
                 Label(pressure.actionHint.entryTitle, systemImage: pressure.actionHint.kind.iconName)
@@ -3545,7 +3553,17 @@ private struct BattlefieldSituationObjectivePressureRow: View {
                 .stroke(isFocused ? color.opacity(0.42) : Color.white.opacity(0.06), lineWidth: 1)
         )
         .contentShape(Rectangle())
-        .accessibilityLabel("\(isFocused ? "当前" : "定位")据点压力，\(pressure.objectiveName)，\(pressure.ownerTitle)，\(pressure.threatSourceCount) 个威胁来源，\(pressure.primaryThreatTitle)，\(pressure.primaryThreatDetail)，\(pressure.comparison.currentTitle)，\(pressure.comparison.currentDetail)，\(pressure.comparison.responseTitle)，\(pressure.comparison.responseDetail)，推荐入口，\(pressure.actionHint.entryTitle)")
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var accessibilitySummary: String {
+        let impactSummary: String
+        if let enemyPhaseImpact = pressure.enemyPhaseImpact {
+            impactSummary = "，敌方回合后，\(enemyPhaseImpact.title)，\(enemyPhaseImpact.beforeEnemyPhase) 到 \(enemyPhaseImpact.afterEnemyPhase)，\(enemyPhaseImpact.result)"
+        } else {
+            impactSummary = ""
+        }
+        return "\(isFocused ? "当前" : "定位")据点压力，\(pressure.objectiveName)，\(pressure.ownerTitle)，\(pressure.threatSourceCount) 个威胁来源，\(pressure.primaryThreatTitle)，\(pressure.primaryThreatDetail)，\(pressure.comparison.currentTitle)，\(pressure.comparison.currentDetail)，\(pressure.comparison.responseTitle)，\(pressure.comparison.responseDetail)\(impactSummary)，推荐入口，\(pressure.actionHint.entryTitle)"
     }
 }
 
