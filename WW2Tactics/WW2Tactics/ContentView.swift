@@ -3180,10 +3180,16 @@ private struct BattlefieldSituationSummaryView: View {
                     }
 
                     ForEach(Array(summary.objectivePressures.prefix(3))) { pressure in
-                        BattlefieldSituationObjectivePressureRow(
-                            pressure: pressure,
-                            color: priorityColor
-                        )
+                        Button {
+                            game.focusBattlefieldSituationObjectivePressure(id: pressure.id)
+                        } label: {
+                            BattlefieldSituationObjectivePressureRow(
+                                pressure: pressure,
+                                color: priorityColor
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("只定位据点压力或守点建议，不执行移动、攻击、整补或部署。")
                     }
                 }
                 .padding(.horizontal, 8)
@@ -3344,7 +3350,8 @@ private struct BattlefieldSituationObjectivePressureRow: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityLabel("\(pressure.objectiveName)，\(pressure.ownerTitle)，\(pressure.threatSourceCount) 个威胁来源，\(pressure.primaryThreatTitle)，\(pressure.primaryThreatDetail)，推荐入口，\(pressure.actionHint.entryTitle)")
+        .contentShape(Rectangle())
+        .accessibilityLabel("定位据点压力，\(pressure.objectiveName)，\(pressure.ownerTitle)，\(pressure.threatSourceCount) 个威胁来源，\(pressure.primaryThreatTitle)，\(pressure.primaryThreatDetail)，推荐入口，\(pressure.actionHint.entryTitle)")
     }
 }
 

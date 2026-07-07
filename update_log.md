@@ -2097,3 +2097,35 @@
 
 - 本轮只解释玩家回合据点防守压力，不新增自动守点、AI 行动归因、未防守分支模拟、动画、音效或新美术资源。
 - 不改变 AI、移动、攻击、补给、士气、据点奖励、胜负、敌方意图或反制建议排序。
+
+### v1.47 / 据点压力定位入口
+
+日期：2026-07-07
+
+核心变更：
+
+- 将战线态势卡的据点防守压力行升级为只读定位入口。
+- 新增 `focusBattlefieldSituationObjectivePressure(id:)`，每次点击重新校验最新压力 id，有匹配反制时复用反制聚焦，无匹配时定位受威胁据点。
+- 压力定位只改变选择、焦点、目标引导、反制聚焦和消息，不执行移动、攻击、整补、部署、战术命令或 AI。
+- 扩展 XCTest 和规则 smoke test，覆盖压力定位只读边界。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.47（据点压力定位入口）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 后续仍可继续强化 AI 复盘与战线态势地图反馈，或增加更多据点攻防解释。

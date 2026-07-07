@@ -723,6 +723,34 @@ final class GameState: ObservableObject {
         }
     }
 
+    func focusBattlefieldSituationObjectivePressure(id: String) {
+        guard winner == nil else {
+            message = "战役已结算，可复盘战报或重新开局。"
+            return
+        }
+
+        guard let pressure = battlefieldSituationSummary.objectivePressures.first(where: { $0.id == id }) else {
+            message = "据点压力目标已过期。"
+            return
+        }
+
+        if let countermeasure = pressure.countermeasurePreview {
+            focusEnemyThreatCountermeasure(countermeasure)
+            message = "据点压力定位：\(pressure.objectiveName)。\(message)"
+            return
+        }
+
+        guard tile(at: pressure.coordinate) != nil else {
+            message = "据点压力目标已不可定位。"
+            return
+        }
+
+        clearObjectiveGuidance()
+        focusedCoordinate = pressure.coordinate
+        guidedObjectiveCoordinate = pressure.coordinate
+        message = "据点压力定位：\(pressure.objectiveName) @ \(coordinateText(pressure.coordinate))，\(pressure.actionHint.entryTitle)。该入口只定位，不执行命令。"
+    }
+
     func focusBattlefieldSituationReplayTarget() {
         guard let replayTarget = battlefieldSituationSummary.replayTarget else {
             message = "战线态势暂无可定位的敌方关键复盘事件。"

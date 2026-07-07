@@ -2492,6 +2492,42 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(summary.primaryFocusTarget?.actionHint.isExecutable, true)
     }
 
+    func testBattlefieldSituationObjectivePressureFocusesWithoutExecuting() throws {
+        let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
+        let pressure = try XCTUnwrap(game.battlefieldSituationSummary.objectivePressures.first { $0.objectiveName == "后方油库" })
+        let startingFaction = game.activeFaction
+        let startingCommandPoints = game.commandPoints
+        let startingUnits = game.scenario.units
+        let startingTiles = game.scenario.tiles
+        let startingBattleLog = game.battleLog
+
+        game.focusBattlefieldSituationObjectivePressure(id: pressure.id)
+
+        let refreshedPressure = try XCTUnwrap(game.battlefieldSituationSummary.objectivePressures.first { $0.objectiveName == "后方油库" })
+        XCTAssertTrue(game.message.contains("据点压力定位"))
+        XCTAssertTrue(game.message.contains(refreshedPressure.objectiveName))
+        if let countermeasure = refreshedPressure.countermeasurePreview {
+            XCTAssertEqual(game.selectedUnit?.id, countermeasure.actingUnitID)
+            XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(countermeasure))
+        } else {
+            XCTAssertEqual(game.focusedCoordinate, refreshedPressure.coordinate)
+            XCTAssertEqual(game.guidedObjectiveCoordinate, refreshedPressure.coordinate)
+        }
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertNil(game.latestCombatResult)
+        XCTAssertNil(game.latestTacticalCommandResult)
+        XCTAssertNil(game.latestObjectiveCaptureResult)
+        XCTAssertNil(game.latestDeploymentResult)
+        XCTAssertNil(game.latestReinforcementResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
+        XCTAssertNil(game.latestEnemyThreatCountermeasureFollowUpResult)
+        XCTAssertNil(game.latestAIPhaseSummary)
+    }
+
     func testBattlefieldSituationFocusesPrimaryCountermeasureWithoutExecuting() throws {
         let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
         let summary = game.battlefieldSituationSummary

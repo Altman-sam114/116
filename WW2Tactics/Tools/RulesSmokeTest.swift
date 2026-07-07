@@ -1472,6 +1472,22 @@ struct RulesSmokeTest {
                 require(objectivePressure.actionHint.kind == .defend, "objective pressure should fall back to DEF when no matching countermeasure is in the current list")
                 require(objectivePressure.actionHint.isExecutable == (enemyThreatGame.readyUnitCount > 0), "objective pressure fallback should mirror ready unit availability")
             }
+            enemyThreatGame.focusBattlefieldSituationObjectivePressure(id: objectivePressure.id)
+            let refreshedPressure = enemyThreatGame.battlefieldSituationSummary.objectivePressures.first(where: { $0.objectiveName == "后方油库" })
+            require(refreshedPressure != nil, "objective pressure should remain derivable after focus")
+            require(enemyThreatGame.message.contains("据点压力定位"), "objective pressure focus should explain the pressure location")
+            require(enemyThreatGame.message.contains("后方油库"), "objective pressure focus should name the objective")
+            if let refreshedPressure, let focusedPressureCountermeasure = refreshedPressure.countermeasurePreview {
+                require(enemyThreatGame.selectedUnit?.id == focusedPressureCountermeasure.actingUnitID, "objective pressure focus should select the matching countermeasure unit")
+                require(enemyThreatGame.isEnemyThreatCountermeasureFocused(focusedPressureCountermeasure), "objective pressure focus should reuse countermeasure focusing")
+            } else if let refreshedPressure {
+                require(enemyThreatGame.focusedCoordinate == refreshedPressure.coordinate, "objective pressure focus should fall back to objective coordinate")
+                require(enemyThreatGame.guidedObjectiveCoordinate == refreshedPressure.coordinate, "objective pressure focus should guide the threatened objective")
+            }
+            require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "objective pressure focus should not spend command points")
+            require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "objective pressure focus should not mutate units")
+            require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "objective pressure focus should not mutate objectives")
+            require(enemyThreatGame.battleLog == startingEnemyThreatLog, "objective pressure focus should not write battle log entries")
             guard let situationFocusTarget = situationSummary.primaryFocusTarget,
                   let situationCountermeasure = situationFocusTarget.countermeasurePreview else {
                 require(false, "battlefield situation should expose a countermeasure focus target")
