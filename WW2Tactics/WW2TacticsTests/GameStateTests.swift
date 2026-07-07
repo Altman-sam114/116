@@ -1069,6 +1069,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(battlefieldReplayTarget.title, conclusionKeyEvent.title)
         XCTAssertEqual(battlefieldReplayTarget.detail, conclusionKeyEvent.detail)
         XCTAssertEqual(battlefieldReplayTarget.coordinate, conclusionReplayCoordinate)
+        XCTAssertEqual(battlefieldReplayTarget.source, .globalKeyEvent)
 
         let unitsBeforeBattlefieldReplayFocus = game.scenario.units
         let commandPointsBeforeBattlefieldReplayFocus = game.commandPoints
@@ -2571,6 +2572,9 @@ final class GameStateTests: XCTestCase {
         game.focusBattlefieldSituationObjectivePressure(id: pressureWithReplay.id)
 
         let refreshedPressure = try XCTUnwrap(game.battlefieldSituationSummary.objectivePressures.first { $0.objectiveName == "后方油库" })
+        let pressureSummaryReplayTarget = try XCTUnwrap(game.battlefieldSituationSummary.replayTarget)
+        XCTAssertEqual(pressureSummaryReplayTarget, replayTarget)
+        XCTAssertEqual(pressureSummaryReplayTarget.source, .objectivePressure)
         XCTAssertTrue(game.message.contains("据点压力定位"))
         XCTAssertTrue(game.message.contains(refreshedPressure.objectiveName))
         XCTAssertTrue(game.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id))
@@ -2805,7 +2809,6 @@ final class GameStateTests: XCTestCase {
         let startingUnits = game.scenario.units
         let startingTiles = game.scenario.tiles
         let startingBattleLog = game.battleLog
-        let startingMessage = game.message
 
         let response = try XCTUnwrap(game.battlefieldSituationResponseSummary)
 
@@ -2824,12 +2827,43 @@ final class GameStateTests: XCTestCase {
             matches: response,
             kind: .objectiveCapture
         )
+
+        let globalKeyCoordinate = try XCTUnwrap(game.objectiveTiles.first { $0.coordinate != capture.coordinate }?.coordinate)
+        let globalKeyEvent = testAIPhaseTimelineEvent(
+            order: 1,
+            kind: .objectiveCapture,
+            from: globalKeyCoordinate,
+            to: globalKeyCoordinate
+        )
+        let responseMatchEvent = testAIPhaseTimelineEvent(
+            order: 2,
+            kind: .move,
+            from: capture.coordinate,
+            to: capture.coordinate
+        )
+        let responseReplaySummary = testAIPhaseSummary(timeline: [
+            globalKeyEvent,
+            responseMatchEvent
+        ])
+        game.replaceLatestAIPhaseSummaryForTesting(responseReplaySummary)
+        let responseReplayTarget = try XCTUnwrap(game.battlefieldSituationSummary.replayTarget)
+        XCTAssertEqual(responseReplayTarget.order, responseMatchEvent.order)
+        XCTAssertEqual(responseReplayTarget.coordinate, capture.coordinate)
+        XCTAssertEqual(responseReplayTarget.source, .responseCoordinate)
+        XCTAssertTrue(responseReplayTarget.title.contains("响应位置关联"))
+
+        game.focusBattlefieldSituationReplayTarget()
+
+        XCTAssertEqual(game.focusedCoordinate, capture.coordinate)
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, responseMatchEvent.order)
+        XCTAssertEqual(game.latestAIPhaseSummary, responseReplaySummary)
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
         XCTAssertEqual(game.scenario.units, startingUnits)
         XCTAssertEqual(game.scenario.tiles, startingTiles)
         XCTAssertEqual(game.battleLog, startingBattleLog)
-        XCTAssertEqual(game.message, startingMessage)
+        XCTAssertTrue(game.message.contains("AI复盘 #\(responseMatchEvent.order)"))
+        XCTAssertTrue(game.message.contains(responseMatchEvent.summary))
         XCTAssertEqual(game.latestObjectiveCaptureResult, capture)
     }
 

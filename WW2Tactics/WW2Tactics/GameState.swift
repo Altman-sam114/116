@@ -360,7 +360,7 @@ final class GameState: ObservableObject {
             executableCountermeasureCount: executableCountermeasures.count,
             threatenedObjectiveNames: threatenedObjectiveNames,
             objectivePressures: objectivePressures,
-            replayTarget: battlefieldSituationReplayTarget(),
+            replayTarget: battlefieldSituationReplayTarget(objectivePressures: objectivePressures),
             primaryFocusTarget: battlefieldSituationPrimaryFocusTarget(
                 threats: threats,
                 countermeasures: countermeasures
@@ -4779,7 +4779,8 @@ final class GameState: ObservableObject {
             order: best.event.order,
             title: "关联AI行动：\(best.event.kind.title)",
             detail: best.event.summary,
-            coordinate: best.coordinate
+            coordinate: best.coordinate,
+            source: .objectivePressure
         )
     }
 
@@ -4831,7 +4832,62 @@ final class GameState: ObservableObject {
         return left.coordinate.id < right.coordinate.id
     }
 
-    private func battlefieldSituationReplayTarget() -> BattlefieldSituationReplayTarget? {
+    private func battlefieldSituationReplayTarget(
+        objectivePressures: [BattlefieldSituationObjectivePressure]
+    ) -> BattlefieldSituationReplayTarget? {
+        if let focusedBattlefieldSituationObjectivePressureID,
+           let pressure = objectivePressures.first(where: { $0.id == focusedBattlefieldSituationObjectivePressureID }),
+           let replayTarget = pressure.replayTarget {
+            return replayTarget
+        }
+
+        if let responseCoordinate = battlefieldSituationResponseSummary?.coordinate,
+           let responseTarget = battlefieldSituationResponseReplayTarget(coordinate: responseCoordinate) {
+            return responseTarget
+        }
+
+        return battlefieldSituationGlobalReplayTarget()
+    }
+
+    private func battlefieldSituationResponseReplayTarget(coordinate: HexCoordinate) -> BattlefieldSituationReplayTarget? {
+        guard tile(at: coordinate) != nil,
+              let aiSummary = latestAIPhaseSummary else { return nil }
+
+        let candidates = aiSummary.timeline.compactMap { event -> (event: AIPhaseTimelineEvent, coordinate: HexCoordinate)? in
+            guard event.to == coordinate || event.from == coordinate,
+                  let eventCoordinate = event.to ?? event.from,
+                  tile(at: eventCoordinate) != nil else {
+                return nil
+            }
+            return (event: event, coordinate: eventCoordinate)
+        }
+
+        guard let best = candidates.sorted(by: battlefieldSituationResponseReplayCandidateSort).first else {
+            return nil
+        }
+
+        return BattlefieldSituationReplayTarget(
+            order: best.event.order,
+            title: "响应位置关联：\(best.event.kind.title)",
+            detail: best.event.summary,
+            coordinate: best.coordinate,
+            source: .responseCoordinate
+        )
+    }
+
+    private func battlefieldSituationResponseReplayCandidateSort(
+        _ left: (event: AIPhaseTimelineEvent, coordinate: HexCoordinate),
+        _ right: (event: AIPhaseTimelineEvent, coordinate: HexCoordinate)
+    ) -> Bool {
+        let leftRank = battlefieldSituationObjectivePressureReplayKindRank(left.event.kind)
+        let rightRank = battlefieldSituationObjectivePressureReplayKindRank(right.event.kind)
+        if leftRank != rightRank {
+            return leftRank < rightRank
+        }
+        return left.event.order < right.event.order
+    }
+
+    private func battlefieldSituationGlobalReplayTarget() -> BattlefieldSituationReplayTarget? {
         guard let aiSummary = latestAIPhaseSummary,
               let keyEvent = aiSummary.replayConclusion.keyEvents.first,
               let timelineEvent = aiSummary.timeline.first(where: { $0.order == keyEvent.order }),
@@ -4844,7 +4900,8 @@ final class GameState: ObservableObject {
             order: keyEvent.order,
             title: keyEvent.title,
             detail: keyEvent.detail,
-            coordinate: coordinate
+            coordinate: coordinate,
+            source: .globalKeyEvent
         )
     }
 

@@ -933,6 +933,58 @@ struct RulesSmokeTest {
                 kind: .objectiveCapture,
                 "objective capture situation response map marker"
             )
+            guard let responseGlobalCoordinate = objectiveAdvanceGame.objectiveTiles.first(where: {
+                $0.coordinate != objectiveAdvanceCapture.coordinate
+            })?.coordinate else {
+                require(false, "objective capture response replay test needs a separate global coordinate")
+                return
+            }
+            let objectiveResponseGlobalEvent = smokeAIPhaseTimelineEvent(
+                order: 1,
+                kind: .objectiveCapture,
+                from: responseGlobalCoordinate,
+                to: responseGlobalCoordinate
+            )
+            let objectiveResponseMatchEvent = smokeAIPhaseTimelineEvent(
+                order: 2,
+                kind: .move,
+                from: objectiveAdvanceCapture.coordinate,
+                to: objectiveAdvanceCapture.coordinate
+            )
+            let objectiveResponseReplaySummary = smokeAIPhaseSummary(timeline: [
+                objectiveResponseGlobalEvent,
+                objectiveResponseMatchEvent
+            ])
+            objectiveAdvanceGame.replaceLatestAIPhaseSummaryForTesting(objectiveResponseReplaySummary)
+            guard let objectiveResponseReplayTarget = objectiveAdvanceGame.battlefieldSituationSummary.replayTarget else {
+                require(false, "battlefield situation should expose response-coordinate replay target")
+                return
+            }
+            require(
+                objectiveResponseReplayTarget.order == objectiveResponseMatchEvent.order,
+                "battlefield situation response replay target should prefer response coordinate match"
+            )
+            require(
+                objectiveResponseReplayTarget.coordinate == objectiveAdvanceCapture.coordinate,
+                "battlefield situation response replay target should locate response coordinate"
+            )
+            require(
+                objectiveResponseReplayTarget.source == .responseCoordinate,
+                "battlefield situation response replay target should expose response source"
+            )
+            objectiveAdvanceGame.focusBattlefieldSituationReplayTarget()
+            require(
+                objectiveAdvanceGame.focusedCoordinate == objectiveAdvanceCapture.coordinate,
+                "battlefield situation response replay target should focus response coordinate"
+            )
+            require(
+                objectiveAdvanceGame.focusedAIPhaseTimelineEventOrder == objectiveResponseMatchEvent.order,
+                "battlefield situation response replay target should focus matching order"
+            )
+            require(
+                objectiveAdvanceGame.latestAIPhaseSummary == objectiveResponseReplaySummary,
+                "battlefield situation response replay focus should not mutate AI summary"
+            )
 
             let distantObjectiveGame = GameState(scenario: distantObjectiveAdvanceScenario())
             guard let distantAdvanceTank = distantObjectiveGame.units.first(where: { $0.name == "目标推进装甲" }),
@@ -1542,6 +1594,18 @@ struct RulesSmokeTest {
                 require(false, "objective pressure should remain derivable after focus")
                 return
             }
+            guard let pressureSituationReplayTarget = enemyThreatGame.battlefieldSituationSummary.replayTarget else {
+                require(false, "battlefield situation should prioritize focused pressure replay clue")
+                return
+            }
+            require(
+                pressureSituationReplayTarget == objectivePressureReplayTarget,
+                "battlefield situation replay target should reuse focused objective pressure clue"
+            )
+            require(
+                pressureSituationReplayTarget.source == .objectivePressure,
+                "battlefield situation pressure replay target should expose pressure source"
+            )
             require(enemyThreatGame.message.contains("据点压力定位"), "objective pressure focus should explain the pressure location")
             require(enemyThreatGame.message.contains("后方油库"), "objective pressure focus should name the objective")
             require(enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "objective pressure focus should mark the pressure row as focused")
@@ -2440,7 +2504,9 @@ struct RulesSmokeTest {
                     require(false, "axis post-move barrage conclusion should expose a focusable key event")
                     return
                 }
-                guard let axisPostMoveBarrageSituationReplayTarget = axisPostMoveBarrageGame.battlefieldSituationSummary.replayTarget else {
+                let axisPostMoveBarrageGlobalReplayGame = GameState(scenario: axisPostMoveBarrageGame.scenario)
+                axisPostMoveBarrageGlobalReplayGame.replaceLatestAIPhaseSummaryForTesting(axisPostMoveBarragePhaseSummary)
+                guard let axisPostMoveBarrageSituationReplayTarget = axisPostMoveBarrageGlobalReplayGame.battlefieldSituationSummary.replayTarget else {
                     require(false, "battlefield situation should expose AI replay target")
                     return
                 }
@@ -2460,42 +2526,47 @@ struct RulesSmokeTest {
                     axisPostMoveBarrageSituationReplayTarget.coordinate == axisPostMoveBarrageConclusionCoordinate,
                     "battlefield situation AI replay target should use key event coordinate"
                 )
-                let axisPostMoveBarrageUnitsBeforeSituationReplayFocus = axisPostMoveBarrageGame.scenario.units
-                let axisPostMoveBarrageCommandPointsBeforeSituationReplayFocus = axisPostMoveBarrageGame.commandPoints
-                let axisPostMoveBarrageSummaryBeforeSituationReplayFocus = axisPostMoveBarrageGame.latestAIPhaseSummary
-                let axisPostMoveBarrageMarkersBeforeSituationReplayFocus = axisPostMoveBarrageGame.latestAIPhaseMapMarkers
-                let axisPostMoveBarragePlaybackBeforeSituationReplayFocus = axisPostMoveBarrageGame.isAIPhaseTimelinePlaybackActive
-                axisPostMoveBarrageGame.focusBattlefieldSituationReplayTarget()
                 require(
-                    axisPostMoveBarrageGame.focusedCoordinate == axisPostMoveBarrageConclusionCoordinate,
+                    axisPostMoveBarrageSituationReplayTarget.source == .globalKeyEvent,
+                    "battlefield situation AI replay target should expose global key event source"
+                )
+                let axisPostMoveBarrageGlobalMarkers = axisPostMoveBarrageGlobalReplayGame.latestAIPhaseMapMarkers
+                let axisPostMoveBarrageUnitsBeforeSituationReplayFocus = axisPostMoveBarrageGlobalReplayGame.scenario.units
+                let axisPostMoveBarrageCommandPointsBeforeSituationReplayFocus = axisPostMoveBarrageGlobalReplayGame.commandPoints
+                let axisPostMoveBarrageSummaryBeforeSituationReplayFocus = axisPostMoveBarrageGlobalReplayGame.latestAIPhaseSummary
+                let axisPostMoveBarrageMarkersBeforeSituationReplayFocus = axisPostMoveBarrageGlobalReplayGame.latestAIPhaseMapMarkers
+                let axisPostMoveBarragePlaybackBeforeSituationReplayFocus = axisPostMoveBarrageGlobalReplayGame.isAIPhaseTimelinePlaybackActive
+                axisPostMoveBarrageGlobalReplayGame.focusBattlefieldSituationReplayTarget()
+                require(
+                    axisPostMoveBarrageGlobalReplayGame.focusedCoordinate == axisPostMoveBarrageConclusionCoordinate,
                     "battlefield situation AI replay target should focus key event coordinate"
                 )
                 require(
-                    axisPostMoveBarrageGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageConclusionEvent.order,
+                    axisPostMoveBarrageGlobalReplayGame.focusedAIPhaseTimelineEventOrder == axisPostMoveBarrageConclusionEvent.order,
                     "battlefield situation AI replay target should reuse AI replay focused order"
                 )
                 require(
-                    axisPostMoveBarrageGame.focusedAIPhaseMapMarkers == axisPostMoveBarrageMarkers.filter { $0.eventOrder == axisPostMoveBarrageConclusionEvent.order },
+                    axisPostMoveBarrageGlobalReplayGame.focusedAIPhaseMapMarkers == axisPostMoveBarrageGlobalMarkers.filter { $0.eventOrder == axisPostMoveBarrageConclusionEvent.order },
                     "battlefield situation AI replay target should reuse focused AI map markers"
                 )
                 require(
-                    axisPostMoveBarrageGame.scenario.units == axisPostMoveBarrageUnitsBeforeSituationReplayFocus,
+                    axisPostMoveBarrageGlobalReplayGame.scenario.units == axisPostMoveBarrageUnitsBeforeSituationReplayFocus,
                     "battlefield situation AI replay focus should not mutate units"
                 )
                 require(
-                    axisPostMoveBarrageGame.commandPoints == axisPostMoveBarrageCommandPointsBeforeSituationReplayFocus,
+                    axisPostMoveBarrageGlobalReplayGame.commandPoints == axisPostMoveBarrageCommandPointsBeforeSituationReplayFocus,
                     "battlefield situation AI replay focus should not mutate command points"
                 )
                 require(
-                    axisPostMoveBarrageGame.latestAIPhaseSummary == axisPostMoveBarrageSummaryBeforeSituationReplayFocus,
+                    axisPostMoveBarrageGlobalReplayGame.latestAIPhaseSummary == axisPostMoveBarrageSummaryBeforeSituationReplayFocus,
                     "battlefield situation AI replay focus should not mutate AI summary"
                 )
                 require(
-                    axisPostMoveBarrageGame.latestAIPhaseMapMarkers == axisPostMoveBarrageMarkersBeforeSituationReplayFocus,
+                    axisPostMoveBarrageGlobalReplayGame.latestAIPhaseMapMarkers == axisPostMoveBarrageMarkersBeforeSituationReplayFocus,
                     "battlefield situation AI replay focus should not mutate map replay markers"
                 )
                 require(
-                    axisPostMoveBarrageGame.isAIPhaseTimelinePlaybackActive == axisPostMoveBarragePlaybackBeforeSituationReplayFocus,
+                    axisPostMoveBarrageGlobalReplayGame.isAIPhaseTimelinePlaybackActive == axisPostMoveBarragePlaybackBeforeSituationReplayFocus,
                     "battlefield situation AI replay focus should preserve playback state"
                 )
                 let axisPostMoveBarrageUnitsBeforeConclusionFocus = axisPostMoveBarrageGame.scenario.units

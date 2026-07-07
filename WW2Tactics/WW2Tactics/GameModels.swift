@@ -2216,14 +2216,39 @@ struct BattlefieldSituationResponseMapMarker: Identifiable, Equatable {
     }
 }
 
+enum BattlefieldSituationReplayTargetSource: String, Identifiable {
+    case objectivePressure
+    case responseCoordinate
+    case globalKeyEvent
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .objectivePressure: "当前压力关联"
+        case .responseCoordinate: "响应位置关联"
+        case .globalKeyEvent: "全局关键事件"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .objectivePressure: "PRS"
+        case .responseCoordinate: "RSP"
+        case .globalKeyEvent: "KEY"
+        }
+    }
+}
+
 struct BattlefieldSituationReplayTarget: Identifiable, Equatable {
     let order: Int
     let title: String
     let detail: String
     let coordinate: HexCoordinate
+    let source: BattlefieldSituationReplayTargetSource
 
     var id: String {
-        "\(order)-\(title)-\(coordinate.id)"
+        "\(source.rawValue)-\(order)-\(title)-\(coordinate.id)"
     }
 }
 

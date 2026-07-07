@@ -3164,6 +3164,10 @@ private struct BattlefieldSituationSummaryView: View {
                             .font(.caption2.weight(.bold))
 
                         VStack(alignment: .leading, spacing: 1) {
+                            Text(replayTarget.source.title)
+                                .font(.system(size: 9, weight: .black, design: .rounded))
+                                .foregroundStyle(Color.blue.opacity(0.78))
+                                .lineLimit(1)
                             Text(replayTarget.title)
                                 .font(.caption2.weight(.bold))
                                 .lineLimit(1)
@@ -3177,12 +3181,21 @@ private struct BattlefieldSituationSummaryView: View {
 
                         Spacer(minLength: 4)
 
-                        Text("#\(replayTarget.order)")
-                            .font(.system(size: 9, weight: .black, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.84))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 3)
-                            .background(Color.white.opacity(0.10), in: Capsule())
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text(replayTarget.source.shortTitle)
+                                .font(.system(size: 9, weight: .black, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.82))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 3)
+                                .background(Color.white.opacity(0.09), in: Capsule())
+
+                            Text("#\(replayTarget.order)")
+                                .font(.system(size: 9, weight: .black, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.84))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 3)
+                                .background(Color.white.opacity(0.10), in: Capsule())
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -3195,7 +3208,7 @@ private struct BattlefieldSituationSummaryView: View {
                     RoundedRectangle(cornerRadius: 7)
                         .stroke(Color.blue.opacity(0.24), lineWidth: 1)
                 )
-                .accessibilityLabel("定位敌方关键复盘事件，事件\(replayTarget.order)，\(replayTarget.title)，\(replayTarget.detail)")
+                .accessibilityLabel("定位敌方复盘影响，\(replayTarget.source.title)，事件\(replayTarget.order)，\(replayTarget.title)，\(replayTarget.detail)")
             }
 
             if let target = summary.primaryFocusTarget {

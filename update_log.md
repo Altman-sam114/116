@@ -2293,3 +2293,36 @@
 遗留事项：
 
 - 本轮只做据点压力行的只读态势对照，不新增未来分支模拟、自动防守、自动移动、自动攻击、AI 因果归因、动画、音效或新美术资源。
+
+### v1.53 / 战线态势复盘筛选
+
+日期：2026-07-07
+
+核心变更：
+
+- `BattlefieldSituationReplayTarget` 新增 `source`，区分当前压力关联、响应位置关联和全局关键事件。
+- `GameState.battlefieldSituationReplayTarget` 改为优先使用当前点选据点压力线索，其次按当前态势响应坐标匹配 AI 时间线，最后回退全局关键事件。
+- `ContentView` 的战线态势“复盘影响”按钮显示来源标题和 PRS/RSP/KEY 来源短码，UI 仍只消费 `GameState` 派生字段。
+- 扩展 XCTest 和规则 smoke test，覆盖压力线索优先、响应坐标匹配、全局 key event 回退和复盘定位只读边界。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.53（战线态势复盘筛选）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只筛选和解释既有 AI 时间线事件，不新增 AI 因果归因、未来分支模拟、自动防守、自动移动、自动攻击、动画、音效或新美术资源。
