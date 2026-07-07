@@ -2304,6 +2304,63 @@ struct BattlefieldSituationObjectivePressure: Identifiable, Equatable {
     }
 }
 
+enum BattlefieldSituationObjectivePressureMapMarkerRole: String, CaseIterable, Identifiable {
+    case pressuredObjective
+    case countermeasureDestination
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .pressuredObjective: "受压据点"
+        case .countermeasureDestination: "守点目的格"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .pressuredObjective: "PRS"
+        case .countermeasureDestination: "DEF"
+        }
+    }
+
+    var compactTitle: String {
+        switch self {
+        case .pressuredObjective: "P"
+        case .countermeasureDestination: "D"
+        }
+    }
+
+    var sortOrder: Int {
+        switch self {
+        case .pressuredObjective: 0
+        case .countermeasureDestination: 1
+        }
+    }
+}
+
+struct BattlefieldSituationObjectivePressureMapMarker: Identifiable, Equatable {
+    let role: BattlefieldSituationObjectivePressureMapMarkerRole
+    let coordinate: HexCoordinate
+    let objectiveName: String
+    let pressureID: String
+    let actionHint: BattlefieldSituationActionHint
+
+    var summary: String {
+        "\(role.title)，\(objectiveName)，\(actionHint.entryTitle)"
+    }
+
+    var id: String {
+        [
+            role.rawValue,
+            coordinate.id,
+            objectiveName,
+            pressureID,
+            actionHint.id
+        ].joined(separator: "-")
+    }
+}
+
 struct BattlefieldSituationSummary: Equatable {
     let faction: Faction
     let priority: BattlefieldSituationPriority

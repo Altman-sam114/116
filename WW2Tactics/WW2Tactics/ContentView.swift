@@ -1562,6 +1562,10 @@ private struct HexMapView: View {
             grouping: game.focusedEnemyThreatCountermeasureMapMarkers,
             by: \.coordinate
         )
+        let objectivePressureMarkersByCoordinate = Dictionary(
+            grouping: game.focusedBattlefieldSituationObjectivePressureMapMarkers,
+            by: \.coordinate
+        )
         let aiPhaseMarkersByCoordinate = Dictionary(
             grouping: game.latestAIPhaseMapMarkers,
             by: \.coordinate
@@ -1615,6 +1619,7 @@ private struct HexMapView: View {
                     isLatestObjectiveCapture: latestCaptureCoordinate == tile.coordinate,
                     isEnemyThreatIntentTarget: enemyIntentTargets.contains(tile.coordinate),
                     enemyThreatCountermeasureMarkers: countermeasureMarkersByCoordinate[tile.coordinate] ?? [],
+                    objectivePressureMarkers: objectivePressureMarkersByCoordinate[tile.coordinate] ?? [],
                     aiPhaseMapMarkers: aiPhaseMarkersByCoordinate[tile.coordinate] ?? [],
                     focusedAIPhaseMapMarkers: focusedAIPhaseMarkersByCoordinate[tile.coordinate] ?? [],
                     battlefieldSituationResponseMarker: battlefieldSituationResponseMarker?.coordinate == tile.coordinate ? battlefieldSituationResponseMarker : nil
@@ -1731,6 +1736,7 @@ private struct HexTileView: View {
     let isLatestObjectiveCapture: Bool
     let isEnemyThreatIntentTarget: Bool
     let enemyThreatCountermeasureMarkers: [EnemyThreatCountermeasureMapMarker]
+    let objectivePressureMarkers: [BattlefieldSituationObjectivePressureMapMarker]
     let aiPhaseMapMarkers: [AIPhaseMapMarker]
     let focusedAIPhaseMapMarkers: [AIPhaseMapMarker]
     let battlefieldSituationResponseMarker: BattlefieldSituationResponseMapMarker?
@@ -1782,6 +1788,12 @@ private struct HexTileView: View {
                 EnemyThreatCountermeasureFocusMarker(markers: enemyThreatCountermeasureMarkers)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, countermeasureMarkerTopPadding)
+            }
+
+            if !objectivePressureMarkers.isEmpty {
+                BattlefieldSituationObjectivePressureMapMarkerView(markers: objectivePressureMarkers)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, objectivePressureMarkerTopPadding)
             }
 
             if let battlefieldSituationResponseMarker {
@@ -1890,6 +1902,7 @@ private struct HexTileView: View {
         if isLatestObjectiveCapture { return .yellow.opacity(0.96) }
         if isGuidedObjective { return .green.opacity(0.96) }
         if !enemyThreatCountermeasureMarkers.isEmpty { return .mint.opacity(0.96) }
+        if !objectivePressureMarkers.isEmpty { return .pink.opacity(0.96) }
         if !focusedAIPhaseMapMarkers.isEmpty { return .white.opacity(0.96) }
         if let battlefieldSituationResponseMarker { return battlefieldSituationResponseColor(for: battlefieldSituationResponseMarker.kind).opacity(0.96) }
         if isEnemyThreatIntentTarget { return .pink.opacity(0.92) }
@@ -1912,6 +1925,7 @@ private struct HexTileView: View {
         if isLatestObjectiveCapture { return 3 }
         if isGuidedObjective { return 3 }
         if !enemyThreatCountermeasureMarkers.isEmpty { return 3 }
+        if !objectivePressureMarkers.isEmpty { return 3 }
         if !focusedAIPhaseMapMarkers.isEmpty { return 3 }
         if battlefieldSituationResponseMarker != nil { return 3 }
         if isEnemyThreatIntentTarget { return 2 }
@@ -1936,6 +1950,26 @@ private struct HexTileView: View {
     }
 
     private var countermeasureMarkerTopPadding: CGFloat {
+        var occupiedTopSlots = 0
+        if isEnemyThreatIntentTarget {
+            occupiedTopSlots += 1
+        }
+        if battlefieldSituationResponseMarker != nil {
+            occupiedTopSlots += 1
+        }
+        if !objectivePressureMarkers.isEmpty {
+            occupiedTopSlots += 1
+        }
+        if isGuidedObjective || isLatestObjectiveCapture || fireExposurePreview != nil {
+            occupiedTopSlots += 1
+        }
+        if isGuidedObjective && isLatestObjectiveCapture {
+            occupiedTopSlots += 1
+        }
+        return 5 + CGFloat(occupiedTopSlots) * 18
+    }
+
+    private var objectivePressureMarkerTopPadding: CGFloat {
         var occupiedTopSlots = 0
         if isEnemyThreatIntentTarget {
             occupiedTopSlots += 1
@@ -1994,13 +2028,19 @@ private struct HexTileView: View {
         let battlefieldSituationResponseText = battlefieldSituationResponseMarker.map {
             "态势响应，\($0.shortTitle)，\($0.summary)"
         } ?? ""
+        let objectivePressureText = objectivePressureMarkers.isEmpty
+            ? ""
+            : objectivePressureMarkers
+                .sorted { $0.role.sortOrder < $1.role.sortOrder }
+                .map { "据点压力，\($0.summary)" }
+                .joined(separator: "，")
         let aiPhaseMapText = aiPhaseMapAccessibilityText
         let fireRiskText = fireExposurePreview.map { preview in
             let sourceText = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
             let sourceSummary = sourceText.isEmpty ? "无敌火来源" : "来源\(sourceText)"
             return "\(preview.riskLevel.title)，潜在伤害\(preview.totalPotentialDamage)，预计剩余\(preview.projectedHPAfterExposure)，\(sourceSummary)"
         } ?? ""
-        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(latestCaptureText) \(enemyThreatIntentText) \(countermeasureText) \(battlefieldSituationResponseText) \(aiPhaseMapText) \(fireRiskText) \(unitText) \(actionAccessibilityText)"
+        return "\(tile.terrain.title) \(objectiveText) \(controlZoneText) \(threatText) \(routeAccessibilityText) \(attackCoverageText) \(postMoveAttackText) \(attackPositionText) \(guidedObjectiveText) \(latestCaptureText) \(enemyThreatIntentText) \(countermeasureText) \(objectivePressureText) \(battlefieldSituationResponseText) \(aiPhaseMapText) \(fireRiskText) \(unitText) \(actionAccessibilityText)"
     }
 
     private func battlefieldSituationResponseColor(
@@ -2454,6 +2494,49 @@ private struct BattlefieldSituationResponseMapMarkerView: View {
         case .countermeasureFollowUp, .combat, .tacticalCommand:
             return Color.white
         }
+    }
+}
+
+private struct BattlefieldSituationObjectivePressureMapMarkerView: View {
+    let markers: [BattlefieldSituationObjectivePressureMapMarker]
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "shield.lefthalf.filled")
+                .font(.system(size: 7, weight: .black))
+            Text(displayText)
+                .font(.system(size: 7, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(Color.white)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(Color.pink.opacity(0.9), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.42), lineWidth: 1)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var displayText: String {
+        let roles = uniqueRoles
+        if roles.count == 1 {
+            return roles[0].shortTitle
+        }
+        return roles.map(\.compactTitle).joined(separator: "+")
+    }
+
+    private var uniqueRoles: [BattlefieldSituationObjectivePressureMapMarkerRole] {
+        var seen: Set<BattlefieldSituationObjectivePressureMapMarkerRole> = []
+        return markers
+            .map(\.role)
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .filter { role in
+                if seen.contains(role) { return false }
+                seen.insert(role)
+                return true
+            }
     }
 }
 
@@ -4756,6 +4839,7 @@ private struct MapLegendView: View {
                 LegendItem(color: .red.opacity(0.78), label: "敌火覆盖", symbol: "TH")
                 LegendItem(color: .pink.opacity(0.86), label: "敌方意图", symbol: "INT")
                 LegendItem(color: .mint.opacity(0.9), label: "反制聚焦", symbol: "ACT")
+                LegendItem(color: .pink.opacity(0.9), label: "据点压力", symbol: "PRS")
                 LegendItem(color: .orange.opacity(0.9), label: "态势响应", symbol: "RSP")
                 LegendItem(color: .indigo.opacity(0.88), label: "AI复盘", symbol: "AI")
                 LegendItem(color: .green.opacity(0.9), label: "补给线")

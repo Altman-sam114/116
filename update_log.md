@@ -2129,3 +2129,36 @@
 遗留事项：
 
 - 后续仍可继续强化 AI 复盘与战线态势地图反馈，或增加更多据点攻防解释。
+
+### v1.48 / 据点压力地图标记
+
+日期：2026-07-07
+
+核心变更：
+
+- 新增 `BattlefieldSituationObjectivePressureMapMarker`，把当前点选压力投射为 PRS 受压据点和 DEF 守点目的格地图标记。
+- `GameState` 保存私有当前压力 id，并从最新 `battlefieldSituationSummary.objectivePressures` 纯派生 marker，不新增 `@Published` marker 数组。
+- `ContentView` 按坐标渲染压力 marker、地图边框和无障碍摘要，UI 不计算威胁、反制或坐标。
+- 扩展 XCTest 和规则 smoke test，覆盖 marker 坐标、无效压力 id 清理和只读边界。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.48（据点压力地图标记）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只做当前压力的只读地图反馈，不新增自动守点、未防守分支模拟、动画、音效或新美术资源。

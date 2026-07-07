@@ -101,6 +101,7 @@ final class GameState: ObservableObject {
 
     private var focusedSafeEngagementTargetID: BattleUnit.ID?
     private var focusedEnemyThreatCountermeasurePreview: EnemyThreatCountermeasurePreview?
+    private var focusedBattlefieldSituationObjectivePressureID: String?
     private var activeAIPhaseBaseline: AIPhaseBaseline?
     private var activeAIPhaseActionCounts = AIPhaseActionCounts()
     private var activeAIPhaseTimeline: [AIPhaseTimelineEvent] = []
@@ -253,6 +254,14 @@ final class GameState: ObservableObject {
               isEnemyThreatCountermeasureFocused(preview),
               isEnemyThreatCountermeasureValidForMapMarkers(preview) else { return [] }
         return enemyThreatCountermeasureMapMarkers(for: preview)
+    }
+
+    var focusedBattlefieldSituationObjectivePressureMapMarkers: [BattlefieldSituationObjectivePressureMapMarker] {
+        guard let focusedBattlefieldSituationObjectivePressureID,
+              let pressure = battlefieldSituationSummary.objectivePressures.first(where: {
+                  $0.id == focusedBattlefieldSituationObjectivePressureID
+              }) else { return [] }
+        return battlefieldSituationObjectivePressureMapMarkers(for: pressure)
     }
 
     var latestAIPhaseMapMarkers: [AIPhaseMapMarker] {
@@ -729,6 +738,8 @@ final class GameState: ObservableObject {
             return
         }
 
+        focusedBattlefieldSituationObjectivePressureID = nil
+
         guard let pressure = battlefieldSituationSummary.objectivePressures.first(where: { $0.id == id }) else {
             message = "据点压力目标已过期。"
             return
@@ -736,6 +747,7 @@ final class GameState: ObservableObject {
 
         if let countermeasure = pressure.countermeasurePreview {
             focusEnemyThreatCountermeasure(countermeasure)
+            focusedBattlefieldSituationObjectivePressureID = pressure.id
             message = "据点压力定位：\(pressure.objectiveName)。\(message)"
             return
         }
@@ -748,6 +760,7 @@ final class GameState: ObservableObject {
         clearObjectiveGuidance()
         focusedCoordinate = pressure.coordinate
         guidedObjectiveCoordinate = pressure.coordinate
+        focusedBattlefieldSituationObjectivePressureID = pressure.id
         message = "据点压力定位：\(pressure.objectiveName) @ \(coordinateText(pressure.coordinate))，\(pressure.actionHint.entryTitle)。该入口只定位，不执行命令。"
     }
 
@@ -1017,6 +1030,7 @@ final class GameState: ObservableObject {
 
     func focusEnemyThreatCountermeasure(_ preview: EnemyThreatCountermeasurePreview) {
         guard winner == nil else { return }
+        focusedBattlefieldSituationObjectivePressureID = nil
         guard let actingUnitID = preview.actingUnitID,
               let actingUnit = units.first(where: {
                   $0.id == actingUnitID &&
@@ -1248,6 +1262,36 @@ final class GameState: ObservableObject {
                 countermeasureKind: preview.kind
             )
         )
+
+        return markers
+    }
+
+    private func battlefieldSituationObjectivePressureMapMarkers(
+        for pressure: BattlefieldSituationObjectivePressure
+    ) -> [BattlefieldSituationObjectivePressureMapMarker] {
+        var markers = [
+            BattlefieldSituationObjectivePressureMapMarker(
+                role: .pressuredObjective,
+                coordinate: pressure.coordinate,
+                objectiveName: pressure.objectiveName,
+                pressureID: pressure.id,
+                actionHint: pressure.actionHint
+            )
+        ]
+
+        if let destination = pressure.countermeasurePreview?.destination,
+           destination != pressure.coordinate,
+           tile(at: destination) != nil {
+            markers.append(
+                BattlefieldSituationObjectivePressureMapMarker(
+                    role: .countermeasureDestination,
+                    coordinate: destination,
+                    objectiveName: pressure.objectiveName,
+                    pressureID: pressure.id,
+                    actionHint: pressure.actionHint
+                )
+            )
+        }
 
         return markers
     }
@@ -4938,6 +4982,7 @@ final class GameState: ObservableObject {
         focusedCoordinate = newScenario.initialFocus
         guidedObjectiveCoordinate = nil
         focusedEnemyThreatCountermeasurePreview = nil
+        focusedBattlefieldSituationObjectivePressureID = nil
         clearSafeEngagementFocus()
         latestCombatResult = nil
         latestTacticalCommandResult = nil
@@ -4999,6 +5044,7 @@ final class GameState: ObservableObject {
     private func clearObjectiveGuidance() {
         guidedObjectiveCoordinate = nil
         focusedEnemyThreatCountermeasurePreview = nil
+        focusedBattlefieldSituationObjectivePressureID = nil
         clearSafeEngagementFocus()
     }
 

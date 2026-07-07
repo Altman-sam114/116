@@ -2506,9 +2506,23 @@ final class GameStateTests: XCTestCase {
         let refreshedPressure = try XCTUnwrap(game.battlefieldSituationSummary.objectivePressures.first { $0.objectiveName == "后方油库" })
         XCTAssertTrue(game.message.contains("据点压力定位"))
         XCTAssertTrue(game.message.contains(refreshedPressure.objectiveName))
+        let pressureMarkers = game.focusedBattlefieldSituationObjectivePressureMapMarkers
+        XCTAssertTrue(pressureMarkers.contains {
+            $0.role == .pressuredObjective &&
+                $0.coordinate == refreshedPressure.coordinate &&
+                $0.objectiveName == refreshedPressure.objectiveName
+        })
         if let countermeasure = refreshedPressure.countermeasurePreview {
             XCTAssertEqual(game.selectedUnit?.id, countermeasure.actingUnitID)
             XCTAssertTrue(game.isEnemyThreatCountermeasureFocused(countermeasure))
+            if let destination = countermeasure.destination,
+               destination != refreshedPressure.coordinate {
+                XCTAssertTrue(pressureMarkers.contains {
+                    $0.role == .countermeasureDestination &&
+                        $0.coordinate == destination &&
+                        $0.objectiveName == refreshedPressure.objectiveName
+                })
+            }
         } else {
             XCTAssertEqual(game.focusedCoordinate, refreshedPressure.coordinate)
             XCTAssertEqual(game.guidedObjectiveCoordinate, refreshedPressure.coordinate)
@@ -2526,6 +2540,16 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
         XCTAssertNil(game.latestEnemyThreatCountermeasureFollowUpResult)
         XCTAssertNil(game.latestAIPhaseSummary)
+
+        game.focusBattlefieldSituationObjectivePressure(id: "stale-pressure")
+
+        XCTAssertEqual(game.focusedBattlefieldSituationObjectivePressureMapMarkers, [])
+        XCTAssertTrue(game.message.contains("已过期"))
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
     }
 
     func testBattlefieldSituationFocusesPrimaryCountermeasureWithoutExecuting() throws {
