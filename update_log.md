@@ -2258,3 +2258,38 @@
 遗留事项：
 
 - 本轮只做当前压力与 AI 时间线的保守关联复盘线索，不新增自动守点、AI 因果归因、未防守分支模拟、动画、音效或新美术资源。
+
+### v1.52 / 据点压力态势对照
+
+日期：2026-07-07
+
+核心变更：
+
+- `BattlefieldSituationObjectivePressure` 新增 `comparison`，从据点归属、威胁来源数量、路线状态、action hint、匹配反制和复盘线索纯派生当前/应对态势。
+- `GameState` 在构造据点压力时生成 `BattlefieldSituationObjectivePressureComparison`，表达当前守势、敌控、中立争夺或争夺态，以及应对入口是否可执行、是否有复盘线索。
+- `ContentView` 在据点压力行内显示紧凑的“当前 / 应对”两行和态势短码，继续保持压力行只有外层按钮，不新增嵌套按钮。
+- 扩展 XCTest 和规则 smoke test，覆盖 comparison 字段、复盘线索注入后的文案和 pressure id 稳定性。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.52（据点压力态势对照）.md`
+
+验证结果：
+
+- 规则 smoke 编译通过。
+- `/private/tmp/WW2TacticsRulesSmokeTest` 通过，输出 `Rules smoke test passed`。
+- `git diff --check`、iOS SwiftUI typecheck、XCTest 源码级 typecheck 和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只做据点压力行的只读态势对照，不新增未来分支模拟、自动防守、自动移动、自动攻击、AI 因果归因、动画、音效或新美术资源。

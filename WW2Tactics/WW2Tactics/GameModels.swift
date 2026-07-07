@@ -2276,6 +2276,51 @@ struct BattlefieldSituationFocusTarget: Identifiable, Equatable {
     }
 }
 
+enum BattlefieldSituationObjectivePressureComparisonLevel: String, Identifiable {
+    case held
+    case contested
+    case enemyHeld
+    case neutral
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .held: "守点承压"
+        case .contested: "据点争夺"
+        case .enemyHeld: "敌控据点"
+        case .neutral: "中立争夺"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .held: "HLD"
+        case .contested: "CNT"
+        case .enemyHeld: "ENY"
+        case .neutral: "NEU"
+        }
+    }
+}
+
+struct BattlefieldSituationObjectivePressureComparison: Identifiable, Equatable {
+    let level: BattlefieldSituationObjectivePressureComparisonLevel
+    let currentTitle: String
+    let currentDetail: String
+    let responseTitle: String
+    let responseDetail: String
+
+    var id: String {
+        [
+            level.rawValue,
+            currentTitle,
+            currentDetail,
+            responseTitle,
+            responseDetail
+        ].joined(separator: "-")
+    }
+}
+
 struct BattlefieldSituationObjectivePressure: Identifiable, Equatable {
     let objectiveName: String
     let coordinate: HexCoordinate
@@ -2287,6 +2332,7 @@ struct BattlefieldSituationObjectivePressure: Identifiable, Equatable {
     let actionHint: BattlefieldSituationActionHint
     let countermeasurePreview: EnemyThreatCountermeasurePreview?
     let replayTarget: BattlefieldSituationReplayTarget?
+    let comparison: BattlefieldSituationObjectivePressureComparison
 
     var ownerTitle: String {
         owner?.title ?? "中立"

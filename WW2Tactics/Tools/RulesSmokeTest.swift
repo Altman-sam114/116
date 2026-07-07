@@ -1472,6 +1472,12 @@ struct RulesSmokeTest {
             require(objectivePressure.owner == enemyThreatGame.tile(at: situationObjectiveThreat.targetCoordinate)?.owner, "objective pressure should expose current owner")
             require(objectivePressure.threatSourceCount >= 1, "objective pressure should count threat sources")
             require(objectivePressure.threatSourceCoordinates.contains(situationObjectiveThreatSource.position), "objective pressure should expose threat source coordinates")
+            require(objectivePressure.comparison.level == .held, "objective pressure comparison should classify allied-held pressure")
+            require(objectivePressure.comparison.currentTitle == "当前守势", "objective pressure comparison should expose current stance")
+            require(objectivePressure.comparison.currentDetail.contains(objectivePressure.ownerTitle), "objective pressure comparison should include owner")
+            require(objectivePressure.comparison.currentDetail.contains("1 个威胁源"), "objective pressure comparison should include threat source count")
+            require(objectivePressure.comparison.responseDetail.contains(objectivePressure.actionHint.entryTitle), "objective pressure comparison should include response entry")
+            require(objectivePressure.comparison.responseDetail.contains("暂无复盘线索"), "objective pressure comparison should explain missing replay clue")
             require(objectivePressure.replayTarget == nil, "objective pressure should not invent replay clues without AI summary")
             require(objectivePressure.primaryThreatTitle.isEmpty == false, "objective pressure should expose a risk title")
             require(objectivePressure.primaryThreatDetail.contains(situationObjectiveThreat.enemyUnitName), "objective pressure should describe the primary threat")
@@ -1528,6 +1534,9 @@ struct RulesSmokeTest {
             require(Optional(objectivePressureReplayTarget.coordinate) == objectivePressureReplayEvent.to, "objective pressure replay clue should locate the matching AI event")
             require(objectivePressureReplayTarget.title.contains("关联AI行动"), "objective pressure replay clue should use conservative copy")
             require(objectivePressureReplayTarget.detail == objectivePressureReplayEvent.summary, "objective pressure replay clue should reuse AI event summary")
+            require(objectivePressureWithReplay.comparison.level == .held, "objective pressure comparison should stay stable when replay clue appears")
+            require(objectivePressureWithReplay.comparison.responseDetail.contains("有复盘线索"), "objective pressure comparison should expose replay clue availability")
+            require(objectivePressureWithReplay.id == objectivePressure.id, "objective pressure replay comparison should not change pressure identity")
             enemyThreatGame.focusBattlefieldSituationObjectivePressure(id: objectivePressureWithReplay.id)
             guard let refreshedPressure = enemyThreatGame.battlefieldSituationSummary.objectivePressures.first(where: { $0.objectiveName == "后方油库" }) else {
                 require(false, "objective pressure should remain derivable after focus")
@@ -1537,6 +1546,8 @@ struct RulesSmokeTest {
             require(enemyThreatGame.message.contains("后方油库"), "objective pressure focus should name the objective")
             require(enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "objective pressure focus should mark the pressure row as focused")
             require(refreshedPressure.threatSourceCoordinates.contains(situationObjectiveThreatSource.position), "refreshed objective pressure should keep threat source coordinates")
+            require(refreshedPressure.comparison.currentDetail.contains(refreshedPressure.ownerTitle), "refreshed objective pressure should keep comparison owner")
+            require(refreshedPressure.comparison.responseDetail.contains("有复盘线索"), "refreshed objective pressure should keep replay clue comparison")
             require(enemyThreatGame.focusedBattlefieldSituationObjectivePressureReplayTarget == objectivePressureReplayTarget, "focused objective pressure should expose its replay clue")
             let objectivePressureMarkers = enemyThreatGame.focusedBattlefieldSituationObjectivePressureMapMarkers
             require(objectivePressureMarkers.contains {

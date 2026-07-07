@@ -3457,6 +3457,20 @@ private struct BattlefieldSituationObjectivePressureRow: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.64)
 
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(pressure.comparison.currentTitle)：\(pressure.comparison.currentDetail)")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.58))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.60)
+
+                    Text("\(pressure.comparison.responseTitle)：\(pressure.comparison.responseDetail)")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(color.opacity(0.74))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.60)
+                }
+
                 Label(pressure.actionHint.entryTitle, systemImage: pressure.actionHint.kind.iconName)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(color.opacity(pressure.actionHint.isExecutable ? 0.90 : 0.58))
@@ -3497,6 +3511,13 @@ private struct BattlefieldSituationObjectivePressureRow: View {
                     .padding(.horizontal, 5)
                     .padding(.vertical, 3)
                     .background(Color.white.opacity(0.10), in: Capsule())
+
+                Text(pressure.comparison.level.shortTitle)
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.08), in: Capsule())
             }
         }
         .padding(.horizontal, 6)
@@ -3511,7 +3532,7 @@ private struct BattlefieldSituationObjectivePressureRow: View {
                 .stroke(isFocused ? color.opacity(0.42) : Color.white.opacity(0.06), lineWidth: 1)
         )
         .contentShape(Rectangle())
-        .accessibilityLabel("\(isFocused ? "当前" : "定位")据点压力，\(pressure.objectiveName)，\(pressure.ownerTitle)，\(pressure.threatSourceCount) 个威胁来源，\(pressure.primaryThreatTitle)，\(pressure.primaryThreatDetail)，推荐入口，\(pressure.actionHint.entryTitle)")
+        .accessibilityLabel("\(isFocused ? "当前" : "定位")据点压力，\(pressure.objectiveName)，\(pressure.ownerTitle)，\(pressure.threatSourceCount) 个威胁来源，\(pressure.primaryThreatTitle)，\(pressure.primaryThreatDetail)，\(pressure.comparison.currentTitle)，\(pressure.comparison.currentDetail)，\(pressure.comparison.responseTitle)，\(pressure.comparison.responseDetail)，推荐入口，\(pressure.actionHint.entryTitle)")
     }
 }
 

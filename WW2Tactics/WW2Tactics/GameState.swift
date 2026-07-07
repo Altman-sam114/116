@@ -4645,6 +4645,14 @@ final class GameState: ObservableObject {
                 let routeText = primaryThreat.routeCost.map { "路线 \($0)" } ?? "路线已成形"
                 let sourceText = sourceCount == 1 ? primaryThreat.enemyUnitName : "\(sourceCount) 个敌军"
                 let primaryThreatDetail = "\(sourceText) 威胁夺取，\(routeText)"
+                let comparison = battlefieldSituationObjectivePressureComparison(
+                    owner: objectiveTile?.owner,
+                    threatSourceCount: sourceCount,
+                    routeText: routeText,
+                    actionHint: actionHint,
+                    countermeasure: matchingCountermeasure,
+                    replayTarget: replayTarget
+                )
 
                 return BattlefieldSituationObjectivePressure(
                     objectiveName: objectiveName,
@@ -4656,7 +4664,8 @@ final class GameState: ObservableObject {
                     primaryThreatDetail: primaryThreatDetail,
                     actionHint: actionHint,
                     countermeasurePreview: matchingCountermeasure,
-                    replayTarget: replayTarget
+                    replayTarget: replayTarget,
+                    comparison: comparison
                 )
             }
             .sorted(by: battlefieldSituationObjectivePressureSort)
@@ -4684,6 +4693,54 @@ final class GameState: ObservableObject {
             matching.first { $0.kind == .objectiveDefense } ??
             matching.first { $0.canExecuteNow } ??
             matching.first
+    }
+
+    private func battlefieldSituationObjectivePressureComparison(
+        owner: Faction?,
+        threatSourceCount: Int,
+        routeText: String,
+        actionHint: BattlefieldSituationActionHint,
+        countermeasure: EnemyThreatCountermeasurePreview?,
+        replayTarget: BattlefieldSituationReplayTarget?
+    ) -> BattlefieldSituationObjectivePressureComparison {
+        let level: BattlefieldSituationObjectivePressureComparisonLevel
+        let currentTitle: String
+        switch owner {
+        case activeFaction:
+            level = .held
+            currentTitle = "当前守势"
+        case activeFaction.opponent:
+            level = .enemyHeld
+            currentTitle = "当前敌控"
+        case .none:
+            level = .neutral
+            currentTitle = "当前中立"
+        case .some:
+            level = .contested
+            currentTitle = "当前争夺"
+        }
+
+        let ownerText = owner?.title ?? "中立"
+        let sourceText = threatSourceCount == 1 ? "1 个威胁源" : "\(threatSourceCount) 个威胁源"
+        let currentDetail = "\(ownerText)，\(sourceText)，\(routeText)"
+
+        let responseTitle: String
+        if let countermeasure {
+            responseTitle = countermeasure.canExecuteNow ? "应对可执行" : "应对待准备"
+        } else {
+            responseTitle = actionHint.isExecutable ? "可查看防守" : "暂无直接入口"
+        }
+
+        let replayText = replayTarget == nil ? "暂无复盘线索" : "有复盘线索"
+        let responseDetail = "\(actionHint.entryTitle)，\(replayText)"
+
+        return BattlefieldSituationObjectivePressureComparison(
+            level: level,
+            currentTitle: currentTitle,
+            currentDetail: currentDetail,
+            responseTitle: responseTitle,
+            responseDetail: responseDetail
+        )
     }
 
     private func battlefieldSituationObjectivePressureReplayTarget(

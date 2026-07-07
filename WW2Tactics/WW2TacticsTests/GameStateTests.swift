@@ -2511,6 +2511,12 @@ final class GameStateTests: XCTestCase {
         let startingBattleLog = game.battleLog
 
         XCTAssertTrue(pressure.threatSourceCoordinates.contains(pressureThreatSource.position))
+        XCTAssertEqual(pressure.comparison.level, .held)
+        XCTAssertEqual(pressure.comparison.currentTitle, "当前守势")
+        XCTAssertTrue(pressure.comparison.currentDetail.contains(pressure.ownerTitle))
+        XCTAssertTrue(pressure.comparison.currentDetail.contains("1 个威胁源"))
+        XCTAssertTrue(pressure.comparison.responseDetail.contains(pressure.actionHint.entryTitle))
+        XCTAssertTrue(pressure.comparison.responseDetail.contains("暂无复盘线索"))
         XCTAssertNil(pressure.replayTarget)
         XCTAssertNil(game.focusedBattlefieldSituationObjectivePressureReplayTarget)
 
@@ -2558,6 +2564,9 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(Optional(replayTarget.coordinate), replayEvent.to)
         XCTAssertTrue(replayTarget.title.contains("关联AI行动"))
         XCTAssertEqual(replayTarget.detail, replayEvent.summary)
+        XCTAssertEqual(pressureWithReplay.comparison.level, .held)
+        XCTAssertTrue(pressureWithReplay.comparison.responseDetail.contains("有复盘线索"))
+        XCTAssertEqual(pressureWithReplay.id, pressure.id)
 
         game.focusBattlefieldSituationObjectivePressure(id: pressureWithReplay.id)
 
@@ -2566,6 +2575,8 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(game.message.contains(refreshedPressure.objectiveName))
         XCTAssertTrue(game.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id))
         XCTAssertTrue(refreshedPressure.threatSourceCoordinates.contains(pressureThreatSource.position))
+        XCTAssertTrue(refreshedPressure.comparison.currentDetail.contains(refreshedPressure.ownerTitle))
+        XCTAssertTrue(refreshedPressure.comparison.responseDetail.contains("有复盘线索"))
         XCTAssertEqual(game.focusedBattlefieldSituationObjectivePressureReplayTarget, replayTarget)
         let pressureMarkers = game.focusedBattlefieldSituationObjectivePressureMapMarkers
         XCTAssertTrue(pressureMarkers.contains {
