@@ -2286,6 +2286,7 @@ struct BattlefieldSituationObjectivePressure: Identifiable, Equatable {
     let primaryThreatDetail: String
     let actionHint: BattlefieldSituationActionHint
     let countermeasurePreview: EnemyThreatCountermeasurePreview?
+    let replayTarget: BattlefieldSituationReplayTarget?
 
     var ownerTitle: String {
         owner?.title ?? "中立"

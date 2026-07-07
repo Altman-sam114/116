@@ -2223,3 +2223,38 @@
 遗留事项：
 
 - 本轮只补齐当前压力的威胁来源地图标记，不新增自动守点、AI 复盘来源入口、未防守分支模拟、动画、音效或新美术资源。
+
+### v1.51 / 据点压力复盘线索
+
+日期：2026-07-07
+
+核心变更：
+
+- `BattlefieldSituationObjectivePressure` 新增可选 `replayTarget`，从最新 `AIPhaseSummary.timeline` 保守匹配当前压力的威胁来源单位或受压据点坐标。
+- `GameState` 新增当前压力复盘线索派生属性和 `focusBattlefieldSituationObjectivePressureReplayTarget()`，点击后复用既有 AI 时间线定位入口，只切换 AI 复盘焦点和地图复盘标记强调。
+- `ContentView` 在据点压力列表下方新增独立“复盘线索”按钮，避免嵌套在压力行按钮中；文案只表达关联线索，不宣称因果。
+- 扩展 XCTest 和规则 smoke test，覆盖无 AI summary 不生成线索、无匹配不回退全局复盘、匹配线索定位、AI summary 不变和只读边界。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.51（据点压力复盘线索）.md`
+
+验证结果：
+
+- 规则 smoke 编译通过。
+- `/private/tmp/WW2TacticsRulesSmokeTest` 通过，输出 `Rules smoke test passed`。
+- iOS SwiftUI typecheck、XCTest 源码级 typecheck、`git diff --check` 和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只做当前压力与 AI 时间线的保守关联复盘线索，不新增自动守点、AI 因果归因、未防守分支模拟、动画、音效或新美术资源。

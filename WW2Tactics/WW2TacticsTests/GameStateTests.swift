@@ -119,18 +119,22 @@ final class GameStateTests: XCTestCase {
         from: HexCoordinate?,
         to: HexCoordinate?,
         damage: Int = 0,
-        didDestroyTarget: Bool = false
+        didDestroyTarget: Bool = false,
+        actorUnitID: BattleUnit.ID? = nil,
+        actorName: String = "测试AI单位",
+        targetUnitID: BattleUnit.ID? = nil,
+        targetName: String? = nil
     ) -> AIPhaseTimelineEvent {
         AIPhaseTimelineEvent(
             order: order,
             faction: .axis,
             turn: 1,
             kind: kind,
-            actorUnitID: nil,
-            actorName: "测试AI单位",
+            actorUnitID: actorUnitID,
+            actorName: actorName,
             actorKind: .infantry,
-            targetUnitID: nil,
-            targetName: kind == .attack ? "测试目标" : nil,
+            targetUnitID: targetUnitID,
+            targetName: targetName ?? (kind == .attack ? "测试目标" : nil),
             targetKind: kind == .attack ? .infantry : nil,
             from: from,
             to: to,
@@ -2507,14 +2511,62 @@ final class GameStateTests: XCTestCase {
         let startingBattleLog = game.battleLog
 
         XCTAssertTrue(pressure.threatSourceCoordinates.contains(pressureThreatSource.position))
+        XCTAssertNil(pressure.replayTarget)
+        XCTAssertNil(game.focusedBattlefieldSituationObjectivePressureReplayTarget)
 
-        game.focusBattlefieldSituationObjectivePressure(id: pressure.id)
+        game.replaceLatestAIPhaseSummaryForTesting(
+            testAIPhaseSummary(timeline: [
+                testAIPhaseTimelineEvent(
+                    order: 1,
+                    kind: .attack,
+                    from: pressureThreatSource.position,
+                    to: pressureThreatSource.position,
+                    damage: 3
+                )
+            ])
+        )
+        XCTAssertNil(
+            game.battlefieldSituationSummary.objectivePressures.first {
+                $0.objectiveName == "后方油库"
+            }?.replayTarget
+        )
+
+        let replayEvent = testAIPhaseTimelineEvent(
+            order: 2,
+            kind: .move,
+            from: pressureThreatSource.position,
+            to: pressure.coordinate,
+            actorUnitID: pressureThreat.enemyUnitID,
+            actorName: pressureThreat.enemyUnitName
+        )
+        let replaySummary = testAIPhaseSummary(timeline: [
+            testAIPhaseTimelineEvent(
+                order: 1,
+                kind: .attack,
+                from: pressureThreatSource.position,
+                to: pressureThreatSource.position,
+                damage: 3
+            ),
+            replayEvent
+        ])
+        game.replaceLatestAIPhaseSummaryForTesting(replaySummary)
+        let pressureWithReplay = try XCTUnwrap(game.battlefieldSituationSummary.objectivePressures.first {
+            $0.objectiveName == "后方油库"
+        })
+        let replayTarget = try XCTUnwrap(pressureWithReplay.replayTarget)
+        XCTAssertEqual(replayTarget.order, replayEvent.order)
+        XCTAssertEqual(Optional(replayTarget.coordinate), replayEvent.to)
+        XCTAssertTrue(replayTarget.title.contains("关联AI行动"))
+        XCTAssertEqual(replayTarget.detail, replayEvent.summary)
+
+        game.focusBattlefieldSituationObjectivePressure(id: pressureWithReplay.id)
 
         let refreshedPressure = try XCTUnwrap(game.battlefieldSituationSummary.objectivePressures.first { $0.objectiveName == "后方油库" })
         XCTAssertTrue(game.message.contains("据点压力定位"))
         XCTAssertTrue(game.message.contains(refreshedPressure.objectiveName))
         XCTAssertTrue(game.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id))
         XCTAssertTrue(refreshedPressure.threatSourceCoordinates.contains(pressureThreatSource.position))
+        XCTAssertEqual(game.focusedBattlefieldSituationObjectivePressureReplayTarget, replayTarget)
         let pressureMarkers = game.focusedBattlefieldSituationObjectivePressureMapMarkers
         XCTAssertTrue(pressureMarkers.contains {
             $0.role == .pressuredObjective &&
@@ -2553,7 +2605,22 @@ final class GameStateTests: XCTestCase {
         XCTAssertNil(game.latestReinforcementResult)
         XCTAssertNil(game.latestEnemyThreatCountermeasureExecutionResult)
         XCTAssertNil(game.latestEnemyThreatCountermeasureFollowUpResult)
-        XCTAssertNil(game.latestAIPhaseSummary)
+        XCTAssertEqual(game.latestAIPhaseSummary, replaySummary)
+
+        game.focusBattlefieldSituationObjectivePressureReplayTarget()
+
+        XCTAssertTrue(game.message.contains("据点压力复盘线索"))
+        XCTAssertEqual(game.focusedAIPhaseTimelineEventOrder, replayTarget.order)
+        XCTAssertEqual(game.focusedCoordinate, replayTarget.coordinate)
+        XCTAssertTrue(game.focusedAIPhaseMapMarkers.allSatisfy { $0.eventOrder == replayTarget.order })
+        XCTAssertFalse(game.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id))
+        XCTAssertNil(game.focusedBattlefieldSituationObjectivePressureReplayTarget)
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+        XCTAssertEqual(game.latestAIPhaseSummary, replaySummary)
 
         game.focusBattlefieldSituationObjectivePressure(id: "stale-pressure")
 
@@ -2568,11 +2635,13 @@ final class GameStateTests: XCTestCase {
 
         game.focusBattlefieldSituationObjectivePressure(id: refreshedPressure.id)
         XCTAssertTrue(game.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id))
+        XCTAssertEqual(game.focusedBattlefieldSituationObjectivePressureReplayTarget, replayTarget)
 
         game.focus(coordinate: refreshedPressure.coordinate)
 
         XCTAssertFalse(game.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id))
         XCTAssertEqual(game.focusedBattlefieldSituationObjectivePressureMapMarkers, [])
+        XCTAssertNil(game.focusedBattlefieldSituationObjectivePressureReplayTarget)
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
         XCTAssertEqual(game.scenario.units, startingUnits)

@@ -264,6 +264,14 @@ final class GameState: ObservableObject {
         return battlefieldSituationObjectivePressureMapMarkers(for: pressure)
     }
 
+    var focusedBattlefieldSituationObjectivePressureReplayTarget: BattlefieldSituationReplayTarget? {
+        guard let focusedBattlefieldSituationObjectivePressureID,
+              let pressure = battlefieldSituationSummary.objectivePressures.first(where: {
+                  $0.id == focusedBattlefieldSituationObjectivePressureID
+              }) else { return nil }
+        return pressure.replayTarget
+    }
+
     func isBattlefieldSituationObjectivePressureFocused(id: String) -> Bool {
         guard focusedBattlefieldSituationObjectivePressureID == id else { return false }
         return battlefieldSituationSummary.objectivePressures.contains { $0.id == id }
@@ -776,6 +784,29 @@ final class GameState: ObservableObject {
         }
 
         focusAIPhaseTimelineEvent(order: replayTarget.order)
+    }
+
+    func focusBattlefieldSituationObjectivePressureReplayTarget() {
+        guard let focusedBattlefieldSituationObjectivePressureID else {
+            message = "当前没有选中的据点压力复盘线索。"
+            return
+        }
+
+        guard let pressure = battlefieldSituationSummary.objectivePressures.first(where: {
+            $0.id == focusedBattlefieldSituationObjectivePressureID
+        }) else {
+            self.focusedBattlefieldSituationObjectivePressureID = nil
+            message = "据点压力复盘线索已过期。"
+            return
+        }
+
+        guard let replayTarget = pressure.replayTarget else {
+            message = "当前据点压力暂无可定位的关联AI复盘线索。"
+            return
+        }
+
+        guard focusAIPhaseTimelineEvent(order: replayTarget.order, pausesPlaybackOnFailure: false) else { return }
+        message = "据点压力复盘线索：\(pressure.objectiveName)，AI复盘 #\(replayTarget.order)：\(replayTarget.detail)"
     }
 
     func focusPreviousBattlefieldSituationResponse() {
@@ -4599,6 +4630,10 @@ final class GameState: ObservableObject {
                     for: group.threats,
                     from: countermeasures
                 )
+                let replayTarget = battlefieldSituationObjectivePressureReplayTarget(
+                    for: group.coordinate,
+                    threats: group.threats
+                )
                 let actionHint = matchingCountermeasure.map(battlefieldSituationCountermeasureActionHint) ??
                     BattlefieldSituationActionHint(
                         kind: .defend,
@@ -4620,7 +4655,8 @@ final class GameState: ObservableObject {
                     primaryThreatTitle: "占点风险",
                     primaryThreatDetail: primaryThreatDetail,
                     actionHint: actionHint,
-                    countermeasurePreview: matchingCountermeasure
+                    countermeasurePreview: matchingCountermeasure,
+                    replayTarget: replayTarget
                 )
             }
             .sorted(by: battlefieldSituationObjectivePressureSort)
@@ -4648,6 +4684,72 @@ final class GameState: ObservableObject {
             matching.first { $0.kind == .objectiveDefense } ??
             matching.first { $0.canExecuteNow } ??
             matching.first
+    }
+
+    private func battlefieldSituationObjectivePressureReplayTarget(
+        for coordinate: HexCoordinate,
+        threats: [EnemyThreatIntentPreview]
+    ) -> BattlefieldSituationReplayTarget? {
+        guard let timeline = latestAIPhaseSummary?.timeline,
+              !timeline.isEmpty else { return nil }
+
+        let threatSourceUnitIDs = Set(threats.map(\.enemyUnitID))
+        let candidates: [(matchRank: Int, kindRank: Int, event: AIPhaseTimelineEvent, coordinate: HexCoordinate)] = timeline.compactMap { event in
+            let matchesThreatSource =
+                event.actorUnitID.map { threatSourceUnitIDs.contains($0) } == true ||
+                event.targetUnitID.map { threatSourceUnitIDs.contains($0) } == true
+            let matchesObjectiveCoordinate = event.to == coordinate || event.from == coordinate
+
+            guard matchesThreatSource || matchesObjectiveCoordinate,
+                  let eventCoordinate = event.to ?? event.from,
+                  tile(at: eventCoordinate) != nil else {
+                return nil
+            }
+
+            return (
+                matchRank: matchesThreatSource ? 0 : 1,
+                kindRank: battlefieldSituationObjectivePressureReplayKindRank(event.kind),
+                event: event,
+                coordinate: eventCoordinate
+            )
+        }
+
+        guard let best = candidates.sorted(by: battlefieldSituationObjectivePressureReplayCandidateSort).first else {
+            return nil
+        }
+
+        return BattlefieldSituationReplayTarget(
+            order: best.event.order,
+            title: "关联AI行动：\(best.event.kind.title)",
+            detail: best.event.summary,
+            coordinate: best.coordinate
+        )
+    }
+
+    private func battlefieldSituationObjectivePressureReplayKindRank(
+        _ kind: AIPhaseTimelineEventKind
+    ) -> Int {
+        switch kind {
+        case .objectiveCapture: 0
+        case .move: 1
+        case .attack: 2
+        case .tacticalCommand: 3
+        case .deployment: 4
+        case .reinforcement: 5
+        }
+    }
+
+    private func battlefieldSituationObjectivePressureReplayCandidateSort(
+        _ left: (matchRank: Int, kindRank: Int, event: AIPhaseTimelineEvent, coordinate: HexCoordinate),
+        _ right: (matchRank: Int, kindRank: Int, event: AIPhaseTimelineEvent, coordinate: HexCoordinate)
+    ) -> Bool {
+        if left.matchRank != right.matchRank {
+            return left.matchRank < right.matchRank
+        }
+        if left.kindRank != right.kindRank {
+            return left.kindRank < right.kindRank
+        }
+        return left.event.order < right.event.order
     }
 
     private func battlefieldSituationObjectivePressureSort(

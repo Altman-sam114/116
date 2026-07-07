@@ -91,20 +91,26 @@ func smokeAIPhaseSummary(timeline: [AIPhaseTimelineEvent]) -> AIPhaseSummary {
 
 func smokeAIPhaseTimelineEvent(
     order: Int,
+    kind: AIPhaseTimelineEventKind = .move,
     from: HexCoordinate?,
-    to: HexCoordinate?
+    to: HexCoordinate?,
+    damage: Int = 0,
+    actorUnitID: BattleUnit.ID? = nil,
+    actorName: String = "测试AI单位",
+    targetUnitID: BattleUnit.ID? = nil,
+    targetName: String? = nil
 ) -> AIPhaseTimelineEvent {
     AIPhaseTimelineEvent(
         order: order,
         faction: .axis,
         turn: 1,
-        kind: .move,
-        actorUnitID: nil,
-        actorName: "测试AI单位",
+        kind: kind,
+        actorUnitID: actorUnitID,
+        actorName: actorName,
         actorKind: .infantry,
-        targetUnitID: nil,
-        targetName: nil,
-        targetKind: nil,
+        targetUnitID: targetUnitID,
+        targetName: targetName ?? (kind == .attack ? "测试目标" : nil),
+        targetKind: kind == .attack ? .infantry : nil,
         from: from,
         to: to,
         tacticalCommand: nil,
@@ -112,7 +118,7 @@ func smokeAIPhaseTimelineEvent(
         objectiveName: nil,
         previousOwner: nil,
         newOwner: nil,
-        damage: 0,
+        damage: damage,
         counterDamage: 0,
         recoveredHP: 0,
         commandPointCost: 0,
@@ -1466,6 +1472,7 @@ struct RulesSmokeTest {
             require(objectivePressure.owner == enemyThreatGame.tile(at: situationObjectiveThreat.targetCoordinate)?.owner, "objective pressure should expose current owner")
             require(objectivePressure.threatSourceCount >= 1, "objective pressure should count threat sources")
             require(objectivePressure.threatSourceCoordinates.contains(situationObjectiveThreatSource.position), "objective pressure should expose threat source coordinates")
+            require(objectivePressure.replayTarget == nil, "objective pressure should not invent replay clues without AI summary")
             require(objectivePressure.primaryThreatTitle.isEmpty == false, "objective pressure should expose a risk title")
             require(objectivePressure.primaryThreatDetail.contains(situationObjectiveThreat.enemyUnitName), "objective pressure should describe the primary threat")
             require(objectivePressure.actionHint.entryTitle.isEmpty == false, "objective pressure should expose a recommended entry")
@@ -1477,7 +1484,51 @@ struct RulesSmokeTest {
                 require(objectivePressure.actionHint.kind == .defend, "objective pressure should fall back to DEF when no matching countermeasure is in the current list")
                 require(objectivePressure.actionHint.isExecutable == (enemyThreatGame.readyUnitCount > 0), "objective pressure fallback should mirror ready unit availability")
             }
-            enemyThreatGame.focusBattlefieldSituationObjectivePressure(id: objectivePressure.id)
+            enemyThreatGame.replaceLatestAIPhaseSummaryForTesting(
+                smokeAIPhaseSummary(timeline: [
+                    smokeAIPhaseTimelineEvent(
+                        order: 1,
+                        kind: .attack,
+                        from: situationObjectiveThreatSource.position,
+                        to: situationObjectiveThreatSource.position,
+                        damage: 3
+                    )
+                ])
+            )
+            guard let objectivePressureWithoutReplay = enemyThreatGame.battlefieldSituationSummary.objectivePressures.first(where: { $0.objectiveName == "后方油库" }) else {
+                require(false, "objective pressure should remain derivable after no-match AI summary")
+                return
+            }
+            require(objectivePressureWithoutReplay.replayTarget == nil, "objective pressure should not fall back to unrelated AI replay target")
+            let objectivePressureReplayEvent = smokeAIPhaseTimelineEvent(
+                order: 2,
+                kind: .move,
+                from: situationObjectiveThreatSource.position,
+                to: objectivePressureWithoutReplay.coordinate,
+                actorUnitID: situationObjectiveThreat.enemyUnitID,
+                actorName: situationObjectiveThreat.enemyUnitName
+            )
+            let objectivePressureReplaySummary = smokeAIPhaseSummary(timeline: [
+                smokeAIPhaseTimelineEvent(
+                    order: 1,
+                    kind: .attack,
+                    from: situationObjectiveThreatSource.position,
+                    to: situationObjectiveThreatSource.position,
+                    damage: 3
+                ),
+                objectivePressureReplayEvent
+            ])
+            enemyThreatGame.replaceLatestAIPhaseSummaryForTesting(objectivePressureReplaySummary)
+            guard let objectivePressureWithReplay = enemyThreatGame.battlefieldSituationSummary.objectivePressures.first(where: { $0.objectiveName == "后方油库" }),
+                  let objectivePressureReplayTarget = objectivePressureWithReplay.replayTarget else {
+                require(false, "objective pressure should expose a matching AI replay clue")
+                return
+            }
+            require(objectivePressureReplayTarget.order == objectivePressureReplayEvent.order, "objective pressure replay clue should keep the matching AI order")
+            require(Optional(objectivePressureReplayTarget.coordinate) == objectivePressureReplayEvent.to, "objective pressure replay clue should locate the matching AI event")
+            require(objectivePressureReplayTarget.title.contains("关联AI行动"), "objective pressure replay clue should use conservative copy")
+            require(objectivePressureReplayTarget.detail == objectivePressureReplayEvent.summary, "objective pressure replay clue should reuse AI event summary")
+            enemyThreatGame.focusBattlefieldSituationObjectivePressure(id: objectivePressureWithReplay.id)
             guard let refreshedPressure = enemyThreatGame.battlefieldSituationSummary.objectivePressures.first(where: { $0.objectiveName == "后方油库" }) else {
                 require(false, "objective pressure should remain derivable after focus")
                 return
@@ -1486,6 +1537,7 @@ struct RulesSmokeTest {
             require(enemyThreatGame.message.contains("后方油库"), "objective pressure focus should name the objective")
             require(enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "objective pressure focus should mark the pressure row as focused")
             require(refreshedPressure.threatSourceCoordinates.contains(situationObjectiveThreatSource.position), "refreshed objective pressure should keep threat source coordinates")
+            require(enemyThreatGame.focusedBattlefieldSituationObjectivePressureReplayTarget == objectivePressureReplayTarget, "focused objective pressure should expose its replay clue")
             let objectivePressureMarkers = enemyThreatGame.focusedBattlefieldSituationObjectivePressureMapMarkers
             require(objectivePressureMarkers.contains {
                 $0.role == .pressuredObjective &&
@@ -1516,6 +1568,19 @@ struct RulesSmokeTest {
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "objective pressure focus should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "objective pressure focus should not mutate objectives")
             require(enemyThreatGame.battleLog == startingEnemyThreatLog, "objective pressure focus should not write battle log entries")
+            require(enemyThreatGame.latestAIPhaseSummary == objectivePressureReplaySummary, "objective pressure focus should not mutate AI summary")
+            enemyThreatGame.focusBattlefieldSituationObjectivePressureReplayTarget()
+            require(enemyThreatGame.message.contains("据点压力复盘线索"), "objective pressure replay focus should explain the replay clue")
+            require(enemyThreatGame.focusedAIPhaseTimelineEventOrder == objectivePressureReplayTarget.order, "objective pressure replay focus should select the matching AI event")
+            require(enemyThreatGame.focusedCoordinate == objectivePressureReplayTarget.coordinate, "objective pressure replay focus should move map focus to the AI event")
+            require(enemyThreatGame.focusedAIPhaseMapMarkers.allSatisfy { $0.eventOrder == objectivePressureReplayTarget.order }, "objective pressure replay focus should filter AI markers to the matching event")
+            require(!enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "objective pressure replay focus should hand off selection to AI replay")
+            require(enemyThreatGame.focusedBattlefieldSituationObjectivePressureReplayTarget == nil, "objective pressure replay focus should clear the pressure-specific replay clue after AI handoff")
+            require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "objective pressure replay focus should not spend command points")
+            require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "objective pressure replay focus should not mutate units")
+            require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "objective pressure replay focus should not mutate objectives")
+            require(enemyThreatGame.battleLog == startingEnemyThreatLog, "objective pressure replay focus should not write battle log entries")
+            require(enemyThreatGame.latestAIPhaseSummary == objectivePressureReplaySummary, "objective pressure replay focus should not mutate AI summary")
             enemyThreatGame.focusBattlefieldSituationObjectivePressure(id: "stale-pressure")
             require(enemyThreatGame.focusedBattlefieldSituationObjectivePressureMapMarkers.isEmpty, "stale pressure focus should clear pressure map markers")
             require(!enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "stale pressure focus should clear the focused pressure row")
@@ -1526,9 +1591,11 @@ struct RulesSmokeTest {
             require(enemyThreatGame.battleLog == startingEnemyThreatLog, "stale pressure focus should not write battle log entries")
             enemyThreatGame.focusBattlefieldSituationObjectivePressure(id: refreshedPressure.id)
             require(enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "refocused pressure should restore the focused row")
+            require(enemyThreatGame.focusedBattlefieldSituationObjectivePressureReplayTarget == objectivePressureReplayTarget, "refocused pressure should restore the replay clue")
             enemyThreatGame.focus(coordinate: refreshedPressure.coordinate)
             require(!enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "ordinary map focus should clear the focused pressure row")
             require(enemyThreatGame.focusedBattlefieldSituationObjectivePressureMapMarkers.isEmpty, "ordinary map focus should clear pressure map markers")
+            require(enemyThreatGame.focusedBattlefieldSituationObjectivePressureReplayTarget == nil, "ordinary map focus should clear pressure replay clue")
             require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "ordinary map focus should not spend command points")
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "ordinary map focus should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "ordinary map focus should not mutate objectives")

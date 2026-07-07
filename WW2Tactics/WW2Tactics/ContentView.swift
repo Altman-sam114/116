@@ -3276,6 +3276,13 @@ private struct BattlefieldSituationSummaryView: View {
                         .buttonStyle(.plain)
                         .accessibilityHint(isFocused ? "当前据点压力，只定位地图标记，不执行移动、攻击、整补或部署。" : "只定位据点压力或守点建议，不执行移动、攻击、整补或部署。")
                     }
+
+                    if let replayTarget = game.focusedBattlefieldSituationObjectivePressureReplayTarget {
+                        BattlefieldSituationObjectivePressureReplayButton(
+                            replayTarget: replayTarget,
+                            action: game.focusBattlefieldSituationObjectivePressureReplayTarget
+                        )
+                    }
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 7)
@@ -3372,6 +3379,52 @@ private struct BattlefieldSituationSummaryView: View {
         case .resolved:
             "crown.fill"
         }
+    }
+}
+
+private struct BattlefieldSituationObjectivePressureReplayButton: View {
+    let replayTarget: BattlefieldSituationReplayTarget
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Label("复盘线索", systemImage: "timeline.selection")
+                    .font(.caption2.weight(.bold))
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(replayTarget.title)
+                        .font(.caption2.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    Text(replayTarget.detail)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.58))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.66)
+                }
+
+                Spacer(minLength: 4)
+
+                Text(verbatim: "#\(replayTarget.order)")
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.84))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.10), in: Capsule())
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white.opacity(0.86))
+        .padding(.horizontal, 7)
+        .padding(.vertical, 6)
+        .background(Color.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.blue.opacity(0.24), lineWidth: 1)
+        )
+        .accessibilityLabel("定位当前据点压力的关联AI复盘线索，事件\(replayTarget.order)，\(replayTarget.title)，\(replayTarget.detail)")
     }
 }
 
