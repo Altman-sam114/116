@@ -2506,6 +2506,7 @@ final class GameStateTests: XCTestCase {
         let refreshedPressure = try XCTUnwrap(game.battlefieldSituationSummary.objectivePressures.first { $0.objectiveName == "后方油库" })
         XCTAssertTrue(game.message.contains("据点压力定位"))
         XCTAssertTrue(game.message.contains(refreshedPressure.objectiveName))
+        XCTAssertTrue(game.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id))
         let pressureMarkers = game.focusedBattlefieldSituationObjectivePressureMapMarkers
         XCTAssertTrue(pressureMarkers.contains {
             $0.role == .pressuredObjective &&
@@ -2544,7 +2545,21 @@ final class GameStateTests: XCTestCase {
         game.focusBattlefieldSituationObjectivePressure(id: "stale-pressure")
 
         XCTAssertEqual(game.focusedBattlefieldSituationObjectivePressureMapMarkers, [])
+        XCTAssertFalse(game.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id))
         XCTAssertTrue(game.message.contains("已过期"))
+        XCTAssertEqual(game.activeFaction, startingFaction)
+        XCTAssertEqual(game.commandPoints, startingCommandPoints)
+        XCTAssertEqual(game.scenario.units, startingUnits)
+        XCTAssertEqual(game.scenario.tiles, startingTiles)
+        XCTAssertEqual(game.battleLog, startingBattleLog)
+
+        game.focusBattlefieldSituationObjectivePressure(id: refreshedPressure.id)
+        XCTAssertTrue(game.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id))
+
+        game.focus(coordinate: refreshedPressure.coordinate)
+
+        XCTAssertFalse(game.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id))
+        XCTAssertEqual(game.focusedBattlefieldSituationObjectivePressureMapMarkers, [])
         XCTAssertEqual(game.activeFaction, startingFaction)
         XCTAssertEqual(game.commandPoints, startingCommandPoints)
         XCTAssertEqual(game.scenario.units, startingUnits)

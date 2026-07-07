@@ -3263,16 +3263,18 @@ private struct BattlefieldSituationSummaryView: View {
                     }
 
                     ForEach(Array(summary.objectivePressures.prefix(3))) { pressure in
+                        let isFocused = game.isBattlefieldSituationObjectivePressureFocused(id: pressure.id)
                         Button {
                             game.focusBattlefieldSituationObjectivePressure(id: pressure.id)
                         } label: {
                             BattlefieldSituationObjectivePressureRow(
                                 pressure: pressure,
-                                color: priorityColor
+                                color: priorityColor,
+                                isFocused: isFocused
                             )
                         }
                         .buttonStyle(.plain)
-                        .accessibilityHint("只定位据点压力或守点建议，不执行移动、攻击、整补或部署。")
+                        .accessibilityHint(isFocused ? "当前据点压力，只定位地图标记，不执行移动、攻击、整补或部署。" : "只定位据点压力或守点建议，不执行移动、攻击、整补或部署。")
                     }
                 }
                 .padding(.horizontal, 8)
@@ -3376,6 +3378,7 @@ private struct BattlefieldSituationSummaryView: View {
 private struct BattlefieldSituationObjectivePressureRow: View {
     let pressure: BattlefieldSituationObjectivePressure
     let color: Color
+    let isFocused: Bool
 
     var body: some View {
         HStack(alignment: .top, spacing: 7) {
@@ -3411,10 +3414,21 @@ private struct BattlefieldSituationObjectivePressureRow: View {
             Spacer(minLength: 4)
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text(pressure.primaryThreatTitle)
-                    .font(.system(size: 9, weight: .black, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.80))
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    if isFocused {
+                        Text("当前")
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundStyle(.black.opacity(0.82))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 3)
+                            .background(color.opacity(0.88), in: Capsule())
+                    }
+
+                    Text(pressure.primaryThreatTitle)
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.80))
+                        .lineLimit(1)
+                }
 
                 Text("\(pressure.threatSourceCount)源")
                     .font(.system(size: 9, weight: .black, design: .rounded))
@@ -3432,9 +3446,19 @@ private struct BattlefieldSituationObjectivePressureRow: View {
                     .background(Color.white.opacity(0.10), in: Capsule())
             }
         }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 5)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            (isFocused ? color.opacity(0.14) : Color.white.opacity(0.035)),
+            in: RoundedRectangle(cornerRadius: 6)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(isFocused ? color.opacity(0.42) : Color.white.opacity(0.06), lineWidth: 1)
+        )
         .contentShape(Rectangle())
-        .accessibilityLabel("定位据点压力，\(pressure.objectiveName)，\(pressure.ownerTitle)，\(pressure.threatSourceCount) 个威胁来源，\(pressure.primaryThreatTitle)，\(pressure.primaryThreatDetail)，推荐入口，\(pressure.actionHint.entryTitle)")
+        .accessibilityLabel("\(isFocused ? "当前" : "定位")据点压力，\(pressure.objectiveName)，\(pressure.ownerTitle)，\(pressure.threatSourceCount) 个威胁来源，\(pressure.primaryThreatTitle)，\(pressure.primaryThreatDetail)，推荐入口，\(pressure.actionHint.entryTitle)")
     }
 }
 

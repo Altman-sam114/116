@@ -264,6 +264,11 @@ final class GameState: ObservableObject {
         return battlefieldSituationObjectivePressureMapMarkers(for: pressure)
     }
 
+    func isBattlefieldSituationObjectivePressureFocused(id: String) -> Bool {
+        guard focusedBattlefieldSituationObjectivePressureID == id else { return false }
+        return battlefieldSituationSummary.objectivePressures.contains { $0.id == id }
+    }
+
     var latestAIPhaseMapMarkers: [AIPhaseMapMarker] {
         guard let timeline = latestAIPhaseSummary?.timeline else { return [] }
         return timeline

@@ -1479,6 +1479,7 @@ struct RulesSmokeTest {
             }
             require(enemyThreatGame.message.contains("据点压力定位"), "objective pressure focus should explain the pressure location")
             require(enemyThreatGame.message.contains("后方油库"), "objective pressure focus should name the objective")
+            require(enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "objective pressure focus should mark the pressure row as focused")
             let objectivePressureMarkers = enemyThreatGame.focusedBattlefieldSituationObjectivePressureMapMarkers
             require(objectivePressureMarkers.contains {
                 $0.role == .pressuredObjective &&
@@ -1506,11 +1507,21 @@ struct RulesSmokeTest {
             require(enemyThreatGame.battleLog == startingEnemyThreatLog, "objective pressure focus should not write battle log entries")
             enemyThreatGame.focusBattlefieldSituationObjectivePressure(id: "stale-pressure")
             require(enemyThreatGame.focusedBattlefieldSituationObjectivePressureMapMarkers.isEmpty, "stale pressure focus should clear pressure map markers")
+            require(!enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "stale pressure focus should clear the focused pressure row")
             require(enemyThreatGame.message.contains("已过期"), "stale pressure focus should explain expiration")
             require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "stale pressure focus should not spend command points")
             require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "stale pressure focus should not mutate units")
             require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "stale pressure focus should not mutate objectives")
             require(enemyThreatGame.battleLog == startingEnemyThreatLog, "stale pressure focus should not write battle log entries")
+            enemyThreatGame.focusBattlefieldSituationObjectivePressure(id: refreshedPressure.id)
+            require(enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "refocused pressure should restore the focused row")
+            enemyThreatGame.focus(coordinate: refreshedPressure.coordinate)
+            require(!enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "ordinary map focus should clear the focused pressure row")
+            require(enemyThreatGame.focusedBattlefieldSituationObjectivePressureMapMarkers.isEmpty, "ordinary map focus should clear pressure map markers")
+            require(enemyThreatGame.commandPoints == startingCountermeasureCommandPoints, "ordinary map focus should not spend command points")
+            require(enemyThreatGame.scenario.units == startingEnemyThreatUnits, "ordinary map focus should not mutate units")
+            require(enemyThreatGame.scenario.tiles == startingEnemyThreatTiles, "ordinary map focus should not mutate objectives")
+            require(enemyThreatGame.battleLog == startingEnemyThreatLog, "ordinary map focus should not write battle log entries")
             guard let situationFocusTarget = situationSummary.primaryFocusTarget,
                   let situationCountermeasure = situationFocusTarget.countermeasurePreview else {
                 require(false, "battlefield situation should expose a countermeasure focus target")

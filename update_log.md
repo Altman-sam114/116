@@ -2162,3 +2162,34 @@
 遗留事项：
 
 - 本轮只做当前压力的只读地图反馈，不新增自动守点、未防守分支模拟、动画、音效或新美术资源。
+
+### v1.49 / 据点压力行选中态
+
+日期：2026-07-07
+
+核心变更：
+
+- 新增 `isBattlefieldSituationObjectivePressureFocused(id:)`，从当前压力 id 和最新 `battlefieldSituationSummary.objectivePressures` 派生据点压力行当前态。
+- `ContentView` 的据点压力行显示“当前”标识、背景和边框强调，并更新无障碍文案；UI 只消费 `GameState` 查询，不保存独立 `@State`。
+- 扩展 XCTest 和规则 smoke test，覆盖点选压力后的当前态、过期 id 清理、普通地图聚焦清理，以及只读边界不变。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.49（据点压力行选中态）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只把侧栏压力行与现有 PRS/DEF 地图标记对齐，不新增自动守点、未防守分支模拟、动画、音效或新美术资源。
