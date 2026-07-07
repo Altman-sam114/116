@@ -4660,6 +4660,7 @@ final class GameState: ObservableObject {
                 return BattlefieldSituationObjectivePressure(
                     objectiveName: objectiveName,
                     coordinate: group.coordinate,
+                    source: .currentThreat,
                     owner: objectiveTile?.owner,
                     threatSourceCount: sourceCount,
                     threatSourceCoordinates: threatSourceCoordinates,
@@ -4741,6 +4742,7 @@ final class GameState: ObservableObject {
         return BattlefieldSituationObjectivePressure(
             objectiveName: objectiveName,
             coordinate: followUp.threatTargetCoordinate,
+            source: .enemyPhaseFollowUp,
             owner: objectiveTile?.owner,
             threatSourceCount: sourceCount,
             threatSourceCoordinates: threatSourceCoordinates,
@@ -4942,6 +4944,9 @@ final class GameState: ObservableObject {
         _ left: BattlefieldSituationObjectivePressure,
         _ right: BattlefieldSituationObjectivePressure
     ) -> Bool {
+        if left.source.sortRank != right.source.sortRank {
+            return left.source.sortRank < right.source.sortRank
+        }
         if left.owner == activeFaction && right.owner != activeFaction {
             return true
         }

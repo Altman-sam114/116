@@ -3304,7 +3304,7 @@ private struct BattlefieldSituationSummaryView: View {
                     RoundedRectangle(cornerRadius: 7)
                         .stroke(priorityColor.opacity(0.22), lineWidth: 1)
                 )
-                .accessibilityLabel("据点防守压力，\(summary.objectivePressures.map { "\($0.objectiveName)，\($0.primaryThreatDetail)，\($0.actionHint.entryTitle)" }.joined(separator: "；"))")
+                .accessibilityLabel("据点防守压力，\(summary.objectivePressures.map { "\($0.objectiveName)，\($0.source.title)，\($0.primaryThreatDetail)，\($0.actionHint.entryTitle)" }.joined(separator: "；"))")
             }
 
             LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 7) {
@@ -3462,6 +3462,13 @@ private struct BattlefieldSituationObjectivePressureRow: View {
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
                         .background(Color.white.opacity(0.08), in: Capsule())
+
+                    Text(pressure.source.shortTitle)
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .foregroundStyle(color.opacity(0.84))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(color.opacity(0.12), in: Capsule())
                 }
 
                 Text(pressure.primaryThreatDetail)
@@ -3563,7 +3570,7 @@ private struct BattlefieldSituationObjectivePressureRow: View {
         } else {
             impactSummary = ""
         }
-        return "\(isFocused ? "当前" : "定位")据点压力，\(pressure.objectiveName)，\(pressure.ownerTitle)，\(pressure.threatSourceCount) 个威胁来源，\(pressure.primaryThreatTitle)，\(pressure.primaryThreatDetail)，\(pressure.comparison.currentTitle)，\(pressure.comparison.currentDetail)，\(pressure.comparison.responseTitle)，\(pressure.comparison.responseDetail)\(impactSummary)，推荐入口，\(pressure.actionHint.entryTitle)"
+        return "\(isFocused ? "当前" : "定位")据点压力，\(pressure.objectiveName)，来源\(pressure.source.title)，\(pressure.ownerTitle)，\(pressure.threatSourceCount) 个威胁来源，\(pressure.primaryThreatTitle)，\(pressure.primaryThreatDetail)，\(pressure.comparison.currentTitle)，\(pressure.comparison.currentDetail)，\(pressure.comparison.responseTitle)，\(pressure.comparison.responseDetail)\(impactSummary)，推荐入口，\(pressure.actionHint.entryTitle)"
     }
 }
 

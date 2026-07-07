@@ -1521,6 +1521,11 @@ struct RulesSmokeTest {
                     $0.threatID == situationObjectiveThreat.id
             }
             require(objectivePressure.coordinate == situationObjectiveThreat.targetCoordinate, "objective pressure should point to the threatened objective")
+            require(objectivePressure.source == .currentThreat, "objective pressure should mark live objective threats as current")
+            require(objectivePressure.source.title == "当前威胁", "objective pressure source should expose current title")
+            require(objectivePressure.source.shortTitle == "NOW", "objective pressure source should expose current short title")
+            require(BattlefieldSituationObjectivePressureSource.currentThreat.sortRank < BattlefieldSituationObjectivePressureSource.enemyPhaseFollowUp.sortRank, "objective pressure source should sort current before follow-up")
+            require(objectivePressure.id.contains(objectivePressure.source.rawValue), "objective pressure id should include source")
             require(objectivePressure.owner == enemyThreatGame.tile(at: situationObjectiveThreat.targetCoordinate)?.owner, "objective pressure should expose current owner")
             require(objectivePressure.threatSourceCount >= 1, "objective pressure should count threat sources")
             require(objectivePressure.threatSourceCoordinates.contains(situationObjectiveThreatSource.position), "objective pressure should expose threat source coordinates")
@@ -1587,6 +1592,7 @@ struct RulesSmokeTest {
             require(Optional(objectivePressureReplayTarget.coordinate) == objectivePressureReplayEvent.to, "objective pressure replay clue should locate the matching AI event")
             require(objectivePressureReplayTarget.title.contains("关联AI行动"), "objective pressure replay clue should use conservative copy")
             require(objectivePressureReplayTarget.detail == objectivePressureReplayEvent.summary, "objective pressure replay clue should reuse AI event summary")
+            require(objectivePressureWithReplay.source == .currentThreat, "objective pressure replay clue should keep current source")
             require(objectivePressureWithReplay.comparison.level == .held, "objective pressure comparison should stay stable when replay clue appears")
             require(objectivePressureWithReplay.comparison.responseDetail.contains("有复盘线索"), "objective pressure comparison should expose replay clue availability")
             require(objectivePressureWithReplay.enemyPhaseImpact == nil, "objective pressure should not infer enemy phase impact from replay clue alone")
@@ -3884,6 +3890,21 @@ struct RulesSmokeTest {
             })?.enemyPhaseImpact else {
                 require(false, "objective pressure should expose matching enemy phase impact after defense follow-up")
                 return
+            }
+            guard let objectiveFollowUpPressure = objectiveGame.battlefieldSituationSummary.objectivePressures.first(where: {
+                $0.coordinate == objectiveFollowUp.threatTargetCoordinate
+            }) else {
+                require(false, "objective pressure should remain visible after defense follow-up")
+                return
+            }
+            require(objectiveFollowUpPressure.source == .enemyPhaseFollowUp, "objective pressure should mark resolved follow-up pressure")
+            require(objectiveFollowUpPressure.source.title == "回合复核", "objective follow-up pressure should expose follow-up source title")
+            require(objectiveFollowUpPressure.source.shortTitle == "CHK", "objective follow-up pressure should expose follow-up source short title")
+            require(objectiveFollowUpPressure.id.contains(objectiveFollowUpPressure.source.rawValue), "objective follow-up pressure id should include source")
+            let objectivePressureSources = objectiveGame.battlefieldSituationSummary.objectivePressures
+            if let currentIndex = objectivePressureSources.firstIndex(where: { $0.source == .currentThreat }),
+               let followUpIndex = objectivePressureSources.firstIndex(where: { $0.source == .enemyPhaseFollowUp }) {
+                require(currentIndex < followUpIndex, "current objective pressures should sort before follow-up pressures")
             }
             require(objectivePressureImpact.outcomeLevel == objectiveFollowUp.outcomeLevel, "objective pressure impact should mirror follow-up outcome")
             require(objectivePressureImpact.title == "\(objectiveFollowUp.outcomeLevel.title)：敌方回合后", "objective pressure impact should expose enemy phase title")

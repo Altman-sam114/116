@@ -2358,3 +2358,35 @@
 遗留事项：
 
 - 本轮只把真实守点 follow-up 映射回据点压力行，不新增 AI 因果归因、未来分支模拟、自动防守、自动移动、自动攻击、动画、音效或新美术资源。
+
+### v1.55 / 据点压力来源标识
+
+日期：2026-07-07
+
+核心变更：
+
+- `BattlefieldSituationObjectivePressureSource` 区分 NOW 当前威胁和 CHK 回合复核。
+- `GameState` 构造当前 `.objectiveCapture` 压力时标记 `.currentThreat`，构造守点 follow-up 压力时标记 `.enemyPhaseFollowUp`，并优先按 source.sortRank 排序，让当前威胁稳定排在回合复核前。
+- `ContentView` 在据点压力行和压力区域无障碍文案中展示来源，UI 仍只消费 `GameState` 派生字段。
+- 扩展 XCTest 和规则 smoke test，覆盖来源标题、短码、sortRank、id 包含来源、当前威胁和回合复核来源断言。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v1（地图操作体验）/v1.55（据点压力来源标识）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只做压力来源标识和排序解释，不新增 AI 因果归因、未来分支模拟、自动防守、自动移动、自动攻击、动画、音效或新美术资源。

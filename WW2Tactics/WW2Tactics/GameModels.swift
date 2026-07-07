@@ -2370,9 +2370,38 @@ struct BattlefieldSituationObjectivePressureEnemyPhaseImpact: Identifiable, Equa
     }
 }
 
+enum BattlefieldSituationObjectivePressureSource: String, Identifiable {
+    case currentThreat
+    case enemyPhaseFollowUp
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .currentThreat: "当前威胁"
+        case .enemyPhaseFollowUp: "回合复核"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .currentThreat: "NOW"
+        case .enemyPhaseFollowUp: "CHK"
+        }
+    }
+
+    var sortRank: Int {
+        switch self {
+        case .currentThreat: 0
+        case .enemyPhaseFollowUp: 1
+        }
+    }
+}
+
 struct BattlefieldSituationObjectivePressure: Identifiable, Equatable {
     let objectiveName: String
     let coordinate: HexCoordinate
+    let source: BattlefieldSituationObjectivePressureSource
     let owner: Faction?
     let threatSourceCount: Int
     let threatSourceCoordinates: [HexCoordinate]
@@ -2392,6 +2421,7 @@ struct BattlefieldSituationObjectivePressure: Identifiable, Equatable {
         [
             objectiveName,
             coordinate.id,
+            source.rawValue,
             owner?.rawValue ?? "neutral",
             "\(threatSourceCount)",
             primaryThreatTitle,

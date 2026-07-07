@@ -2512,6 +2512,14 @@ final class GameStateTests: XCTestCase {
         let startingBattleLog = game.battleLog
 
         XCTAssertTrue(pressure.threatSourceCoordinates.contains(pressureThreatSource.position))
+        XCTAssertEqual(pressure.source, .currentThreat)
+        XCTAssertEqual(pressure.source.title, "当前威胁")
+        XCTAssertEqual(pressure.source.shortTitle, "NOW")
+        XCTAssertLessThan(
+            BattlefieldSituationObjectivePressureSource.currentThreat.sortRank,
+            BattlefieldSituationObjectivePressureSource.enemyPhaseFollowUp.sortRank
+        )
+        XCTAssertTrue(pressure.id.contains(pressure.source.rawValue))
         XCTAssertEqual(pressure.comparison.level, .held)
         XCTAssertEqual(pressure.comparison.currentTitle, "当前守势")
         XCTAssertTrue(pressure.comparison.currentDetail.contains(pressure.ownerTitle))
@@ -2566,6 +2574,7 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(Optional(replayTarget.coordinate), replayEvent.to)
         XCTAssertTrue(replayTarget.title.contains("关联AI行动"))
         XCTAssertEqual(replayTarget.detail, replayEvent.summary)
+        XCTAssertEqual(pressureWithReplay.source, .currentThreat)
         XCTAssertEqual(pressureWithReplay.comparison.level, .held)
         XCTAssertTrue(pressureWithReplay.comparison.responseDetail.contains("有复盘线索"))
         XCTAssertNil(pressureWithReplay.enemyPhaseImpact)
@@ -3351,6 +3360,10 @@ final class GameStateTests: XCTestCase {
         let enemyPhaseImpact = try XCTUnwrap(objectivePressure.enemyPhaseImpact)
 
         XCTAssertEqual(objectivePressure.objectiveName, "后方油库")
+        XCTAssertEqual(objectivePressure.source, .enemyPhaseFollowUp)
+        XCTAssertEqual(objectivePressure.source.title, "回合复核")
+        XCTAssertEqual(objectivePressure.source.shortTitle, "CHK")
+        XCTAssertTrue(objectivePressure.id.contains(objectivePressure.source.rawValue))
         XCTAssertEqual(enemyPhaseImpact.outcomeLevel, followUp.outcomeLevel)
         XCTAssertEqual(enemyPhaseImpact.title, "\(followUp.outcomeLevel.title)：敌方回合后")
         XCTAssertTrue(enemyPhaseImpact.detail.contains(detail.title))
@@ -3361,6 +3374,12 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(enemyPhaseImpact.aiTurn, followUp.aiTurn)
         XCTAssertEqual(enemyPhaseImpact.sourceTitle, "\(followUp.countermeasureKind.title)复核")
         XCTAssertEqual(objectivePressure.id.contains(enemyPhaseImpact.id), false)
+
+        let pressures = game.battlefieldSituationSummary.objectivePressures
+        if let currentIndex = pressures.firstIndex(where: { $0.source == .currentThreat }),
+           let followUpIndex = pressures.firstIndex(where: { $0.source == .enemyPhaseFollowUp }) {
+            XCTAssertLessThan(currentIndex, followUpIndex)
+        }
 
         game.focusBattlefieldSituationObjectivePressure(id: objectivePressure.id)
         let focusedPressure = try XCTUnwrap(game.battlefieldSituationSummary.objectivePressures.first {

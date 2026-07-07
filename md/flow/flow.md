@@ -24,7 +24,7 @@
 职责：
 
 - 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、安全接敌路径风险对比 `SafeEngagementComparisonPreview`、敌方威胁意图预判 `EnemyThreatIntentPreview`、敌方意图反制建议 `EnemyThreatCountermeasurePreview`、据点防守取舍解释 `EnemyThreatObjectiveDefenseTradeoff`、反制建议收益解释 `EnemyThreatCountermeasureBenefitMetric`、反制建议排序解释 `EnemyThreatCountermeasurePriorityFactor`、反制建议相邻对比 `EnemyThreatCountermeasureComparisonPreview`、反制建议执行前后预计对照 `EnemyThreatCountermeasureImpactComparison`、反制建议地图标记 `EnemyThreatCountermeasureMapMarker`、反制建议执行桥接预览 `EnemyThreatCountermeasureExecutionPreview`、反制建议执行回放 `EnemyThreatCountermeasureExecutionResultSummary`、反制建议敌方回合复核 `EnemyThreatCountermeasureFollowUpSummary` 及其复核结论等级/定位目标/据点防守细分 `EnemyThreatObjectiveDefenseFollowUpDetail`/关联 AI 行动 `EnemyThreatCountermeasureFollowUpAIEvent`、玩家回合战线态势汇总 `BattlefieldSituationSummary` 及其据点防守压力 `BattlefieldSituationObjectivePressure`、压力态势对照 `BattlefieldSituationObjectivePressureComparison`、压力敌方回合影响 `BattlefieldSituationObjectivePressureEnemyPhaseImpact`、威胁来源坐标和压力地图标记 `BattlefieldSituationObjectivePressureMapMarker`、首要定位目标和下一步提示、战线态势执行反馈/敌方回合影响/普通行动态势响应 `BattlefieldSituationResponseSummary`、最近态势响应历史条目 `BattlefieldSituationResponseHistoryEntry`、战线态势响应地图标记 `BattlefieldSituationResponseMapMarker`、战线态势关联 AI 复盘目标 `BattlefieldSituationReplayTarget` 及其来源 `BattlefieldSituationReplayTargetSource`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary`、敌方回合行动时间线 `AIPhaseTimelineEvent`、敌方回合复盘播放速度 `AIPhaseTimelinePlaybackPace`、敌方回合地图复盘标记 `AIPhaseMapMarker`、敌方回合后的 `AIPhaseSummary` 和纯派生复盘结论 `AIPhaseReplayConclusion`。
+- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、安全接敌路径风险对比 `SafeEngagementComparisonPreview`、敌方威胁意图预判 `EnemyThreatIntentPreview`、敌方意图反制建议 `EnemyThreatCountermeasurePreview`、据点防守取舍解释 `EnemyThreatObjectiveDefenseTradeoff`、反制建议收益解释 `EnemyThreatCountermeasureBenefitMetric`、反制建议排序解释 `EnemyThreatCountermeasurePriorityFactor`、反制建议相邻对比 `EnemyThreatCountermeasureComparisonPreview`、反制建议执行前后预计对照 `EnemyThreatCountermeasureImpactComparison`、反制建议地图标记 `EnemyThreatCountermeasureMapMarker`、反制建议执行桥接预览 `EnemyThreatCountermeasureExecutionPreview`、反制建议执行回放 `EnemyThreatCountermeasureExecutionResultSummary`、反制建议敌方回合复核 `EnemyThreatCountermeasureFollowUpSummary` 及其复核结论等级/定位目标/据点防守细分 `EnemyThreatObjectiveDefenseFollowUpDetail`/关联 AI 行动 `EnemyThreatCountermeasureFollowUpAIEvent`、玩家回合战线态势汇总 `BattlefieldSituationSummary` 及其据点防守压力 `BattlefieldSituationObjectivePressure`、压力来源 `BattlefieldSituationObjectivePressureSource`、压力态势对照 `BattlefieldSituationObjectivePressureComparison`、压力敌方回合影响 `BattlefieldSituationObjectivePressureEnemyPhaseImpact`、威胁来源坐标和压力地图标记 `BattlefieldSituationObjectivePressureMapMarker`、首要定位目标和下一步提示、战线态势执行反馈/敌方回合影响/普通行动态势响应 `BattlefieldSituationResponseSummary`、最近态势响应历史条目 `BattlefieldSituationResponseHistoryEntry`、战线态势响应地图标记 `BattlefieldSituationResponseMapMarker`、战线态势关联 AI 复盘目标 `BattlefieldSituationReplayTarget` 及其来源 `BattlefieldSituationReplayTargetSource`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary`、敌方回合行动时间线 `AIPhaseTimelineEvent`、敌方回合复盘播放速度 `AIPhaseTimelinePlaybackPace`、敌方回合地图复盘标记 `AIPhaseMapMarker`、敌方回合后的 `AIPhaseSummary` 和纯派生复盘结论 `AIPhaseReplayConclusion`。
 - 生成阿登反击战、诺曼底突破等战役初始数据。
 
 输入：
@@ -47,7 +47,7 @@
 
 - 项目核心状态机。
 - 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、最新部署结果、最新整补结果、最新反制建议执行回放、最新反制建议敌方回合复核、最近 5 条态势响应历史、当前查看响应 order、最新 AI 回合摘要及其行动时间线、AI 复盘播放状态和速度、胜负、指令点。
-- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要和行动时间线、AI 行动地图复盘标记派生、当前 AI 复盘事件选中 order、上一条/下一条复盘导航、播放/暂停/速度控制及其地图标记派生、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、战线态势汇总和据点防守压力列表、据点压力地图标记、压力行当前态、压力态势对照、压力敌方回合影响和压力复盘线索、战线态势复盘影响来源筛选、首要目标定位、下一步提示、执行反馈、敌方回合影响、普通行动态势响应、态势响应历史追加/裁剪/连续查看、态势响应地图标记、态势响应定位入口和 AI 关键复盘目标派生、反制建议相邻排序对比、反制建议执行前后预计对照、当前反制建议地图标记派生、当前反制建议执行入口桥接派生、最近一次反制建议执行回放、敌方回合后复核、据点防守复核细分、关联 AI 行动和复核目标定位。
+- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要和行动时间线、AI 行动地图复盘标记派生、当前 AI 复盘事件选中 order、上一条/下一条复盘导航、播放/暂停/速度控制及其地图标记派生、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、战线态势汇总和据点防守压力列表、据点压力来源标识和排序、据点压力地图标记、压力行当前态、压力态势对照、压力敌方回合影响和压力复盘线索、战线态势复盘影响来源筛选、首要目标定位、下一步提示、执行反馈、敌方回合影响、普通行动态势响应、态势响应历史追加/裁剪/连续查看、态势响应地图标记、态势响应定位入口和 AI 关键复盘目标派生、反制建议相邻排序对比、反制建议执行前后预计对照、当前反制建议地图标记派生、当前反制建议执行入口桥接派生、最近一次反制建议执行回放、敌方回合后复核、据点防守复核细分、关联 AI 行动和复核目标定位。
 
 输入：
 
@@ -73,7 +73,7 @@
 - 渲染 SwiftUI App 主界面。
 - 提供顶部状态栏、战区地图、地图工具栏、HUD、侧栏、图例、编队条、战报。
 - 将地图左键/点按/右键转换为 `GameState` 方法调用。
-- 显示 MOVE、ATK、POS、NEXT、OBJ、CAP、THR、INT、AI 复盘、战线态势汇总、据点压力行当前态、据点压力态势对照、据点压力敌方回合影响、据点压力地图标记、据点压力复盘线索、战线态势复盘影响来源、态势响应地图标记、态势响应定位入口、态势响应上一条/下一条历史查看、首要定位入口、下一步提示、执行反馈、普通行动态势响应、敌方回合影响和关联 AI 复盘入口、补给线、控制区、攻击覆盖等标记。
+- 显示 MOVE、ATK、POS、NEXT、OBJ、CAP、THR、INT、AI 复盘、战线态势汇总、据点压力行当前态、据点压力来源标识、据点压力态势对照、据点压力敌方回合影响、据点压力地图标记、据点压力复盘线索、战线态势复盘影响来源、态势响应地图标记、态势响应定位入口、态势响应上一条/下一条历史查看、首要定位入口、下一步提示、执行反馈、普通行动态势响应、敌方回合影响和关联 AI 复盘入口、补给线、控制区、攻击覆盖等标记。
 
 输入：
 
@@ -259,34 +259,35 @@
 
 1. `BattlefieldSituationSummary` 是当前行动阵营的只读玩家回合态势模型，汇总指令点、待命部队、据点进度、敌方意图数量、攻击威胁数量、据点威胁数量、可执行反制数量、受威胁据点、据点防守压力、首要建议、首要定位目标、下一步提示和可定位的 AI 复盘影响事件。
 2. `GameState.battlefieldSituationSummary` 是 computed property，不新增 `@Published` 状态；它复用 `enemyThreatIntentPreviews(from:against:limit:)`、`enemyThreatCountermeasurePreviews(for:limit:)`、`readyUnits`、`objectiveTiles` 和 `activeCommandPoints` 纯派生。
-3. `BattlefieldSituationObjectivePressure` 从同一批 `.objectiveCapture` 敌方意图、同 threatID 的反制建议、最新守点 follow-up 和最新 AI 时间线纯派生，按据点坐标聚合威胁来源数量、当前归属、首要占点风险、推荐反制入口、可执行性、态势对照、敌方回合影响和可选复盘线索；它不调用移动、攻击、整补、部署、战术命令或 AI，也不改变敌方意图排序、反制 score、AI 时间线或守点规则。
-4. 首要建议优先级为：已胜负结算、存在可执行反制、存在受威胁据点、仍有待命单位且据点未全控、仍有待命单位但战线稳定、暂无待命单位可结束回合。
-5. 态势汇总查询不调用移动、攻击、战术命令、部署、整补、AI、日志写入或任何真实执行方法，不改变单位 HP/位置、行动状态、据点归属、指令点、战报、结果摘要、AI 摘要或胜负。
-6. `BattlefieldSituationFocusTarget` 从同一批态势输入纯派生，优先定位可执行反制，其次受威胁据点，其次选中/待命单位的首个 OBJ 推进计划，最后定位第一支待命单位；没有可行动目标或战役已结算时为空。
-7. `BattlefieldSituationActionHint` 挂在首要定位目标和据点防守压力上，同步说明定位后的下一步入口：抢先打击为 ATK，撤退和据点防守为 MOVE，整补支撑为整补按钮，OBJ 推进为 MOVE，待命单位为选择后查看入口，单纯受威胁据点为防守查看提示。
-8. action hint 是只读解释，不依赖 SwiftUI 焦点现场重算，不调用真实命令，也不替代 `EnemyThreatCountermeasureExecutionPreview`；反制目标定位后，既有执行桥接预览仍负责重新校验当前状态。
-9. `focusBattlefieldSituationPrimaryTarget()` 每次点击都重新读取最新 `battlefieldSituationSummary.primaryFocusTarget`，再复用 `focusEnemyThreatCountermeasure(_:)`、`focusObjectiveAdvancePreview(_:)` 或既有选择/聚焦逻辑；它只更新选择、焦点、目标引导和消息，不消耗行动、不执行攻击/移动/整补/部署/回合推进。
-10. `focusBattlefieldSituationObjectivePressure(id:)` 每次点击都重新读取最新压力列表并按 id 校验。若压力仍有关联反制，复用 `focusEnemyThreatCountermeasure(_:)` 定位执行单位、目的格和守点引导；若无反制，则只聚焦受威胁据点并设置目标引导。过期 id、战役结算或坐标失效只写提示，不使用旧对象继续定位。
-11. `BattlefieldSituationObjectivePressure.threatSourceCoordinates` 从同一压力分组内敌方威胁的 `enemyUnitID` 回查当前单位位置，过滤失效坐标，去重并稳定排序；它只解释来源位置，不改变威胁排序、反制建议或 AI。
-12. `focusedBattlefieldSituationObjectivePressureMapMarkers` 从当前压力 id 和最新压力列表纯派生，不新增 `@Published` marker 数组。它对受压据点输出 PRS 标记，对威胁来源输出 SRC 标记；若有不同于据点坐标的守点目的格，则输出 DEF 标记。普通聚焦、选择单位、直接点选普通反制、重开和切战役会清理当前压力 id，避免旧压力标记残留。
-13. `isBattlefieldSituationObjectivePressureFocused(id:)` 只读判断给定压力 id 是否等于当前压力 id，且仍存在于最新 `battlefieldSituationSummary.objectivePressures`。它和 PRS/SRC/DEF marker 使用同一个 `GameState` 当前压力 id，不在 SwiftUI 中保存独立选中状态。
-14. `BattlefieldSituationObjectivePressure.comparison` 是压力行的只读态势对照，从据点归属、威胁来源数量、路线状态、action hint、匹配反制和 replay target 派生当前守势/敌控/中立争夺、当前详情、应对标题和应对详情；它不模拟未来敌方行动，也不改变 pressure id。
-15. `BattlefieldSituationObjectivePressure.enemyPhaseImpact` 只从最新 `latestEnemyThreatCountermeasureFollowUpResult` 中匹配同一受威胁据点的守点复核，并要求 AI 回合号仍等于最新 `latestAIPhaseSummary`。它复用 follow-up 的复核等级、首条据点归属前后对比、结果和据点防守细分；无 follow-up、非守点复核、坐标不匹配或 AI summary 不匹配时为空，不从普通 replay target 或全局 key event 伪造影响，也不参与 pressure id。
-15. `BattlefieldSituationObjectivePressure.replayTarget` 从最新 `AIPhaseSummary.timeline` 保守匹配当前压力的威胁来源单位或受压据点坐标，只输出 1 条可定位 `BattlefieldSituationReplayTarget`。匹配优先威胁来源单位，再按据点坐标，事件类型按占点、移动、攻击、战术命令等稳定排序；无匹配、无 AI summary、无坐标或坐标失效时为空，不回退到全局关键事件。
-16. `focusedBattlefieldSituationObjectivePressureReplayTarget` 从当前压力 id 和最新压力列表纯派生，不新增 `@Published` 状态。`focusBattlefieldSituationObjectivePressureReplayTarget()` 每次点击重新校验当前压力和 replay target，有目标时复用 `focusAIPhaseTimelineEvent(order:)` 移交到 AI 复盘焦点，无目标或过期时只写提示。
-17. 据点压力定位只更新选择、焦点、目标引导、反制聚焦、当前压力 id 和消息；据点压力复盘线索只切换 AI 复盘焦点和地图复盘标记强调；据点压力态势对照和敌方回合影响只展示结构化文案。它们都不调用移动、攻击、整补、部署、战术命令、回合推进或 AI，不改变单位 HP/位置、行动状态、据点归属、指令点、战报、latest result、AI summary、follow-up 或胜负。
-18. `BattlefieldSituationResponseSummary` 是态势响应的只读展示模型；反制 follow-up、反制执行、据点占领、普通战斗、战术命令、部署和整补的真实成功发布点会把当前响应快照追加为 `BattlefieldSituationResponseHistoryEntry`，最近历史最多保留 5 条，最新响应默认成为当前查看项。
-19. `GameState.battlefieldSituationResponseSummary` 从当前查看的历史条目派生，不再从 `latest*Result` 读取时即时拼装旧响应；内部 `latestBattlefieldSituationResponseSummary` 只供真实成功发布点生成快照。读取 summary 不追加历史，不调用移动、攻击、战术命令、部署、整补、AI、日志写入或任何真实执行方法。
-20. 敌方回合影响响应显示复核等级、反制类型、执行单位、目标、结论、首条敌方回合前后对比和复核坐标；据点防守响应首条结果仍以据点归属为准，细分进驻/封堵、守点位置、威胁来源和关联 AI 行动只作为复核 detail 展示；它不重新模拟 AI，也不精确归因逐个 AI 行动。无反制 baseline 的敌方回合不会伪造 follow-up 响应；若 AI 真实占点触发既有占点结果，仍可显示占点响应。
-21. 反制执行响应显示建议类型、执行单位、入口类型、首条预计/实际对照和执行坐标；占点响应显示占领/夺取据点、归属变化、奖励和据点进度；普通战斗响应显示攻击单位、目标、伤害、反击、目标 HP、防御姿态、追击和夹击影响；战术命令响应显示命令名、施放者、目标、伤害、指令点消耗、士气/状态和无反击；部署响应显示来源据点、新单位、部署坐标和剩余指令点；整补响应显示单位、HP 恢复和指令点消耗。普通移动、预览聚焦或失败命令不会伪造态势响应或追加历史。
-22. `focusedBattlefieldSituationResponseOrder` 记录当前查看的历史响应；`focusPreviousBattlefieldSituationResponse()` 和 `focusNextBattlefieldSituationResponse()` 只在最近 5 条历史内切换当前查看项，更新焦点坐标和消息，不能执行命令，也不能改变单位、据点、指令点、战报、AI 摘要、latest result 或历史内容。边界处只写提示并保留旧选中项。
-23. `BattlefieldSituationResponseMapMarker` 是当前查看响应的只读地图投影；`GameState.battlefieldSituationResponseMapMarker` 只在响应坐标存在且仍属于当前地图时输出 marker，复用 response kind 的短码和图标，不新增第二份 marker 状态，不改变焦点、消息、单位、据点、指令点、战报、AI 摘要或 latest result。
-24. `focusBattlefieldSituationResponseTarget()` 每次点击都重新读取当前查看响应的 `battlefieldSituationResponseMapMarker`；有合法 marker 时只更新 `focusedCoordinate` 和消息，无 marker 或坐标失效时只写提示。它不执行移动、攻击、战术命令、部署、整补、回合推进或 AI，也不清理 OBJ/SAFE/反制引导，不改变 response、marker、history、latest result、单位、据点、指令点、战报或胜负。
-25. `loadScenario()`、重开和切换战役会清空态势响应历史、当前查看 order 和历史序号，避免旧响应坐标污染新场景；普通移动和失败命令不清空历史，只是不追加新响应。
-26. `BattlefieldSituationReplayTarget` 带有 `source` 来源：当前压力关联、响应位置关联或全局关键事件。它从最新 `AIPhaseSummary.timeline` 和战线态势上下文纯派生，优先使用当前点选压力的保守 replay target；没有压力线索时，按当前查看态势响应坐标匹配 timeline 的 `to/from`；仍无匹配时回退到 `AIPhaseSummary.replayConclusion.keyEvents.first`。三种路径都会用同一 summary 的 timeline 按 order 回查合法坐标，只有 `event.to ?? event.from` 存在且仍在当前地图内时才输出目标。
-27. 战线态势复盘影响筛选不新增 `@Published` 状态，不改变 AI summary、timeline、关键事件排序、压力线索、响应历史或地图 marker；匹配文案只表达关联或关键事件，不声明 AI 因果归因。
-28. `focusBattlefieldSituationReplayTarget()` 每次点击都重新读取最新 `battlefieldSituationSummary.replayTarget`，有目标时只调用既有 `focusAIPhaseTimelineEvent(order:)`，无目标时只写提示；它不直接设置坐标、不过滤 marker、不执行移动、攻击、战术命令、部署、整补或 AI。
-29. `ContentView` 在侧栏靠前显示“战线态势”卡，展示 summary 的等级、指标、受威胁据点、据点防守压力、压力态势对照、压力敌方回合影响、建议说明、态势响应反馈/敌方回合影响、响应历史位置、上一条/下一条响应按钮、响应定位按钮、“复盘影响”按钮、首要“定位”按钮和下一步入口提示；据点压力行是按钮，但只把压力 id 转发给 `GameState`，并通过 `isBattlefieldSituationObjectivePressureFocused(id:)` 展示当前态。当前压力若有 replay target，压力列表下方显示独立“复盘线索”按钮，避免嵌套在压力行按钮内；战线态势“复盘影响”按钮展示 PRS/RSP/KEY 来源短码和来源标题。地图格展示当前压力派生的 PRS/SRC/DEF marker 和当前查看响应派生的态势响应 marker，并把压力摘要和响应摘要加入 tile 无障碍文案。UI 不重新计算威胁、反制、据点压力、压力态势对照、压力敌方回合影响、复盘影响来源、OBJ 计划、待命单位、入口类型、执行反馈、复核影响、AI timeline、关键事件坐标、压力选中、压力复盘线索、威胁来源或地图 marker。
+3. `BattlefieldSituationObjectivePressure` 从同一批 `.objectiveCapture` 敌方意图、同 threatID 的反制建议、最新守点 follow-up 和最新 AI 时间线纯派生，按据点坐标聚合来源、威胁来源数量、当前归属、首要占点风险、推荐反制入口、可执行性、态势对照、敌方回合影响和可选复盘线索；它不调用移动、攻击、整补、部署、战术命令或 AI，也不改变敌方意图排序、反制 score、AI 时间线或守点规则。
+4. `BattlefieldSituationObjectivePressure.source` 区分 NOW 当前威胁和 CHK 回合复核。当前 `.objectiveCapture` 威胁压力使用 `.currentThreat`，守点 follow-up 派生的已复核压力使用 `.enemyPhaseFollowUp`；排序先按 source.sortRank，当前威胁稳定排在回合复核前。
+5. 首要建议优先级为：已胜负结算、存在可执行反制、存在受威胁据点、仍有待命单位且据点未全控、仍有待命单位但战线稳定、暂无待命单位可结束回合。
+6. 态势汇总查询不调用移动、攻击、战术命令、部署、整补、AI、日志写入或任何真实执行方法，不改变单位 HP/位置、行动状态、据点归属、指令点、战报、结果摘要、AI 摘要或胜负。
+7. `BattlefieldSituationFocusTarget` 从同一批态势输入纯派生，优先定位可执行反制，其次受威胁据点，其次选中/待命单位的首个 OBJ 推进计划，最后定位第一支待命单位；没有可行动目标或战役已结算时为空。
+8. `BattlefieldSituationActionHint` 挂在首要定位目标和据点防守压力上，同步说明定位后的下一步入口：抢先打击为 ATK，撤退和据点防守为 MOVE，整补支撑为整补按钮，OBJ 推进为 MOVE，待命单位为选择后查看入口，单纯受威胁据点为防守查看提示。
+9. action hint 是只读解释，不依赖 SwiftUI 焦点现场重算，不调用真实命令，也不替代 `EnemyThreatCountermeasureExecutionPreview`；反制目标定位后，既有执行桥接预览仍负责重新校验当前状态。
+10. `focusBattlefieldSituationPrimaryTarget()` 每次点击都重新读取最新 `battlefieldSituationSummary.primaryFocusTarget`，再复用 `focusEnemyThreatCountermeasure(_:)`、`focusObjectiveAdvancePreview(_:)` 或既有选择/聚焦逻辑；它只更新选择、焦点、目标引导和消息，不消耗行动、不执行攻击/移动/整补/部署/回合推进。
+11. `focusBattlefieldSituationObjectivePressure(id:)` 每次点击都重新读取最新压力列表并按 id 校验。若压力仍有关联反制，复用 `focusEnemyThreatCountermeasure(_:)` 定位执行单位、目的格和守点引导；若无反制，则只聚焦受威胁据点并设置目标引导。过期 id、战役结算或坐标失效只写提示，不使用旧对象继续定位。
+12. `BattlefieldSituationObjectivePressure.threatSourceCoordinates` 从同一压力分组内敌方威胁的 `enemyUnitID` 回查当前单位位置，过滤失效坐标，去重并稳定排序；它只解释来源位置，不改变威胁排序、反制建议或 AI。
+13. `focusedBattlefieldSituationObjectivePressureMapMarkers` 从当前压力 id 和最新压力列表纯派生，不新增 `@Published` marker 数组。它对受压据点输出 PRS 标记，对威胁来源输出 SRC 标记；若有不同于据点坐标的守点目的格，则输出 DEF 标记。普通聚焦、选择单位、直接点选普通反制、重开和切战役会清理当前压力 id，避免旧压力标记残留。
+14. `isBattlefieldSituationObjectivePressureFocused(id:)` 只读判断给定压力 id 是否等于当前压力 id，且仍存在于最新 `battlefieldSituationSummary.objectivePressures`。它和 PRS/SRC/DEF marker 使用同一个 `GameState` 当前压力 id，不在 SwiftUI 中保存独立选中状态。
+15. `BattlefieldSituationObjectivePressure.comparison` 是压力行的只读态势对照，从据点归属、威胁来源数量、路线状态、action hint、匹配反制和 replay target 派生当前守势/敌控/中立争夺、当前详情、应对标题和应对详情；它不模拟未来敌方行动，也不改变 pressure id。
+16. `BattlefieldSituationObjectivePressure.enemyPhaseImpact` 只从最新 `latestEnemyThreatCountermeasureFollowUpResult` 中匹配同一受威胁据点的守点复核，并要求 AI 回合号仍等于最新 `latestAIPhaseSummary`。它复用 follow-up 的复核等级、首条据点归属前后对比、结果和据点防守细分；无 follow-up、非守点复核、坐标不匹配或 AI summary 不匹配时为空，不从普通 replay target 或全局 key event 伪造影响，也不参与 pressure id。
+17. `BattlefieldSituationObjectivePressure.replayTarget` 从最新 `AIPhaseSummary.timeline` 保守匹配当前压力的威胁来源单位或受压据点坐标，只输出 1 条可定位 `BattlefieldSituationReplayTarget`。匹配优先威胁来源单位，再按据点坐标，事件类型按占点、移动、攻击、战术命令等稳定排序；无匹配、无 AI summary、无坐标或坐标失效时为空，不回退到全局关键事件。
+18. `focusedBattlefieldSituationObjectivePressureReplayTarget` 从当前压力 id 和最新压力列表纯派生，不新增 `@Published` 状态。`focusBattlefieldSituationObjectivePressureReplayTarget()` 每次点击重新校验当前压力和 replay target，有目标时复用 `focusAIPhaseTimelineEvent(order:)` 移交到 AI 复盘焦点，无目标或过期时只写提示。
+19. 据点压力定位只更新选择、焦点、目标引导、反制聚焦、当前压力 id 和消息；据点压力复盘线索只切换 AI 复盘焦点和地图复盘标记强调；据点压力态势对照和敌方回合影响只展示结构化文案。它们都不调用移动、攻击、整补、部署、战术命令、回合推进或 AI，不改变单位 HP/位置、行动状态、据点归属、指令点、战报、latest result、AI summary、follow-up 或胜负。
+20. `BattlefieldSituationResponseSummary` 是态势响应的只读展示模型；反制 follow-up、反制执行、据点占领、普通战斗、战术命令、部署和整补的真实成功发布点会把当前响应快照追加为 `BattlefieldSituationResponseHistoryEntry`，最近历史最多保留 5 条，最新响应默认成为当前查看项。
+21. `GameState.battlefieldSituationResponseSummary` 从当前查看的历史条目派生，不再从 `latest*Result` 读取时即时拼装旧响应；内部 `latestBattlefieldSituationResponseSummary` 只供真实成功发布点生成快照。读取 summary 不追加历史，不调用移动、攻击、战术命令、部署、整补、AI、日志写入或任何真实执行方法。
+22. 敌方回合影响响应显示复核等级、反制类型、执行单位、目标、结论、首条敌方回合前后对比和复核坐标；据点防守响应首条结果仍以据点归属为准，细分进驻/封堵、守点位置、威胁来源和关联 AI 行动只作为复核 detail 展示；它不重新模拟 AI，也不精确归因逐个 AI 行动。无反制 baseline 的敌方回合不会伪造 follow-up 响应；若 AI 真实占点触发既有占点结果，仍可显示占点响应。
+23. 反制执行响应显示建议类型、执行单位、入口类型、首条预计/实际对照和执行坐标；占点响应显示占领/夺取据点、归属变化、奖励和据点进度；普通战斗响应显示攻击单位、目标、伤害、反击、目标 HP、防御姿态、追击和夹击影响；战术命令响应显示命令名、施放者、目标、伤害、指令点消耗、士气/状态和无反击；部署响应显示来源据点、新单位、部署坐标和剩余指令点；整补响应显示单位、HP 恢复和指令点消耗。普通移动、预览聚焦或失败命令不会伪造态势响应或追加历史。
+24. `focusedBattlefieldSituationResponseOrder` 记录当前查看的历史响应；`focusPreviousBattlefieldSituationResponse()` 和 `focusNextBattlefieldSituationResponse()` 只在最近 5 条历史内切换当前查看项，更新焦点坐标和消息，不能执行命令，也不能改变单位、据点、指令点、战报、AI 摘要、latest result 或历史内容。边界处只写提示并保留旧选中项。
+25. `BattlefieldSituationResponseMapMarker` 是当前查看响应的只读地图投影；`GameState.battlefieldSituationResponseMapMarker` 只在响应坐标存在且仍属于当前地图时输出 marker，复用 response kind 的短码和图标，不新增第二份 marker 状态，不改变焦点、消息、单位、据点、指令点、战报、AI 摘要或 latest result。
+26. `focusBattlefieldSituationResponseTarget()` 每次点击都重新读取当前查看响应的 `battlefieldSituationResponseMapMarker`；有合法 marker 时只更新 `focusedCoordinate` 和消息，无 marker 或坐标失效时只写提示。它不执行移动、攻击、战术命令、部署、整补、回合推进或 AI，也不清理 OBJ/SAFE/反制引导，不改变 response、marker、history、latest result、单位、据点、指令点、战报或胜负。
+27. `loadScenario()`、重开和切换战役会清空态势响应历史、当前查看 order 和历史序号，避免旧响应坐标污染新场景；普通移动和失败命令不清空历史，只是不追加新响应。
+28. `BattlefieldSituationReplayTarget` 带有 `source` 来源：当前压力关联、响应位置关联或全局关键事件。它从最新 `AIPhaseSummary.timeline` 和战线态势上下文纯派生，优先使用当前点选压力的保守 replay target；没有压力线索时，按当前查看态势响应坐标匹配 timeline 的 `to/from`；仍无匹配时回退到 `AIPhaseSummary.replayConclusion.keyEvents.first`。三种路径都会用同一 summary 的 timeline 按 order 回查合法坐标，只有 `event.to ?? event.from` 存在且仍在当前地图内时才输出目标。
+29. 战线态势复盘影响筛选不新增 `@Published` 状态，不改变 AI summary、timeline、关键事件排序、压力线索、响应历史或地图 marker；匹配文案只表达关联或关键事件，不声明 AI 因果归因。
+30. `focusBattlefieldSituationReplayTarget()` 每次点击都重新读取最新 `battlefieldSituationSummary.replayTarget`，有目标时只调用既有 `focusAIPhaseTimelineEvent(order:)`，无目标时只写提示；它不直接设置坐标、不过滤 marker、不执行移动、攻击、战术命令、部署、整补或 AI。
+31. `ContentView` 在侧栏靠前显示“战线态势”卡，展示 summary 的等级、指标、受威胁据点、据点防守压力、压力来源标识、压力态势对照、压力敌方回合影响、建议说明、态势响应反馈/敌方回合影响、响应历史位置、上一条/下一条响应按钮、响应定位按钮、“复盘影响”按钮、首要“定位”按钮和下一步入口提示；据点压力行是按钮，但只把压力 id 转发给 `GameState`，并通过 `isBattlefieldSituationObjectivePressureFocused(id:)` 展示当前态。当前压力若有 replay target，压力列表下方显示独立“复盘线索”按钮，避免嵌套在压力行按钮内；战线态势“复盘影响”按钮展示 PRS/RSP/KEY 来源短码和来源标题。地图格展示当前压力派生的 PRS/SRC/DEF marker 和当前查看响应派生的态势响应 marker，并把压力摘要和响应摘要加入 tile 无障碍文案。UI 不重新计算威胁、反制、据点压力、压力来源、压力态势对照、压力敌方回合影响、复盘影响来源、OBJ 计划、待命单位、入口类型、执行反馈、复核影响、AI timeline、关键事件坐标、压力选中、压力复盘线索、威胁来源或地图 marker。
 
 ## 4. 架构边界
 
