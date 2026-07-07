@@ -2495,11 +2495,18 @@ final class GameStateTests: XCTestCase {
     func testBattlefieldSituationObjectivePressureFocusesWithoutExecuting() throws {
         let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
         let pressure = try XCTUnwrap(game.battlefieldSituationSummary.objectivePressures.first { $0.objectiveName == "后方油库" })
+        let pressureThreat = try XCTUnwrap(game.visibleEnemyThreatIntentPreviews.first {
+            $0.kind == .objectiveCapture &&
+                $0.targetCoordinate == pressure.coordinate
+        })
+        let pressureThreatSource = try XCTUnwrap(game.units.first { $0.id == pressureThreat.enemyUnitID })
         let startingFaction = game.activeFaction
         let startingCommandPoints = game.commandPoints
         let startingUnits = game.scenario.units
         let startingTiles = game.scenario.tiles
         let startingBattleLog = game.battleLog
+
+        XCTAssertTrue(pressure.threatSourceCoordinates.contains(pressureThreatSource.position))
 
         game.focusBattlefieldSituationObjectivePressure(id: pressure.id)
 
@@ -2507,10 +2514,16 @@ final class GameStateTests: XCTestCase {
         XCTAssertTrue(game.message.contains("据点压力定位"))
         XCTAssertTrue(game.message.contains(refreshedPressure.objectiveName))
         XCTAssertTrue(game.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id))
+        XCTAssertTrue(refreshedPressure.threatSourceCoordinates.contains(pressureThreatSource.position))
         let pressureMarkers = game.focusedBattlefieldSituationObjectivePressureMapMarkers
         XCTAssertTrue(pressureMarkers.contains {
             $0.role == .pressuredObjective &&
                 $0.coordinate == refreshedPressure.coordinate &&
+                $0.objectiveName == refreshedPressure.objectiveName
+        })
+        XCTAssertTrue(pressureMarkers.contains {
+            $0.role == .threatSource &&
+                $0.coordinate == pressureThreatSource.position &&
                 $0.objectiveName == refreshedPressure.objectiveName
         })
         if let countermeasure = refreshedPressure.countermeasurePreview {

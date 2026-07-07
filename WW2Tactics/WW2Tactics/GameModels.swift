@@ -2281,6 +2281,7 @@ struct BattlefieldSituationObjectivePressure: Identifiable, Equatable {
     let coordinate: HexCoordinate
     let owner: Faction?
     let threatSourceCount: Int
+    let threatSourceCoordinates: [HexCoordinate]
     let primaryThreatTitle: String
     let primaryThreatDetail: String
     let actionHint: BattlefieldSituationActionHint
@@ -2306,6 +2307,7 @@ struct BattlefieldSituationObjectivePressure: Identifiable, Equatable {
 
 enum BattlefieldSituationObjectivePressureMapMarkerRole: String, CaseIterable, Identifiable {
     case pressuredObjective
+    case threatSource
     case countermeasureDestination
 
     var id: String { rawValue }
@@ -2313,6 +2315,7 @@ enum BattlefieldSituationObjectivePressureMapMarkerRole: String, CaseIterable, I
     var title: String {
         switch self {
         case .pressuredObjective: "受压据点"
+        case .threatSource: "威胁来源"
         case .countermeasureDestination: "守点目的格"
         }
     }
@@ -2320,6 +2323,7 @@ enum BattlefieldSituationObjectivePressureMapMarkerRole: String, CaseIterable, I
     var shortTitle: String {
         switch self {
         case .pressuredObjective: "PRS"
+        case .threatSource: "SRC"
         case .countermeasureDestination: "DEF"
         }
     }
@@ -2327,6 +2331,7 @@ enum BattlefieldSituationObjectivePressureMapMarkerRole: String, CaseIterable, I
     var compactTitle: String {
         switch self {
         case .pressuredObjective: "P"
+        case .threatSource: "S"
         case .countermeasureDestination: "D"
         }
     }
@@ -2334,7 +2339,8 @@ enum BattlefieldSituationObjectivePressureMapMarkerRole: String, CaseIterable, I
     var sortOrder: Int {
         switch self {
         case .pressuredObjective: 0
-        case .countermeasureDestination: 1
+        case .threatSource: 1
+        case .countermeasureDestination: 2
         }
     }
 }

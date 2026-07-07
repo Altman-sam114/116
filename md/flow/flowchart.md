@@ -110,7 +110,7 @@ flowchart LR
   INT --> CTR["EnemyThreatCountermeasurePreview 反制建议"]
   CTR --> BS["BattlefieldSituationSummary 战线态势汇总"]
   BS --> BOP["BattlefieldSituationObjectivePressure 据点防守压力：据点 / 归属 / 威胁来源 / 占点风险 / 推荐入口"]
-  BOP --> BOPM["ObjectivePressureMapMarker：PRS 受压据点 / DEF 守点目的格"]
+  BOP --> BOPM["ObjectivePressureMapMarker：PRS 受压据点 / SRC 威胁来源 / DEF 守点目的格"]
   BS --> BFT["BattlefieldSituationFocusTarget 首要定位目标"]
   BFT --> BAH["BattlefieldSituationActionHint 下一步入口提示"]
   BS --> BRS["BattlefieldSituationResponseSummary 当前查看响应 / 普通行动反馈 / 敌方回合影响"]
@@ -191,7 +191,7 @@ flowchart LR
   BOP --> BOPF["压力行定位：focusBattlefieldSituationObjectivePressure 重新校验压力id，复用反制聚焦或定位据点，不执行命令"]
   BOPF --> BOPC["压力行当前态：isBattlefieldSituationObjectivePressureFocused 从当前压力id和最新压力列表派生"]
   BOPC --> UI3
-  BOPM --> UIM4["地图压力标记：PRS/DEF 只展示当前压力，不执行命令"]
+  BOPM --> UIM4["地图压力标记：PRS/SRC/DEF 只展示当前压力，不执行命令"]
   BFT --> UI3
   BAH --> UI3
   BRS --> UI3

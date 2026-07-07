@@ -1447,6 +1447,10 @@ struct RulesSmokeTest {
                 require(false, "battlefield situation pressure should have a matching objective threat")
                 return
             }
+            guard let situationObjectiveThreatSource = enemyThreatGame.units.first(where: { $0.id == situationObjectiveThreat.enemyUnitID }) else {
+                require(false, "battlefield situation pressure should have a live threat source")
+                return
+            }
             guard let objectivePressure = situationSummary.objectivePressures.first(where: { $0.objectiveName == "后方油库" }) else {
                 require(false, "battlefield situation should expose objective pressure entries")
                 return
@@ -1461,6 +1465,7 @@ struct RulesSmokeTest {
             require(objectivePressure.coordinate == situationObjectiveThreat.targetCoordinate, "objective pressure should point to the threatened objective")
             require(objectivePressure.owner == enemyThreatGame.tile(at: situationObjectiveThreat.targetCoordinate)?.owner, "objective pressure should expose current owner")
             require(objectivePressure.threatSourceCount >= 1, "objective pressure should count threat sources")
+            require(objectivePressure.threatSourceCoordinates.contains(situationObjectiveThreatSource.position), "objective pressure should expose threat source coordinates")
             require(objectivePressure.primaryThreatTitle.isEmpty == false, "objective pressure should expose a risk title")
             require(objectivePressure.primaryThreatDetail.contains(situationObjectiveThreat.enemyUnitName), "objective pressure should describe the primary threat")
             require(objectivePressure.actionHint.entryTitle.isEmpty == false, "objective pressure should expose a recommended entry")
@@ -1480,12 +1485,18 @@ struct RulesSmokeTest {
             require(enemyThreatGame.message.contains("据点压力定位"), "objective pressure focus should explain the pressure location")
             require(enemyThreatGame.message.contains("后方油库"), "objective pressure focus should name the objective")
             require(enemyThreatGame.isBattlefieldSituationObjectivePressureFocused(id: refreshedPressure.id), "objective pressure focus should mark the pressure row as focused")
+            require(refreshedPressure.threatSourceCoordinates.contains(situationObjectiveThreatSource.position), "refreshed objective pressure should keep threat source coordinates")
             let objectivePressureMarkers = enemyThreatGame.focusedBattlefieldSituationObjectivePressureMapMarkers
             require(objectivePressureMarkers.contains {
                 $0.role == .pressuredObjective &&
                     $0.coordinate == refreshedPressure.coordinate &&
                     $0.objectiveName == "后方油库"
             }, "objective pressure focus should mark the pressured objective on the map")
+            require(objectivePressureMarkers.contains {
+                $0.role == .threatSource &&
+                    $0.coordinate == situationObjectiveThreatSource.position &&
+                    $0.objectiveName == "后方油库"
+            }, "objective pressure focus should mark threat sources on the map")
             if let focusedPressureCountermeasure = refreshedPressure.countermeasurePreview {
                 require(enemyThreatGame.selectedUnit?.id == focusedPressureCountermeasure.actingUnitID, "objective pressure focus should select the matching countermeasure unit")
                 require(enemyThreatGame.isEnemyThreatCountermeasureFocused(focusedPressureCountermeasure), "objective pressure focus should reuse countermeasure focusing")

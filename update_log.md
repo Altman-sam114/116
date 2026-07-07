@@ -35,7 +35,6 @@
 
 - `WW2Tactics/WW2Tactics/GameModels.swift`
 - `WW2Tactics/WW2Tactics/GameState.swift`
-- `WW2Tactics/WW2Tactics/ContentView.swift`
 - `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
 - `WW2Tactics/Tools/RulesSmokeTest.swift`
 - `WW2Tactics/README.md`
@@ -205,7 +204,6 @@
 
 - `WW2Tactics/WW2Tactics/GameModels.swift`
 - `WW2Tactics/WW2Tactics/GameState.swift`
-- `WW2Tactics/WW2Tactics/ContentView.swift`
 - `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
 - `WW2Tactics/Tools/RulesSmokeTest.swift`
 - `WW2Tactics/README.md`
@@ -2193,3 +2191,35 @@
 遗留事项：
 
 - 本轮只把侧栏压力行与现有 PRS/DEF 地图标记对齐，不新增自动守点、未防守分支模拟、动画、音效或新美术资源。
+
+### v1.50 / 据点压力威胁来源标记
+
+日期：2026-07-07
+
+核心变更：
+
+- `BattlefieldSituationObjectivePressure` 新增 `threatSourceCoordinates`，从同一压力分组内敌方威胁来源单位的当前坐标纯派生。
+- `BattlefieldSituationObjectivePressureMapMarkerRole` 新增 SRC 威胁来源标记，当前压力地图反馈从 PRS/DEF 扩展为 PRS/SRC/DEF。
+- `GameState` 继续从当前压力 id 和最新 pressure 纯派生 marker，不新增 `@Published` marker 数组；`ContentView` 复用现有压力 marker 展示和 tile 无障碍摘要。
+- 扩展 XCTest 和规则 smoke test，覆盖威胁来源坐标、SRC marker、过期 id 清理、普通地图聚焦清理，以及只读边界不变。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/GameModels.swift`
+- `WW2Tactics/WW2Tactics/GameState.swift`
+- `WW2Tactics/WW2TacticsTests/GameStateTests.swift`
+- `WW2Tactics/Tools/RulesSmokeTest.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.50（据点压力威胁来源标记）.md`
+
+验证结果：
+
+- 本地轻量检查和云端 GitHub Actions 结果以本轮最终交付记录为准。
+
+遗留事项：
+
+- 本轮只补齐当前压力的威胁来源地图标记，不新增自动守点、AI 复盘来源入口、未防守分支模拟、动画、音效或新美术资源。

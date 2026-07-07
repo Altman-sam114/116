@@ -1298,7 +1298,25 @@ final class GameState: ObservableObject {
             )
         }
 
+        markers.append(
+            contentsOf: pressure.threatSourceCoordinates.map { coordinate in
+                BattlefieldSituationObjectivePressureMapMarker(
+                    role: .threatSource,
+                    coordinate: coordinate,
+                    objectiveName: pressure.objectiveName,
+                    pressureID: pressure.id,
+                    actionHint: pressure.actionHint
+                )
+            }
+        )
+
         return markers
+            .sorted {
+                if $0.role.sortOrder != $1.role.sortOrder {
+                    return $0.role.sortOrder < $1.role.sortOrder
+                }
+                return $0.coordinate.id < $1.coordinate.id
+            }
     }
 
     private func aiPhaseMapMarkers(for event: AIPhaseTimelineEvent) -> [AIPhaseMapMarker] {
@@ -4572,6 +4590,9 @@ final class GameState: ObservableObject {
             .compactMap { group -> BattlefieldSituationObjectivePressure? in
                 guard let primaryThreat = group.threats.first else { return nil }
                 let sourceCount = Set(group.threats.map(\.enemyUnitID)).count
+                let threatSourceCoordinates = battlefieldSituationObjectivePressureThreatSourceCoordinates(
+                    for: group.threats
+                )
                 let objectiveTile = tile(at: group.coordinate)
                 let objectiveName = objectiveTile?.objectiveName ?? primaryThreat.targetName
                 let matchingCountermeasure = battlefieldSituationObjectivePressureCountermeasure(
@@ -4595,6 +4616,7 @@ final class GameState: ObservableObject {
                     coordinate: group.coordinate,
                     owner: objectiveTile?.owner,
                     threatSourceCount: sourceCount,
+                    threatSourceCoordinates: threatSourceCoordinates,
                     primaryThreatTitle: "占点风险",
                     primaryThreatDetail: primaryThreatDetail,
                     actionHint: actionHint,
@@ -4602,6 +4624,18 @@ final class GameState: ObservableObject {
                 )
             }
             .sorted(by: battlefieldSituationObjectivePressureSort)
+    }
+
+    private func battlefieldSituationObjectivePressureThreatSourceCoordinates(
+        for threats: [EnemyThreatIntentPreview]
+    ) -> [HexCoordinate] {
+        threats
+            .compactMap { threat in
+                units.first(where: { $0.id == threat.enemyUnitID })?.position
+            }
+            .filter { tile(at: $0) != nil }
+            .uniquedStable()
+            .sorted { $0.id < $1.id }
     }
 
     private func battlefieldSituationObjectivePressureCountermeasure(
