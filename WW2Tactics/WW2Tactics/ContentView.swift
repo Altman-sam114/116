@@ -1,6 +1,68 @@
 import SwiftUI
 import UIKit
 
+private enum BattlefieldTheme {
+    static let backdropTop = Color(red: 0.055, green: 0.064, blue: 0.056)
+    static let backdropBottom = Color(red: 0.115, green: 0.105, blue: 0.082)
+    static let commandDeck = Color(red: 0.13, green: 0.145, blue: 0.12)
+    static let commandDeckDeep = Color(red: 0.045, green: 0.052, blue: 0.046)
+    static let fieldGlass = Color(red: 0.18, green: 0.21, blue: 0.17)
+    static let brass = Color(red: 0.86, green: 0.64, blue: 0.27)
+    static let signal = Color(red: 0.38, green: 0.75, blue: 0.62)
+    static let alert = Color(red: 0.84, green: 0.33, blue: 0.22)
+    static let ink = Color.white.opacity(0.90)
+    static let mutedInk = Color.white.opacity(0.62)
+    static let hairline = Color.white.opacity(0.12)
+}
+
+private struct TacticalSurface: ViewModifier {
+    var cornerRadius: CGFloat = 8
+    var fillOpacity: Double = 0.74
+    var borderOpacity: Double = 0.14
+    var shadowOpacity: Double = 0.22
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(BattlefieldTheme.commandDeck.opacity(fillOpacity))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        BattlefieldTheme.brass.opacity(borderOpacity + 0.06),
+                                        Color.white.opacity(borderOpacity)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                    .shadow(color: .black.opacity(shadowOpacity), radius: 14, x: 0, y: 7)
+            )
+    }
+}
+
+private extension View {
+    func tacticalSurface(
+        cornerRadius: CGFloat = 8,
+        fillOpacity: Double = 0.74,
+        borderOpacity: Double = 0.14,
+        shadowOpacity: Double = 0.22
+    ) -> some View {
+        modifier(
+            TacticalSurface(
+                cornerRadius: cornerRadius,
+                fillOpacity: fillOpacity,
+                borderOpacity: borderOpacity,
+                shadowOpacity: shadowOpacity
+            )
+        )
+    }
+}
+
 struct ContentView: View {
     @EnvironmentObject private var game: GameState
 
@@ -8,16 +70,8 @@ struct ContentView: View {
         GeometryReader { proxy in
             let isWide = proxy.size.width >= 820
 
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.10, green: 0.12, blue: 0.11),
-                        Color(red: 0.18, green: 0.20, blue: 0.18)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+            ZStack(alignment: .top) {
+                battlefieldBackdrop
 
                 VStack(spacing: 0) {
                     TopCommandBar()
@@ -27,10 +81,10 @@ struct ContentView: View {
                             BattlefieldView()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                             InspectorPanel()
-                                .frame(width: 310)
+                                .frame(width: 324)
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.bottom, 12)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 14)
                     } else {
                         VStack(spacing: 10) {
                             BattlefieldView()
@@ -44,6 +98,41 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    private var battlefieldBackdrop: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    BattlefieldTheme.backdropTop,
+                    BattlefieldTheme.backdropBottom
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            BattlefieldTheme.brass.opacity(0.10),
+                            .clear,
+                            BattlefieldTheme.signal.opacity(0.08)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(BattlefieldTheme.brass.opacity(0.08))
+                    .frame(height: 1)
+                Spacer()
+                Rectangle()
+                    .fill(.black.opacity(0.18))
+                    .frame(height: 26)
+            }
+        }
+        .ignoresSafeArea()
     }
 }
 
@@ -74,8 +163,16 @@ private struct TopCommandBar: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.black.opacity(0.28))
+        .padding(.vertical, 11)
+        .background(
+            Rectangle()
+                .fill(BattlefieldTheme.commandDeckDeep.opacity(0.92))
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(BattlefieldTheme.brass.opacity(0.24))
+                        .frame(height: 1)
+                }
+        )
     }
 }
 
@@ -107,12 +204,20 @@ private struct CommandTitle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(game.scenario.name)
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(.white)
-            Text("\(game.scenario.year) · 二战回合制战役")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.66))
+            HStack(spacing: 7) {
+                Text("WW2")
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(BattlefieldTheme.brass, in: Capsule())
+                Text(game.scenario.name)
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(BattlefieldTheme.ink)
+            }
+            Text("\(game.scenario.year) · 战区指挥台")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.mutedInk)
         }
     }
 }
@@ -154,7 +259,7 @@ private struct EndTurnButton: View {
             }
         }
         .buttonStyle(.borderedProminent)
-        .tint(.orange)
+        .tint(BattlefieldTheme.alert)
         .disabled(game.winner != nil)
         .accessibilityLabel("结束回合")
     }
@@ -167,10 +272,14 @@ private struct StatusChip: View {
     var body: some View {
         Label(label, systemImage: icon)
             .font(.caption.weight(.semibold))
-            .foregroundStyle(.white.opacity(0.86))
+            .foregroundStyle(BattlefieldTheme.ink)
             .padding(.horizontal, 9)
             .padding(.vertical, 7)
-            .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+            .background(BattlefieldTheme.fieldGlass.opacity(0.62), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+            )
     }
 }
 
@@ -179,13 +288,25 @@ private struct BattlefieldView: View {
     @State private var mapScaleMode: MapScaleMode = .campaign
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 11) {
             HStack(spacing: 10) {
-                Text(game.message)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(2)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Label {
+                    Text(game.message)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(2)
+                        .foregroundStyle(BattlefieldTheme.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } icon: {
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                        .foregroundStyle(BattlefieldTheme.signal)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(BattlefieldTheme.commandDeckDeep.opacity(0.56), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+                )
 
                 Button {
                     game.restart()
@@ -207,6 +328,8 @@ private struct BattlefieldView: View {
 
             MapLegendView()
         }
+        .padding(10)
+        .tacticalSurface(cornerRadius: 10, fillOpacity: 0.36, borderOpacity: 0.10, shadowOpacity: 0.18)
     }
 }
 
@@ -278,15 +401,23 @@ private struct MapCommandCenter: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                ZStack {
+                    BattlefieldTheme.commandDeckDeep.opacity(0.74)
+                    LinearGradient(
+                        colors: [
+                            BattlefieldTheme.signal.opacity(0.08),
+                            .clear,
+                            BattlefieldTheme.brass.opacity(0.08)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+            )
         }
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(red: 0.07, green: 0.08, blue: 0.07))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .tacticalSurface(cornerRadius: 10, fillOpacity: 0.66, borderOpacity: 0.18, shadowOpacity: 0.26)
     }
 
     private func scrollToFocusedCoordinate(with proxy: ScrollViewProxy, animated: Bool) {
@@ -321,20 +452,26 @@ private struct MapToolbar: View {
             }
         }
         .padding(12)
+        .background(BattlefieldTheme.commandDeck.opacity(0.80))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(BattlefieldTheme.brass.opacity(0.18))
+                .frame(height: 1)
+        }
     }
 
     private var toolbarTitle: some View {
         HStack(spacing: 9) {
             Image(systemName: "map.fill")
                 .font(.subheadline.weight(.bold))
-                .foregroundStyle(.yellow)
+                .foregroundStyle(BattlefieldTheme.brass)
             VStack(alignment: .leading, spacing: 2) {
                 Text("战区地图 \(game.scenario.mapColumns)x\(game.scenario.mapRows)")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.86))
+                    .foregroundStyle(BattlefieldTheme.ink)
                 Text(game.message)
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.56))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
@@ -628,12 +765,12 @@ private struct MapHudMetric: View {
 private struct MapHudBackground: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 8)
-            .fill(Color.black.opacity(0.58))
+            .fill(BattlefieldTheme.commandDeckDeep.opacity(0.72))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                    .stroke(BattlefieldTheme.brass.opacity(0.16), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 5)
+            .shadow(color: .black.opacity(0.30), radius: 12, x: 0, y: 6)
     }
 }
 
@@ -3039,15 +3176,28 @@ private struct InspectorPanel: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(14)
-        .foregroundStyle(.white)
+        .foregroundStyle(BattlefieldTheme.ink)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.black.opacity(0.34))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(BattlefieldTheme.commandDeck.opacity(0.66))
+                LinearGradient(
+                    colors: [
+                        BattlefieldTheme.brass.opacity(0.08),
+                        .clear,
+                        BattlefieldTheme.signal.opacity(0.06)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
                 )
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.20), radius: 12, x: 0, y: 6)
     }
 }
 

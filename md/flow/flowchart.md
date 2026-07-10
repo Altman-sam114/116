@@ -8,7 +8,7 @@
 
 ```mermaid
 flowchart TD
-  U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏"]
+  U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏、战区指挥台主题"]
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusBattlefieldSituationPrimaryTarget / focusBattlefieldSituationObjectivePressure / focusBattlefieldSituationObjectivePressureReplayTarget / focusBattlefieldSituationResponseTarget / focusPreviousBattlefieldSituationResponse / focusNextBattlefieldSituationResponse / focusBattlefieldSituationReplayTarget / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback"]
   I --> S["GameState：核心状态机"]
   M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BattlefieldSituationSummary/ObjectivePressure/ObjectivePressureSource/ObjectivePressureComparison/ObjectivePressureEnemyPhaseImpact/ObjectivePressureMapMarker/FocusTarget/ActionHint/ResponseSummary/ResponseHistoryEntry/ResponseMapMarker/ReplayTarget/ReplayTargetSource、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary/ObjectiveDefenseFollowUpDetail、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
@@ -190,6 +190,10 @@ flowchart LR
   CMR --> UI2
   FUR --> UI2
   BS --> UI3["侧栏战线态势：指令 / 待命 / 据点 / 威胁 / 反制 / 受威胁据点 / 据点压力 / 压力行当前态 / 压力来源标识 / 压力态势对照 / 压力敌方回合影响 / 压力复盘线索 / 复盘影响来源 / 首要建议 / 执行反馈 / 敌方回合影响 / 响应历史 / 响应定位 / 复盘影响"]
+  THEME["BattlefieldTheme / TacticalSurface：顶栏 / 地图容器 / HUD / 状态芯片 / 侧栏统一视觉基线，只影响表现层"] --> UI3
+  THEME --> UIM
+  THEME --> UIM3
+  THEME --> UIM4
   BOP --> UI3
   BOPS --> UI3
   BOPC2 --> UI3

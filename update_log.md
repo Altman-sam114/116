@@ -2390,3 +2390,32 @@
 遗留事项：
 
 - 本轮只做压力来源标识和排序解释，不新增 AI 因果归因、未来分支模拟、自动防守、自动移动、自动攻击、动画、音效或新美术资源。
+
+### v1.56 / 战场界面视觉重构基线
+
+日期：2026-07-11
+
+核心变更：
+
+- `ContentView` 新增 `BattlefieldTheme` 和 tactical surface 通用表现样式，统一首屏战场视觉语言。
+- 重构顶层背景、`TopCommandBar`、战役标题、状态芯片和结束回合按钮色彩层级。
+- 重构 `BattlefieldView`、`MapCommandCenter`、`MapToolbar`、`MapHudBackground` 和 `InspectorPanel` 容器质感，让地图、HUD 和侧栏更接近战区指挥台。
+- 保持所有 `GameState` 操作入口和核心规则不变，本轮只调整表现层。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.56（战场界面视觉重构基线）.md`
+
+验证结果：
+
+- 本轮人工要求不跑本地测试，全部交给 GitHub Actions 云端重验证；最终结果以本轮交付记录中的 run 和 artifact 为准。
+
+遗留事项：
+
+- 本轮只建立首屏外壳视觉基线；地图格美术、单位棋子、结果卡、AI 复盘和更多细分面板仍需后续小轮次继续重构。

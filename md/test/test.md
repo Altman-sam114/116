@@ -10,6 +10,7 @@
 - workflow 修改还必须本地解析 YAML。
 - Xcode project 修改还必须运行 `plutil -lint WW2Tactics/WW2Tactics.xcodeproj/project.pbxproj`。
 - Swift / Xcode / 规则 / UI 相关改动完成后，默认由 Agent B commit 并 `git push origin main`，让 GitHub Actions 运行重验证。
+- 若人工明确要求“不做本地测试，全部云端”，本地轻量检查可在该轮跳过；交付必须明确列出未跑本地命令及原因，并由 GitHub Actions artifact 覆盖 `git diff --check`、project plist、规则 smoke 和 Xcode build-for-testing。
 - 战线态势、据点压力、压力来源标识、压力态势对照、压力敌方回合影响、压力复盘线索、战线态势复盘影响来源筛选、反制建议或地图入口变化必须覆盖只读定位边界：点选入口可改变选择、焦点、引导、AI 复盘 order 和消息，但不得消耗行动或改变单位、据点、指令点、战报、latest result、AI summary 或 follow-up。
 - Agent C 必须下载未加密 CI 结果包，不能只看 Agent B 的文字汇报。
 - Agent X 循环下，每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact、Agent C 下载复判为准。

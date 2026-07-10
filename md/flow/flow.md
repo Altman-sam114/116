@@ -72,6 +72,7 @@
 
 - 渲染 SwiftUI App 主界面。
 - 提供顶部状态栏、战区地图、地图工具栏、HUD、侧栏、图例、编队条、战报。
+- 维护 `BattlefieldTheme` 和通用 tactical surface 表现样式，让顶栏、地图容器、HUD 背板、状态芯片和侧栏容器共享战区指挥台视觉基线；这些样式只影响表现层，不参与规则判定。
 - 将地图左键/点按/右键转换为 `GameState` 方法调用。
 - 显示 MOVE、ATK、POS、NEXT、OBJ、CAP、THR、INT、AI 复盘、战线态势汇总、据点压力行当前态、据点压力来源标识、据点压力态势对照、据点压力敌方回合影响、据点压力地图标记、据点压力复盘线索、战线态势复盘影响来源、态势响应地图标记、态势响应定位入口、态势响应上一条/下一条历史查看、首要定位入口、下一步提示、执行反馈、普通行动态势响应、敌方回合影响和关联 AI 复盘入口、补给线、控制区、攻击覆盖等标记。
 
@@ -288,6 +289,7 @@
 29. 战线态势复盘影响筛选不新增 `@Published` 状态，不改变 AI summary、timeline、关键事件排序、压力线索、响应历史或地图 marker；匹配文案只表达关联或关键事件，不声明 AI 因果归因。
 30. `focusBattlefieldSituationReplayTarget()` 每次点击都重新读取最新 `battlefieldSituationSummary.replayTarget`，有目标时只调用既有 `focusAIPhaseTimelineEvent(order:)`，无目标时只写提示；它不直接设置坐标、不过滤 marker、不执行移动、攻击、战术命令、部署、整补或 AI。
 31. `ContentView` 在侧栏靠前显示“战线态势”卡，展示 summary 的等级、指标、受威胁据点、据点防守压力、压力来源标识、压力态势对照、压力敌方回合影响、建议说明、态势响应反馈/敌方回合影响、响应历史位置、上一条/下一条响应按钮、响应定位按钮、“复盘影响”按钮、首要“定位”按钮和下一步入口提示；据点压力行是按钮，但只把压力 id 转发给 `GameState`，并通过 `isBattlefieldSituationObjectivePressureFocused(id:)` 展示当前态。当前压力若有 replay target，压力列表下方显示独立“复盘线索”按钮，避免嵌套在压力行按钮内；战线态势“复盘影响”按钮展示 PRS/RSP/KEY 来源短码和来源标题。地图格展示当前压力派生的 PRS/SRC/DEF marker 和当前查看响应派生的态势响应 marker，并把压力摘要和响应摘要加入 tile 无障碍文案。UI 不重新计算威胁、反制、据点压力、压力来源、压力态势对照、压力敌方回合影响、复盘影响来源、OBJ 计划、待命单位、入口类型、执行反馈、复核影响、AI timeline、关键事件坐标、压力选中、压力复盘线索、威胁来源或地图 marker。
+32. v1.56 后 `ContentView` 外层背景、`TopCommandBar`、`BattlefieldView`、`MapCommandCenter`、`MapToolbar`、`MapHudBackground`、`StatusChip` 和 `InspectorPanel` 共享战场主题色和 tactical surface 背板。该视觉基线只改变层级、色彩、描边、间距和容器质感，不新增状态、不调用规则方法、不改变地图滚动、按钮入口或侧栏信息顺序。
 
 ## 4. 架构边界
 
