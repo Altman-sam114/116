@@ -190,7 +190,7 @@ flowchart LR
   CMR --> UI2
   FUR --> UI2
   BS --> UI3["侧栏战线态势：指令 / 待命 / 据点 / 威胁 / 反制 / 受威胁据点 / 据点压力 / 压力行当前态 / 压力来源标识 / 压力态势对照 / 压力敌方回合影响 / 压力复盘线索 / 复盘影响来源 / 首要建议 / 执行反馈 / 敌方回合影响 / 响应历史 / 响应定位 / 复盘影响"]
-  THEME["BattlefieldTheme / TacticalSurface：顶栏 / 地图容器 / HUD / 状态芯片 / 侧栏统一视觉基线，只影响表现层"] --> UI3
+  THEME["BattlefieldTheme / TacticalSurface / 地图材质：顶栏 / 地图容器 / HUD / 状态芯片 / 侧栏 / 地形格 / 单位棋子统一视觉基线，只影响表现层"] --> UI3
   THEME --> UIM
   THEME --> UIM3
   THEME --> UIM4

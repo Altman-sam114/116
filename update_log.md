@@ -2419,3 +2419,32 @@
 遗留事项：
 
 - 本轮只建立首屏外壳视觉基线；地图格美术、单位棋子、结果卡、AI 复盘和更多细分面板仍需后续小轮次继续重构。
+
+### v1.57 / 地图格与单位棋子视觉升级
+
+日期：2026-07-11
+
+核心变更：
+
+- `HexTileView` 从单色地形块升级为地形渐变、高光/低光、细描边和据点归属覆盖。
+- `TerrainSymbol`、`TerrainCodeBadge` 和 `ObjectiveNamePlate` 统一到战区指挥台主题，提升地形符号、地形代码和据点名牌可读性。
+- `UnitShapeBadge` 保留原兵种形状和信息字段，同时增加阵营渐变、底影、高光、战场金属描边和状态层级。
+- 本轮只改 `ContentView` 表现层，不改变地图输入、标记、规则、AI 或 `GameState` 调用链。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.57（地图格与单位棋子视觉升级）.md`
+
+验证结果：
+
+- 本轮人工要求不跑本地测试，全部交给 GitHub Actions 云端重验证；最终结果以本轮交付记录中的 run 和 artifact 为准。
+
+遗留事项：
+
+- 本轮未重构战斗结果卡、战线态势面板、AI 复盘时间线或地图标记拥挤度；这些应继续拆成后续 UI 小轮次。

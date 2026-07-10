@@ -1881,16 +1881,38 @@ private struct HexTileView: View {
     var body: some View {
         ZStack {
             Hexagon()
-                .fill(tile.terrain.mapColor)
+                .fill(tile.terrain.mapGradient)
+                .overlay(
+                    Hexagon()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.16),
+                                    Color.clear,
+                                    Color.black.opacity(0.18)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+                .overlay(
+                    Hexagon()
+                        .stroke(Color.white.opacity(tile.isObjective ? 0.16 : 0.08), lineWidth: 1)
+                )
                 .overlay(
                     Hexagon()
                         .stroke(borderColor, lineWidth: borderWidth)
                 )
-                .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
+                .shadow(color: .black.opacity(0.30), radius: 3, x: 0, y: 2)
 
             if let owner = tile.owner {
                 Hexagon()
-                    .fill(owner.accentColor.opacity(0.12))
+                    .fill(owner.accentColor.opacity(tile.isObjective ? 0.22 : 0.13))
+                    .overlay(
+                        Hexagon()
+                            .stroke(owner.accentColor.opacity(tile.isObjective ? 0.42 : 0.18), lineWidth: 1)
+                    )
             }
 
             TerrainSymbol(tile: tile)
@@ -2285,10 +2307,14 @@ private struct TerrainCodeBadge: View {
     var body: some View {
         Text(code)
             .font(.system(size: 8, weight: .black, design: .rounded))
-            .foregroundStyle(.black.opacity(0.46))
+            .foregroundStyle(BattlefieldTheme.commandDeckDeep.opacity(0.72))
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
-            .background(Color.white.opacity(0.16), in: Capsule())
+            .background(Color.white.opacity(0.22), in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(Color.black.opacity(0.16), lineWidth: 1)
+            )
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
@@ -2307,11 +2333,12 @@ private struct ObjectiveNamePlate: View {
             .padding(.horizontal, 5)
             .padding(.vertical, 3)
             .frame(maxWidth: .infinity)
-            .background(Color.black.opacity(0.48), in: RoundedRectangle(cornerRadius: 5))
+            .background(BattlefieldTheme.commandDeckDeep.opacity(0.70), in: RoundedRectangle(cornerRadius: 5))
             .overlay(
                 RoundedRectangle(cornerRadius: 5)
-                    .stroke((owner?.accentColor ?? Color.yellow).opacity(0.48), lineWidth: 1)
+                    .stroke((owner?.accentColor ?? BattlefieldTheme.brass).opacity(0.56), lineWidth: 1)
             )
+            .shadow(color: .black.opacity(0.24), radius: 2, x: 0, y: 1)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
@@ -2794,11 +2821,12 @@ private struct TerrainSymbol: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(tile.terrain.mapSymbol)
-                .font(.system(size: 20, weight: .black, design: .rounded))
+                .font(.system(size: tile.isObjective ? 18 : 22, weight: .black, design: .rounded))
                 .foregroundStyle(tile.terrain.symbolColor)
+                .shadow(color: .black.opacity(tile.terrain == .snow ? 0.0 : 0.18), radius: 1, x: 0, y: 1)
             Spacer(minLength: 0)
         }
-        .padding(.top, 21)
+        .padding(.top, tile.isObjective ? 24 : 19)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
@@ -2943,9 +2971,38 @@ private struct UnitShapeBadge: View {
     var body: some View {
         ZStack {
             UnitMarkerShape(kind: kind)
-                .fill(faction.accentColor.opacity(isSpent ? 0.72 : 1))
+                .fill(Color.black.opacity(0.28))
+                .offset(y: 2)
+                .blur(radius: 1.2)
+
             UnitMarkerShape(kind: kind)
-                .stroke(isSpent ? Color.white.opacity(0.28) : Color.white.opacity(0.9), lineWidth: lineWidth)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            faction.accentColor.opacity(isSpent ? 0.66 : 0.96),
+                            faction.accentColor.opacity(isSpent ? 0.48 : 0.78),
+                            Color.black.opacity(isSpent ? 0.22 : 0.12)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            UnitMarkerShape(kind: kind)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isSpent ? 0.06 : 0.22),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+            UnitMarkerShape(kind: kind)
+                .stroke(isSpent ? Color.white.opacity(0.30) : BattlefieldTheme.brass.opacity(0.72), lineWidth: lineWidth)
+            UnitMarkerShape(kind: kind)
+                .stroke(Color.white.opacity(isSpent ? 0.08 : 0.22), lineWidth: max(0.5, lineWidth * 0.5))
+                .padding(1.5)
 
             HStack(spacing: 2) {
                 Text(kind.tacticalSymbol)
@@ -2962,13 +3019,14 @@ private struct UnitShapeBadge: View {
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 5)
+            .shadow(color: .black.opacity(0.28), radius: 1, x: 0, y: 1)
 
             Text(rank.insignia)
                 .font(.system(size: 6, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 3)
                 .padding(.vertical, 1)
-                .background(Color.black.opacity(0.34), in: Capsule())
+                .background(BattlefieldTheme.commandDeckDeep.opacity(0.58), in: Capsule())
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .padding(.trailing, 3)
                 .padding(.bottom, 2)
@@ -7012,6 +7070,18 @@ private final class HexInputView: UIView {
 }
 
 private extension TerrainKind {
+    var mapGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                mapHighlightColor,
+                mapColor,
+                mapShadowColor
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
     var mapColor: Color {
         switch self {
         case .plains:
@@ -7028,6 +7098,44 @@ private extension TerrainKind {
             Color(red: 0.22, green: 0.42, blue: 0.60)
         case .road:
             Color(red: 0.62, green: 0.55, blue: 0.42)
+        }
+    }
+
+    private var mapHighlightColor: Color {
+        switch self {
+        case .plains:
+            Color(red: 0.66, green: 0.72, blue: 0.48)
+        case .forest:
+            Color(red: 0.34, green: 0.52, blue: 0.31)
+        case .city:
+            Color(red: 0.66, green: 0.65, blue: 0.58)
+        case .mountain:
+            Color(red: 0.62, green: 0.61, blue: 0.56)
+        case .snow:
+            Color(red: 0.92, green: 0.95, blue: 0.92)
+        case .river:
+            Color(red: 0.34, green: 0.56, blue: 0.74)
+        case .road:
+            Color(red: 0.74, green: 0.66, blue: 0.48)
+        }
+    }
+
+    private var mapShadowColor: Color {
+        switch self {
+        case .plains:
+            Color(red: 0.40, green: 0.48, blue: 0.31)
+        case .forest:
+            Color(red: 0.16, green: 0.29, blue: 0.18)
+        case .city:
+            Color(red: 0.40, green: 0.40, blue: 0.36)
+        case .mountain:
+            Color(red: 0.34, green: 0.34, blue: 0.32)
+        case .snow:
+            Color(red: 0.64, green: 0.72, blue: 0.72)
+        case .river:
+            Color(red: 0.14, green: 0.30, blue: 0.48)
+        case .road:
+            Color(red: 0.46, green: 0.40, blue: 0.30)
         }
     }
 
