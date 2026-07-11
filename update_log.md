@@ -2448,3 +2448,32 @@
 遗留事项：
 
 - 本轮未重构战斗结果卡、战线态势面板、AI 复盘时间线或地图标记拥挤度；这些应继续拆成后续 UI 小轮次。
+
+### v1.58 / 攻击预览与战斗结果反馈卡视觉统一
+
+日期：2026-07-11
+
+核心变更：
+
+- `AttackTargetsView` 和 `AttackTargetButton` 升级为战报式目标牌，强化聚焦态、目标 HP、预计伤害、反击和 KILL 提示。
+- `CombatForecastView` 统一为战斗预测牌，突出攻击方、目标方、伤害、目标剩余、反击、击毁/反击风险和影响来源。
+- `CombatResultSummaryView` 和 `CombatantResultLine` 升级为普通攻击结果战报卡，强化结论、战斗叙述、攻防双方 HP 变化和后续效果。
+- 本轮只改 `ContentView` 表现层，不改变 `GameState` 攻击、反击、伤害、经验、士气、追击或结果生成规则。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.58（攻击预览与战斗结果反馈卡视觉统一）.md`
+
+验证结果：
+
+- 本轮人工要求不跑本地测试，全部交给 GitHub Actions 云端重验证；最终结果以本轮交付记录中的 run 和 artifact 为准。
+
+遗留事项：
+
+- 本轮未重构战线态势面板、AI 复盘时间线、地图标记拥挤度或 `InlineMapCommandPreview` / `FocusedCommandPreviewPanel` 文案去重；这些应继续拆成后续 UI 小轮次。

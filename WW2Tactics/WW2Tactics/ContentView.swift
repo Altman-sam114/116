@@ -4807,23 +4807,36 @@ private struct AttackTargetsView: View {
     var body: some View {
         let targets = game.attackableUnits(for: unit)
 
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 8) {
                 Label("攻击目标", systemImage: "target")
                     .font(.subheadline.weight(.bold))
-                Spacer()
+                    .foregroundStyle(BattlefieldTheme.brass)
+
+                Spacer(minLength: 8)
+
                 Text(targets.isEmpty ? "无" : "\(targets.count)")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(targets.isEmpty ? BattlefieldTheme.mutedInk : .black.opacity(0.82))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        targets.isEmpty ? Color.white.opacity(0.08) : BattlefieldTheme.brass.opacity(0.88),
+                        in: Capsule()
+                    )
             }
 
             if targets.isEmpty {
-                Text(unit.hasAttacked ? "本回合已完成攻击。" : "当前射程内没有敌军。")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.62))
+                Label(unit.hasAttacked ? "本回合已完成攻击。" : "当前射程内没有敌军。", systemImage: unit.hasAttacked ? "checkmark.seal.fill" : "scope")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(9)
-                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+                    .padding(10)
+                    .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 7))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 7)
+                            .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+                    )
             } else {
                 VStack(spacing: 7) {
                     ForEach(targets) { target in
@@ -4832,6 +4845,22 @@ private struct AttackTargetsView: View {
                 }
             }
         }
+        .padding(10)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.orange.opacity(0.10),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.36)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.orange.opacity(0.22), lineWidth: 1)
+        )
     }
 }
 
@@ -4843,76 +4872,138 @@ private struct AttackTargetButton: View {
     var body: some View {
         let preview = game.combatPreview(attacker: attacker, defender: target)
         let counterDamage = preview?.counterDamage ?? 0
+        let isFocused = game.focusedUnit?.id == target.id
 
         Button {
             game.handleTap(on: target.position)
         } label: {
-            HStack(spacing: 9) {
-                UnitShapeBadge(
-                    kind: target.kind,
-                    faction: target.faction,
-                    hasCommander: target.commander != nil,
-                    rank: target.rank,
-                    tacticalStatus: target.tacticalStatus,
-                    width: 42,
-                    height: 26
-                )
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 9) {
+                    UnitShapeBadge(
+                        kind: target.kind,
+                        faction: target.faction,
+                        hasCommander: target.commander != nil,
+                        rank: target.rank,
+                        tacticalStatus: target.tacticalStatus,
+                        width: 46,
+                        height: 28
+                    )
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(target.name)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-
-                    HStack(spacing: 6) {
-                        MiniHealthBar(ratio: target.hpRatio)
-                            .frame(width: 48, height: 5)
-                        Text("\(target.hp)/\(target.maxHP)")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.58))
-                    }
-
-                    if let preview {
+                    VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 6) {
-                            Text(preview.matchupTitle)
-                                .foregroundStyle(preview.matchupAccentColor)
-                            Text(preview.terrainTitle)
-                                .foregroundStyle(preview.terrainAccentColor)
-                            if preview.supportUnitCount > 0 {
-                                Text(preview.supportTitle)
-                                    .foregroundStyle(.green)
-                            }
-                            if preview.defenderIsEntrenched {
-                                Text(preview.defenseTitle)
-                                    .foregroundStyle(.cyan)
+                            Text(target.name)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(BattlefieldTheme.ink)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+
+                            if preview?.willDestroyDefender == true {
+                                Text("KILL")
+                                    .font(.system(size: 9, weight: .black, design: .rounded))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(Color.red.opacity(0.82), in: Capsule())
                             }
                         }
-                        .font(.system(size: 10, weight: .bold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+
+                        HStack(spacing: 6) {
+                            MiniHealthBar(ratio: target.hpRatio)
+                                .frame(width: 56, height: 6)
+                            Text("\(target.hp)/\(target.maxHP)")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(BattlefieldTheme.mutedInk)
+                                .monospacedDigit()
+                        }
+                    }
+
+                    Spacer(minLength: 6)
+
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text(preview.map { "-\($0.damage)" } ?? "--")
+                            .font(.headline.weight(.black))
+                            .foregroundStyle(Color.orange)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                        Text(counterDamage > 0 ? "反击 -\(counterDamage)" : "无反击")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(counterDamage > 0 ? Color.red.opacity(0.90) : BattlefieldTheme.mutedInk)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
                     }
                 }
 
-                Spacer(minLength: 6)
+                HStack(spacing: 6) {
+                    if let preview {
+                        BattleIntelPill(text: preview.matchupTitle, color: preview.matchupAccentColor)
+                        BattleIntelPill(text: preview.terrainTitle, color: preview.terrainAccentColor)
+                        if preview.supportUnitCount > 0 {
+                            BattleIntelPill(text: preview.supportTitle, color: .green)
+                        }
+                        if preview.defenderIsEntrenched {
+                            BattleIntelPill(text: preview.defenseTitle, color: .cyan)
+                        }
+                    }
 
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text(preview.map { "-\($0.damage)" } ?? "--")
-                        .font(.caption.weight(.black))
-                        .foregroundStyle(.orange)
-                    Text(counterDamage > 0 ? "反击 -\(counterDamage)" : "无反击")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.58))
+                    Spacer(minLength: 6)
+
+                    Text(isFocused ? "当前目标" : "点选预览")
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .foregroundStyle(isFocused ? .black.opacity(0.82) : BattlefieldTheme.mutedInk)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(isFocused ? BattlefieldTheme.brass.opacity(0.92) : Color.white.opacity(0.07), in: Capsule())
                 }
             }
-            .padding(9)
-            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
-            .overlay(
-                RoundedRectangle(cornerRadius: 7)
-                    .stroke(game.focusedUnit?.id == target.id ? Color.red : Color.white.opacity(0.08), lineWidth: game.focusedUnit?.id == target.id ? 2 : 1)
+            .padding(10)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(isFocused ? 0.15 : 0.08),
+                        Color.black.opacity(isFocused ? 0.12 : 0.06)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 8)
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isFocused ? BattlefieldTheme.brass.opacity(0.85) : Color.orange.opacity(0.18), lineWidth: isFocused ? 2 : 1)
+            )
+            .shadow(color: .black.opacity(isFocused ? 0.22 : 0.10), radius: isFocused ? 10 : 5, x: 0, y: isFocused ? 5 : 2)
+            .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel(preview: preview, counterDamage: counterDamage, isFocused: isFocused))
+        .accessibilityHint("聚焦该敌军并显示攻击预览，不直接执行攻击")
+    }
+
+    private func accessibilityLabel(preview: CombatPreview?, counterDamage: Int, isFocused: Bool) -> String {
+        let focusText = isFocused ? "当前攻击预览目标，" : ""
+        guard let preview else {
+            return "\(focusText)\(target.name)，\(target.faction.title)\(target.kind.title)，耐久 \(target.hp)/\(target.maxHP)"
+        }
+        let outcome = preview.willDestroyDefender ? "预计击毁" : "目标剩余 \(preview.defenderHPAfterAttack)"
+        let counter = counterDamage > 0 ? "反击 \(counterDamage)" : "无反击"
+        return "\(focusText)\(target.name)，造成 \(preview.damage) 伤害，\(outcome)，\(counter)"
+    }
+}
+
+private struct BattleIntelPill: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 10, weight: .black, design: .rounded))
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(color.opacity(0.12), in: Capsule())
     }
 }
 
@@ -4964,10 +5055,36 @@ private struct CombatForecastView: View {
     let preview: CombatPreview
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("战斗预测", systemImage: "scope")
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(.yellow)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
+                Label("战斗预测", systemImage: "scope")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(BattlefieldTheme.brass)
+
+                Spacer(minLength: 8)
+
+                Text(resultForecastTitle)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(resultForecastColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(resultForecastColor.opacity(0.13), in: Capsule())
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(preview.attackerName) -> \(preview.defenderName)")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(BattlefieldTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                Text("预计攻后我方 \(preview.attackerHPAfterCounter) 耐久，目标 \(preview.defenderHPAfterAttack) 耐久。")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             HStack(spacing: 8) {
                 ForecastMetric(title: "伤害", value: "-\(preview.damage)", color: .orange)
@@ -4975,79 +5092,89 @@ private struct CombatForecastView: View {
                 ForecastMetric(title: "反击", value: preview.counterDamage > 0 ? "-\(preview.counterDamage)" : "无", color: preview.counterDamage > 0 ? .red : .white)
             }
 
-            HStack(spacing: 6) {
-                Image(systemName: preview.matchupIcon)
-                    .font(.caption.weight(.bold))
-                Text("\(preview.matchupTitle)：\(preview.matchupDetail)")
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-            }
-            .foregroundStyle(preview.matchupAccentColor)
+            VStack(alignment: .leading, spacing: 6) {
+                CombatForecastFactorLine(icon: preview.matchupIcon, title: preview.matchupTitle, detail: preview.matchupDetail, color: preview.matchupAccentColor)
+                CombatForecastFactorLine(icon: preview.terrainIcon, title: preview.terrainTitle, detail: preview.terrainDetail, color: preview.terrainAccentColor)
 
-            HStack(spacing: 6) {
-                Image(systemName: preview.terrainIcon)
-                    .font(.caption.weight(.bold))
-                Text("\(preview.terrainTitle)：\(preview.terrainDetail)")
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-            }
-            .foregroundStyle(preview.terrainAccentColor)
-
-            if preview.commanderSupportName != nil {
-                HStack(spacing: 6) {
-                    Image(systemName: "star.bubble.fill")
-                        .font(.caption.weight(.bold))
-                    Text("\(preview.commanderSupportTitle)：\(preview.commanderSupportDetail)")
-                        .font(.caption.weight(.semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+                if preview.commanderSupportName != nil {
+                    CombatForecastFactorLine(icon: "star.bubble.fill", title: preview.commanderSupportTitle, detail: preview.commanderSupportDetail, color: .yellow)
                 }
-                .foregroundStyle(.yellow)
-            }
 
-            if preview.supportUnitCount > 0 {
-                HStack(spacing: 6) {
-                    Image(systemName: "point.3.connected.trianglepath.dotted")
-                        .font(.caption.weight(.bold))
-                    Text("\(preview.supportTitle)：\(preview.supportDetail)")
-                        .font(.caption.weight(.semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+                if preview.supportUnitCount > 0 {
+                    CombatForecastFactorLine(icon: "point.3.connected.trianglepath.dotted", title: preview.supportTitle, detail: preview.supportDetail, color: .green)
                 }
-                .foregroundStyle(.green)
-            }
 
-            if preview.defenderIsEntrenched {
-                HStack(spacing: 6) {
-                    Image(systemName: "shield.lefthalf.filled")
-                        .font(.caption.weight(.bold))
-                    Text("\(preview.defenseTitle)：\(preview.defenseDetail)")
-                        .font(.caption.weight(.semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+                if preview.defenderIsEntrenched {
+                    CombatForecastFactorLine(icon: "shield.lefthalf.filled", title: preview.defenseTitle, detail: preview.defenseDetail, color: .cyan)
                 }
-                .foregroundStyle(.cyan)
             }
 
-            if preview.willDestroyDefender || preview.willLoseAttacker {
-                Text(preview.willDestroyDefender ? "预计可击毁目标。" : "攻击后有被反击击毁风险。")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(preview.willDestroyDefender ? .green : .red)
-            } else {
-                Text("\(preview.attackerName) 进攻 \(preview.defenderName) 后，我方预计剩余 \(preview.attackerHPAfterCounter) 耐久。")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.68))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Label(forecastSummaryText, systemImage: preview.willLoseAttacker ? "exclamationmark.triangle.fill" : "checkmark.seal.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(resultForecastColor)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(10)
-        .background(Color.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(Color.yellow.opacity(0.22), lineWidth: 1)
+        .padding(11)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.orange.opacity(0.13),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.52)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(resultForecastColor.opacity(0.30), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.16), radius: 10, x: 0, y: 5)
+    }
+
+    private var resultForecastTitle: String {
+        if preview.willDestroyDefender { return "预计击毁" }
+        if preview.willLoseAttacker { return "反击危险" }
+        return preview.counterDamage > 0 ? "交火" : "压制"
+    }
+
+    private var resultForecastColor: Color {
+        if preview.willDestroyDefender { return .green }
+        if preview.willLoseAttacker { return .red }
+        if preview.counterDamage > 0 { return .orange }
+        return BattlefieldTheme.brass
+    }
+
+    private var forecastSummaryText: String {
+        if preview.willDestroyDefender { return "预计可击毁目标，攻击后保留 \(preview.attackerHPAfterCounter) 耐久。" }
+        if preview.willLoseAttacker { return "攻击后有被反击击毁风险。" }
+        return "\(preview.attackerName) 攻击后预计保留 \(preview.attackerHPAfterCounter) 耐久。"
+    }
+}
+
+private struct CombatForecastFactorLine: View {
+    let icon: String
+    let title: String
+    let detail: String
+    let color: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption.weight(.bold))
+                .frame(width: 15)
+
+            Text("\(title)：\(detail)")
+                .font(.caption.weight(.semibold))
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
     }
 }
 
@@ -5281,21 +5408,30 @@ private struct CombatResultSummaryView: View {
     let summary: CombatResultSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Label("战斗结果", systemImage: "scope")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
+                Label("战斗结果", systemImage: resultIcon)
                     .font(.subheadline.weight(.bold))
+                    .foregroundStyle(resultColor)
 
                 Spacer(minLength: 8)
 
                 Text(resultTitle)
                     .font(.caption.weight(.black))
-                    .foregroundStyle(resultColor)
+                    .foregroundStyle(.black.opacity(0.82))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(resultColor.opacity(0.90), in: Capsule())
             }
 
-            VStack(alignment: .leading, spacing: 6) {
+            Text(resultNarrative)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 7) {
                 CombatantResultLine(title: "攻击", snapshot: summary.attacker, tint: .orange)
                 CombatantResultLine(title: "防守", snapshot: summary.defender, tint: summary.didDestroyDefender ? .red : .cyan)
             }
@@ -5310,20 +5446,28 @@ private struct CombatResultSummaryView: View {
             if !details.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(Array(details.enumerated()), id: \.offset) { _, row in
-                        Label(row.text, systemImage: row.icon)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(row.color)
-                            .fixedSize(horizontal: false, vertical: true)
+                        BattleResultDetailLine(row: row)
                     }
                 }
             }
         }
-        .padding(9)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(resultColor.opacity(0.22), lineWidth: 1)
+        .padding(11)
+        .background(
+            LinearGradient(
+                colors: [
+                    resultColor.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.50)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(resultColor.opacity(0.34), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.17), radius: 11, x: 0, y: 5)
         .accessibilityElement(children: .combine)
     }
 
@@ -5337,10 +5481,23 @@ private struct CombatResultSummaryView: View {
         return "压制"
     }
 
+    private var resultIcon: String {
+        if summary.didDestroyDefender { return "burst.fill" }
+        if summary.hasCounterAttack { return "scope" }
+        return "shield.lefthalf.filled"
+    }
+
     private var resultColor: Color {
         if summary.didDestroyDefender { return .red }
         if summary.hasCounterAttack { return .orange }
         return .yellow
+    }
+
+    private var resultNarrative: String {
+        let defenderState = summary.didDestroyDefender ? "击毁 \(summary.defender.name)" : "\(summary.defender.name) 剩余 \(summary.defender.endingHP) 耐久"
+        let counterState = summary.hasCounterAttack ? "，承受反击 \(summary.counterDamage) 伤害" : "，未遭反击"
+        let pursuitState = summary.didTriggerManeuverPursuit ? "，触发机动追击" : ""
+        return "\(summary.attacker.name) 造成 \(summary.damage) 伤害，\(defenderState)\(counterState)\(pursuitState)。"
     }
 
     private var detailRows: [CombatResultDetailRow] {
@@ -5394,36 +5551,67 @@ private struct CombatantResultLine: View {
     let tint: Color
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 9) {
             Text(title)
                 .font(.caption2.weight(.black))
                 .foregroundStyle(.black.opacity(0.82))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(tint.opacity(0.88), in: Capsule())
+                .frame(width: 36, height: 24)
+                .background(tint.opacity(0.88), in: RoundedRectangle(cornerRadius: 6))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(snapshot.name)
                     .font(.caption.weight(.bold))
+                    .foregroundStyle(BattlefieldTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                 Text("\(snapshot.faction.title) · \(snapshot.kind.title) · \(snapshot.endingRank.title)")
                     .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.58))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             }
 
             Spacer(minLength: 8)
 
-            Text("\(snapshot.startingHP) -> \(snapshot.endingHP)")
-                .font(.caption.weight(.black))
-                .monospacedDigit()
-                .foregroundStyle(snapshot.hpDelta < 0 ? .orange : .white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
+            VStack(alignment: .trailing, spacing: 3) {
+                Text("\(snapshot.startingHP) -> \(snapshot.endingHP)")
+                    .font(.caption.weight(.black))
+                    .monospacedDigit()
+                    .foregroundStyle(snapshot.hpDelta < 0 ? .orange : BattlefieldTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                Text(hpDeltaText)
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(snapshot.hpDelta < 0 ? .red.opacity(0.86) : BattlefieldTheme.mutedInk)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
         }
-        .padding(.vertical, 2)
+        .padding(8)
+        .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(tint.opacity(0.18), lineWidth: 1)
+        )
+    }
+
+    private var hpDeltaText: String {
+        snapshot.hpDelta < 0 ? "\(snapshot.hpDelta)" : "+\(snapshot.hpDelta)"
+    }
+}
+
+private struct BattleResultDetailLine: View {
+    let row: CombatResultDetailRow
+
+    var body: some View {
+        Label(row.text, systemImage: row.icon)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(row.color)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(row.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
     }
 }
 
