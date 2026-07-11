@@ -290,3 +290,7 @@ flowchart TD
 ## 结果卡视觉（v1.63）
 
 战术命令、据点占领、增援部署与整补结果卡使用与 `CombatResultSummaryView` 同族的标题/结论胶囊/叙述/指标/细节行与渐变底；数据仍来自既有 `latest*Result` 字段。
+
+## 反制回放视觉（v1.64）
+
+`EnemyThreatCountermeasureExecutionResultSummaryView` 与 `EnemyThreatCountermeasureFollowUpSummaryView` 使用与战斗/后勤结果卡同族的标题/结论胶囊/叙述/主体块/指标/细节行；定位按钮与关联 AI 行动仍只转发 `GameState`，不执行命令。

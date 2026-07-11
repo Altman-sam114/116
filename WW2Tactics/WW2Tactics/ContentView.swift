@@ -6578,8 +6578,8 @@ private struct EnemyThreatCountermeasureExecutionResultSummaryView: View {
     let summary: EnemyThreatCountermeasureExecutionResultSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
                 Label("反制回放", systemImage: iconName)
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(color)
@@ -6589,24 +6589,37 @@ private struct EnemyThreatCountermeasureExecutionResultSummaryView: View {
                 Text(summary.executionKind.shortTitle)
                     .font(.caption.weight(.black))
                     .foregroundStyle(.black.opacity(0.82))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(color.opacity(0.88), in: RoundedRectangle(cornerRadius: 5))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(color.opacity(0.90), in: Capsule())
             }
+
+            Text(resultNarrative)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(summary.countermeasureKind.title)
                     .font(.headline.weight(.bold))
+                    .foregroundStyle(BattlefieldTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
 
                 Text(locationText)
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(color.opacity(0.18), lineWidth: 1)
+            )
 
             HStack(spacing: 7) {
                 ForEach(Array(summary.comparisons.prefix(3))) { comparison in
@@ -6621,26 +6634,44 @@ private struct EnemyThreatCountermeasureExecutionResultSummaryView: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 if !summary.expectedSummary.isEmpty {
-                    Label("预计：\(summary.expectedSummary)", systemImage: "arrow.left.arrow.right")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.66))
-                        .fixedSize(horizontal: false, vertical: true)
+                    BattleResultDetailLine(row: .init(
+                        icon: "arrow.left.arrow.right",
+                        text: "预计：\(summary.expectedSummary)",
+                        color: .white.opacity(0.78)
+                    ))
                 }
 
-                Label("实际：\(summary.actualSummary)", systemImage: "checkmark.seal.fill")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.72))
-                    .fixedSize(horizontal: false, vertical: true)
+                BattleResultDetailLine(row: .init(
+                    icon: "checkmark.seal.fill",
+                    text: "实际：\(summary.actualSummary)",
+                    color: color.opacity(0.92)
+                ))
             }
         }
-        .padding(9)
-        .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(color.opacity(0.24), lineWidth: 1)
+        .padding(11)
+        .background(
+            LinearGradient(
+                colors: [
+                    color.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.50)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(color.opacity(0.34), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.17), radius: 11, x: 0, y: 5)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("反制回放，\(summary.countermeasureKind.title)，\(locationText)，预计\(summary.expectedSummary)，实际\(summary.actualSummary)")
+    }
+
+    private var resultNarrative: String {
+        let expected = summary.expectedSummary.isEmpty ? "无预计摘要" : summary.expectedSummary
+        return "\(summary.actingUnitName) 执行 \(summary.countermeasureKind.title)，预计 \(expected)，实际 \(summary.actualSummary)。"
     }
 
     private var locationText: String {
@@ -6693,8 +6724,8 @@ private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
     let summary: EnemyThreatCountermeasureFollowUpSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
                 Label("敌方回合复核", systemImage: "checkmark.shield.fill")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(color)
@@ -6704,36 +6735,37 @@ private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
                 Text(summary.outcomeLevel.shortTitle)
                     .font(.caption.weight(.black))
                     .foregroundStyle(.black.opacity(0.84))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(outcomeColor.opacity(0.90), in: RoundedRectangle(cornerRadius: 5))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(outcomeColor.opacity(0.90), in: Capsule())
 
                 Text("T\(summary.aiTurn)")
                     .font(.caption.weight(.black))
                     .foregroundStyle(.black.opacity(0.82))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(color.opacity(0.88), in: RoundedRectangle(cornerRadius: 5))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(color.opacity(0.90), in: Capsule())
             }
+
+            Text(summary.outcomeTitle)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(summary.countermeasureKind.title)
                     .font(.headline.weight(.bold))
+                    .foregroundStyle(BattlefieldTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
 
                 Text(locationText)
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.62))
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(summary.outcomeTitle)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let objectiveDefenseDetail = summary.objectiveDefenseDetail {
@@ -6742,29 +6774,35 @@ private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
                         systemImage: "shield.checkered"
                     )
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.yellow.opacity(0.82))
+                    .foregroundStyle(.yellow.opacity(0.88))
                     .fixedSize(horizontal: false, vertical: true)
                 }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(color.opacity(0.18), lineWidth: 1)
+            )
 
-                if !summary.relatedAIEvents.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label("关联AI行动", systemImage: "timeline.selection")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.white.opacity(0.72))
+            if !summary.relatedAIEvents.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("关联AI行动", systemImage: "timeline.selection")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(BattlefieldTheme.mutedInk)
 
-                        ForEach(summary.relatedAIEvents) { event in
-                            Button {
-                                game.focusAIPhaseTimelineEvent(order: event.order)
-                            } label: {
-                                EnemyThreatCountermeasureFollowUpAIEventRow(event: event)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel("关联AI行动 \(event.order)，\(event.relation.title)，\(event.title)，\(event.summary)")
-                            .accessibilityHint("只定位 AI 复盘事件，不执行命令")
+                    ForEach(summary.relatedAIEvents) { event in
+                        Button {
+                            game.focusAIPhaseTimelineEvent(order: event.order)
+                        } label: {
+                            EnemyThreatCountermeasureFollowUpAIEventRow(event: event)
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("关联AI行动 \(event.order)，\(event.relation.title)，\(event.title)，\(event.summary)")
+                        .accessibilityHint("只定位 AI 复盘事件，不执行命令")
                     }
-                    .padding(.top, 2)
                 }
             }
 
@@ -6778,11 +6816,12 @@ private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
                             .labelStyle(.titleAndIcon)
                             .lineLimit(1)
                             .minimumScaleFactor(0.72)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 5)
-                            .background(focusColor(for: target.kind).opacity(0.16), in: RoundedRectangle(cornerRadius: 6))
+                            .frame(minHeight: 44)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(focusColor(for: target.kind).opacity(0.16), in: RoundedRectangle(cornerRadius: 7))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 6)
+                                RoundedRectangle(cornerRadius: 7)
                                     .stroke(focusColor(for: target.kind).opacity(0.34), lineWidth: 1)
                             )
                     }
@@ -6804,17 +6843,29 @@ private struct EnemyThreatCountermeasureFollowUpSummaryView: View {
                 }
             }
 
-            Label("复核：\(summary.detailSummary)", systemImage: "list.bullet.rectangle")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.68))
-                .fixedSize(horizontal: false, vertical: true)
+            BattleResultDetailLine(row: .init(
+                icon: "list.bullet.rectangle",
+                text: "复核：\(summary.detailSummary)",
+                color: .white.opacity(0.82)
+            ))
         }
-        .padding(9)
-        .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(color.opacity(0.24), lineWidth: 1)
+        .padding(11)
+        .background(
+            LinearGradient(
+                colors: [
+                    color.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.50)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(color.opacity(0.34), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.17), radius: 11, x: 0, y: 5)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("敌方回合复核，\(summary.countermeasureKind.title)，\(locationText)，\(summary.outcomeTitle)，\(summary.detailSummary)")
     }

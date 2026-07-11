@@ -2623,3 +2623,31 @@
 遗留事项：
 
 - 反制执行回放卡等仍可继续视觉对齐。
+
+### v1.64 / 反制回放卡视觉统一
+
+日期：2026-07-12
+
+核心变更：
+
+- `EnemyThreatCountermeasureExecutionResultSummaryView` 与 `EnemyThreatCountermeasureFollowUpSummaryView` 对齐战斗结果战报卡层级。
+- 统一渐变底、结论胶囊、主体信息块、指标条与 `BattleResultDetailLine` 细节行。
+- 保留复核定位按钮、关联 AI 行动入口与无障碍语义；不改变 `GameState` 反制/复核规则。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.64（反制回放卡视觉统一）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 后续可继续推进 HUD 信息密度与触控手感优化。
