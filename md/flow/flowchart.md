@@ -282,3 +282,7 @@ flowchart TD
 ## 地图标记表现（v1.61）
 
 `HexTileView` 将态势/复盘短码收入统一顶/底栈（各最多 2 个 + `+N`），MOVE/ATK/POS 等命令标记固定角落；布局由 View 纯派生，不改变 `GameState` marker 生成与聚焦规则。
+
+## 命令预览呈现（v1.62）
+
+`InlineMapCommandPreview` 与 `FocusedCommandPreviewPanel` 共用 `MapCommandPreviewChrome` 只读 helper 生成图标、色阶、路线/火力/接敌摘要；预览数据仍来自 `GameState.focusedCommandPreview`，不在 View 中重算规则。

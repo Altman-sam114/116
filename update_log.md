@@ -2567,3 +2567,31 @@
 遗留事项：
 
 - 下一轮优先处理 `InlineMapCommandPreview` / `FocusedCommandPreviewPanel` 命令预览去重。
+
+### v1.62 / 命令预览去重
+
+日期：2026-07-12
+
+核心变更：
+
+- 新增 `MapCommandPreviewChrome`，集中命令预览的图标、色阶、路线风险、火力暴露、移动后攻击与安全接敌摘要。
+- `InlineMapCommandPreview` 与 `FocusedCommandPreviewPanel` 改为调用共享 helper，保留各自短/长文案密度。
+- 本轮只改 `ContentView` 表现层，不改变 `GameState` 命令预览生成与执行链。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.62（命令预览去重）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续推进其他 UI 可读性/可玩性小轮次，不强制重复命令预览重构。

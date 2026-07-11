@@ -991,6 +991,242 @@ private struct MapIntelPill: View {
     }
 }
 
+
+private enum MapCommandPreviewChrome {
+    static func iconName(for preview: MapCommandPreview) -> String {
+        switch preview {
+        case .move:
+            return "arrow.turn.up.right"
+        case .attack:
+            return "target"
+        case .approachAttack:
+            return "scope"
+        case .selectedUnit, .selectUnit, .friendlyOccupied:
+            return "shield.fill"
+        case .enemyOutOfRange, .enemyUnavailable, .unreachable:
+            return "exclamationmark.triangle.fill"
+        case .inspectTerrain:
+            return "hexagon.fill"
+        }
+    }
+
+    static func commandActionIcon(for preview: MapCommandPreview) -> String {
+        switch preview {
+        case .move:
+            return "arrow.turn.up.right"
+        case .attack:
+            return "target"
+        case .approachAttack:
+            return "scope"
+        case .inspectTerrain, .selectedUnit, .selectUnit, .friendlyOccupied, .enemyOutOfRange, .enemyUnavailable, .unreachable:
+            return "play.fill"
+        }
+    }
+
+    static func accentColor(for preview: MapCommandPreview) -> Color {
+        switch preview {
+        case .move:
+            return .cyan
+        case .attack, .approachAttack:
+            return .orange
+        case .enemyOutOfRange, .enemyUnavailable, .unreachable:
+            return .red
+        case .selectedUnit, .selectUnit, .friendlyOccupied:
+            return .yellow
+        case .inspectTerrain:
+            return .white.opacity(0.72)
+        }
+    }
+
+    static func compactTitle(for preview: MapCommandPreview) -> String {
+        switch preview {
+        case .move:
+            return "MOVE 移动预览"
+        case .attack:
+            return "ATK 攻击判定"
+        case .approachAttack:
+            return "POS 接敌位置"
+        case let .selectedUnit(unitName):
+            return unitName
+        case let .selectUnit(unitName, _):
+            return "可选择 \(unitName)"
+        case .friendlyOccupied:
+            return "友军占据"
+        case .enemyOutOfRange:
+            return "目标在射程外"
+        case .enemyUnavailable:
+            return "攻击不可用"
+        case .unreachable:
+            return "无法移动"
+        case .inspectTerrain:
+            return "查看地形"
+        }
+    }
+
+    static func panelTitle(for preview: MapCommandPreview) -> String {
+        switch preview {
+        case .inspectTerrain:
+            return "查看地形"
+        case let .selectedUnit(unitName):
+            return unitName
+        case let .selectUnit(_, kind):
+            return "选择 \(kind.title)"
+        case .move:
+            return "移动预览"
+        case .approachAttack:
+            return "接敌移动"
+        case .attack:
+            return "攻击预览"
+        case .friendlyOccupied:
+            return "友军占据"
+        case .enemyOutOfRange:
+            return "超出射程"
+        case .enemyUnavailable:
+            return "攻击不可用"
+        case .unreachable:
+            return "无法到达"
+        }
+    }
+
+    static func uniqueThreatNames(from steps: [RouteStepPreview]) -> [String] {
+        var names: [String] = []
+        for step in steps {
+            for name in step.threatNames where !names.contains(name) {
+                names.append(name)
+            }
+        }
+        return names
+    }
+
+    static func routeRiskCompact(threatenedSteps: [RouteStepPreview]) -> String {
+        guard !threatenedSteps.isEmpty else { return "，无敌火风险" }
+        let names = uniqueThreatNames(from: threatenedSteps).prefix(2).joined(separator: "、")
+        return "，\(threatenedSteps.count) 步受威胁：\(names)"
+    }
+
+    static func routeRiskDetailed(threatenedSteps: [RouteStepPreview]) -> String {
+        guard !threatenedSteps.isEmpty else { return "无敌火风险" }
+        let names = uniqueThreatNames(from: threatenedSteps).prefix(2).joined(separator: "、")
+        return "\(threatenedSteps.count) 步暴露在 \(names) 火力下"
+    }
+
+    static func fireExposureCompact(preview: PostMoveFireExposurePreview?) -> String {
+        guard let preview else { return "" }
+        guard preview.riskLevel != .none else {
+            return "，终点 \(preview.riskLevel.shortTitle)，无潜在伤害"
+        }
+        let sources = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
+        let sourceText = sources.isEmpty ? "" : "，来源 \(sources)"
+        return "，终点 \(preview.riskLevel.shortTitle) \(preview.riskLevel.title)，潜在 -\(preview.totalPotentialDamage)，预计剩 \(preview.projectedHPAfterExposure)\(sourceText)"
+    }
+
+    static func fireExposureDetailed(preview: PostMoveFireExposurePreview?) -> String {
+        guard let preview else { return "" }
+        guard preview.riskLevel != .none else {
+            return "，终点 \(preview.riskLevel.shortTitle)，无潜在伤害"
+        }
+        let sources = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
+        let sourceText = sources.isEmpty ? "" : "，主要来源 \(sources)"
+        let destroyedText = preview.canBeDestroyedByCombinedFire ? "，可能被合计火力击毁" : ""
+        return "，终点 \(preview.riskLevel.shortTitle) \(preview.riskLevel.title)，潜在承伤 \(preview.totalPotentialDamage)，预计剩余 \(preview.projectedHPAfterExposure)\(sourceText)\(destroyedText)"
+    }
+
+    static func routeSummaryCompact(
+        route: MovementRoute,
+        threatenedSteps: [RouteStepPreview],
+        fireExposure: PostMoveFireExposurePreview?
+    ) -> String {
+        let zone = route.controlZonePenalty > 0 ? "，控区 +\(route.controlZonePenalty)" : ""
+        return "\(route.stepCount) 步，总消耗 \(route.totalCost)\(zone)\(routeRiskCompact(threatenedSteps: threatenedSteps))\(fireExposureCompact(preview: fireExposure))。"
+    }
+
+    static func routeSummaryDetailed(
+        route: MovementRoute,
+        threatenedSteps: [RouteStepPreview],
+        fireExposure: PostMoveFireExposurePreview?
+    ) -> String {
+        let penaltyText = route.controlZonePenalty > 0 ? "其中敌方控制区 +\(route.controlZonePenalty)，" : ""
+        return "路线 \(route.stepCount) 步，总消耗 \(route.totalCost) 移动力，\(penaltyText)\(routeRiskDetailed(threatenedSteps: threatenedSteps))\(fireExposureDetailed(preview: fireExposure))。"
+    }
+
+    static func postMoveAttackCompact(
+        canAttack: Bool,
+        previews: [PostMoveAttackPreview]
+    ) -> String {
+        guard let best = previews.first else {
+            return canAttack ? "移动后暂无射程内目标。" : "本回合已无法继续攻击。"
+        }
+        let result = best.willDestroy ? "预计击毁" : "目标剩 \(best.defenderHPAfterAttack)"
+        let counter = best.counterDamage > 0 ? "，反击 -\(best.counterDamage)" : "，无反击"
+        return "最佳目标 \(best.targetName)：-\(best.damage)，\(result)\(counter)。"
+    }
+
+    static func postMoveAttackDetailed(
+        canAttack: Bool,
+        previews: [PostMoveAttackPreview]
+    ) -> String {
+        if previews.isEmpty {
+            return canAttack ? "移动后暂无射程内目标。" : "本回合已无法继续攻击。"
+        }
+        guard let best = previews.first else { return "" }
+        let result = best.willDestroy ? "预计击毁" : "目标剩余 \(best.defenderHPAfterAttack) 耐久"
+        let counter = best.counterDamage > 0 ? "，可能遭反击 -\(best.counterDamage)" : "，无反击"
+        let extraCount = previews.count - 1
+        let extraText = extraCount > 0 ? "，另有 \(extraCount) 个目标" : ""
+        return "移动后最佳目标 \(best.targetName)：造成 \(best.damage) 伤害，\(result)\(counter)\(extraText)。"
+    }
+
+    static func safeEngagementCompact(
+        currentRoute: MovementRoute,
+        comparison: SafeEngagementComparisonPreview?
+    ) -> String {
+        guard let comparison, comparison.destination != currentRoute.destination else { return "" }
+        return "更安全攻击位 q\(comparison.destination.q),r\(comparison.destination.r)：\(comparison.summaryText)。"
+    }
+
+    static func safeEngagementDetailed(
+        currentRoute: MovementRoute,
+        comparison: SafeEngagementComparisonPreview?
+    ) -> String {
+        guard let comparison, comparison.destination != currentRoute.destination else { return "" }
+        return "安全接敌建议：q\(comparison.destination.q),r\(comparison.destination.r)，\(comparison.summaryText)。"
+    }
+
+    static func attackPositionHint(routes: [MovementRoute]) -> String {
+        guard let bestRoute = routes.first else { return "本回合没有可进入的攻击位。" }
+        if routes.count == 1 {
+            return "可移动到 q\(bestRoute.destination.q),r\(bestRoute.destination.r) 进入攻击位。"
+        }
+        return "地图标出 \(routes.count) 个攻击位，最近 q\(bestRoute.destination.q),r\(bestRoute.destination.r)，消耗 \(bestRoute.totalCost) 移动力。"
+    }
+
+    static func attackDetailCompact(
+        attackerName: String,
+        defenderName: String,
+        damage: Int,
+        counterDamage: Int,
+        defenderHPAfterAttack: Int,
+        willDestroy: Bool
+    ) -> String {
+        let result = willDestroy ? "可击毁" : "目标剩 \(defenderHPAfterAttack)"
+        let counter = counterDamage > 0 ? "，反击 -\(counterDamage)" : "，无反击"
+        return "\(attackerName) 攻击 \(defenderName)：-\(damage)，\(result)\(counter)。"
+    }
+
+    static func attackDetailDetailed(
+        attackerName: String,
+        defenderName: String,
+        damage: Int,
+        counterDamage: Int,
+        defenderHPAfterAttack: Int,
+        willDestroy: Bool
+    ) -> String {
+        let outcome = willDestroy ? "预计击毁目标" : "目标剩余 \(defenderHPAfterAttack) 耐久"
+        let counter = counterDamage > 0 ? "，可能遭反击 -\(counterDamage)" : "，无反击"
+        return "右键命令 \(attackerName) 攻击 \(defenderName)，造成 \(damage) 伤害，\(outcome)\(counter)。"
+    }
+}
+
 private struct InlineMapCommandPreview: View {
     @EnvironmentObject private var game: GameState
 
@@ -998,18 +1234,18 @@ private struct InlineMapCommandPreview: View {
         let preview = game.focusedCommandPreview
 
         HStack(spacing: 9) {
-            Image(systemName: preview.map(iconName) ?? "scope")
+            Image(systemName: preview.map(MapCommandPreviewChrome.iconName) ?? "scope")
                 .font(.caption.weight(.bold))
                 .frame(width: 18, height: 18)
-                .foregroundStyle(preview.map(accentColor) ?? .white.opacity(0.66))
+                .foregroundStyle(preview.map(MapCommandPreviewChrome.accentColor) ?? .white.opacity(0.66))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(preview.map(title) ?? "地图命令")
+                Text(preview.map(MapCommandPreviewChrome.compactTitle) ?? "地图命令")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.white.opacity(0.86))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
-                Text(preview.map(detail) ?? "选择部队后，地图会标出移动、攻击和接敌位置。")
+                Text(preview.map(compactDetail) ?? "选择部队后，地图会标出移动、攻击和接敌位置。")
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(.white.opacity(0.62))
                     .lineLimit(2)
@@ -1022,13 +1258,13 @@ private struct InlineMapCommandPreview: View {
                 Button {
                     game.executeFocusedCommand()
                 } label: {
-                    Label("执行", systemImage: commandIcon(for: preview))
+                    Label("执行", systemImage: MapCommandPreviewChrome.commandActionIcon(for: preview))
                         .font(.system(size: 10, weight: .black, design: .rounded))
                         .labelStyle(.titleAndIcon)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 4)
-                        .background(accentColor(for: preview).opacity(0.64), in: Capsule())
+                        .background(MapCommandPreviewChrome.accentColor(for: preview).opacity(0.64), in: Capsule())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("执行当前地图命令")
@@ -1038,82 +1274,33 @@ private struct InlineMapCommandPreview: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 4)
-                    .background((preview.map(accentColor) ?? Color.white).opacity(0.28), in: Capsule())
+                    .background((preview.map(MapCommandPreviewChrome.accentColor) ?? Color.white).opacity(0.28), in: Capsule())
             }
         }
         .padding(9)
-        .background((preview.map(accentColor) ?? Color.white).opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        .background((preview.map(MapCommandPreviewChrome.accentColor) ?? Color.white).opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
         .overlay(
             RoundedRectangle(cornerRadius: 7)
-                .stroke((preview.map(accentColor) ?? Color.white).opacity(0.22), lineWidth: 1)
+                .stroke((preview.map(MapCommandPreviewChrome.accentColor) ?? Color.white).opacity(0.22), lineWidth: 1)
         )
     }
 
-    private func iconName(for preview: MapCommandPreview) -> String {
-        switch preview {
-        case .move:
-            "arrow.turn.up.right"
-        case .attack:
-            "target"
-        case .approachAttack:
-            "scope"
-        case .selectedUnit, .selectUnit, .friendlyOccupied:
-            "shield.fill"
-        case .enemyOutOfRange, .enemyUnavailable, .unreachable:
-            "exclamationmark.triangle.fill"
-        case .inspectTerrain:
-            "hexagon.fill"
-        }
-    }
-
-    private func commandIcon(for preview: MapCommandPreview) -> String {
-        switch preview {
-        case .move:
-            "arrow.turn.up.right"
-        case .attack:
-            "target"
-        case .approachAttack:
-            "scope"
-        case .inspectTerrain, .selectedUnit, .selectUnit, .friendlyOccupied, .enemyOutOfRange, .enemyUnavailable, .unreachable:
-            "play.fill"
-        }
-    }
-
-    private func title(for preview: MapCommandPreview) -> String {
-        switch preview {
-        case .move:
-            "MOVE 移动预览"
-        case .attack:
-            "ATK 攻击判定"
-        case .approachAttack:
-            "POS 接敌位置"
-        case let .selectedUnit(unitName):
-            unitName
-        case let .selectUnit(unitName, _):
-            "可选择 \(unitName)"
-        case .friendlyOccupied:
-            "友军占据"
-        case .enemyOutOfRange:
-            "目标在射程外"
-        case .enemyUnavailable:
-            "攻击不可用"
-        case .unreachable:
-            "无法移动"
-        case .inspectTerrain:
-            "查看地形"
-        }
-    }
-
-    private func detail(for preview: MapCommandPreview) -> String {
+    private func compactDetail(for preview: MapCommandPreview) -> String {
+        let threatenedSteps = game.focusedRouteStepPreviews.filter(\.isThreatened)
         switch preview {
         case let .move(unitName, terrainName, route):
-            return "\(unitName) 可进入\(terrainName)，\(routeSummaryText(for: route))\(postMoveAttackPreviewText())"
+            return "\(unitName) 可进入\(terrainName)，\(MapCommandPreviewChrome.routeSummaryCompact(route: route, threatenedSteps: threatenedSteps, fireExposure: game.focusedFireExposurePreview))\(MapCommandPreviewChrome.postMoveAttackCompact(canAttack: game.selectedUnit?.canAttack ?? false, previews: game.focusedPostMoveAttackPreviews))"
         case let .attack(attackerName, defenderName, damage, counterDamage, defenderHPAfterAttack, willDestroy):
-            let result = willDestroy ? "可击毁" : "目标剩 \(defenderHPAfterAttack)"
-            let counter = counterDamage > 0 ? "，反击 -\(counterDamage)" : "，无反击"
-            return "\(attackerName) 攻击 \(defenderName)：-\(damage)，\(result)\(counter)。"
+            return MapCommandPreviewChrome.attackDetailCompact(
+                attackerName: attackerName,
+                defenderName: defenderName,
+                damage: damage,
+                counterDamage: counterDamage,
+                defenderHPAfterAttack: defenderHPAfterAttack,
+                willDestroy: willDestroy
+            )
         case let .approachAttack(unitName, defenderName, route):
-            return "\(unitName) 接近 \(defenderName)：\(routeSummaryText(for: route))移动后目标进射程，不自动攻击。\(safeEngagementSuggestionText(currentRoute: route))"
+            return "\(unitName) 接近 \(defenderName)：\(MapCommandPreviewChrome.routeSummaryCompact(route: route, threatenedSteps: threatenedSteps, fireExposure: game.focusedFireExposurePreview))移动后目标进射程，不自动攻击。\(MapCommandPreviewChrome.safeEngagementCompact(currentRoute: route, comparison: game.focusedSafeEngagementComparisons.first))"
         case let .selectedUnit(unitName):
             return "\(unitName) 已选中，地图已标出可执行命令。"
         case let .selectUnit(unitName, kind):
@@ -1128,71 +1315,6 @@ private struct InlineMapCommandPreview: View {
             return "\(unitName) 本回合无法进入该\(terrainName)格。"
         case let .inspectTerrain(terrainName):
             return "\(terrainName) 地格。"
-        }
-    }
-
-    private func routeSummaryText(for route: MovementRoute) -> String {
-        let steps = game.focusedRouteStepPreviews
-        let threatenedSteps = steps.filter(\.isThreatened)
-        let zone = route.controlZonePenalty > 0 ? "，控区 +\(route.controlZonePenalty)" : ""
-        let risk = routeRiskSummary(for: threatenedSteps)
-        return "\(route.stepCount) 步，总消耗 \(route.totalCost)\(zone)\(risk)\(fireExposureSummaryText())。"
-    }
-
-    private func routeRiskSummary(for threatenedSteps: [RouteStepPreview]) -> String {
-        guard !threatenedSteps.isEmpty else { return "，无敌火风险" }
-        let names = uniqueThreatNames(from: threatenedSteps).prefix(2).joined(separator: "、")
-        return "，\(threatenedSteps.count) 步受威胁：\(names)"
-    }
-
-    private func uniqueThreatNames(from steps: [RouteStepPreview]) -> [String] {
-        var names: [String] = []
-        for step in steps {
-            for name in step.threatNames where !names.contains(name) {
-                names.append(name)
-            }
-        }
-        return names
-    }
-
-    private func postMoveAttackPreviewText() -> String {
-        guard let selectedUnit = game.selectedUnit else { return "" }
-        guard let best = game.focusedPostMoveAttackPreviews.first else {
-            return selectedUnit.canAttack ? "移动后暂无射程内目标。" : "本回合已无法继续攻击。"
-        }
-        let result = best.willDestroy ? "预计击毁" : "目标剩 \(best.defenderHPAfterAttack)"
-        let counter = best.counterDamage > 0 ? "，反击 -\(best.counterDamage)" : "，无反击"
-        return "最佳目标 \(best.targetName)：-\(best.damage)，\(result)\(counter)。"
-    }
-
-    private func fireExposureSummaryText() -> String {
-        guard let preview = game.focusedFireExposurePreview else { return "" }
-        guard preview.riskLevel != .none else {
-            return "，终点 \(preview.riskLevel.shortTitle)，无潜在伤害"
-        }
-        let sources = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
-        let sourceText = sources.isEmpty ? "" : "，来源 \(sources)"
-        return "，终点 \(preview.riskLevel.shortTitle) \(preview.riskLevel.title)，潜在 -\(preview.totalPotentialDamage)，预计剩 \(preview.projectedHPAfterExposure)\(sourceText)"
-    }
-
-    private func safeEngagementSuggestionText(currentRoute: MovementRoute) -> String {
-        guard let comparison = game.focusedSafeEngagementComparisons.first,
-              comparison.destination != currentRoute.destination else { return "" }
-        return "更安全攻击位 q\(comparison.destination.q),r\(comparison.destination.r)：\(comparison.summaryText)。"
-    }
-
-    private func accentColor(for preview: MapCommandPreview) -> Color {
-        switch preview {
-        case .move:
-            .cyan
-        case .attack, .approachAttack:
-            .orange
-        case .enemyOutOfRange, .enemyUnavailable, .unreachable:
-            .red
-        case .selectedUnit, .selectUnit, .friendlyOccupied:
-            .yellow
-        case .inspectTerrain:
-            .white.opacity(0.72)
         }
     }
 }
@@ -4899,10 +5021,10 @@ private struct FocusedCommandPreviewPanel: View {
            game.selectedUnit != nil {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 7) {
-                    Image(systemName: icon(for: preview))
+                    Image(systemName: MapCommandPreviewChrome.iconName(for: preview))
                         .font(.caption.weight(.bold))
                         .frame(width: 16)
-                    Text(title(for: preview))
+                    Text(MapCommandPreviewChrome.panelTitle(for: preview))
                         .font(.caption.weight(.bold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
@@ -4912,65 +5034,26 @@ private struct FocusedCommandPreviewPanel: View {
                         .foregroundStyle(preview.isExecutable ? .white : .white.opacity(0.58))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
-                        .background(preview.isExecutable ? accentColor(for: preview).opacity(0.72) : Color.white.opacity(0.08), in: Capsule())
+                        .background(preview.isExecutable ? MapCommandPreviewChrome.accentColor(for: preview).opacity(0.72) : Color.white.opacity(0.08), in: Capsule())
                 }
-                .foregroundStyle(accentColor(for: preview))
+                .foregroundStyle(MapCommandPreviewChrome.accentColor(for: preview))
 
-                Text(detail(for: preview))
+                Text(panelDetail(for: preview))
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(.white.opacity(0.68))
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(9)
-            .background(accentColor(for: preview).opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+            .background(MapCommandPreviewChrome.accentColor(for: preview).opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7)
-                    .stroke(accentColor(for: preview).opacity(0.24), lineWidth: 1)
+                    .stroke(MapCommandPreviewChrome.accentColor(for: preview).opacity(0.24), lineWidth: 1)
             )
         }
     }
 
-    private func icon(for preview: MapCommandPreview) -> String {
-        switch preview {
-        case .move, .approachAttack:
-            return "arrow.turn.up.right"
-        case .attack:
-            return "target"
-        case .selectedUnit, .selectUnit, .friendlyOccupied:
-            return "shield.fill"
-        case .enemyOutOfRange, .enemyUnavailable:
-            return "exclamationmark.triangle.fill"
-        case .inspectTerrain, .unreachable:
-            return "hexagon.fill"
-        }
-    }
-
-    private func title(for preview: MapCommandPreview) -> String {
-        switch preview {
-        case .inspectTerrain:
-            return "查看地形"
-        case let .selectedUnit(unitName):
-            return unitName
-        case let .selectUnit(_, kind):
-            return "选择 \(kind.title)"
-        case .move:
-            return "移动预览"
-        case .approachAttack:
-            return "接敌移动"
-        case .attack:
-            return "攻击预览"
-        case .friendlyOccupied:
-            return "友军占据"
-        case .enemyOutOfRange:
-            return "超出射程"
-        case .enemyUnavailable:
-            return "攻击不可用"
-        case .unreachable:
-            return "无法到达"
-        }
-    }
-
-    private func detail(for preview: MapCommandPreview) -> String {
+    private func panelDetail(for preview: MapCommandPreview) -> String {
+        let threatenedSteps = game.focusedRouteStepPreviews.filter(\.isThreatened)
         switch preview {
         case let .inspectTerrain(terrainName):
             return "当前焦点为\(terrainName)，选择部队后会显示移动或攻击预览。"
@@ -4979,105 +5062,26 @@ private struct FocusedCommandPreviewPanel: View {
         case let .selectUnit(unitName, kind):
             return "左键可切换选择 \(unitName)（\(kind.title)）。"
         case let .move(unitName, terrainName, route):
-            return "右键命令 \(unitName) 进入\(terrainName)，\(routeSummaryText(for: route))\(postMoveAttackText())"
+            return "右键命令 \(unitName) 进入\(terrainName)，\(MapCommandPreviewChrome.routeSummaryDetailed(route: route, threatenedSteps: threatenedSteps, fireExposure: game.focusedFireExposurePreview))\(MapCommandPreviewChrome.postMoveAttackDetailed(canAttack: game.selectedUnit?.canAttack ?? false, previews: game.focusedPostMoveAttackPreviews))"
         case let .approachAttack(unitName, defenderName, route):
-            return "右键命令 \(unitName) 移动到 q\(route.destination.q),r\(route.destination.r) 接近 \(defenderName)，\(routeSummaryText(for: route))移动后目标进入射程，可继续右键攻击，不会自动攻击。\(safeEngagementSuggestionText(currentRoute: route))"
+            return "右键命令 \(unitName) 移动到 q\(route.destination.q),r\(route.destination.r) 接近 \(defenderName)，\(MapCommandPreviewChrome.routeSummaryDetailed(route: route, threatenedSteps: threatenedSteps, fireExposure: game.focusedFireExposurePreview))移动后目标进入射程，可继续右键攻击，不会自动攻击。\(MapCommandPreviewChrome.safeEngagementDetailed(currentRoute: route, comparison: game.focusedSafeEngagementComparisons.first))"
         case let .attack(attackerName, defenderName, damage, counterDamage, defenderHPAfterAttack, willDestroy):
-            let outcome = willDestroy ? "预计击毁目标" : "目标剩余 \(defenderHPAfterAttack) 耐久"
-            let counter = counterDamage > 0 ? "，可能遭反击 -\(counterDamage)" : "，无反击"
-            return "右键命令 \(attackerName) 攻击 \(defenderName)，造成 \(damage) 伤害，\(outcome)\(counter)。"
+            return MapCommandPreviewChrome.attackDetailDetailed(
+                attackerName: attackerName,
+                defenderName: defenderName,
+                damage: damage,
+                counterDamage: counterDamage,
+                defenderHPAfterAttack: defenderHPAfterAttack,
+                willDestroy: willDestroy
+            )
         case let .friendlyOccupied(unitName):
             return "\(unitName) 占据该格，右键不会移动当前选中部队。"
         case let .enemyOutOfRange(defenderName, distance, range):
-            return "\(defenderName) 距离 \(distance)，当前射程 \(range)，右键不会攻击。\(attackPositionText())"
+            return "\(defenderName) 距离 \(distance)，当前射程 \(range)，右键不会攻击。\(MapCommandPreviewChrome.attackPositionHint(routes: game.focusedAttackPositionRoutes))"
         case let .enemyUnavailable(defenderName, distance, range):
             return "\(defenderName) 距离 \(distance)，射程 \(range)，当前单位本回合已无法攻击。"
         case let .unreachable(unitName, terrainName):
             return "\(unitName) 本回合无法进入该\(terrainName)格，右键不会执行移动。"
-        }
-    }
-
-    private func routeSummaryText(for route: MovementRoute) -> String {
-        let steps = game.focusedRouteStepPreviews
-        let threatenedSteps = steps.filter(\.isThreatened)
-        let penaltyText = route.controlZonePenalty > 0 ? "其中敌方控制区 +\(route.controlZonePenalty)，" : ""
-        return "路线 \(route.stepCount) 步，总消耗 \(route.totalCost) 移动力，\(penaltyText)\(routeRiskText(for: threatenedSteps))\(fireExposureText())。"
-    }
-
-    private func routeRiskText(for threatenedSteps: [RouteStepPreview]) -> String {
-        guard !threatenedSteps.isEmpty else { return "无敌火风险" }
-        let names = uniqueThreatNames(from: threatenedSteps).prefix(2).joined(separator: "、")
-        return "\(threatenedSteps.count) 步暴露在 \(names) 火力下"
-    }
-
-    private func uniqueThreatNames(from steps: [RouteStepPreview]) -> [String] {
-        var names: [String] = []
-        for step in steps {
-            for name in step.threatNames where !names.contains(name) {
-                names.append(name)
-            }
-        }
-        return names
-    }
-
-    private func postMoveAttackText() -> String {
-        guard let selectedUnit = game.selectedUnit else { return "" }
-        let previews = game.focusedPostMoveAttackPreviews
-
-        if previews.isEmpty {
-            return selectedUnit.canAttack ? "移动后暂无射程内目标。" : "本回合已无法继续攻击。"
-        }
-
-        guard let best = previews.first else { return "" }
-        let result = best.willDestroy ? "预计击毁" : "目标剩余 \(best.defenderHPAfterAttack) 耐久"
-        let counter = best.counterDamage > 0 ? "，可能遭反击 -\(best.counterDamage)" : "，无反击"
-        let extraCount = previews.count - 1
-        let extraText = extraCount > 0 ? "，另有 \(extraCount) 个目标" : ""
-        return "移动后最佳目标 \(best.targetName)：造成 \(best.damage) 伤害，\(result)\(counter)\(extraText)。"
-    }
-
-    private func fireExposureText() -> String {
-        guard let preview = game.focusedFireExposurePreview else { return "" }
-        guard preview.riskLevel != .none else {
-            return "，终点 \(preview.riskLevel.shortTitle)，无潜在伤害"
-        }
-        let sources = preview.sources.prefix(2).map(\.sourceName).joined(separator: "、")
-        let sourceText = sources.isEmpty ? "" : "，主要来源 \(sources)"
-        let destroyedText = preview.canBeDestroyedByCombinedFire ? "，可能被合计火力击毁" : ""
-        return "，终点 \(preview.riskLevel.shortTitle) \(preview.riskLevel.title)，潜在承伤 \(preview.totalPotentialDamage)，预计剩余 \(preview.projectedHPAfterExposure)\(sourceText)\(destroyedText)"
-    }
-
-    private func safeEngagementSuggestionText(currentRoute: MovementRoute) -> String {
-        guard let comparison = game.focusedSafeEngagementComparisons.first,
-              comparison.destination != currentRoute.destination else { return "" }
-        return "安全接敌建议：q\(comparison.destination.q),r\(comparison.destination.r)，\(comparison.summaryText)。"
-    }
-
-    private func attackPositionText() -> String {
-        let routes = game.focusedAttackPositionRoutes
-        guard let bestRoute = routes.first else { return "本回合没有可进入的攻击位。" }
-
-        if routes.count == 1 {
-            return "可移动到 q\(bestRoute.destination.q),r\(bestRoute.destination.r) 进入攻击位。"
-        }
-
-        return "地图标出 \(routes.count) 个攻击位，最近 q\(bestRoute.destination.q),r\(bestRoute.destination.r)，消耗 \(bestRoute.totalCost) 移动力。"
-    }
-
-    private func accentColor(for preview: MapCommandPreview) -> Color {
-        switch preview {
-        case .move:
-            return .cyan
-        case .approachAttack:
-            return .orange
-        case .attack:
-            return .orange
-        case .enemyOutOfRange, .enemyUnavailable, .unreachable:
-            return .red
-        case .selectedUnit, .selectUnit, .friendlyOccupied:
-            return .yellow
-        case .inspectTerrain:
-            return .white.opacity(0.74)
         }
     }
 }
