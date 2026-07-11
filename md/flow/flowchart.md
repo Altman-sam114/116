@@ -338,3 +338,7 @@ flowchart TD
 ## 态势响应与 AI 回放反馈（v1.75）
 
 `BattlefieldSituationResponseCard` 使用指挥台渐变卡片并强化结果胶囊；`AIPhaseReplayControls` 与 `AIPhaseCurrentTimelineEventView` 突出播放态与当前事件。行为仍只调用既有 `GameState` 导航/播放入口。
+
+## 据点压力与复盘入口（v1.76）
+
+`BattlefieldSituationObjectivePressureRow` 与 `BattlefieldSituationReplayTargetButton` 使用更强的指挥台卡片与当前态反馈。定位/复盘仍只转发 `GameState`。

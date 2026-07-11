@@ -3911,13 +3911,24 @@ private struct BattlefieldSituationReplayTargetButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 9)
-        .padding(.vertical, 7)
-        .background(Color.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.blue.opacity(0.14),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.46)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.blue.opacity(0.24), lineWidth: 1)
+                .stroke(Color.blue.opacity(0.34), lineWidth: 1)
         )
+        .shadow(color: .black.opacity(0.12), radius: 7, x: 0, y: 3)
         .accessibilityLabel("定位敌方复盘影响，\(replayTarget.source.title)，事件\(replayTarget.order)，\(replayTarget.title)，\(replayTarget.detail)")
     }
 }
@@ -4241,13 +4252,13 @@ private struct BattlefieldSituationObjectivePressureRow: View {
                     .background(color.opacity(0.10), in: Capsule())
             }
         }
-        .padding(9)
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
         .background(
             LinearGradient(
                 colors: [
-                    color.opacity(isFocused ? 0.15 : 0.07),
-                    Color.black.opacity(0.08)
+                    color.opacity(isFocused ? 0.18 : 0.10),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.46)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -4256,8 +4267,9 @@ private struct BattlefieldSituationObjectivePressureRow: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(isFocused ? color.opacity(0.55) : Color.white.opacity(0.08), lineWidth: isFocused ? 2 : 1)
+                .stroke(isFocused ? color.opacity(0.66) : color.opacity(0.18), lineWidth: isFocused ? 2 : 1)
         )
+        .shadow(color: .black.opacity(isFocused ? 0.16 : 0.08), radius: isFocused ? 8 : 4, x: 0, y: 3)
         .contentShape(RoundedRectangle(cornerRadius: 8))
         .accessibilityLabel(accessibilitySummary)
     }

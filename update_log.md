@@ -2962,3 +2962,31 @@
 遗留事项：
 
 - 可继续剩余细面板与可玩性反馈增强。
+
+### v1.76 / 据点压力与复盘入口反馈
+
+日期：2026-07-12
+
+核心变更：
+
+- `BattlefieldSituationObjectivePressureRow` 提高卡片层级与当前焦点态。
+- `BattlefieldSituationReplayTargetButton` 对齐指挥台渐变卡片并增强入口描边。
+- 本轮只改 `ContentView` 表现层，不改变压力排序与复盘定位规则。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.76（据点压力与复盘入口反馈）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续剩余细面板与可玩性反馈增强。
