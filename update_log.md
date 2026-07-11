@@ -2681,3 +2681,31 @@
 遗留事项：
 
 - 后续可继续推进触控手感与侧栏信息层级优化。
+
+### v1.66 / 触控手感与侧栏层级
+
+日期：2026-07-12
+
+核心变更：
+
+- `InspectorPanel` 增加分区标题：主操作、战线态势、执行结果、敌情与反制、战报。
+- 放大常用触控目标：单位详情整补/待命/取消、战术条图标按钮、编队条、定位条、部署按钮、结束回合与重开按钮。
+- 本轮只改 `ContentView` 表现层，不改变侧栏数据来源与 `GameState` 命令。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.66（触控手感与侧栏层级）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续推进图例/编队条视觉统一与更完整的窄屏适配。

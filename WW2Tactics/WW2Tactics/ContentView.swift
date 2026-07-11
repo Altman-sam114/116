@@ -250,10 +250,11 @@ private struct EndTurnButton: View {
             if iconOnly {
                 Image(systemName: "forward.end.fill")
                     .font(.body.weight(.bold))
-                    .frame(width: 36, height: 34)
+                    .frame(width: 44, height: 40)
             } else {
                 Label("结束回合", systemImage: "forward.end.fill")
                     .font(.subheadline.weight(.semibold))
+                    .frame(minHeight: 40)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 9)
             }
@@ -315,7 +316,7 @@ private struct BattlefieldView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .font(.body.weight(.bold))
-                        .frame(width: 34, height: 34)
+                        .frame(width: 40, height: 40)
                 }
                 .buttonStyle(.bordered)
                 .tint(.white)
@@ -899,8 +900,9 @@ private struct ObjectiveJumpButton: View {
                     .background(ownerColor.opacity(0.18), in: Capsule())
             }
             .foregroundStyle(ownerColor)
-            .frame(height: 30)
-            .padding(.horizontal, 8)
+            .frame(minHeight: 40)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(Color.white.opacity(isFocused ? 0.14 : 0.07), in: RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7)
@@ -954,8 +956,9 @@ private struct UnitFocusButton: View {
                     .minimumScaleFactor(0.68)
             }
             .foregroundStyle(.white.opacity(0.82))
-            .frame(height: 30)
-            .padding(.horizontal, 8)
+            .frame(minHeight: 40)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(Color.white.opacity(isFocused ? 0.14 : 0.07), in: RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7)
@@ -1580,7 +1583,7 @@ private struct TacticalOrderStrip: View {
             } label: {
                 Image(systemName: "pause.fill")
                     .font(.caption.weight(.bold))
-                    .frame(width: 28, height: 28)
+                    .frame(width: 36, height: 36)
             }
             .buttonStyle(.bordered)
             .tint(.white)
@@ -1592,7 +1595,7 @@ private struct TacticalOrderStrip: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.caption.weight(.bold))
-                    .frame(width: 28, height: 28)
+                    .frame(width: 36, height: 36)
             }
             .buttonStyle(.bordered)
             .tint(.white)
@@ -1603,7 +1606,7 @@ private struct TacticalOrderStrip: View {
             } label: {
                 Image(systemName: "flag.checkered")
                     .font(.caption.weight(.bold))
-                    .frame(width: 28, height: 28)
+                    .frame(width: 36, height: 36)
             }
             .buttonStyle(.bordered)
             .tint(.green)
@@ -1722,7 +1725,7 @@ private struct DeploymentButton: View {
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(.white.opacity(0.62))
             }
-            .frame(width: 42, height: 40)
+            .frame(width: 48, height: 46)
             .background(
                 Faction.allies.accentColor.opacity(game.commandPoints(for: .allies) >= kind.commandCost ? 1 : 0.36),
                 in: RoundedRectangle(cornerRadius: 6)
@@ -1777,8 +1780,8 @@ private struct UnitRibbonButton: View {
                     }
                 }
             }
-            .frame(width: 138, height: 42)
-            .padding(.horizontal, 7)
+            .frame(width: 146, height: 46)
+            .padding(.horizontal, 8)
             .background(Color.white.opacity(isSelected ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 8))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
@@ -3337,14 +3340,53 @@ private struct UnitMarkerShape: Shape {
     }
 }
 
+private struct InspectorSectionHeader: View {
+    let title: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.caption.weight(.black))
+                .foregroundStyle(color)
+                .frame(width: 18, height: 18)
+            Text(title)
+                .font(.caption.weight(.black))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Rectangle()
+                .fill(color.opacity(0.28))
+                .frame(height: 1)
+        }
+        .padding(.top, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
+    }
+}
+
 private struct InspectorPanel: View {
     @EnvironmentObject private var game: GameState
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 14) {
                 let enemyThreatIntents = game.visibleEnemyThreatIntentPreviews
                 let enemyThreatCountermeasures = game.visibleEnemyThreatCountermeasurePreviews
+                let hasPrimaryResult =
+                    game.latestCombatResult != nil ||
+                    game.latestTacticalCommandResult != nil ||
+                    game.latestObjectiveCaptureResult != nil ||
+                    game.latestDeploymentResult != nil ||
+                    game.latestReinforcementResult != nil
+                let hasCountermeasureResult =
+                    game.latestEnemyThreatCountermeasureExecutionResult != nil ||
+                    game.latestEnemyThreatCountermeasureFollowUpResult != nil
+                let hasAIPhase = game.latestAIPhaseSummary != nil
+                let hasIntel = !enemyThreatIntents.isEmpty
+
+                InspectorSectionHeader(title: "主操作", icon: "person.crop.rectangle", color: BattlefieldTheme.brass)
 
                 if let winner = game.winner {
                     VictoryPanel(winner: winner)
@@ -3354,79 +3396,51 @@ private struct InspectorPanel: View {
                     ScenarioPanel()
                 }
 
-                Divider()
-                    .overlay(Color.white.opacity(0.18))
-
-                BattlefieldSituationSummaryView(summary: game.battlefieldSituationSummary)
-
                 if let tile = game.focusedTile {
-                    Divider()
-                        .overlay(Color.white.opacity(0.18))
                     TileDetail(tile: tile, unit: game.focusedUnit)
                 }
 
-                Divider()
-                    .overlay(Color.white.opacity(0.18))
+                InspectorSectionHeader(title: "战线态势", icon: "map.fill", color: .cyan)
+                BattlefieldSituationSummaryView(summary: game.battlefieldSituationSummary)
 
-                if let combatResult = game.latestCombatResult {
-                    CombatResultSummaryView(summary: combatResult)
+                if hasPrimaryResult || hasCountermeasureResult || hasAIPhase {
+                    InspectorSectionHeader(title: "执行结果", icon: "doc.text.fill", color: .orange)
 
-                    Divider()
-                        .overlay(Color.white.opacity(0.18))
-                } else if let tacticalResult = game.latestTacticalCommandResult {
-                    TacticalCommandResultSummaryView(summary: tacticalResult)
+                    if let combatResult = game.latestCombatResult {
+                        CombatResultSummaryView(summary: combatResult)
+                    } else if let tacticalResult = game.latestTacticalCommandResult {
+                        TacticalCommandResultSummaryView(summary: tacticalResult)
+                    } else if let captureResult = game.latestObjectiveCaptureResult {
+                        ObjectiveCaptureResultSummaryView(summary: captureResult)
+                    } else if let deploymentResult = game.latestDeploymentResult {
+                        DeploymentResultSummaryView(summary: deploymentResult)
+                    } else if let reinforcementResult = game.latestReinforcementResult {
+                        ReinforcementResultSummaryView(summary: reinforcementResult)
+                    }
 
-                    Divider()
-                        .overlay(Color.white.opacity(0.18))
-                } else if let captureResult = game.latestObjectiveCaptureResult {
-                    ObjectiveCaptureResultSummaryView(summary: captureResult)
+                    if let countermeasureResult = game.latestEnemyThreatCountermeasureExecutionResult {
+                        EnemyThreatCountermeasureExecutionResultSummaryView(summary: countermeasureResult)
+                    }
 
-                    Divider()
-                        .overlay(Color.white.opacity(0.18))
-                } else if let deploymentResult = game.latestDeploymentResult {
-                    DeploymentResultSummaryView(summary: deploymentResult)
+                    if let countermeasureFollowUp = game.latestEnemyThreatCountermeasureFollowUpResult {
+                        EnemyThreatCountermeasureFollowUpSummaryView(summary: countermeasureFollowUp)
+                    }
 
-                    Divider()
-                        .overlay(Color.white.opacity(0.18))
-                } else if let reinforcementResult = game.latestReinforcementResult {
-                    ReinforcementResultSummaryView(summary: reinforcementResult)
-
-                    Divider()
-                        .overlay(Color.white.opacity(0.18))
+                    if let aiPhaseSummary = game.latestAIPhaseSummary {
+                        AIPhaseSummaryView(summary: aiPhaseSummary)
+                    }
                 }
 
-                if let countermeasureResult = game.latestEnemyThreatCountermeasureExecutionResult {
-                    EnemyThreatCountermeasureExecutionResultSummaryView(summary: countermeasureResult)
-
-                    Divider()
-                        .overlay(Color.white.opacity(0.18))
-                }
-
-                if let countermeasureFollowUp = game.latestEnemyThreatCountermeasureFollowUpResult {
-                    EnemyThreatCountermeasureFollowUpSummaryView(summary: countermeasureFollowUp)
-
-                    Divider()
-                        .overlay(Color.white.opacity(0.18))
-                }
-
-                if let aiPhaseSummary = game.latestAIPhaseSummary {
-                    AIPhaseSummaryView(summary: aiPhaseSummary)
-
-                    Divider()
-                        .overlay(Color.white.opacity(0.18))
-                }
-
-                if !enemyThreatIntents.isEmpty {
+                if hasIntel {
+                    InspectorSectionHeader(title: "敌情与反制", icon: "eye.trianglebadge.exclamationmark.fill", color: .pink)
                     EnemyThreatIntentPanel(previews: enemyThreatIntents)
 
                     if !enemyThreatCountermeasures.isEmpty {
                         EnemyThreatCountermeasurePanel(previews: enemyThreatCountermeasures)
                     }
-
-                    Divider()
-                        .overlay(Color.white.opacity(0.18))
                 }
 
+                InspectorSectionHeader(title: "战报", icon: "text.alignleft", color: BattlefieldTheme.mutedInk)
                 BattleLogView()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -4374,7 +4388,7 @@ private struct UnitDetail: View {
                     game.reinforceSelectedUnit()
                 } label: {
                     Label("整补", systemImage: "cross.case.fill")
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.green)
@@ -4384,7 +4398,7 @@ private struct UnitDetail: View {
                     game.waitSelectedUnit()
                 } label: {
                     Label("待命", systemImage: "pause.fill")
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.gray)
@@ -4394,7 +4408,7 @@ private struct UnitDetail: View {
                     game.clearSelection()
                 } label: {
                     Label("取消", systemImage: "xmark")
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.bordered)
                 .tint(.white)

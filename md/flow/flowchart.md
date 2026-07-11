@@ -298,3 +298,7 @@ flowchart TD
 ## 地图 HUD 密度（v1.65）
 
 `StatusStrip`、`MapCampaignHUD`、`MapActionHUD` 与快捷命令按钮改为更紧凑布局；工具栏副标题改为缩放/焦点摘要，避免与消息条重复。所有数值与命令仍来自 `GameState`。
+
+## 侧栏与触控（v1.66）
+
+`InspectorPanel` 以分区标题组织主操作、战线态势、执行结果、敌情与反制、战报；编队条、定位条、战术条图标按钮、部署与单位详情主按钮放大触控目标。内容与 action 仍只转发 `GameState`。
