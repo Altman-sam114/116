@@ -278,3 +278,7 @@ flowchart TD
   B --> O
   T -->|是| Y["通过：确认 main 最新 run"]
 ```
+
+## 地图标记表现（v1.61）
+
+`HexTileView` 将态势/复盘短码收入统一顶/底栈（各最多 2 个 + `+N`），MOVE/ATK/POS 等命令标记固定角落；布局由 View 纯派生，不改变 `GameState` marker 生成与聚焦规则。

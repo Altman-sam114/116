@@ -1853,6 +1853,64 @@ private struct CoordinateLabel: View {
     }
 }
 
+private enum HexTileTopOverlayChip: String, Identifiable {
+    case countermeasure
+    case objectivePressure
+    case situationResponse
+    case enemyThreatIntent
+    case fireRisk
+    case latestCapture
+    case guidedObjective
+
+    var id: String { rawValue }
+
+    /// Lower sortOrder is shown first in the top stack (higher visual priority).
+    var sortOrder: Int {
+        switch self {
+        case .countermeasure: return 0
+        case .objectivePressure: return 1
+        case .situationResponse: return 2
+        case .enemyThreatIntent: return 3
+        case .fireRisk: return 4
+        case .latestCapture: return 5
+        case .guidedObjective: return 6
+        }
+    }
+}
+
+private enum HexTileBottomOverlayChip: String, Identifiable {
+    case aiPhase
+    case attackPosition
+
+    var id: String { rawValue }
+
+    var sortOrder: Int {
+        switch self {
+        case .aiPhase: return 0
+        case .attackPosition: return 1
+        }
+    }
+}
+
+private struct HexTileOverflowChip: View {
+    let count: Int
+
+    var body: some View {
+        Text("+\(count)")
+            .font(.system(size: 7, weight: .black, design: .rounded))
+            .foregroundStyle(.white.opacity(0.92))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(Color.black.opacity(0.62), in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(Color.white.opacity(0.28), lineWidth: 1)
+            )
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
 private struct HexTileView: View {
     let tile: TerrainTile
     let unit: BattleUnit?
@@ -1925,49 +1983,34 @@ private struct HexTileView: View {
                 MovementRouteMarker(step: routeStepPreview, isDestination: isRouteDestination)
             }
 
-            if isGuidedObjective {
-                GuidedObjectiveMarker()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, 22)
+            // Unified top stack: focus / situation chips with overflow collapse.
+            if !visibleTopOverlayChips.isEmpty || topOverlayOverflowCount > 0 {
+                VStack(spacing: 2) {
+                    ForEach(visibleTopOverlayChips) { chip in
+                        topOverlayChipView(chip)
+                    }
+                    if topOverlayOverflowCount > 0 {
+                        HexTileOverflowChip(count: topOverlayOverflowCount)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.top, 4)
+                .padding(.horizontal, 4)
             }
 
-            if isLatestObjectiveCapture {
-                ObjectiveCaptureMarker()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, isGuidedObjective ? 38 : 22)
-            }
-
-            if isEnemyThreatIntentTarget {
-                EnemyThreatIntentMarker()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, 5)
-            }
-
-            if !enemyThreatCountermeasureMarkers.isEmpty {
-                EnemyThreatCountermeasureFocusMarker(markers: enemyThreatCountermeasureMarkers)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, countermeasureMarkerTopPadding)
-            }
-
-            if !objectivePressureMarkers.isEmpty {
-                BattlefieldSituationObjectivePressureMapMarkerView(markers: objectivePressureMarkers)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, objectivePressureMarkerTopPadding)
-            }
-
-            if let battlefieldSituationResponseMarker {
-                BattlefieldSituationResponseMapMarkerView(marker: battlefieldSituationResponseMarker)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, battlefieldSituationResponseMarkerTopPadding)
-            }
-
-            if !aiPhaseMapMarkers.isEmpty {
-                AIPhaseMapReplayMarker(
-                    markers: focusedAIPhaseMapMarkers.isEmpty ? aiPhaseMapMarkers : focusedAIPhaseMapMarkers,
-                    isFocused: !focusedAIPhaseMapMarkers.isEmpty
-                )
+            // Unified bottom stack: AI replay / attack position with overflow collapse.
+            if !visibleBottomOverlayChips.isEmpty || bottomOverlayOverflowCount > 0 {
+                VStack(spacing: 2) {
+                    if bottomOverlayOverflowCount > 0 {
+                        HexTileOverflowChip(count: bottomOverlayOverflowCount)
+                    }
+                    ForEach(visibleBottomOverlayChips) { chip in
+                        bottomOverlayChipView(chip)
+                    }
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .padding(.bottom, aiPhaseMarkerBottomPadding)
+                .padding(.bottom, 5)
+                .padding(.horizontal, 4)
             }
 
             if isAttackCoverage {
@@ -1983,12 +2026,6 @@ private struct HexTileView: View {
                     .padding(.leading, 8)
             }
 
-            if isAttackPosition {
-                AttackPositionMarker()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, 6)
-            }
-
             if isEnemyControlZone {
                 ControlZoneMarker()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
@@ -2000,12 +2037,6 @@ private struct HexTileView: View {
                 ThreatenedMoveMarker()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                     .padding(.trailing, 9)
-            }
-
-            if let fireExposurePreview {
-                FireRiskMarker(preview: fireExposurePreview)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, 22)
             }
 
             if actionHint.isCommandable {
@@ -2108,63 +2139,96 @@ private struct HexTileView: View {
         }
     }
 
-    private var countermeasureMarkerTopPadding: CGFloat {
-        var occupiedTopSlots = 0
-        if isEnemyThreatIntentTarget {
-            occupiedTopSlots += 1
-        }
-        if battlefieldSituationResponseMarker != nil {
-            occupiedTopSlots += 1
+    private static let maxStackChips = 2
+
+    private var topOverlayChips: [HexTileTopOverlayChip] {
+        var chips: [HexTileTopOverlayChip] = []
+        if !enemyThreatCountermeasureMarkers.isEmpty {
+            chips.append(.countermeasure)
         }
         if !objectivePressureMarkers.isEmpty {
-            occupiedTopSlots += 1
-        }
-        if isGuidedObjective || isLatestObjectiveCapture || fireExposurePreview != nil {
-            occupiedTopSlots += 1
-        }
-        if isGuidedObjective && isLatestObjectiveCapture {
-            occupiedTopSlots += 1
-        }
-        return 5 + CGFloat(occupiedTopSlots) * 18
-    }
-
-    private var objectivePressureMarkerTopPadding: CGFloat {
-        var occupiedTopSlots = 0
-        if isEnemyThreatIntentTarget {
-            occupiedTopSlots += 1
+            chips.append(.objectivePressure)
         }
         if battlefieldSituationResponseMarker != nil {
-            occupiedTopSlots += 1
+            chips.append(.situationResponse)
         }
-        if isGuidedObjective || isLatestObjectiveCapture || fireExposurePreview != nil {
-            occupiedTopSlots += 1
-        }
-        if isGuidedObjective && isLatestObjectiveCapture {
-            occupiedTopSlots += 1
-        }
-        return 5 + CGFloat(occupiedTopSlots) * 18
-    }
-
-    private var battlefieldSituationResponseMarkerTopPadding: CGFloat {
-        var occupiedTopSlots = 0
         if isEnemyThreatIntentTarget {
-            occupiedTopSlots += 1
+            chips.append(.enemyThreatIntent)
         }
-        if isGuidedObjective || isLatestObjectiveCapture || fireExposurePreview != nil {
-            occupiedTopSlots += 1
+        if fireExposurePreview != nil {
+            chips.append(.fireRisk)
         }
-        if isGuidedObjective && isLatestObjectiveCapture {
-            occupiedTopSlots += 1
+        if isLatestObjectiveCapture {
+            chips.append(.latestCapture)
         }
-        return 5 + CGFloat(occupiedTopSlots) * 18
+        if isGuidedObjective {
+            chips.append(.guidedObjective)
+        }
+        return chips.sorted { $0.sortOrder < $1.sortOrder }
     }
 
-    private var aiPhaseMarkerBottomPadding: CGFloat {
-        var occupiedBottomSlots = 0
-        if isAttackPosition {
-            occupiedBottomSlots += 1
+    private var visibleTopOverlayChips: [HexTileTopOverlayChip] {
+        Array(topOverlayChips.prefix(Self.maxStackChips))
+    }
+
+    private var topOverlayOverflowCount: Int {
+        max(0, topOverlayChips.count - Self.maxStackChips)
+    }
+
+    private var bottomOverlayChips: [HexTileBottomOverlayChip] {
+        var chips: [HexTileBottomOverlayChip] = []
+        if !aiPhaseMapMarkers.isEmpty {
+            chips.append(.aiPhase)
         }
-        return 6 + CGFloat(occupiedBottomSlots) * 18
+        if isAttackPosition {
+            chips.append(.attackPosition)
+        }
+        return chips.sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    private var visibleBottomOverlayChips: [HexTileBottomOverlayChip] {
+        Array(bottomOverlayChips.prefix(Self.maxStackChips))
+    }
+
+    private var bottomOverlayOverflowCount: Int {
+        max(0, bottomOverlayChips.count - Self.maxStackChips)
+    }
+
+    @ViewBuilder
+    private func topOverlayChipView(_ chip: HexTileTopOverlayChip) -> some View {
+        switch chip {
+        case .countermeasure:
+            EnemyThreatCountermeasureFocusMarker(markers: enemyThreatCountermeasureMarkers)
+        case .objectivePressure:
+            BattlefieldSituationObjectivePressureMapMarkerView(markers: objectivePressureMarkers)
+        case .situationResponse:
+            if let battlefieldSituationResponseMarker {
+                BattlefieldSituationResponseMapMarkerView(marker: battlefieldSituationResponseMarker)
+            }
+        case .enemyThreatIntent:
+            EnemyThreatIntentMarker()
+        case .fireRisk:
+            if let fireExposurePreview {
+                FireRiskMarker(preview: fireExposurePreview)
+            }
+        case .latestCapture:
+            ObjectiveCaptureMarker()
+        case .guidedObjective:
+            GuidedObjectiveMarker()
+        }
+    }
+
+    @ViewBuilder
+    private func bottomOverlayChipView(_ chip: HexTileBottomOverlayChip) -> some View {
+        switch chip {
+        case .aiPhase:
+            AIPhaseMapReplayMarker(
+                markers: focusedAIPhaseMapMarkers.isEmpty ? aiPhaseMapMarkers : focusedAIPhaseMapMarkers,
+                isFocused: !focusedAIPhaseMapMarkers.isEmpty
+            )
+        case .attackPosition:
+            AttackPositionMarker()
+        }
     }
 
     private var accessibilityLabel: String {
@@ -5531,6 +5595,7 @@ private struct MapLegendView: View {
                 LegendItem(color: .pink.opacity(0.9), label: "据点压力", symbol: "PRS")
                 LegendItem(color: .orange.opacity(0.9), label: "态势响应", symbol: "RSP")
                 LegendItem(color: .indigo.opacity(0.88), label: "AI复盘", symbol: "AI")
+                LegendItem(color: .black.opacity(0.62), label: "同格折叠", symbol: "+N")
                 LegendItem(color: .green.opacity(0.9), label: "补给线")
                 LegendItem(color: .red.opacity(0.92), label: "断补给", symbol: "CUT")
                 LegendItem(color: .white.opacity(0.85), label: "焦点")

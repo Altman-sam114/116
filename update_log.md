@@ -2538,3 +2538,32 @@
 遗留事项：
 
 - 本轮未处理地图复盘标记拥挤度或 `InlineMapCommandPreview` / `FocusedCommandPreviewPanel` 重复实现；这些应继续拆成后续 UI 小轮次。
+
+### v1.61 / 地图标记拥挤度治理
+
+日期：2026-07-12
+
+核心变更：
+
+- `HexTileView` 将反制、据点压力、态势响应、敌方意图、火力风险、OBJ/CAP 与 AI 复盘/攻击位收入统一顶/底 marker 栈。
+- 顶/底栈各最多显示 2 个徽标，溢出显示 `+N`；MOVE/ATK/POS 与不可用目标仍固定角落，避免被折叠掉。
+- 删除分散的 `*MarkerTopPadding` / `aiPhaseMarkerBottomPadding` 硬编码错位。
+- 本轮只改 `ContentView` 表现层，不改变 `GameState` marker 生成、聚焦或命令链；无障碍文案仍列出全部标记语义。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.61（地图标记拥挤度治理）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions 云端重验证。
+
+遗留事项：
+
+- 下一轮优先处理 `InlineMapCommandPreview` / `FocusedCommandPreviewPanel` 命令预览去重。
