@@ -2737,3 +2737,31 @@
 遗留事项：
 
 - 可继续窄屏适配与动态字体优化。
+
+### v1.68 / 窄屏布局适配
+
+日期：2026-07-12
+
+核心变更：
+
+- `ContentView` 引入中宽/宽断点：`>=760` 并排 inspector，`<760` 上下堆叠并给 inspector 动态高度。
+- 地图 chrome 在宽度较窄时将 `MapCampaignHUD`/`MapActionHUD` 改为右侧紧凑叠放。
+- 本轮只改 `ContentView` 布局表现，不改变 `GameState` 与命令入口。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.68（窄屏布局适配）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续动态字体与更多面板微调。

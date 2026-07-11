@@ -306,3 +306,7 @@ flowchart TD
 ## 图例与编队条（v1.67）
 
 `MapLegendView` 与 `ForceRibbon` 使用统一指挥台背板、标题条与阵营标签；`UnitRibbonButton` 选中态使用阵营色强调。图例条目与编队数据来源不变。
+
+## 窄屏布局（v1.68）
+
+`ContentView` 按宽度断点切换并排 inspector 与上下堆叠；地图宽度较窄时 `MapCampaignHUD`/`MapActionHUD` 改为紧凑叠放，减少互相挤压。规则与命令入口不变。

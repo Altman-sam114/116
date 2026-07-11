@@ -68,7 +68,13 @@ struct ContentView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let isWide = proxy.size.width >= 820
+            let width = proxy.size.width
+            let height = proxy.size.height
+            let isWide = width >= 900
+            let isRegular = width >= 760
+            let horizontalPadding: CGFloat = isWide ? 16 : (isRegular ? 12 : 8)
+            let inspectorWidth: CGFloat = isWide ? 336 : 308
+            let compactInspectorHeight = min(max(height * 0.34, 220), 320)
 
             ZStack(alignment: .top) {
                 battlefieldBackdrop
@@ -76,24 +82,25 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     TopCommandBar()
 
-                    if isWide {
-                        HStack(spacing: 12) {
+                    if isRegular {
+                        HStack(spacing: isWide ? 12 : 10) {
                             BattlefieldView()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                             InspectorPanel()
-                                .frame(width: 324)
+                                .frame(width: inspectorWidth)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 14)
+                        .padding(.horizontal, horizontalPadding)
+                        .padding(.bottom, isWide ? 14 : 10)
                     } else {
-                        VStack(spacing: 10) {
+                        VStack(spacing: 8) {
                             BattlefieldView()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                             InspectorPanel()
-                                .frame(maxHeight: 260)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: compactInspectorHeight)
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.bottom, 10)
+                        .padding(.horizontal, horizontalPadding)
+                        .padding(.bottom, 8)
                     }
                 }
             }
@@ -388,19 +395,33 @@ private struct MapCommandCenter: View {
                     }
                 }
 
-                VStack {
-                    HStack(alignment: .top, spacing: 8) {
-                        MapCampaignHUD()
-                        Spacer(minLength: 8)
-                        MapActionHUD()
+                GeometryReader { mapProxy in
+                    let isCompactMapChrome = mapProxy.size.width < 680
+
+                    VStack(spacing: 0) {
+                        Group {
+                            if isCompactMapChrome {
+                                VStack(alignment: .trailing, spacing: 6) {
+                                    MapCampaignHUD(compact: true)
+                                    MapActionHUD(compact: true)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            } else {
+                                HStack(alignment: .top, spacing: 8) {
+                                    MapCampaignHUD()
+                                    Spacer(minLength: 8)
+                                    MapActionHUD()
+                                }
+                            }
+                        }
+                        .padding(isCompactMapChrome ? 6 : 8)
+
+                        Spacer(minLength: 6)
+
+                        ObjectiveJumpDock()
+                            .padding(.horizontal, isCompactMapChrome ? 6 : 8)
+                            .padding(.bottom, isCompactMapChrome ? 6 : 8)
                     }
-                    .padding(8)
-
-                    Spacer(minLength: 8)
-
-                    ObjectiveJumpDock()
-                        .padding(.horizontal, 8)
-                        .padding(.bottom, 8)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -503,9 +524,10 @@ private struct MapToolbar: View {
 
 private struct MapCampaignHUD: View {
     @EnvironmentObject private var game: GameState
+    var compact: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: compact ? 5 : 7) {
             HStack(spacing: 7) {
                 Image(systemName: "flag.2.crossed.fill")
                     .font(.caption.weight(.black))
@@ -570,17 +592,18 @@ private struct MapCampaignHUD: View {
                 }
             }
         }
-        .padding(8)
-        .frame(width: 236, alignment: .leading)
+        .padding(compact ? 7 : 8)
+        .frame(width: compact ? 210 : 236, alignment: .leading)
         .background(MapHudBackground())
     }
 }
 
 private struct MapActionHUD: View {
     @EnvironmentObject private var game: GameState
+    var compact: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: compact ? 5 : 7) {
             if let unit = game.selectedUnit {
                 HStack(spacing: 7) {
                     UnitShapeBadge(
@@ -696,8 +719,8 @@ private struct MapActionHUD: View {
                 }
             }
         }
-        .padding(8)
-        .frame(width: 304, alignment: .leading)
+        .padding(compact ? 7 : 8)
+        .frame(width: compact ? 268 : 304, alignment: .leading)
         .background(MapHudBackground())
     }
 
