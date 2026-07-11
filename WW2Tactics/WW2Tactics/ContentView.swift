@@ -6720,7 +6720,10 @@ private struct EnemyThreatIntentPanel: View {
 
                 Text("\(min(previews.count, 3))")
                     .font(.caption.weight(.black))
-                    .foregroundStyle(.pink)
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.pink.opacity(0.90), in: Capsule())
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             }
@@ -6730,11 +6733,21 @@ private struct EnemyThreatIntentPanel: View {
                 EnemyThreatIntentRow(preview: preview)
             }
         }
-        .padding(9)
-        .background(Color.pink.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        .padding(10)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.pink.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(Color.pink.opacity(0.22), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.pink.opacity(0.28), lineWidth: 1)
         )
         .accessibilityElement(children: .contain)
     }
@@ -6786,10 +6799,11 @@ private struct EnemyThreatIntentRow: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(8)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+        .background(BattlefieldTheme.fieldGlass.opacity(0.40), in: RoundedRectangle(cornerRadius: 7))
         .overlay(
             RoundedRectangle(cornerRadius: 7)
-                .stroke(accentColor.opacity(0.22), lineWidth: 1)
+                .stroke(accentColor.opacity(0.28), lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
     }
@@ -6878,7 +6892,10 @@ private struct EnemyThreatCountermeasurePanel: View {
 
                 Text("\(visiblePreviews.count)")
                     .font(.caption.weight(.black))
-                    .foregroundStyle(.cyan)
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.cyan.opacity(0.90), in: Capsule())
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             }
@@ -6904,11 +6921,21 @@ private struct EnemyThreatCountermeasurePanel: View {
                 EnemyThreatCountermeasureExecutionHint(preview: executionPreview)
             }
         }
-        .padding(9)
-        .background(Color.cyan.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        .padding(10)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.cyan.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(Color.cyan.opacity(0.22), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.cyan.opacity(0.28), lineWidth: 1)
         )
         .accessibilityElement(children: .contain)
     }
@@ -7399,10 +7426,10 @@ private struct EnemyThreatCountermeasureComparisonHint: View {
                 .minimumScaleFactor(0.72)
         }
         .padding(8)
-        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 7))
+        .background(BattlefieldTheme.fieldGlass.opacity(0.40), in: RoundedRectangle(cornerRadius: 7))
         .overlay(
             RoundedRectangle(cornerRadius: 7)
-                .stroke(Color.cyan.opacity(0.24), lineWidth: 1)
+                .stroke(Color.cyan.opacity(0.28), lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("首选依据，\(preview.summary)，\(preview.factor.title)：\(preview.factor.value)")
@@ -7502,10 +7529,14 @@ private struct EnemyThreatCountermeasureRow: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(8)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+        .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
+        .background(
+            (isFocused ? Color.white.opacity(0.10) : BattlefieldTheme.fieldGlass.opacity(0.40)),
+            in: RoundedRectangle(cornerRadius: 7)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 7)
-                .stroke(isFocused ? Color.white.opacity(0.52) : accentColor.opacity(0.22), lineWidth: isFocused ? 1.4 : 1)
+                .stroke(isFocused ? Color.yellow.opacity(0.66) : accentColor.opacity(0.28), lineWidth: isFocused ? 2 : 1)
         )
         .accessibilityElement(children: .combine)
     }

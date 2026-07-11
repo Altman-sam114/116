@@ -2878,3 +2878,31 @@
 遗留事项：
 
 - 可继续敌情/反制细面板微调。
+
+### v1.73 / 敌情与反制面板视觉
+
+日期：2026-07-12
+
+核心变更：
+
+- `EnemyThreatIntentPanel`、`EnemyThreatCountermeasurePanel` 对齐指挥台渐变卡片。
+- 意图行与反制行提高最小高度，强化当前预览描边与数量胶囊。
+- 本轮只改 `ContentView` 表现层，不改变威胁意图/反制建议生成与聚焦规则。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.73（敌情与反制面板视觉）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续可玩性反馈增强与剩余细面板微调。

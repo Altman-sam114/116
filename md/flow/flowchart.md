@@ -326,3 +326,7 @@ flowchart TD
 ## 作战规划面板（v1.72）
 
 `ObjectiveAdvancePlanPanel`、`SafeEngagementOptionsPanel`、`TacticalCommandGroup` 与 `CommanderView` 使用统一指挥台卡片样式；点选仍只聚焦或调用既有 `GameState` 战术入口。
+
+## 敌情与反制面板（v1.73）
+
+`EnemyThreatIntentPanel` 与 `EnemyThreatCountermeasurePanel` 使用统一指挥台渐变卡片；行组件强化当前预览态。威胁/反制数据与聚焦入口仍来自 `GameState`。
