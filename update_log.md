@@ -2477,3 +2477,33 @@
 遗留事项：
 
 - 本轮未重构战线态势面板、AI 复盘时间线、地图标记拥挤度或 `InlineMapCommandPreview` / `FocusedCommandPreviewPanel` 文案去重；这些应继续拆成后续 UI 小轮次。
+
+### v1.59 / 战线态势指挥简报重构
+
+日期：2026-07-11
+
+核心变更：
+
+- 将超长 `BattlefieldSituationSummaryView` 拆成标题、最近响应、复盘入口、首要目标、据点压力和页脚等专属私有子 View，保持原显示顺序。
+- 战线态势主卡升级为指挥简报式层级，突出优先级、摘要、真实响应、行动入口、压力和指标。
+- 重构据点压力行，保留 NOW/CHK、威胁源、当前/应对对照、敌方回合影响、推荐入口和当前焦点，同时改善窄侧栏可读性。
+- 将态势响应上一条/下一条和定位入口扩为至少 44x44 点击区，保留原 action、disabled 和 VoiceOver 文案。
+- 本轮只改 `ContentView` 表现层，不改变 `GameState` 态势派生、压力排序、响应历史、定位、AI 复盘或地图 marker 行为。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.59（战线态势指挥简报重构）.md`
+
+验证结果：
+
+- 本轮人工要求不跑本地测试，全部交给 GitHub Actions 云端重验证；最终结果以本轮交付记录中的 run 和 artifact 为准。
+
+遗留事项：
+
+- 本轮未重构 AI 复盘时间线、地图标记拥挤度或命令预览重复实现；这些应继续拆成后续 UI 小轮次。
