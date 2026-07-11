@@ -3789,7 +3789,10 @@ private struct BattlefieldSituationResponseCard: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(response.resultTitle)
                     .font(.caption.weight(.black))
-                    .foregroundStyle(color)
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(color.opacity(0.90), in: Capsule())
                     .lineLimit(1)
                 Text(response.resultDetail)
                     .font(.caption.weight(.semibold))
@@ -3799,9 +3802,13 @@ private struct BattlefieldSituationResponseCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 7)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
+            .background(BattlefieldTheme.fieldGlass.opacity(0.42), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(color.opacity(0.24), lineWidth: 1)
+            )
 
             if showsHistory, let historyPositionText {
                 HStack(spacing: 8) {
@@ -3830,12 +3837,23 @@ private struct BattlefieldSituationResponseCard: View {
                 .accessibilityLabel("态势响应历史 \(historyPositionText)")
             }
         }
-        .padding(9)
-        .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .padding(10)
+        .background(
+            LinearGradient(
+                colors: [
+                    color.opacity(0.14),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.46)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(color.opacity(0.24), lineWidth: 1)
+                .stroke(color.opacity(0.32), lineWidth: 1)
         )
+        .shadow(color: .black.opacity(0.14), radius: 8, x: 0, y: 4)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("战线态势执行反馈，\(response.kind.shortTitle)，\(response.title)，\(response.detail)，\(response.resultTitle)，\(response.resultDetail)")
     }
@@ -7911,20 +7929,22 @@ private struct AIPhaseReplayControls: View {
     @EnvironmentObject private var game: GameState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 7) {
                 Label("行动时间线", systemImage: "list.number")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(BattlefieldTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 Spacer(minLength: 6)
 
                 Text(game.isAIPhaseTimelinePlaybackActive ? "播放中" : "复盘")
                     .font(.caption2.weight(.black))
                     .foregroundStyle(game.isAIPhaseTimelinePlaybackActive ? .black.opacity(0.82) : BattlefieldTheme.mutedInk)
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, 7)
                     .padding(.vertical, 4)
-                    .background(game.isAIPhaseTimelinePlaybackActive ? Color.yellow.opacity(0.88) : Color.white.opacity(0.08), in: Capsule())
+                    .background(game.isAIPhaseTimelinePlaybackActive ? Color.yellow.opacity(0.90) : Color.white.opacity(0.08), in: Capsule())
             }
 
             HStack(spacing: 8) {
@@ -7957,6 +7977,22 @@ private struct AIPhaseReplayControls: View {
                 }
             }
         }
+        .padding(9)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.yellow.opacity(game.isAIPhaseTimelinePlaybackActive ? 0.12 : 0.06),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.40)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.yellow.opacity(game.isAIPhaseTimelinePlaybackActive ? 0.34 : 0.16), lineWidth: 1)
+        )
     }
 }
 
@@ -7964,19 +8000,49 @@ private struct AIPhaseCurrentTimelineEventView: View {
     let event: AIPhaseTimelineEvent
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Label("当前回放 #\(event.order)", systemImage: "scope")
-                .font(.caption.weight(.black))
-                .foregroundStyle(.yellow)
-                .monospacedDigit()
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 7) {
+                Label("当前回放", systemImage: "scope")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.yellow)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                Text("#\(event.order)")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.black.opacity(0.82))
+                    .monospacedDigit()
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.yellow.opacity(0.90), in: Capsule())
+
+                Spacer(minLength: 6)
+
+                Text(event.kind.shortCode)
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(BattlefieldTheme.ink)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.10), in: Capsule())
+            }
 
             AIPhaseTimelineEventRow(event: event, isFocused: true)
         }
-        .padding(8)
-        .background(Color.yellow.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        .padding(10)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.yellow.opacity(0.14),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.46)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(Color.yellow.opacity(0.30), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.yellow.opacity(0.36), lineWidth: 1.5)
         )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("当前AI复盘事件 \(event.order)，\(event.kind.title)，\(event.summary)")

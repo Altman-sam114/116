@@ -2934,3 +2934,31 @@
 遗留事项：
 
 - 可继续剩余细面板与可玩性反馈增强。
+
+### v1.75 / 态势响应与 AI 回放反馈强化
+
+日期：2026-07-12
+
+核心变更：
+
+- `BattlefieldSituationResponseCard` 升级为指挥台渐变卡片，结果标题改为胶囊强调。
+- `AIPhaseReplayControls` 增加播放态背板；`AIPhaseCurrentTimelineEventView` 强化当前事件编号与类型反馈。
+- 本轮只改 `ContentView` 表现层，不改变响应历史导航与 AI 播放状态机。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.75（态势响应与AI回放反馈强化）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续剩余细面板与可玩性反馈增强。

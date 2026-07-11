@@ -334,3 +334,7 @@ flowchart TD
 ## 反制下一步反馈（v1.74）
 
 `EnemyThreatCountermeasureExecutionHint` 突出可执行/不可执行与入口说明；`EnemyThreatCountermeasureFollowUpAIEventRow` 提高触控高度。提示与定位仍只转发 `GameState`，不会自动执行命令。
+
+## 态势响应与 AI 回放反馈（v1.75）
+
+`BattlefieldSituationResponseCard` 使用指挥台渐变卡片并强化结果胶囊；`AIPhaseReplayControls` 与 `AIPhaseCurrentTimelineEventView` 突出播放态与当前事件。行为仍只调用既有 `GameState` 导航/播放入口。
