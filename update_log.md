@@ -2709,3 +2709,31 @@
 遗留事项：
 
 - 可继续推进图例/编队条视觉统一与更完整的窄屏适配。
+
+### v1.67 / 图例与编队条视觉统一
+
+日期：2026-07-12
+
+核心变更：
+
+- `MapLegendView` 增加标题条与指挥台背板，图例项统一到 `BattlefieldTheme` 质感。
+- `ForceRibbon` 增加编队标题与盟军/轴心分区标签，编队按钮选中态使用阵营色强调。
+- 本轮只改 `ContentView` 表现层，不改变图例条目集合与编队选择/定位逻辑。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.67（图例与编队条视觉统一）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续窄屏适配与动态字体优化。

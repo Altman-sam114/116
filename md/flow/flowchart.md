@@ -302,3 +302,7 @@ flowchart TD
 ## 侧栏与触控（v1.66）
 
 `InspectorPanel` 以分区标题组织主操作、战线态势、执行结果、敌情与反制、战报；编队条、定位条、战术条图标按钮、部署与单位详情主按钮放大触控目标。内容与 action 仍只转发 `GameState`。
+
+## 图例与编队条（v1.67）
+
+`MapLegendView` 与 `ForceRibbon` 使用统一指挥台背板、标题条与阵营标签；`UnitRibbonButton` 选中态使用阵营色强调。图例条目与编队数据来源不变。

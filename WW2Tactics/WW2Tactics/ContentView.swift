@@ -1422,30 +1422,72 @@ private struct ForceRibbon: View {
     @EnvironmentObject private var game: GameState
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                ForEach(game.units(for: .allies)) { unit in
-                    UnitRibbonButton(
-                        unit: unit,
-                        isSelected: game.selectedUnitID == unit.id,
-                        isEnabled: unit.faction == game.activeFaction && game.winner == nil
-                    )
-                }
-
-                Divider()
-                    .frame(height: 42)
-                    .overlay(Color.white.opacity(0.18))
-
-                ForEach(game.units(for: .axis)) { unit in
-                    UnitRibbonButton(
-                        unit: unit,
-                        isSelected: game.focusedUnit?.id == unit.id,
-                        isEnabled: game.winner == nil
-                    )
-                }
+                Label("编队", systemImage: "person.3.sequence.fill")
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(BattlefieldTheme.brass)
+                Text("盟军 \(game.units(for: .allies).count) · 轴心 \(game.units(for: .axis).count)")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                Spacer(minLength: 0)
             }
-            .padding(.vertical, 2)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForceRibbonFactionTag(title: "盟军", color: Faction.allies.accentColor)
+
+                    ForEach(game.units(for: .allies)) { unit in
+                        UnitRibbonButton(
+                            unit: unit,
+                            isSelected: game.selectedUnitID == unit.id,
+                            isEnabled: unit.faction == game.activeFaction && game.winner == nil
+                        )
+                    }
+
+                    Rectangle()
+                        .fill(BattlefieldTheme.hairline)
+                        .frame(width: 1, height: 40)
+
+                    ForceRibbonFactionTag(title: "轴心", color: Faction.axis.accentColor)
+
+                    ForEach(game.units(for: .axis)) { unit in
+                        UnitRibbonButton(
+                            unit: unit,
+                            isSelected: game.focusedUnit?.id == unit.id,
+                            isEnabled: game.winner == nil
+                        )
+                    }
+                }
+                .padding(.vertical, 2)
+            }
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(BattlefieldTheme.commandDeckDeep.opacity(0.58))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(BattlefieldTheme.brass.opacity(0.16), lineWidth: 1)
+                )
+        )
+    }
+}
+
+private struct ForceRibbonFactionTag: View {
+    let title: String
+    let color: Color
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 10, weight: .black, design: .rounded))
+            .foregroundStyle(.black.opacity(0.82))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(minHeight: 36)
+            .background(color.opacity(0.88), in: Capsule())
+            .accessibilityHidden(true)
     }
 }
 
@@ -1780,12 +1822,18 @@ private struct UnitRibbonButton: View {
                     }
                 }
             }
-            .frame(width: 146, height: 46)
+            .frame(width: 150, height: 46)
             .padding(.horizontal, 8)
-            .background(Color.white.opacity(isSelected ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 8))
+            .background(
+                (isSelected ? unit.faction.accentColor.opacity(0.18) : BattlefieldTheme.fieldGlass.opacity(0.42)),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.yellow : Color.white.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+                    .stroke(
+                        isSelected ? Color.yellow : unit.faction.accentColor.opacity(0.28),
+                        lineWidth: isSelected ? 2 : 1
+                    )
             )
             .opacity(isEnabled || unit.faction != game.activeFaction ? 1 : 0.62)
         }
@@ -5608,37 +5656,62 @@ private struct TerrainKey: View {
 
 private struct MapLegendView: View {
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                LegendItem(color: .white.opacity(0.85), label: "左键选择")
-                LegendItem(color: .orange.opacity(0.94), label: "右键执行")
-                LegendItem(color: .yellow, label: "选中")
-                LegendItem(color: .cyan, label: "步序/消耗", symbol: "1")
-                LegendItem(color: .red.opacity(0.82), label: "路线风险", symbol: "!")
-                LegendItem(color: FireRiskLevel.high.accentColor, label: "火力风险", symbol: "HIGH")
-                LegendItem(color: .red, label: "攻击预估", symbol: "A")
-                LegendItem(color: .orange.opacity(0.86), label: "移动后目标", symbol: "NX")
-                LegendItem(color: .orange.opacity(0.76), label: "攻击位", symbol: "POS")
-                LegendItem(color: .red.opacity(0.78), label: "敌火覆盖", symbol: "TH")
-                LegendItem(color: .pink.opacity(0.86), label: "敌方意图", symbol: "INT")
-                LegendItem(color: .mint.opacity(0.9), label: "反制聚焦", symbol: "ACT")
-                LegendItem(color: .pink.opacity(0.9), label: "据点压力", symbol: "PRS")
-                LegendItem(color: .orange.opacity(0.9), label: "态势响应", symbol: "RSP")
-                LegendItem(color: .indigo.opacity(0.88), label: "AI复盘", symbol: "AI")
-                LegendItem(color: .black.opacity(0.62), label: "同格折叠", symbol: "+N")
-                LegendItem(color: .green.opacity(0.9), label: "补给线")
-                LegendItem(color: .red.opacity(0.92), label: "断补给", symbol: "CUT")
-                LegendItem(color: .white.opacity(0.85), label: "焦点")
-                LegendItem(color: Faction.allies.accentColor, label: "盟军")
-                LegendItem(color: Faction.axis.accentColor, label: "轴心国")
-                LegendItem(color: .purple.opacity(0.92), label: "压制", symbol: "PIN")
-                UnitLegendItem(kind: .infantry, faction: .allies)
-                UnitLegendItem(kind: .tank, faction: .allies)
-                UnitLegendItem(kind: .artillery, faction: .axis)
-                UnitLegendItem(kind: .recon, faction: .axis)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "list.bullet.rectangle")
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(BattlefieldTheme.brass)
+                Text("图例")
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(BattlefieldTheme.ink)
+                Text("操作 · 风险 · 态势 · 兵种")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                Spacer(minLength: 0)
             }
-            .padding(.vertical, 2)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    LegendItem(color: .white.opacity(0.85), label: "左键选择")
+                    LegendItem(color: .orange.opacity(0.94), label: "右键执行")
+                    LegendItem(color: .yellow, label: "选中")
+                    LegendItem(color: .cyan, label: "步序/消耗", symbol: "1")
+                    LegendItem(color: .red.opacity(0.82), label: "路线风险", symbol: "!")
+                    LegendItem(color: FireRiskLevel.high.accentColor, label: "火力风险", symbol: "HIGH")
+                    LegendItem(color: .red, label: "攻击预估", symbol: "A")
+                    LegendItem(color: .orange.opacity(0.86), label: "移动后目标", symbol: "NX")
+                    LegendItem(color: .orange.opacity(0.76), label: "攻击位", symbol: "POS")
+                    LegendItem(color: .red.opacity(0.78), label: "敌火覆盖", symbol: "TH")
+                    LegendItem(color: .pink.opacity(0.86), label: "敌方意图", symbol: "INT")
+                    LegendItem(color: .mint.opacity(0.9), label: "反制聚焦", symbol: "ACT")
+                    LegendItem(color: .pink.opacity(0.9), label: "据点压力", symbol: "PRS")
+                    LegendItem(color: .orange.opacity(0.9), label: "态势响应", symbol: "RSP")
+                    LegendItem(color: .indigo.opacity(0.88), label: "AI复盘", symbol: "AI")
+                    LegendItem(color: .black.opacity(0.62), label: "同格折叠", symbol: "+N")
+                    LegendItem(color: .green.opacity(0.9), label: "补给线")
+                    LegendItem(color: .red.opacity(0.92), label: "断补给", symbol: "CUT")
+                    LegendItem(color: .white.opacity(0.85), label: "焦点")
+                    LegendItem(color: Faction.allies.accentColor, label: "盟军")
+                    LegendItem(color: Faction.axis.accentColor, label: "轴心国")
+                    LegendItem(color: .purple.opacity(0.92), label: "压制", symbol: "PIN")
+                    UnitLegendItem(kind: .infantry, faction: .allies)
+                    UnitLegendItem(kind: .tank, faction: .allies)
+                    UnitLegendItem(kind: .artillery, faction: .axis)
+                    UnitLegendItem(kind: .recon, faction: .axis)
+                }
+                .padding(.vertical, 1)
+            }
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(BattlefieldTheme.commandDeckDeep.opacity(0.58))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(BattlefieldTheme.brass.opacity(0.16), lineWidth: 1)
+                )
+        )
     }
 }
 
@@ -5655,17 +5728,27 @@ private struct LegendItem: View {
                 if let symbol {
                     Text(symbol)
                         .font(.system(size: 8, weight: .black, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.92))
                 }
             }
             .frame(width: 14, height: 14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+            )
             Text(label)
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.68))
+                .foregroundStyle(BattlefieldTheme.ink.opacity(0.86))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 5)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 6))
+        .background(BattlefieldTheme.fieldGlass.opacity(0.48), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+        )
     }
 }
 
@@ -5678,11 +5761,17 @@ private struct UnitLegendItem: View {
             UnitShapeBadge(kind: kind, faction: faction, rank: .green, width: 34, height: 18)
             Text(kind.title)
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.68))
+                .foregroundStyle(BattlefieldTheme.ink.opacity(0.86))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 5)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 6))
+        .background(BattlefieldTheme.fieldGlass.opacity(0.48), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+        )
     }
 }
 
