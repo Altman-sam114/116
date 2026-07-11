@@ -2595,3 +2595,31 @@
 遗留事项：
 
 - 可继续推进其他 UI 可读性/可玩性小轮次，不强制重复命令预览重构。
+
+### v1.63 / 后勤与战术结果卡视觉统一
+
+日期：2026-07-12
+
+核心变更：
+
+- `TacticalCommandResultSummaryView`、`ObjectiveCaptureResultSummaryView`、`DeploymentResultSummaryView`、`ReinforcementResultSummaryView` 对齐战斗结果战报卡层级。
+- 细节行复用 `BattleResultDetailLine`，统一渐变底、结论胶囊和指标条。
+- 本轮只改 `ContentView` 表现层，不改变结果生成规则。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.63（后勤结果卡视觉统一）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 反制执行回放卡等仍可继续视觉对齐。

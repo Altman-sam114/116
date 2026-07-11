@@ -286,3 +286,7 @@ flowchart TD
 ## 命令预览呈现（v1.62）
 
 `InlineMapCommandPreview` 与 `FocusedCommandPreviewPanel` 共用 `MapCommandPreviewChrome` 只读 helper 生成图标、色阶、路线/火力/接敌摘要；预览数据仍来自 `GameState.focusedCommandPreview`，不在 View 中重算规则。
+
+## 结果卡视觉（v1.63）
+
+战术命令、据点占领、增援部署与整补结果卡使用与 `CombatResultSummaryView` 同族的标题/结论胶囊/叙述/指标/细节行与渐变底；数据仍来自既有 `latest*Result` 字段。

@@ -5936,22 +5936,30 @@ private struct TacticalCommandResultSummaryView: View {
     let summary: TacticalCommandResultSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
                 Label(summary.command.title, systemImage: summary.command.systemImage)
                     .font(.subheadline.weight(.bold))
+                    .foregroundStyle(summary.command.accentColor)
 
                 Spacer(minLength: 8)
 
-                Text(summary.command.shortTitle)
+                Text(resultBadgeTitle)
                     .font(.caption.weight(.black))
-                    .foregroundStyle(summary.command.accentColor)
+                    .foregroundStyle(.black.opacity(0.82))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(summary.command.accentColor.opacity(0.90), in: Capsule())
             }
-            .foregroundStyle(summary.command.accentColor)
 
-            VStack(alignment: .leading, spacing: 6) {
+            Text(resultNarrative)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 7) {
                 CombatantResultLine(title: "施放", snapshot: summary.caster, tint: summary.command.accentColor)
                 CombatantResultLine(title: "目标", snapshot: summary.target, tint: summary.didDestroyTarget ? .red : .cyan)
             }
@@ -5966,21 +5974,45 @@ private struct TacticalCommandResultSummaryView: View {
             if !details.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(Array(details.enumerated()), id: \.offset) { _, row in
-                        Label(row.text, systemImage: row.icon)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(row.color)
-                            .fixedSize(horizontal: false, vertical: true)
+                        BattleResultDetailLine(row: row)
                     }
                 }
             }
         }
-        .padding(9)
-        .background(summary.command.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(summary.command.accentColor.opacity(0.24), lineWidth: 1)
+        .padding(11)
+        .background(
+            LinearGradient(
+                colors: [
+                    summary.command.accentColor.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.50)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(summary.command.accentColor.opacity(0.34), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.17), radius: 11, x: 0, y: 5)
         .accessibilityElement(children: .combine)
+    }
+
+    private var resultBadgeTitle: String {
+        if summary.didDestroyTarget {
+            return "\(summary.command.shortTitle) · 击毁"
+        }
+        if summary.didApplyStatusEffect {
+            return "\(summary.command.shortTitle) · 压制"
+        }
+        return summary.command.shortTitle
+    }
+
+    private var resultNarrative: String {
+        let targetState = summary.didDestroyTarget ? "击毁 \(summary.target.name)" : "\(summary.target.name) 剩余 \(summary.target.endingHP) 耐久"
+        let statusState = summary.didApplyStatusEffect ? "，施加 \(summary.statusEffect.title)" : ""
+        return "\(summary.caster.name) 施放 \(summary.command.title)，造成 \(summary.damage) 伤害，\(targetState)\(statusState)。"
     }
 
     private var detailRows: [CombatResultDetailRow] {
@@ -6019,32 +6051,48 @@ private struct ObjectiveCaptureResultSummaryView: View {
     let summary: ObjectiveCaptureResultSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
                 Label("据点占领", systemImage: "flag.fill")
                     .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.yellow)
 
                 Spacer(minLength: 8)
 
                 Text(summary.actionTitle)
                     .font(.caption.weight(.black))
-                    .foregroundStyle(.yellow)
+                    .foregroundStyle(.black.opacity(0.82))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.yellow.opacity(0.90), in: Capsule())
             }
-            .foregroundStyle(.yellow)
+
+            Text("\(summary.capturingUnitName) 占领 \(summary.objectiveName)，据点转由 \(summary.newOwner.title) 控制。")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(summary.objectiveName)
                     .font(.headline.weight(.bold))
+                    .foregroundStyle(BattlefieldTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                 Text("\(summary.capturingUnitName) · \(summary.capturingUnitKind.title) · q\(summary.coordinate.q),r\(summary.coordinate.r)")
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(Color.yellow.opacity(0.18), lineWidth: 1)
+            )
 
             HStack(spacing: 7) {
                 CombatResultMetric(title: "指令", value: "+\(summary.commandPointReward)", color: .yellow)
@@ -6053,23 +6101,27 @@ private struct ObjectiveCaptureResultSummaryView: View {
             }
 
             VStack(alignment: .leading, spacing: 5) {
-                Label(summary.ownerTransitionText, systemImage: "arrow.left.arrow.right")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(summary.newOwner.accentColor)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Label("据点进度 \(summary.progressText)，轴心 \(summary.axisScoreAfterCapture)/\(summary.totalObjectiveCount)", systemImage: "chart.bar.fill")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.72))
-                    .fixedSize(horizontal: false, vertical: true)
+                BattleResultDetailLine(row: .init(icon: "arrow.left.arrow.right", text: summary.ownerTransitionText, color: summary.newOwner.accentColor))
+                BattleResultDetailLine(row: .init(icon: "chart.bar.fill", text: "据点进度 \(summary.progressText)，轴心 \(summary.axisScoreAfterCapture)/\(summary.totalObjectiveCount)", color: .white.opacity(0.82)))
             }
         }
-        .padding(9)
-        .background(Color.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(Color.yellow.opacity(0.24), lineWidth: 1)
+        .padding(11)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.yellow.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.50)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.yellow.opacity(0.34), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.17), radius: 11, x: 0, y: 5)
         .accessibilityElement(children: .combine)
     }
 }
@@ -6078,32 +6130,48 @@ private struct DeploymentResultSummaryView: View {
     let summary: DeploymentResultSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
                 Label("增援部署", systemImage: "plus.square.on.square.fill")
                     .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.cyan)
 
                 Spacer(minLength: 8)
 
                 Text(summary.unitKind.code)
                     .font(.caption.weight(.black))
-                    .foregroundStyle(.cyan)
+                    .foregroundStyle(.black.opacity(0.82))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.cyan.opacity(0.90), in: Capsule())
             }
-            .foregroundStyle(.cyan)
+
+            Text("在 \(summary.sourceObjectiveName) 部署 \(summary.unitName)，消耗 \(summary.commandCost) 指令点。")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(summary.unitName)
                     .font(.headline.weight(.bold))
+                    .foregroundStyle(BattlefieldTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                 Text("\(summary.faction.title) · \(summary.unitKind.title) · q\(summary.coordinate.q),r\(summary.coordinate.r)")
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(Color.cyan.opacity(0.18), lineWidth: 1)
+            )
 
             HStack(spacing: 7) {
                 CombatResultMetric(title: "指令", value: "-\(summary.commandCost)", color: .yellow)
@@ -6111,17 +6179,25 @@ private struct DeploymentResultSummaryView: View {
                 CombatResultMetric(title: "耐久", value: "\(summary.unitKind.baseHP)", color: .green)
             }
 
-            Label("来源据点 \(summary.sourceObjectiveName)，新部队本回合已完成部署行动。", systemImage: "flag.fill")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(summary.faction.accentColor)
-                .fixedSize(horizontal: false, vertical: true)
+            BattleResultDetailLine(row: .init(icon: "flag.fill", text: "来源据点 \(summary.sourceObjectiveName)，新部队本回合已完成部署行动。", color: summary.faction.accentColor))
         }
-        .padding(9)
-        .background(Color.cyan.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(Color.cyan.opacity(0.24), lineWidth: 1)
+        .padding(11)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.cyan.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.50)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.cyan.opacity(0.34), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.17), radius: 11, x: 0, y: 5)
         .accessibilityElement(children: .combine)
     }
 }
@@ -6130,32 +6206,48 @@ private struct ReinforcementResultSummaryView: View {
     let summary: ReinforcementResultSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
                 Label("整补结果", systemImage: "cross.case.fill")
                     .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.green)
 
                 Spacer(minLength: 8)
 
                 Text("+\(summary.recoveredHP)")
                     .font(.caption.weight(.black))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(.black.opacity(0.82))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.green.opacity(0.90), in: Capsule())
             }
-            .foregroundStyle(.green)
+
+            Text("\(summary.unitName) 整补恢复 \(summary.recoveredHP) 耐久，指令消耗 \(summary.commandCost)。")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(summary.unitName)
                     .font(.headline.weight(.bold))
+                    .foregroundStyle(BattlefieldTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                 Text("\(summary.faction.title) · \(summary.unitKind.title) · q\(summary.coordinate.q),r\(summary.coordinate.r)")
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(Color.green.opacity(0.18), lineWidth: 1)
+            )
 
             HStack(spacing: 7) {
                 CombatResultMetric(title: "耐久", value: "\(summary.startingHP)->\(summary.endingHP)", color: .green)
@@ -6163,17 +6255,25 @@ private struct ReinforcementResultSummaryView: View {
                 CombatResultMetric(title: "剩余", value: "\(summary.commandPointsAfterReinforcement)", color: .white.opacity(0.82))
             }
 
-            Label("整补后本回合行动已消耗，战术状态与防御姿态重置。", systemImage: "checkmark.seal.fill")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.green.opacity(0.86))
-                .fixedSize(horizontal: false, vertical: true)
+            BattleResultDetailLine(row: .init(icon: "checkmark.seal.fill", text: "整补后本回合行动已消耗，战术状态与防御姿态重置。", color: .green.opacity(0.90)))
         }
-        .padding(9)
-        .background(Color.green.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(Color.green.opacity(0.24), lineWidth: 1)
+        .padding(11)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.green.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.50)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.green.opacity(0.34), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.17), radius: 11, x: 0, y: 5)
         .accessibilityElement(children: .combine)
     }
 }
