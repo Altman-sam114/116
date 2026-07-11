@@ -1529,10 +1529,13 @@ private struct TacticalOrderStrip: View {
             }
         }
         .padding(10)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-        .overlay(
+        .background(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .fill(BattlefieldTheme.commandDeckDeep.opacity(0.58))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(BattlefieldTheme.brass.opacity(0.16), lineWidth: 1)
+                )
         )
     }
 
@@ -1712,11 +1715,15 @@ private struct ReinforcementDock: View {
             HStack {
                 Label("增援部署", systemImage: "plus.square.on.square")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.78))
-                Spacer()
+                    .foregroundStyle(BattlefieldTheme.brass)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 6)
                 Text("盟军指令 \(game.commandPoints(for: .allies))")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.64))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
 
             if sites.isEmpty {
@@ -1737,10 +1744,13 @@ private struct ReinforcementDock: View {
             }
         }
         .padding(10)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-        .overlay(
+        .background(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .fill(BattlefieldTheme.commandDeckDeep.opacity(0.58))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(BattlefieldTheme.brass.opacity(0.16), lineWidth: 1)
+                )
         )
     }
 }
@@ -4470,16 +4480,33 @@ private struct UnitDetail: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 8) {
+                UnitShapeBadge(
+                    kind: unit.kind,
+                    faction: unit.faction,
+                    hasCommander: unit.commander != nil,
+                    rank: unit.rank,
+                    supplyState: game.supplyState(for: unit),
+                    tacticalStatus: unit.tacticalStatus,
+                    isSpent: unit.hasMoved && unit.hasAttacked,
+                    width: 52,
+                    height: 30
+                )
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(unit.name)
                         .font(.headline.weight(.bold))
+                        .foregroundStyle(BattlefieldTheme.ink)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
                     Text("\(unit.faction.title) · \(unit.kind.title) · \(unit.rank.title)")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.66))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(BattlefieldTheme.mutedInk)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.78)
                 }
 
-                Spacer()
+                Spacer(minLength: 6)
 
                 Text(unit.kind.code)
                     .font(.system(size: 13, weight: .black, design: .rounded))
@@ -4488,12 +4515,31 @@ private struct UnitDetail: View {
                     .padding(.vertical, 7)
                     .background(unit.faction.accentColor, in: RoundedRectangle(cornerRadius: 6))
             }
+            .padding(10)
+            .background(
+                LinearGradient(
+                    colors: [
+                        unit.faction.accentColor.opacity(0.14),
+                        BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(unit.faction.accentColor.opacity(0.28), lineWidth: 1)
+            )
 
+            InspectorSectionHeader(title: "状态", icon: "heart.text.square.fill", color: .cyan)
             StatRows(unit: unit)
             ExperiencePanel(unit: unit)
             SupplyPanel(unit: unit)
             MoralePanel(unit: unit)
             ActionSummary(unit: unit)
+
+            InspectorSectionHeader(title: "作战方案", icon: "scope", color: .orange)
             FocusedCommandPreviewPanel()
             SafeEngagementOptionsPanel()
             ObjectiveAdvancePlanPanel(unit: unit)
@@ -4503,6 +4549,10 @@ private struct UnitDetail: View {
 
             if let preview = game.combatPreviewAgainstFocusedTarget() {
                 CombatForecastView(preview: preview)
+            }
+
+            if unit.commander != nil {
+                InspectorSectionHeader(title: "指挥", icon: "person.crop.square.fill", color: .yellow)
             }
 
             if let commander = unit.commander {

@@ -314,3 +314,7 @@ flowchart TD
 ## 动态字体与基础面板（v1.69）
 
 `VictoryPanel`、`ScenarioPanel`、`TileDetail`、`BattleLogView` 对齐指挥台卡片样式；正文使用语义字体并配合 `lineLimit`/`minimumScaleFactor`。数据仍来自 `GameState`。
+
+## 单位详情与战术条（v1.70）
+
+`UnitDetail` 以状态/作战方案/指挥分区组织侧栏单位面板；`TacticalOrderStrip` 与 `ReinforcementDock` 使用统一指挥台背板。命令与数据仍来自 `GameState`。

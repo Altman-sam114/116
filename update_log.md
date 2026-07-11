@@ -2794,3 +2794,31 @@
 遗留事项：
 
 - 可继续可玩性反馈与剩余面板微调。
+
+### v1.70 / 单位详情层级与战术条视觉
+
+日期：2026-07-12
+
+核心变更：
+
+- `UnitDetail` 增加单位头卡与状态/作战方案/指挥分区标题，保留全部原有子面板与主操作按钮。
+- `TacticalOrderStrip`、`ReinforcementDock` 对齐 `BattlefieldTheme` 指挥台背板与标题色。
+- 本轮只改 `ContentView` 表现层，不改变单位详情数据源与命令入口。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.70（单位详情层级与战术条视觉）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续可玩性反馈与更多细面板视觉统一。
