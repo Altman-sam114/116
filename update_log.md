@@ -2765,3 +2765,32 @@
 遗留事项：
 
 - 可继续动态字体与更多面板微调。
+
+### v1.69 / 动态字体与面板微调
+
+日期：2026-07-12
+
+核心变更：
+
+- `VictoryPanel`、`ScenarioPanel`、`TileDetail`、`BattleLogView` 对齐战区指挥台卡片视觉。
+- 战役规则说明改为统一规则行样式；据点徽章显示归属短码。
+- 关键正文增加 `lineLimit`/`minimumScaleFactor`，胜利重开按钮保持 44pt 高度。
+- 本轮只改 `ContentView` 表现层，不改变 `GameState` 文案数据源。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.69（动态字体与面板微调）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续可玩性反馈与剩余面板微调。

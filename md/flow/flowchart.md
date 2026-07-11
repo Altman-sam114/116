@@ -310,3 +310,7 @@ flowchart TD
 ## 窄屏布局（v1.68）
 
 `ContentView` 按宽度断点切换并排 inspector 与上下堆叠；地图宽度较窄时 `MapCampaignHUD`/`MapActionHUD` 改为紧凑叠放，减少互相挤压。规则与命令入口不变。
+
+## 动态字体与基础面板（v1.69）
+
+`VictoryPanel`、`ScenarioPanel`、`TileDetail`、`BattleLogView` 对齐指挥台卡片样式；正文使用语义字体并配合 `lineLimit`/`minimumScaleFactor`。数据仍来自 `GameState`。

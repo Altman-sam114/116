@@ -4312,23 +4312,58 @@ private struct VictoryPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("\(winner.title)胜利", systemImage: "crown.fill")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(.yellow)
+            HStack(alignment: .top, spacing: 8) {
+                Label("\(winner.title)胜利", systemImage: "crown.fill")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.yellow)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+
+                Spacer(minLength: 6)
+
+                Text(winner.shortTitle)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.yellow.opacity(0.90), in: Capsule())
+            }
 
             Text(winner == .allies ? "\(game.scenario.name)目标达成。" : "\(game.scenario.name)盟军失败。")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.76))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.ink.opacity(0.86))
+                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(4)
+                .minimumScaleFactor(0.8)
 
             Button {
                 game.restart()
             } label: {
                 Label("重新开局", systemImage: "arrow.clockwise")
-                    .frame(maxWidth: .infinity)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity, minHeight: 44)
             }
             .buttonStyle(.borderedProminent)
             .tint(.orange)
+            .accessibilityLabel("重新开局")
         }
+        .padding(11)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.yellow.opacity(0.14),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.50)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.yellow.opacity(0.34), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.16), radius: 10, x: 0, y: 5)
     }
 }
 
@@ -4336,58 +4371,69 @@ private struct ScenarioPanel: View {
     @EnvironmentObject private var game: GameState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 11) {
             Label("战役目标", systemImage: "map.fill")
                 .font(.headline.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.brass)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
 
             Text(game.scenario.briefing)
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.76))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(BattlefieldTheme.ink.opacity(0.84))
                 .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(8)
+                .minimumScaleFactor(0.82)
 
-            HStack(spacing: 8) {
-                ForEach(game.objectiveTiles) { tile in
-                    ObjectiveBadge(tile: tile)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(game.objectiveTiles) { tile in
+                        ObjectiveBadge(tile: tile)
+                    }
                 }
             }
 
-            Label(game.objectiveCaptureRewardSummary, systemImage: "gift.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.yellow.opacity(0.88))
-                .fixedSize(horizontal: false, vertical: true)
-
-            Label(game.objectiveRestSummary, systemImage: "cross.case.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.green.opacity(0.88))
-                .fixedSize(horizontal: false, vertical: true)
-
-            Label(game.zoneOfControlSummary, systemImage: "exclamationmark.triangle.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.red.opacity(0.86))
-                .fixedSize(horizontal: false, vertical: true)
-
-            Label(game.entrenchmentSummary, systemImage: "shield.lefthalf.filled")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.cyan.opacity(0.88))
-                .fixedSize(horizontal: false, vertical: true)
-
-            Label(game.flankingSupportSummary, systemImage: "point.3.connected.trianglepath.dotted")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.green.opacity(0.88))
-                .fixedSize(horizontal: false, vertical: true)
-
-            Label(game.commanderAuraSummary, systemImage: "star.bubble.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.yellow.opacity(0.88))
-                .fixedSize(horizontal: false, vertical: true)
-
-            Label(game.maneuverPursuitSummary, systemImage: "arrow.forward.circle.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.orange.opacity(0.88))
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 7) {
+                scenarioRuleLine(icon: "gift.fill", text: game.objectiveCaptureRewardSummary, color: .yellow)
+                scenarioRuleLine(icon: "cross.case.fill", text: game.objectiveRestSummary, color: .green)
+                scenarioRuleLine(icon: "exclamationmark.triangle.fill", text: game.zoneOfControlSummary, color: .red)
+                scenarioRuleLine(icon: "shield.lefthalf.filled", text: game.entrenchmentSummary, color: .cyan)
+                scenarioRuleLine(icon: "point.3.connected.trianglepath.dotted", text: game.flankingSupportSummary, color: .green)
+                scenarioRuleLine(icon: "star.bubble.fill", text: game.commanderAuraSummary, color: .yellow)
+                scenarioRuleLine(icon: "arrow.forward.circle.fill", text: game.maneuverPursuitSummary, color: .orange)
+            }
 
             TerrainKey()
         }
+        .padding(11)
+        .background(
+            LinearGradient(
+                colors: [
+                    BattlefieldTheme.brass.opacity(0.10),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.46)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(BattlefieldTheme.brass.opacity(0.22), lineWidth: 1)
+        )
+    }
+
+    private func scenarioRuleLine(icon: String, text: String, color: Color) -> some View {
+        Label(text, systemImage: icon)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color.opacity(0.92))
+            .fixedSize(horizontal: false, vertical: true)
+            .lineLimit(3)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 7))
     }
 }
 
@@ -4402,10 +4448,19 @@ private struct ObjectiveBadge: View {
                 .font(.caption2.weight(.bold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
+            Text(tile.owner?.shortTitle ?? "NEU")
+                .font(.system(size: 9, weight: .black, design: .rounded))
+                .foregroundStyle((tile.owner?.accentColor ?? Color.white).opacity(0.86))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
-        .frame(maxWidth: .infinity)
+        .frame(width: 78)
         .padding(8)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        .background(BattlefieldTheme.fieldGlass.opacity(0.42), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke((tile.owner?.accentColor ?? Color.white).opacity(0.22), lineWidth: 1)
+        )
     }
 }
 
@@ -5594,11 +5649,15 @@ private struct TileDetail: View {
             HStack {
                 Label(tile.terrain.title, systemImage: tile.isObjective ? "star.fill" : "hexagon.fill")
                     .font(.subheadline.weight(.bold))
-                    .foregroundStyle(tile.isObjective ? .yellow : .white)
-                Spacer()
+                    .foregroundStyle(tile.isObjective ? .yellow : BattlefieldTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                Spacer(minLength: 6)
                 Text("q\(tile.coordinate.q), r\(tile.coordinate.r)")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.58))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
             }
 
             HStack(spacing: 8) {
@@ -5610,9 +5669,11 @@ private struct TileDetail: View {
             if let unit {
                 let attackMultiplier = tile.terrain.attackMultiplierPercent(for: unit.kind)
                 Text("\(unit.kind.title)进入该地形消耗 \(tile.terrain.movementCost(for: unit.kind)) 移动力，攻击该格目标时攻势为 \(attackMultiplier)%。")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.68))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(BattlefieldTheme.ink.opacity(0.76))
                     .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(4)
+                    .minimumScaleFactor(0.8)
             }
 
             if let selected = game.selectedUnit,
@@ -5621,24 +5682,39 @@ private struct TileDetail: View {
                 Text(route.controlZonePenalty > 0
                      ? "\(selected.kind.title)到达该格总消耗 \(route.totalCost) 移动力，路线 \(route.stepCount) 格，其中敌方控制区 +\(route.controlZonePenalty)。"
                      : "\(selected.kind.title)到达该格总消耗 \(route.totalCost) 移动力，路线 \(route.stepCount) 格。")
-                    .font(.caption)
-                    .foregroundStyle(route.controlZonePenalty > 0 ? .red.opacity(0.78) : .white.opacity(0.64))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(route.controlZonePenalty > 0 ? .red.opacity(0.82) : BattlefieldTheme.ink.opacity(0.72))
                     .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(4)
+                    .minimumScaleFactor(0.8)
             }
 
             if let objectiveName = tile.objectiveName {
                 Label(objectiveName, systemImage: "flag.checkered")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.yellow.opacity(0.9))
+                    .foregroundStyle(.yellow.opacity(0.92))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
             }
 
             if let unit {
                 Text("\(unit.name) 占据此格，\(unit.faction.title) \(unit.kind.title)，\(unit.actionStateText)。")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.72))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(BattlefieldTheme.ink.opacity(0.78))
                     .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.8)
             }
         }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(BattlefieldTheme.commandDeckDeep.opacity(0.42))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+                )
+        )
     }
 }
 
@@ -7909,20 +7985,50 @@ private struct BattleLogView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("战报", systemImage: "list.bullet.rectangle.fill")
-                .font(.subheadline.weight(.bold))
+            HStack(spacing: 8) {
+                Label("战报", systemImage: "list.bullet.rectangle.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(BattlefieldTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                Spacer(minLength: 6)
+
+                Text("\(game.battleLog.count)")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.08), in: Capsule())
+            }
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
+                LazyVStack(alignment: .leading, spacing: 6) {
                     ForEach(Array(game.battleLog.enumerated()), id: \.offset) { _, entry in
                         Text(entry)
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.72))
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(BattlefieldTheme.ink.opacity(0.80))
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(4)
+                            .minimumScaleFactor(0.82)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
                     }
                 }
             }
+            .frame(minHeight: 96, maxHeight: 180)
         }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(BattlefieldTheme.commandDeckDeep.opacity(0.40))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+                )
+        )
     }
 }
 
