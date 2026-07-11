@@ -2651,3 +2651,33 @@
 遗留事项：
 
 - 后续可继续推进 HUD 信息密度与触控手感优化。
+
+### v1.65 / HUD 信息密度整理
+
+日期：2026-07-12
+
+核心变更：
+
+- 收紧顶栏 `StatusChip`/`StatusStrip` 间距与字号，保留全部战况字段。
+- 压缩 `MapCampaignHUD`/`MapActionHUD` 固定宽度与内边距，降低地图遮挡。
+- `MapToolbar` 副标题改为缩放与焦点摘要，避免与消息条重复。
+- 快捷命令按钮最小高度提升到 36pt；指标条更紧凑。
+- 本轮只改 `ContentView` 表现层，不改变 `GameState` 命令与数值来源。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.65（HUD信息密度整理）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 后续可继续推进触控手感与侧栏信息层级优化。

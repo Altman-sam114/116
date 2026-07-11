@@ -226,7 +226,7 @@ private struct StatusStrip: View {
     @EnvironmentObject private var game: GameState
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             StatusChip(icon: "flag.fill", label: "回合 \(game.turn)")
             StatusChip(icon: "hourglass", label: "剩余 \(game.remainingTurns)")
             StatusChip(icon: "shield.lefthalf.filled", label: game.activeFaction.title)
@@ -271,13 +271,15 @@ private struct StatusChip: View {
 
     var body: some View {
         Label(label, systemImage: icon)
-            .font(.caption.weight(.semibold))
+            .font(.caption2.weight(.semibold))
             .foregroundStyle(BattlefieldTheme.ink)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 7)
-            .background(BattlefieldTheme.fieldGlass.opacity(0.62), in: RoundedRectangle(cornerRadius: 7))
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 5)
+            .background(BattlefieldTheme.fieldGlass.opacity(0.62), in: RoundedRectangle(cornerRadius: 6))
             .overlay(
-                RoundedRectangle(cornerRadius: 7)
+                RoundedRectangle(cornerRadius: 6)
                     .stroke(BattlefieldTheme.hairline, lineWidth: 1)
             )
     }
@@ -386,18 +388,18 @@ private struct MapCommandCenter: View {
                 }
 
                 VStack {
-                    HStack(alignment: .top, spacing: 12) {
+                    HStack(alignment: .top, spacing: 8) {
                         MapCampaignHUD()
-                        Spacer(minLength: 12)
+                        Spacer(minLength: 8)
                         MapActionHUD()
                     }
-                    .padding(12)
+                    .padding(8)
 
-                    Spacer(minLength: 12)
+                    Spacer(minLength: 8)
 
                     ObjectiveJumpDock()
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 12)
+                        .padding(.horizontal, 8)
+                        .padding(.bottom, 8)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -469,13 +471,20 @@ private struct MapToolbar: View {
                 Text("战区地图 \(game.scenario.mapColumns)x\(game.scenario.mapRows)")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(BattlefieldTheme.ink)
-                Text(game.message)
+                Text(toolbarSubtitle)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(BattlefieldTheme.mutedInk)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
         }
+    }
+
+    private var toolbarSubtitle: String {
+        if let coordinate = game.focusedCoordinate {
+            return "\(mapScaleMode.title)缩放 · 焦点 q\(coordinate.q),r\(coordinate.r)"
+        }
+        return "\(mapScaleMode.title)缩放 · 点选单位或据点定位"
     }
 
     private var scalePicker: some View {
@@ -495,13 +504,13 @@ private struct MapCampaignHUD: View {
     @EnvironmentObject private var game: GameState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 7) {
                 Image(systemName: "flag.2.crossed.fill")
                     .font(.caption.weight(.black))
                     .foregroundStyle(.yellow)
-                    .frame(width: 24, height: 24)
-                    .background(Color.black.opacity(0.26), in: RoundedRectangle(cornerRadius: 6))
+                    .frame(width: 22, height: 22)
+                    .background(Color.black.opacity(0.26), in: RoundedRectangle(cornerRadius: 5))
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(game.scenario.name)
@@ -509,25 +518,26 @@ private struct MapCampaignHUD: View {
                         .foregroundStyle(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
-                    Text("第 \(game.turn) 回合 · \(game.activeFaction.title)")
+                    Text("T\(game.turn) · \(game.activeFaction.shortTitle)")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.62))
                 }
 
-                Spacer(minLength: 6)
+                Spacer(minLength: 4)
 
-                Text("\(game.remainingTurns)")
-                    .font(.caption.weight(.black))
+                Text("剩\(game.remainingTurns)")
+                    .font(.caption2.weight(.black))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
                     .background(Color.orange.opacity(0.72), in: Capsule())
             }
 
             ProgressView(value: game.objectiveProgress)
                 .tint(Faction.allies.accentColor)
+                .scaleEffect(x: 1, y: 0.85, anchor: .center)
 
-            HStack(spacing: 7) {
+            HStack(spacing: 5) {
                 MapHudMetric(
                     icon: "flag.fill",
                     label: "OBJ",
@@ -548,19 +558,19 @@ private struct MapCampaignHUD: View {
                 )
             }
 
-            HStack(spacing: 5) {
+            HStack(spacing: 4) {
                 ForEach(game.missionObjectives) { objective in
                     Image(systemName: objective.state.systemImage)
-                        .font(.system(size: 10, weight: .black))
+                        .font(.system(size: 9, weight: .black))
                         .foregroundStyle(objective.state.accentColor)
-                        .frame(width: 18, height: 18)
+                        .frame(width: 16, height: 16)
                         .background(Color.black.opacity(0.18), in: Circle())
                         .accessibilityLabel(objective.title)
                 }
             }
         }
-        .padding(10)
-        .frame(width: 258, alignment: .leading)
+        .padding(8)
+        .frame(width: 236, alignment: .leading)
         .background(MapHudBackground())
     }
 }
@@ -569,9 +579,9 @@ private struct MapActionHUD: View {
     @EnvironmentObject private var game: GameState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 7) {
             if let unit = game.selectedUnit {
-                HStack(spacing: 9) {
+                HStack(spacing: 7) {
                     UnitShapeBadge(
                         kind: unit.kind,
                         faction: unit.faction,
@@ -580,11 +590,11 @@ private struct MapActionHUD: View {
                         supplyState: game.supplyState(for: unit),
                         tacticalStatus: unit.tacticalStatus,
                         isSpent: unit.hasMoved && unit.hasAttacked,
-                        width: 52,
-                        height: 30
+                        width: 48,
+                        height: 28
                     )
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 1) {
                         Text(unit.name)
                             .font(.caption.weight(.black))
                             .foregroundStyle(.white)
@@ -595,14 +605,14 @@ private struct MapActionHUD: View {
                             .foregroundStyle(.white.opacity(0.62))
                     }
 
-                    Spacer(minLength: 6)
+                    Spacer(minLength: 4)
 
                     Button {
                         game.waitSelectedUnit()
                     } label: {
                         Image(systemName: "pause.fill")
                             .font(.caption.weight(.black))
-                            .frame(width: 26, height: 26)
+                            .frame(width: 30, height: 30)
                     }
                     .buttonStyle(.bordered)
                     .tint(.white)
@@ -610,14 +620,14 @@ private struct MapActionHUD: View {
                     .accessibilityLabel("待命")
                 }
 
-                HStack(spacing: 7) {
+                HStack(spacing: 5) {
                     MapHudMetric(icon: "point.topleft.down.curvedto.point.bottomright.up", label: "MOVE", value: "\(game.reachableTiles(for: unit).count)", color: .cyan)
                     MapHudMetric(icon: "target", label: "ATK", value: "\(game.attackableTiles(for: unit).count)", color: .orange)
                     MapHudMetric(icon: "exclamationmark.triangle.fill", label: "THR", value: "\(game.threatenedReachableTiles(for: unit).count)", color: .red)
                     MapHudMetric(icon: game.supplyState(for: unit) == .supplied ? "fuelpump.fill" : "exclamationmark.octagon.fill", label: game.supplyState(for: unit).shortTitle, value: "\(max(0, game.supplyLineTiles(for: unit).count - 1))", color: game.supplyState(for: unit) == .supplied ? .green : .red)
                 }
 
-                HStack(spacing: 7) {
+                HStack(spacing: 5) {
                     MapQuickCommandButton(
                         icon: "forward.fill",
                         title: "NEXT",
@@ -654,14 +664,14 @@ private struct MapActionHUD: View {
 
                 InlineMapCommandPreview()
             } else {
-                HStack(spacing: 9) {
+                HStack(spacing: 7) {
                     Image(systemName: "scope")
                         .font(.caption.weight(.black))
                         .foregroundStyle(.yellow)
-                        .frame(width: 26, height: 26)
-                        .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 6))
+                        .frame(width: 24, height: 24)
+                        .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 5))
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 1) {
                         Text(focusTitle)
                             .font(.caption.weight(.black))
                             .foregroundStyle(.white)
@@ -685,8 +695,8 @@ private struct MapActionHUD: View {
                 }
             }
         }
-        .padding(10)
-        .frame(width: 330, alignment: .leading)
+        .padding(8)
+        .frame(width: 304, alignment: .leading)
         .background(MapHudBackground())
     }
 
@@ -716,8 +726,9 @@ private struct MapQuickCommandButton: View {
                 .minimumScaleFactor(0.72)
                 .foregroundStyle(isEnabled ? color : Color.white.opacity(0.38))
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 6)
+                .frame(minHeight: 36)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 5)
                 .background((isEnabled ? color : Color.white).opacity(isEnabled ? 0.16 : 0.06), in: RoundedRectangle(cornerRadius: 6))
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
@@ -745,9 +756,9 @@ private struct MapHudMetric: View {
     let color: Color
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             Image(systemName: icon)
-                .font(.system(size: 9, weight: .black))
+                .font(.system(size: 8, weight: .black))
             Text(label)
                 .font(.system(size: 8, weight: .black, design: .rounded))
             Text(value)
@@ -756,9 +767,10 @@ private struct MapHudMetric: View {
         .foregroundStyle(color)
         .lineLimit(1)
         .minimumScaleFactor(0.7)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 5)
-        .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 6))
+        .padding(.horizontal, 5)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity)
+        .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 5))
     }
 }
 

@@ -294,3 +294,7 @@ flowchart TD
 ## 反制回放视觉（v1.64）
 
 `EnemyThreatCountermeasureExecutionResultSummaryView` 与 `EnemyThreatCountermeasureFollowUpSummaryView` 使用与战斗/后勤结果卡同族的标题/结论胶囊/叙述/主体块/指标/细节行；定位按钮与关联 AI 行动仍只转发 `GameState`，不执行命令。
+
+## 地图 HUD 密度（v1.65）
+
+`StatusStrip`、`MapCampaignHUD`、`MapActionHUD` 与快捷命令按钮改为更紧凑布局；工具栏副标题改为缩放/焦点摘要，避免与消息条重复。所有数值与命令仍来自 `GameState`。
