@@ -2822,3 +2822,31 @@
 遗留事项：
 
 - 可继续可玩性反馈与更多细面板视觉统一。
+
+### v1.71 / 状态面板视觉统一
+
+日期：2026-07-12
+
+核心变更：
+
+- `SupplyPanel`、`MoralePanel`、`ExperiencePanel`、`ThreatSummary` 统一为指挥台渐变卡片。
+- `StatRows`/`StatBox`/`ActionBadge` 对齐 `BattlefieldTheme` 质感，并改善动态字体缩放。
+- 本轮只改 `ContentView` 表现层，不改变补给/士气/经验/威胁规则。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.71（状态面板视觉统一）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续可玩性反馈与剩余细面板微调。

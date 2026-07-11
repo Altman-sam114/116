@@ -5010,35 +5010,54 @@ private struct SupplyPanel: View {
     var body: some View {
         let state = game.supplyState(for: unit)
         let lineLength = max(0, game.supplyLineTiles(for: unit).count - 1)
+        let accent = state == .supplied ? Color.green : Color.red
 
         VStack(alignment: .leading, spacing: 7) {
             HStack {
                 Label(state.title, systemImage: state == .supplied ? "fuelpump.fill" : "exclamationmark.octagon.fill")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(state == .supplied ? .green : .red)
-                Spacer()
+                    .foregroundStyle(accent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 6)
                 Text(state == .supplied ? "\(lineLength) 格补给线" : "被切断")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.68))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
 
             if state == .supplied {
                 Text("可从己方据点获得整补与完整战力；驻守己方据点时下回合开始自动恢复耐久。地图绿色格显示当前补给通道。")
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.64))
+                    .foregroundStyle(BattlefieldTheme.ink.opacity(0.74))
                     .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(4)
+                    .minimumScaleFactor(0.8)
             } else {
                 Text("攻击降至 \(state.attackMultiplierPercent)%，移动 -\(state.movementPenalty)，下回合开始损失 \(state.attritionDamage) 耐久。夺回据点或清除阻断敌军可恢复。")
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.72))
+                    .foregroundStyle(BattlefieldTheme.ink.opacity(0.80))
                     .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(4)
+                    .minimumScaleFactor(0.8)
             }
         }
-        .padding(9)
-        .background((state == .supplied ? Color.green : Color.red).opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .padding(10)
+        .background(
+            LinearGradient(
+                colors: [
+                    accent.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke((state == .supplied ? Color.green : Color.red).opacity(0.24), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(accent.opacity(0.28), lineWidth: 1)
         )
     }
 }
@@ -5055,10 +5074,14 @@ private struct MoralePanel: View {
                 Label(state.title, systemImage: "flag.fill")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(state.accentColor)
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 6)
                 Text("\(unit.morale)/100")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.68))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
 
             ProgressView(value: Double(unit.morale), total: 100)
@@ -5066,14 +5089,26 @@ private struct MoralePanel: View {
 
             Text("攻击 \(state.attackMultiplierPercent)%，\(movementText)。攻击奏效与击毁会提振士气，受击、反击和断补给会压低士气。")
                 .font(.caption2.weight(.medium))
-                .foregroundStyle(.white.opacity(0.66))
+                .foregroundStyle(BattlefieldTheme.ink.opacity(0.76))
                 .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(4)
+                .minimumScaleFactor(0.8)
         }
-        .padding(9)
-        .background(state.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .padding(10)
+        .background(
+            LinearGradient(
+                colors: [
+                    state.accentColor.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(state.accentColor.opacity(0.24), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(state.accentColor.opacity(0.28), lineWidth: 1)
         )
     }
 }
@@ -5087,10 +5122,14 @@ private struct ExperiencePanel: View {
                 Label("\(unit.rank.title) \(unit.rank.insignia)", systemImage: "chevron.up.square.fill")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.yellow)
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 6)
                 Text("\(unit.experience) XP")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.68))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
 
             if let nextRank = unit.rank.nextRank {
@@ -5102,21 +5141,35 @@ private struct ExperiencePanel: View {
                     .tint(.yellow)
                 Text("距\(nextRank.title)还需 \(max(0, nextRank.minimumExperience - unit.experience)) XP，晋升后攻击 +\(nextRank.attackBonus)，耐久上限 +\(nextRank.hpBonus)。")
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.64))
+                    .foregroundStyle(BattlefieldTheme.ink.opacity(0.74))
                     .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(4)
+                    .minimumScaleFactor(0.8)
             } else {
                 ProgressView(value: 1)
                     .tint(.yellow)
                 Text("王牌部队已达到最高军衔。")
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.64))
+                    .foregroundStyle(BattlefieldTheme.ink.opacity(0.74))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
             }
         }
-        .padding(9)
-        .background(Color.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .padding(10)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.yellow.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(Color.yellow.opacity(0.22), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.yellow.opacity(0.28), lineWidth: 1)
         )
     }
 }
@@ -5129,10 +5182,16 @@ private struct StatRows: View {
             ProgressView(value: Double(unit.hp), total: Double(unit.maxHP)) {
                 HStack {
                     Text("耐久")
-                    Spacer()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Spacer(minLength: 6)
                     Text("\(unit.hp)/\(unit.maxHP)")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .monospacedDigit()
                 }
                 .font(.caption.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.ink)
             }
             .tint(unit.hpRatio > 0.45 ? .green : .red)
 
@@ -5142,6 +5201,15 @@ private struct StatRows: View {
                 StatBox(icon: "scope", title: "射程", value: "\(unit.range)")
             }
         }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(BattlefieldTheme.commandDeckDeep.opacity(0.40))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+                )
+        )
     }
 }
 
@@ -5157,13 +5225,23 @@ private struct StatBox: View {
                 Text(title)
             }
             .font(.caption2.weight(.bold))
-            .foregroundStyle(.white.opacity(0.62))
+            .foregroundStyle(BattlefieldTheme.mutedInk)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
             Text(value)
                 .font(.headline.weight(.bold))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .monospacedDigit()
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        .background(BattlefieldTheme.fieldGlass.opacity(0.42), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+        )
     }
 }
 
@@ -5201,17 +5279,22 @@ private struct ActionBadge: View {
         VStack(spacing: 4) {
             Label(title, systemImage: icon)
                 .font(.caption2.weight(.bold))
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(BattlefieldTheme.mutedInk)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(value)
                 .font(.caption.weight(.bold))
+                .foregroundStyle(BattlefieldTheme.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        .background(BattlefieldTheme.fieldGlass.opacity(0.42), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+        )
     }
 }
 
@@ -5507,6 +5590,8 @@ private struct ThreatSummary: View {
                 Label("敌方威胁", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.orange)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 HStack(spacing: 6) {
                     ForEach(threats.prefix(3)) { enemy in
@@ -5523,17 +5608,27 @@ private struct ThreatSummary: View {
                     }
 
                     Text(threats.count == 1 ? "1 支敌军覆盖当前位置" : "\(threats.count) 支敌军覆盖当前位置")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.68))
-                        .lineLimit(1)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(BattlefieldTheme.ink.opacity(0.78))
+                        .lineLimit(2)
                         .minimumScaleFactor(0.72)
                 }
             }
-            .padding(9)
-            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
+            .padding(10)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color.orange.opacity(0.14),
+                        BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: 7)
-                    .stroke(Color.orange.opacity(0.25), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.orange.opacity(0.28), lineWidth: 1)
             )
         }
     }

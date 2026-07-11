@@ -11,7 +11,7 @@
 - Xcode project 修改还必须运行 `plutil -lint WW2Tactics/WW2Tactics.xcodeproj/project.pbxproj`。
 - Swift / Xcode / 规则 / UI 相关改动完成后，默认由 Agent B commit 并 `git push origin main`，让 GitHub Actions 运行重验证。
 - 若人工明确要求“不做本地测试，全部云端”，本地轻量检查可在该轮跳过；交付必须明确列出未跑本地命令及原因，并由 GitHub Actions artifact 覆盖 `git diff --check`、project plist、规则 smoke 和 Xcode build-for-testing。
-- 地图格、单位棋子、地图标记槽位折叠、命令预览 helper 去重、后勤与战术结果卡视觉、反制回放/复核卡视觉、HUD 信息密度、触控手感与侧栏层级、图例与编队条视觉、窄屏布局适配、动态字体与面板微调、单位详情层级与战术条视觉、HUD、侧栏、战斗预览/结果卡、战线态势指挥简报、AI 战况回放和主题样式等纯 UI 表现层改动仍必须通过云端 Xcode build-for-testing；若该轮跳过本地测试，不能把本地未跑命令写成已验证。
+- 地图格、单位棋子、地图标记槽位折叠、命令预览 helper 去重、后勤与战术结果卡视觉、反制回放/复核卡视觉、HUD 信息密度、触控手感与侧栏层级、图例与编队条视觉、窄屏布局适配、动态字体与面板微调、单位详情层级与战术条视觉、状态面板视觉统一、HUD、侧栏、战斗预览/结果卡、战线态势指挥简报、AI 战况回放和主题样式等纯 UI 表现层改动仍必须通过云端 Xcode build-for-testing；若该轮跳过本地测试，不能把本地未跑命令写成已验证。
 - 战线态势、据点压力、压力来源标识、压力态势对照、压力敌方回合影响、压力复盘线索、战线态势复盘影响来源筛选、反制建议或地图入口变化必须覆盖只读定位边界：点选入口可改变选择、焦点、引导、AI 复盘 order 和消息，但不得消耗行动或改变单位、据点、指令点、战报、latest result、AI summary 或 follow-up。
 - Agent C 必须下载未加密 CI 结果包，不能只看 Agent B 的文字汇报。
 - Agent X 循环下，每轮仍以 Agent B 本地轻量检查、GitHub Actions artifact、Agent C 下载复判为准。

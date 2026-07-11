@@ -318,3 +318,7 @@ flowchart TD
 ## 单位详情与战术条（v1.70）
 
 `UnitDetail` 以状态/作战方案/指挥分区组织侧栏单位面板；`TacticalOrderStrip` 与 `ReinforcementDock` 使用统一指挥台背板。命令与数据仍来自 `GameState`。
+
+## 状态面板（v1.71）
+
+`SupplyPanel`、`MoralePanel`、`ExperiencePanel`、`ThreatSummary`、`StatRows` 与 `ActionBadge` 使用统一指挥台卡片样式与可缩放文案。状态数值仍来自 `GameState`。
