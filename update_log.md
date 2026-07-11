@@ -2906,3 +2906,31 @@
 遗留事项：
 
 - 可继续可玩性反馈增强与剩余细面板微调。
+
+### v1.74 / 反制下一步与关联 AI 行动反馈
+
+日期：2026-07-12
+
+核心变更：
+
+- `EnemyThreatCountermeasureExecutionHint` 升级为指挥台卡片，显示可执行/不可执行状态与入口说明。
+- `EnemyThreatCountermeasureFollowUpAIEventRow` 提高触控高度与信息层级，便于定位关联 AI 复盘事件。
+- 本轮只改 `ContentView` 表现层，不自动执行命令，不改变反制/复核规则。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.74（反制下一步与关联AI行动反馈）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续剩余细面板与可玩性反馈增强。

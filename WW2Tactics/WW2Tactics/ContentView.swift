@@ -6954,38 +6954,71 @@ private struct EnemyThreatCountermeasureExecutionHint: View {
     let preview: EnemyThreatCountermeasureExecutionPreview
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 7) {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .center, spacing: 7) {
                 Label("下一步", systemImage: iconName)
                     .font(.caption.weight(.black))
                     .foregroundStyle(color)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 Text(preview.kind.shortTitle)
                     .font(.caption2.weight(.black))
                     .foregroundStyle(.black.opacity(0.82))
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, 7)
                     .padding(.vertical, 3)
-                    .background(color.opacity(preview.isExecutable ? 0.9 : 0.54), in: RoundedRectangle(cornerRadius: 5))
+                    .background(color.opacity(preview.isExecutable ? 0.92 : 0.54), in: Capsule())
 
                 Spacer(minLength: 6)
+
+                Text(preview.isExecutable ? "可执行" : "暂不可用")
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(preview.isExecutable ? .black.opacity(0.82) : BattlefieldTheme.mutedInk)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(
+                        (preview.isExecutable ? color : Color.white).opacity(preview.isExecutable ? 0.90 : 0.10),
+                        in: Capsule()
+                    )
             }
 
             Text(preview.entryTitle)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.86))
+                .foregroundStyle(BattlefieldTheme.ink)
                 .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(3)
+                .minimumScaleFactor(0.8)
 
             Label(detailText, systemImage: preview.isExecutable ? "hand.tap.fill" : "exclamationmark.triangle.fill")
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.64))
+                .foregroundStyle(BattlefieldTheme.ink.opacity(0.76))
                 .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(4)
+                .minimumScaleFactor(0.8)
+
+            Text(preview.isExecutable ? "请用既有 ATK/MOVE/整补入口真实执行，本卡不会自动行动。" : "当前状态无法通过该入口执行，请先调整单位或目标。")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(BattlefieldTheme.mutedInk)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(3)
+                .minimumScaleFactor(0.8)
         }
-        .padding(8)
-        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 7))
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [
+                    color.opacity(preview.isExecutable ? 0.14 : 0.08),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(color.opacity(preview.isExecutable ? 0.38 : 0.24), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(color.opacity(preview.isExecutable ? 0.40 : 0.24), lineWidth: preview.isExecutable ? 1.5 : 1)
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
@@ -7631,38 +7664,57 @@ private struct EnemyThreatCountermeasureFollowUpAIEventRow: View {
     let event: EnemyThreatCountermeasureFollowUpAIEvent
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("#\(event.order)")
-                .font(.caption2.weight(.black))
-                .foregroundStyle(.white.opacity(0.82))
-                .monospacedDigit()
-                .frame(width: 24, alignment: .leading)
+        HStack(alignment: .center, spacing: 7) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("#\(event.order)")
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(BattlefieldTheme.ink)
+                    .monospacedDigit()
+                Text(event.kind.shortCode)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.yellow.opacity(0.92))
+            }
+            .frame(width: 34, alignment: .leading)
 
-            Text(event.kind.shortCode)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(event.relation.title)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.black.opacity(0.82))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.yellow.opacity(0.88), in: Capsule())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Text(event.title)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(BattlefieldTheme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+
+                Text(event.summary)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
+
+            Spacer(minLength: 4)
+
+            Image(systemName: "chevron.right")
                 .font(.caption2.weight(.bold))
-                .foregroundStyle(.yellow.opacity(0.92))
-                .frame(width: 28, alignment: .leading)
-
-            Text(event.relation.title)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(.black.opacity(0.82))
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
-                .background(Color.yellow.opacity(0.86), in: RoundedRectangle(cornerRadius: 4))
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-
-            Text(event.summary)
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.68))
-                .fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(BattlefieldTheme.mutedInk)
         }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .background(BattlefieldTheme.fieldGlass.opacity(0.42), in: RoundedRectangle(cornerRadius: 7))
         .overlay(
-            RoundedRectangle(cornerRadius: 5)
-                .stroke(Color.yellow.opacity(0.24), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.yellow.opacity(0.28), lineWidth: 1)
         )
     }
 }

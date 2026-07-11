@@ -330,3 +330,7 @@ flowchart TD
 ## 敌情与反制面板（v1.73）
 
 `EnemyThreatIntentPanel` 与 `EnemyThreatCountermeasurePanel` 使用统一指挥台渐变卡片；行组件强化当前预览态。威胁/反制数据与聚焦入口仍来自 `GameState`。
+
+## 反制下一步反馈（v1.74）
+
+`EnemyThreatCountermeasureExecutionHint` 突出可执行/不可执行与入口说明；`EnemyThreatCountermeasureFollowUpAIEventRow` 提高触控高度。提示与定位仍只转发 `GameState`，不会自动执行命令。
