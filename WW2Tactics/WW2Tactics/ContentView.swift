@@ -7004,39 +7004,20 @@ private struct AIPhaseSummaryView: View {
         max(0, summary.timeline.count - visibleTimeline.count)
     }
 
+    private var hiddenFocusedTimelineEvent: AIPhaseTimelineEvent? {
+        guard let order = game.focusedAIPhaseTimelineEventOrder else { return nil }
+        guard !visibleTimeline.contains(where: { $0.order == order }) else { return nil }
+        return summary.timeline.first { $0.order == order }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Label("\(summary.faction.title)回合摘要", systemImage: "clock.arrow.circlepath")
-                    .font(.subheadline.weight(.bold))
+        VStack(alignment: .leading, spacing: 10) {
+            AIPhaseSummaryHeader(summary: summary)
 
-                Spacer(minLength: 8)
-
-                Text("T\(summary.turn)")
-                    .font(.caption.weight(.black))
-                    .foregroundStyle(summary.faction.accentColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-            }
-            .foregroundStyle(summary.faction.accentColor)
-
-            HStack(spacing: 7) {
-                CombatResultMetric(title: "行动", value: "\(summary.totalActions)", color: .white.opacity(0.86))
-                CombatResultMetric(title: "伤害", value: "-\(summary.damageDealt)", color: .orange)
-                CombatResultMetric(title: "承伤", value: summary.damageTaken > 0 ? "-\(summary.damageTaken)" : "0", color: summary.damageTaken > 0 ? .red : .white.opacity(0.76))
-            }
-
-            HStack(spacing: 7) {
-                CombatResultMetric(title: "移动", value: "\(summary.moves)", color: .cyan)
-                CombatResultMetric(title: "攻击", value: "\(summary.attacks)", color: .orange)
-                CombatResultMetric(title: "战术", value: "\(summary.tacticalCommands)", color: .purple)
-            }
-
-            HStack(spacing: 7) {
-                CombatResultMetric(title: "后勤", value: "\(summary.logisticsActions)", color: .green)
-                CombatResultMetric(title: "占点", value: "\(summary.objectivesCaptured)", color: .yellow)
-                CombatResultMetric(title: "指令", value: commandPointChangeText, color: summary.commandPointDelta < 0 ? .yellow : .white.opacity(0.82))
-            }
+            AIPhaseSummaryMetricGrid(
+                summary: summary,
+                commandPointChangeText: commandPointChangeText
+            )
 
             AIPhaseReplayConclusionView(
                 conclusion: summary.replayConclusion,
@@ -7046,39 +7027,11 @@ private struct AIPhaseSummaryView: View {
             }
 
             if !visibleTimeline.isEmpty {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Label("行动时间线", systemImage: "list.number")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.white.opacity(0.78))
+                VStack(alignment: .leading, spacing: 7) {
+                    AIPhaseReplayControls()
 
-                        Spacer(minLength: 6)
-
-                        AIPhaseTimelineNavigationButton(
-                            title: game.isAIPhaseTimelinePlaybackActive ? "暂停AI复盘播放" : "播放AI复盘",
-                            systemImage: game.isAIPhaseTimelinePlaybackActive ? "pause.fill" : "play.fill",
-                            isDisabled: !game.canPlayAIPhaseTimeline && !game.isAIPhaseTimelinePlaybackActive
-                        ) {
-                            game.toggleAIPhaseTimelinePlayback()
-                        }
-
-                        AIPhaseTimelinePlaybackPaceMenu()
-
-                        AIPhaseTimelineNavigationButton(
-                            title: "上一条AI复盘",
-                            systemImage: "chevron.left",
-                            isDisabled: !game.canFocusPreviousAIPhaseTimelineEvent
-                        ) {
-                            game.focusPreviousAIPhaseTimelineEvent()
-                        }
-
-                        AIPhaseTimelineNavigationButton(
-                            title: "下一条AI复盘",
-                            systemImage: "chevron.right",
-                            isDisabled: !game.canFocusNextAIPhaseTimelineEvent
-                        ) {
-                            game.focusNextAIPhaseTimelineEvent()
-                        }
+                    if let hiddenFocusedTimelineEvent {
+                        AIPhaseCurrentTimelineEventView(event: hiddenFocusedTimelineEvent)
                     }
 
                     ForEach(visibleTimeline) { event in
@@ -7096,31 +7049,216 @@ private struct AIPhaseSummaryView: View {
 
                     if hiddenTimelineCount > 0 {
                         Text("另有 \(hiddenTimelineCount) 条行动")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.58))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(BattlefieldTheme.mutedInk)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .padding(.top, 2)
+                .padding(9)
+                .background(Color.black.opacity(0.13), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(summary.faction.accentColor.opacity(0.18), lineWidth: 1)
+                )
             }
 
-            Label("歼灭 \(summary.enemyUnitsDestroyed) 支，损失 \(summary.friendlyUnitsDestroyed) 支，指令点 \(summary.startingCommandPoints)->\(summary.endingCommandPoints)。", systemImage: "flag.checkered")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.72))
-                .fixedSize(horizontal: false, vertical: true)
+            AIPhaseSummaryFooter(summary: summary)
         }
-        .padding(9)
-        .background(summary.faction.accentColor.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(summary.faction.accentColor.opacity(0.24), lineWidth: 1)
+        .padding(11)
+        .background(
+            LinearGradient(
+                colors: [
+                    summary.faction.accentColor.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.58)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(summary.faction.accentColor.opacity(0.32), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.18), radius: 11, x: 0, y: 5)
         .accessibilityElement(children: .contain)
         .onReceive(Timer.publish(every: game.aiPhaseTimelinePlaybackPace.interval, on: .main, in: .common).autoconnect()) { _ in
             if game.isAIPhaseTimelinePlaybackActive {
                 game.advanceAIPhaseTimelinePlayback()
             }
         }
+    }
+}
+
+private struct AIPhaseSummaryHeader: View {
+    let summary: AIPhaseSummary
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(summary.faction.accentColor)
+                .frame(width: 36, height: 36)
+                .background(summary.faction.accentColor.opacity(0.14), in: RoundedRectangle(cornerRadius: 7))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(summary.faction.title)回合摘要")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(BattlefieldTheme.ink)
+                Text("敌方行动已结束，可逐条定位战况回放。")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 8)
+
+            Text("T\(summary.turn)")
+                .font(.caption.weight(.black))
+                .foregroundStyle(.black.opacity(0.82))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(summary.faction.accentColor.opacity(0.88), in: Capsule())
+        }
+    }
+}
+
+private struct AIPhaseSummaryMetricGrid: View {
+    let summary: AIPhaseSummary
+    let commandPointChangeText: String
+
+    private let columns = Array(repeating: GridItem(.flexible(minimum: 72), spacing: 6), count: 3)
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 6) {
+            AIPhaseMetricCell(title: "行动", value: "\(summary.totalActions)", color: BattlefieldTheme.ink)
+            AIPhaseMetricCell(title: "伤害", value: "-\(summary.damageDealt)", color: .orange)
+            AIPhaseMetricCell(title: "承伤", value: summary.damageTaken > 0 ? "-\(summary.damageTaken)" : "0", color: summary.damageTaken > 0 ? .red : BattlefieldTheme.mutedInk)
+            AIPhaseMetricCell(title: "移动", value: "\(summary.moves)", color: .cyan)
+            AIPhaseMetricCell(title: "攻击", value: "\(summary.attacks)", color: .orange)
+            AIPhaseMetricCell(title: "战术", value: "\(summary.tacticalCommands)", color: .purple)
+            AIPhaseMetricCell(title: "后勤", value: "\(summary.logisticsActions)", color: .green)
+            AIPhaseMetricCell(title: "占点", value: "\(summary.objectivesCaptured)", color: .yellow)
+            AIPhaseMetricCell(title: "指令", value: commandPointChangeText, color: summary.commandPointDelta < 0 ? .yellow : BattlefieldTheme.ink)
+        }
+    }
+}
+
+private struct AIPhaseMetricCell: View {
+    let title: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.mutedInk)
+                .lineLimit(1)
+            Text(value)
+                .font(.headline.weight(.black))
+                .foregroundStyle(color)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(color.opacity(0.14), lineWidth: 1)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title)，\(value)")
+    }
+}
+
+private struct AIPhaseReplayControls: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 7) {
+                Label("行动时间线", systemImage: "list.number")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(BattlefieldTheme.ink)
+
+                Spacer(minLength: 6)
+
+                Text(game.isAIPhaseTimelinePlaybackActive ? "播放中" : "复盘")
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(game.isAIPhaseTimelinePlaybackActive ? .black.opacity(0.82) : BattlefieldTheme.mutedInk)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(game.isAIPhaseTimelinePlaybackActive ? Color.yellow.opacity(0.88) : Color.white.opacity(0.08), in: Capsule())
+            }
+
+            HStack(spacing: 8) {
+                AIPhaseTimelineNavigationButton(
+                    title: game.isAIPhaseTimelinePlaybackActive ? "暂停AI复盘播放" : "播放AI复盘",
+                    systemImage: game.isAIPhaseTimelinePlaybackActive ? "pause.fill" : "play.fill",
+                    isDisabled: !game.canPlayAIPhaseTimeline && !game.isAIPhaseTimelinePlaybackActive
+                ) {
+                    game.toggleAIPhaseTimelinePlayback()
+                }
+
+                AIPhaseTimelinePlaybackPaceMenu()
+
+                Spacer(minLength: 4)
+
+                AIPhaseTimelineNavigationButton(
+                    title: "上一条AI复盘",
+                    systemImage: "chevron.left",
+                    isDisabled: !game.canFocusPreviousAIPhaseTimelineEvent
+                ) {
+                    game.focusPreviousAIPhaseTimelineEvent()
+                }
+
+                AIPhaseTimelineNavigationButton(
+                    title: "下一条AI复盘",
+                    systemImage: "chevron.right",
+                    isDisabled: !game.canFocusNextAIPhaseTimelineEvent
+                ) {
+                    game.focusNextAIPhaseTimelineEvent()
+                }
+            }
+        }
+    }
+}
+
+private struct AIPhaseCurrentTimelineEventView: View {
+    let event: AIPhaseTimelineEvent
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label("当前回放 #\(event.order)", systemImage: "scope")
+                .font(.caption.weight(.black))
+                .foregroundStyle(.yellow)
+                .monospacedDigit()
+
+            AIPhaseTimelineEventRow(event: event, isFocused: true)
+        }
+        .padding(8)
+        .background(Color.yellow.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.yellow.opacity(0.30), lineWidth: 1)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("当前AI复盘事件 \(event.order)，\(event.kind.title)，\(event.summary)")
+    }
+}
+
+private struct AIPhaseSummaryFooter: View {
+    let summary: AIPhaseSummary
+
+    var body: some View {
+        Label("歼灭 \(summary.enemyUnitsDestroyed) 支，损失 \(summary.friendlyUnitsDestroyed) 支，指令点 \(summary.startingCommandPoints)->\(summary.endingCommandPoints)。", systemImage: "flag.checkered")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(BattlefieldTheme.mutedInk)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -7135,62 +7273,81 @@ private struct AIPhaseReplayConclusionView: View {
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Label(conclusion.title, systemImage: conclusion.kind.systemImage)
-                    .font(.caption.weight(.bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(conclusionColor)
 
                 Spacer(minLength: 6)
 
                 Text(conclusion.kind.shortTitle)
-                    .font(.caption2.weight(.black))
-                    .foregroundStyle(conclusionColor)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.black.opacity(0.82))
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(conclusionColor.opacity(0.88), in: Capsule())
             }
 
             Text(conclusion.summary)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.74))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BattlefieldTheme.mutedInk)
                 .fixedSize(horizontal: false, vertical: true)
 
             LazyVGrid(columns: metricColumns, alignment: .leading, spacing: 6) {
                 ForEach(conclusion.metrics) { metric in
-                    CombatResultMetric(
-                        title: metric.title,
-                        value: metric.value,
-                        color: metricColor(for: metric.kind)
-                    )
-                    .accessibilityLabel("\(metric.title)，\(metric.value)，\(metric.detail)")
+                    AIPhaseReplayMetricCell(metric: metric, color: metricColor(for: metric.kind))
                 }
             }
 
             if !conclusion.keyEvents.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("关键事件", systemImage: "star.square.on.square.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(conclusionColor)
+
                     ForEach(conclusion.keyEvents) { event in
                         let isFocusedEvent = focusedOrder == event.order
                         Button {
                             onSelectKeyEvent(event.order)
                         } label: {
-                            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                                Text(event.title)
-                                    .font(.caption2.weight(.black))
-                                    .foregroundStyle(isFocusedEvent ? .black : conclusionColor)
-                                    .frame(width: 58, alignment: .leading)
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: isFocusedEvent ? "scope" : "circle")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(isFocusedEvent ? .black.opacity(0.82) : conclusionColor)
+                                    .frame(width: 16)
 
-                                Text(event.detail)
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(isFocusedEvent ? .black.opacity(0.82) : .white.opacity(0.68))
-                                    .lineLimit(2)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(event.title)
+                                        .font(.caption.weight(.black))
+                                        .foregroundStyle(isFocusedEvent ? .black.opacity(0.86) : conclusionColor)
+                                    Text(event.detail)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(isFocusedEvent ? .black.opacity(0.76) : BattlefieldTheme.mutedInk)
+                                        .lineLimit(2)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+
+                                Spacer(minLength: 4)
+
+                                Image(systemName: "location.magnifyingglass")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(isFocusedEvent ? .black.opacity(0.72) : conclusionColor)
                             }
-                            .padding(.vertical, 3)
-                            .padding(.horizontal, 5)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .padding(.vertical, 5)
+                            .padding(.horizontal, 7)
                             .background(
-                                isFocusedEvent ? conclusionColor.opacity(0.86) : Color.white.opacity(0.04),
-                                in: RoundedRectangle(cornerRadius: 5)
+                                isFocusedEvent ? conclusionColor.opacity(0.88) : Color.white.opacity(0.04),
+                                in: RoundedRectangle(cornerRadius: 7)
                             )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 7)
+                                    .stroke(isFocusedEvent ? conclusionColor.opacity(0.96) : Color.white.opacity(0.08), lineWidth: 1)
+                            )
+                            .contentShape(RoundedRectangle(cornerRadius: 7))
                         }
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .ignore)
@@ -7200,7 +7357,12 @@ private struct AIPhaseReplayConclusionView: View {
                 }
             }
         }
-        .padding(.vertical, 2)
+        .padding(9)
+        .background(conclusionColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(conclusionColor.opacity(0.22), lineWidth: 1)
+        )
         .accessibilityElement(children: .contain)
     }
 
@@ -7224,6 +7386,41 @@ private struct AIPhaseReplayConclusionView: View {
     }
 }
 
+private struct AIPhaseReplayMetricCell: View {
+    let metric: AIPhaseReplayConclusionMetric
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Text(metric.title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
+                Spacer(minLength: 4)
+                Text(metric.value)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(color)
+                    .monospacedDigit()
+            }
+
+            Text(metric.detail)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(BattlefieldTheme.mutedInk)
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(7)
+        .background(color.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(color.opacity(0.14), lineWidth: 1)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(metric.title)，\(metric.value)，\(metric.detail)")
+    }
+}
+
 private struct AIPhaseTimelinePlaybackPaceMenu: View {
     @EnvironmentObject private var game: GameState
 
@@ -7239,18 +7436,18 @@ private struct AIPhaseTimelinePlaybackPaceMenu: View {
         } label: {
             Label("AI复盘速度 \(game.aiPhaseTimelinePlaybackPace.title)", systemImage: "speedometer")
                 .labelStyle(.iconOnly)
-                .font(.caption2.weight(.black))
-                .foregroundStyle(.white.opacity(0.84))
-                .frame(width: 22, height: 20)
+                .font(.caption.weight(.black))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .frame(width: 32, height: 32)
                 .overlay(alignment: .bottomTrailing) {
                     Text(game.aiPhaseTimelinePlaybackPace.shortTitle)
-                        .font(.system(size: 8, weight: .black))
+                        .font(.caption2.weight(.black))
                         .foregroundStyle(.yellow.opacity(0.96))
-                        .offset(x: 5, y: 5)
+                        .offset(x: 4, y: 4)
                 }
-                .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
+                .background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 5)
+                    RoundedRectangle(cornerRadius: 7)
                         .stroke(Color.white.opacity(0.24), lineWidth: 1)
                 )
         }
@@ -7274,12 +7471,12 @@ private struct AIPhaseTimelineNavigationButton: View {
         Button(action: action) {
             Label(title, systemImage: systemImage)
                 .labelStyle(.iconOnly)
-                .font(.caption2.weight(.black))
+                .font(.caption.weight(.black))
                 .foregroundStyle(isDisabled ? .white.opacity(0.28) : .yellow.opacity(0.92))
-                .frame(width: 22, height: 20)
-                .background(Color.white.opacity(isDisabled ? 0.04 : 0.10), in: RoundedRectangle(cornerRadius: 5))
+                .frame(width: 32, height: 32)
+                .background(Color.white.opacity(isDisabled ? 0.04 : 0.09), in: RoundedRectangle(cornerRadius: 7))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 5)
+                    RoundedRectangle(cornerRadius: 7)
                         .stroke(Color.white.opacity(isDisabled ? 0.10 : 0.26), lineWidth: 1)
                 )
         }
@@ -7298,35 +7495,54 @@ private struct AIPhaseTimelineEventRow: View {
     let isFocused: Bool
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: isFocused ? "scope" : "circle")
-                .font(.caption2.weight(.black))
+                .font(.caption.weight(.bold))
                 .foregroundStyle(isFocused ? .yellow : .white.opacity(0.35))
-                .frame(width: 12, alignment: .leading)
+                .frame(width: 16, height: 24)
 
-            Text("#\(event.order)")
-                .font(.caption2.weight(.black))
-                .foregroundStyle(isFocused ? .white.opacity(0.96) : .white.opacity(0.72))
-                .monospacedDigit()
-                .frame(width: 24, alignment: .leading)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text("#\(event.order)")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(isFocused ? BattlefieldTheme.ink : BattlefieldTheme.mutedInk)
+                        .monospacedDigit()
 
-            Text(event.shortCode)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(isFocused ? .yellow.opacity(0.96) : .white.opacity(0.84))
-                .frame(width: 28, alignment: .leading)
+                    Text(event.shortCode)
+                        .font(.caption2.weight(.black))
+                        .foregroundStyle(isFocused ? .black.opacity(0.82) : .yellow.opacity(0.92))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 3)
+                        .background(isFocused ? Color.yellow.opacity(0.88) : Color.yellow.opacity(0.10), in: Capsule())
 
-            Text(event.summary)
-                .font(.caption2)
-                .foregroundStyle(isFocused ? .white.opacity(0.9) : .white.opacity(0.68))
-                .fixedSize(horizontal: false, vertical: true)
+                    Text(event.kind.title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(isFocused ? .yellow : BattlefieldTheme.mutedInk)
+                }
+
+                Text(event.summary)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(isFocused ? BattlefieldTheme.ink : BattlefieldTheme.mutedInk)
+                    .minimumScaleFactor(0.72)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 4)
+
+            Image(systemName: "location.magnifyingglass")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(isFocused ? .yellow : BattlefieldTheme.mutedInk)
+                .frame(width: 20, height: 24)
         }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3)
-        .background(isFocused ? Color.white.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 5))
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(isFocused ? Color.yellow.opacity(0.09) : Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 7))
         .overlay(
-            RoundedRectangle(cornerRadius: 5)
-                .stroke(isFocused ? Color.yellow.opacity(0.54) : Color.clear, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(isFocused ? Color.yellow.opacity(0.52) : Color.white.opacity(0.06), lineWidth: isFocused ? 2 : 1)
         )
+        .contentShape(RoundedRectangle(cornerRadius: 7))
     }
 }
 

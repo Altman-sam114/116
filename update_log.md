@@ -2507,3 +2507,34 @@
 遗留事项：
 
 - 本轮未重构 AI 复盘时间线、地图标记拥挤度或命令预览重复实现；这些应继续拆成后续 UI 小轮次。
+
+### v1.60 / AI 战况回放界面重构
+
+日期：2026-07-11
+
+核心变更：
+
+- `AIPhaseSummaryView` 重构为回合头部、AI 专属九宫指标、复盘结论、播放控制、当前事件、前五条时间线和战果尾注分区。
+- 新增 AI 专属指标组件，不修改高复用 `CombatResultMetric`。
+- 新增当前回放事件条，自动播放或手动导航进入第 6 条以后，侧栏仍显示当前 order、类型和行动摘要。
+- 重构复盘结论和关键事件，保留模型派生顺序与共享 focused order，并将关键事件点击区扩到至少 44pt。
+- 重构时间线行和播放控件视觉，时间线按钮至少 44pt，保留原 action、disabled、速度 value/hint 和 VoiceOver 语义。
+- Timer publisher、播放 active 判断、pace interval 和 `advanceAIPhaseTimelinePlayback()` 调用链保持不变。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.60（AI战况回放界面重构）.md`
+
+验证结果：
+
+- 本轮人工要求不跑本地测试，全部交给 GitHub Actions 云端重验证；最终结果以本轮交付记录中的 run 和 artifact 为准。
+
+遗留事项：
+
+- 本轮未处理地图复盘标记拥挤度或 `InlineMapCommandPreview` / `FocusedCommandPreviewPanel` 重复实现；这些应继续拆成后续 UI 小轮次。
