@@ -4605,12 +4605,17 @@ private struct ObjectiveAdvancePlanPanel: View {
                 HStack(spacing: 8) {
                     Label("目标计划", systemImage: "flag.checkered")
                         .font(.subheadline.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
 
                     Spacer(minLength: 8)
 
                     Text("\(previews.count) 条")
                         .font(.caption.weight(.black))
-                        .foregroundStyle(.green.opacity(0.88))
+                        .foregroundStyle(.black.opacity(0.82))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Color.green.opacity(0.88), in: Capsule())
                         .lineLimit(1)
                 }
                 .foregroundStyle(.green)
@@ -4631,10 +4636,20 @@ private struct ObjectiveAdvancePlanPanel: View {
                 }
             }
             .padding(10)
-            .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color.green.opacity(0.12),
+                        BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: 7)
-                    .stroke(Color.green.opacity(0.24), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.green.opacity(0.28), lineWidth: 1)
             )
             .accessibilityElement(children: .contain)
         }
@@ -4698,7 +4713,11 @@ private struct ObjectiveAdvancePlanRow: View {
             }
         }
         .padding(8)
-        .background(Color.white.opacity(isFocused ? 0.14 : (index == 0 ? 0.10 : 0.06)), in: RoundedRectangle(cornerRadius: 7))
+        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+        .background(
+            (isFocused ? Color.yellow.opacity(0.12) : BattlefieldTheme.fieldGlass.opacity(index == 0 ? 0.48 : 0.34)),
+            in: RoundedRectangle(cornerRadius: 7)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 7)
                 .stroke(borderColor, lineWidth: isFocused ? 2 : 1)
@@ -4759,10 +4778,15 @@ private struct SafeEngagementOptionsPanel: View {
                         .frame(width: 16)
                     Text("安全接敌")
                         .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     Spacer(minLength: 8)
                     Text("点选预览")
                         .font(.system(size: 10, weight: .black, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.68))
+                        .foregroundStyle(.black.opacity(0.82))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Color.green.opacity(0.88), in: Capsule())
                 }
                 .foregroundStyle(.green.opacity(0.92))
 
@@ -4777,11 +4801,21 @@ private struct SafeEngagementOptionsPanel: View {
                     .accessibilityHint("只切换接敌路线预览，不会移动或攻击")
                 }
             }
-            .padding(9)
-            .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+            .padding(10)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color.green.opacity(0.12),
+                        BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: 7)
-                    .stroke(Color.green.opacity(0.22), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.green.opacity(0.28), lineWidth: 1)
             )
         }
     }
@@ -4846,9 +4880,13 @@ private struct SafeEngagementOptionRow: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.vertical, 7)
+        .padding(.vertical, 8)
         .padding(.horizontal, 8)
-        .background(Color.white.opacity(isFocused ? 0.12 : 0.05), in: RoundedRectangle(cornerRadius: 7))
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+        .background(
+            (isFocused ? Color.yellow.opacity(0.12) : BattlefieldTheme.fieldGlass.opacity(0.40)),
+            in: RoundedRectangle(cornerRadius: 7)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 7)
                 .stroke(borderColor, lineWidth: isFocused ? 2 : 1)
@@ -4912,17 +4950,19 @@ private struct TacticalCommandGroup: View {
             }
 
             Text(command.detail)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.62))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(BattlefieldTheme.ink.opacity(0.76))
                 .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(4)
+                .minimumScaleFactor(0.8)
 
             if targets.isEmpty {
                 Text(unit.hasAttacked ? "本回合已完成攻击，无法执行\(command.title)。" : "射程 \(command.range) 内没有可执行目标。")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.62))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(BattlefieldTheme.mutedInk)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(9)
-                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+                    .background(BattlefieldTheme.fieldGlass.opacity(0.36), in: RoundedRectangle(cornerRadius: 7))
             } else {
                 VStack(spacing: 7) {
                     ForEach(targets) { target in
@@ -4932,10 +4972,20 @@ private struct TacticalCommandGroup: View {
             }
         }
         .padding(10)
-        .background(command.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .background(
+            LinearGradient(
+                colors: [
+                    command.accentColor.opacity(0.12),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(command.accentColor.opacity(0.24), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(command.accentColor.opacity(0.28), lineWidth: 1)
         )
     }
 }
@@ -4991,10 +5041,11 @@ private struct TacticalCommandTargetButton: View {
                 }
             }
             .padding(9)
-            .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 7))
+            .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+            .background(BattlefieldTheme.fieldGlass.opacity(0.42), in: RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7)
-                    .stroke(command.accentColor.opacity(0.18), lineWidth: 1)
+                    .stroke(command.accentColor.opacity(0.24), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -6028,24 +6079,43 @@ private struct CommanderView: View {
                 Label(commander.name, systemImage: "person.crop.square.fill")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.yellow)
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 6)
                 Text("评分 \(commander.rating)")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.72))
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.yellow.opacity(0.90), in: Capsule())
             }
             Text("\(commander.nation) · \(commander.rank)")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.66))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(BattlefieldTheme.mutedInk)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Text(commander.trait)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.78))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(BattlefieldTheme.ink.opacity(0.84))
                 .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(4)
+                .minimumScaleFactor(0.8)
         }
         .padding(10)
-        .background(Color.yellow.opacity(0.11), in: RoundedRectangle(cornerRadius: 7))
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.yellow.opacity(0.14),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.42)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(Color.yellow.opacity(0.24), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.yellow.opacity(0.28), lineWidth: 1)
         )
     }
 }

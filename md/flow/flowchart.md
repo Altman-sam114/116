@@ -322,3 +322,7 @@ flowchart TD
 ## 状态面板（v1.71）
 
 `SupplyPanel`、`MoralePanel`、`ExperiencePanel`、`ThreatSummary`、`StatRows` 与 `ActionBadge` 使用统一指挥台卡片样式与可缩放文案。状态数值仍来自 `GameState`。
+
+## 作战规划面板（v1.72）
+
+`ObjectiveAdvancePlanPanel`、`SafeEngagementOptionsPanel`、`TacticalCommandGroup` 与 `CommanderView` 使用统一指挥台卡片样式；点选仍只聚焦或调用既有 `GameState` 战术入口。

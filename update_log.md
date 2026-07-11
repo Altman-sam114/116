@@ -2850,3 +2850,31 @@
 遗留事项：
 
 - 可继续可玩性反馈与剩余细面板微调。
+
+### v1.72 / 作战规划面板可玩性视觉
+
+日期：2026-07-12
+
+核心变更：
+
+- `ObjectiveAdvancePlanPanel`、`SafeEngagementOptionsPanel`、`TacticalCommandGroup`、`CommanderView` 对齐指挥台渐变卡片。
+- 目标计划与安全接敌行提高最小高度，强化当前预览态可读性。
+- 本轮只改 `ContentView` 表现层，不改变规划/战术命令规则与入口。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（地图操作体验）/v1.72（作战规划面板可玩性视觉）.md`
+
+验证结果：
+
+- 本地仅 `git diff --check`；完整验证交给 GitHub Actions。
+
+遗留事项：
+
+- 可继续敌情/反制细面板微调。
