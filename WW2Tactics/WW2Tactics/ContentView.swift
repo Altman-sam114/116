@@ -5967,38 +5967,6 @@ private extension MissionObjectiveState {
     }
 }
 
-private extension FireRiskLevel {
-    var accentColor: Color {
-        switch self {
-        case .none:
-            Color(red: 0.42, green: 0.74, blue: 0.56)
-        case .low:
-            Color(red: 0.32, green: 0.68, blue: 0.86)
-        case .medium:
-            Color(red: 0.95, green: 0.68, blue: 0.24)
-        case .high:
-            Color(red: 0.88, green: 0.34, blue: 0.18)
-        case .critical:
-            Color(red: 0.78, green: 0.10, blue: 0.14)
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .none:
-            "shield.checkered"
-        case .low:
-            "shield"
-        case .medium:
-            "exclamationmark.triangle.fill"
-        case .high:
-            "flame.fill"
-        case .critical:
-            "burst.fill"
-        }
-    }
-}
-
 private extension CombatPreview {
     var matchupAccentColor: Color {
         if matchupMultiplierPercent >= 110 {
