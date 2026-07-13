@@ -17,9 +17,37 @@
 - 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v1（地图操作体验）`：已持续增强路线预判、火力风险、战斗/战术/据点/后勤/敌方回合结果反馈、敌方意图预判、AI 复盘、OBJ/POS/反制建议操作可读性、玩家回合战线态势汇总、执行反馈闭环和敌方回合影响解释。
+- 近期规划已进入 `v2（六角格战争界面）`：v2.0 建立连续六角格战区、具象单位视觉和拆分后的 SwiftUI 表现层基座，规则状态机保持不变。
 
 ## 历史记录
+
+### v2.0 / 六角格战场视觉基座
+
+日期：2026-07-13
+
+核心变更：
+
+- 将主题、chrome/HUD、地图/input 和单位视觉从 `ContentView.swift` 抽离为四个独立 Swift 文件。
+- 七类地形使用确定性纹理与同类邻接连接，取消默认六角格厚阴影卡片感，保留所有 marker 与命中语义。
+- 坦克、步兵、火炮和侦察车改用独立军械剪影，并加入盟军圆角/轴心切角虚线底座、稳定 HP 条、状态角标和通用将领徽章。
+- 收薄顶栏/地图工具条，主要快捷操作保持 44pt 点击区，地图焦点滚动支持 Reduce Motion。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldTheme.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldChrome.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldUnitViews.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+
+验证结果：
+
+- 人工明确禁止本地 build、typecheck、smoke、XCTest、模拟器和视觉测试；Agent B 仅执行静态 diff 范围检查。
+- GitHub Actions run、attempt 和 artifact 在 push 后按实际结果记录，不能用 v2.0 前基线替代。
+
+遗留事项：
+
+- 等待 Agent C 下载并核对 v2.0 最新 run artifact；后续轮次只选择地貌细化或战斗动效之一。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 

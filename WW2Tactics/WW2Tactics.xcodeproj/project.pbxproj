@@ -11,6 +11,10 @@
 		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* ContentView.swift */; };
 		A10000000000000000000003 /* GameModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* GameModels.swift */; };
 		A10000000000000000000004 /* GameState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* GameState.swift */; };
+		A10000000000000000000005 /* BattlefieldTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* BattlefieldTheme.swift */; };
+		A10000000000000000000006 /* BattlefieldChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* BattlefieldChrome.swift */; };
+		A10000000000000000000007 /* BattlefieldMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000017 /* BattlefieldMap.swift */; };
+		A10000000000000000000008 /* BattlefieldUnitViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000018 /* BattlefieldUnitViews.swift */; };
 		A10000000000000000000101 /* GameStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* GameStateTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -29,6 +33,10 @@
 		A10000000000000000000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A10000000000000000000013 /* GameModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameModels.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* GameState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameState.swift; sourceTree = "<group>"; };
+		A10000000000000000000015 /* BattlefieldTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldTheme.swift; sourceTree = "<group>"; };
+		A10000000000000000000016 /* BattlefieldChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldChrome.swift; sourceTree = "<group>"; };
+		A10000000000000000000017 /* BattlefieldMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldMap.swift; sourceTree = "<group>"; };
+		A10000000000000000000018 /* BattlefieldUnitViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldUnitViews.swift; sourceTree = "<group>"; };
 		A10000000000000000000020 /* WW2Tactics.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WW2Tactics.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000111 /* GameStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameStateTests.swift; sourceTree = "<group>"; };
 		A10000000000000000000120 /* WW2TacticsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WW2TacticsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -68,6 +76,10 @@
 				A10000000000000000000012 /* ContentView.swift */,
 				A10000000000000000000013 /* GameModels.swift */,
 				A10000000000000000000014 /* GameState.swift */,
+				A10000000000000000000015 /* BattlefieldTheme.swift */,
+				A10000000000000000000016 /* BattlefieldChrome.swift */,
+				A10000000000000000000017 /* BattlefieldMap.swift */,
+				A10000000000000000000018 /* BattlefieldUnitViews.swift */,
 			);
 			path = WW2Tactics;
 			sourceTree = "<group>";
@@ -191,6 +203,10 @@
 				A10000000000000000000002 /* ContentView.swift in Sources */,
 				A10000000000000000000003 /* GameModels.swift in Sources */,
 				A10000000000000000000004 /* GameState.swift in Sources */,
+				A10000000000000000000005 /* BattlefieldTheme.swift in Sources */,
+				A10000000000000000000006 /* BattlefieldChrome.swift in Sources */,
+				A10000000000000000000007 /* BattlefieldMap.swift in Sources */,
+				A10000000000000000000008 /* BattlefieldUnitViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

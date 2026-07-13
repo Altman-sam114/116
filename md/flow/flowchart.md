@@ -8,7 +8,9 @@
 
 ```mermaid
 flowchart TD
-  U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["ContentView：地图格、HUD、侧栏、战斗反馈卡、态势指挥简报、AI战况回放、战区指挥台主题"]
+  U["用户操作：左键 / 点按 / 右键 / 快捷按钮"] --> V["SwiftUI 表现层：ContentView 根编排 + BattlefieldChrome HUD + BattlefieldMap input + BattlefieldUnitViews"]
+  V --> VD["只读视觉派生：连续地貌邻接 / 四类单位剪影 / 阵营底座 / HP / 将领徽章"]
+  VD --> V
   V --> I["输入转发：handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusObjectiveAdvanceTarget / focusEnemyThreatCountermeasure / focusBattlefieldSituationPrimaryTarget / focusBattlefieldSituationObjectivePressure / focusBattlefieldSituationObjectivePressureReplayTarget / focusBattlefieldSituationResponseTarget / focusPreviousBattlefieldSituationResponse / focusNextBattlefieldSituationResponse / focusBattlefieldSituationReplayTarget / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback"]
   I --> S["GameState：核心状态机"]
   M["GameModels：Scenario、BattleUnit、TerrainTile、HexCoordinate、CommandPreview、ObjectiveAdvancePreview、SafeEngagementComparisonPreview、EnemyThreatIntentPreview、EnemyThreatCountermeasurePreview、BattlefieldSituationSummary/ObjectivePressure/ObjectivePressureSource/ObjectivePressureComparison/ObjectivePressureEnemyPhaseImpact/ObjectivePressureMapMarker/FocusTarget/ActionHint/ResponseSummary/ResponseHistoryEntry/ResponseMapMarker/ReplayTarget/ReplayTargetSource、BenefitMetric、PriorityFactor、ComparisonPreview、ImpactComparison、EnemyThreatCountermeasureExecutionPreview、ExecutionResultSummary、FollowUpSummary/ObjectiveDefenseFollowUpDetail、Deployment/ReinforcementResultSummary、AIPhaseTimelineEvent、AIPhaseMapMarker、AIPhaseSummary、AIPhaseReplayConclusion"] --> S
