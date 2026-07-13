@@ -5943,30 +5943,6 @@ private extension MoraleState {
     }
 }
 
-private extension MissionObjectiveState {
-    var systemImage: String {
-        switch self {
-        case .pending:
-            "circle"
-        case .complete:
-            "checkmark.circle.fill"
-        case .failed:
-            "xmark.circle.fill"
-        }
-    }
-
-    var accentColor: Color {
-        switch self {
-        case .pending:
-            Color.white.opacity(0.48)
-        case .complete:
-            Color(red: 0.42, green: 0.78, blue: 0.40)
-        case .failed:
-            Color(red: 0.86, green: 0.28, blue: 0.22)
-        }
-    }
-}
-
 private extension CombatPreview {
     var matchupAccentColor: Color {
         if matchupMultiplierPercent >= 110 {
