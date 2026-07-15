@@ -54,6 +54,18 @@ flowchart TD
   S --> T["测试层：GameStateTests / RulesSmokeTest"]
 ```
 
+## 云端视觉验收流
+
+```mermaid
+flowchart LR
+    Push["push main"] --> Build["static + smoke + build-for-testing"]
+    Build --> Simulator["启动可用 iOS Simulator"]
+    Simulator --> Launch["安装并启动 WW2Tactics"]
+    Launch --> Screenshot["battlefield-screenshot.png"]
+    Screenshot --> Artifact["manifest + logs + JUnit + xcresult + PNG"]
+    Artifact --> Review["下载并查看真实战场画面"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

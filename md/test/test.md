@@ -12,6 +12,7 @@
 - Swift / Xcode / 规则 / UI 相关改动完成后，默认由 Agent B commit 并 `git push origin main`，让 GitHub Actions 运行重验证。
 - 若人工明确要求“不做本地测试，全部云端”，本地轻量检查可在该轮跳过；交付必须明确列出未跑本地命令及原因，并由 GitHub Actions artifact 覆盖 `git diff --check`、project plist、规则 smoke 和 Xcode build-for-testing。
 - v2.0 人工明确禁止本地 build、typecheck、RulesSmokeTest、XCTest、模拟器和本地视觉测试；Agent B 仅允许执行 Git diff/status/范围检查，重验证必须由最新 `origin/main` GitHub Actions run 承担。静态范围检查不是测试，不能表述为代码或视觉已通过。
+- v2.1 把云端视觉证据纳入 CI：build-for-testing 成功后必须启动可用 iOS Simulator、安装并启动 app、生成 `battlefield-screenshot.png` 和截图日志；manifest、failure summary、JUnit 和最终门禁都必须记录 screenshot outcome。验收必须实际查看 PNG，文件存在本身不能证明 app 画面正确。
 - 地图格、单位棋子、地图标记槽位折叠、命令预览 helper 去重、后勤与战术结果卡视觉、反制回放/复核卡视觉、HUD 信息密度、触控手感与侧栏层级、图例与编队条视觉、窄屏布局适配、动态字体与面板微调、单位详情层级与战术条视觉、状态面板视觉统一、作战规划面板可玩性视觉、敌情与反制面板视觉、反制下一步与关联AI行动反馈、态势响应与AI回放反馈强化、据点压力与复盘入口反馈、HUD、侧栏、战斗预览/结果卡、战线态势指挥简报、AI 战况回放和主题样式等纯 UI 表现层改动仍必须通过云端 Xcode build-for-testing；若该轮跳过本地测试，不能把本地未跑命令写成已验证。
 - 战线态势、据点压力、压力来源标识、压力态势对照、压力敌方回合影响、压力复盘线索、战线态势复盘影响来源筛选、反制建议或地图入口变化必须覆盖只读定位边界：点选入口可改变选择、焦点、引导、AI 复盘 order 和消息，但不得消耗行动或改变单位、据点、指令点、战报、latest result、AI summary 或 follow-up。
 - Agent C 必须下载未加密 CI 结果包，不能只看 Agent B 的文字汇报。
@@ -224,6 +225,7 @@ Agent C 必须核对：
 - `junit.xml` 是否存在并能说明静态检查、smoke 和 build 结果。
 - `xcodebuild.log` 和 `rules-smoke.log` 是否来自本次 run。
 - `.xcresult` 是否存在；若缺失，manifest 和 failure summary 必须说明原因。
+- `battlefield-screenshot.png` 和 `battlefield-screenshot.log` 是否来自本次 run；截图是否为已启动的 WW2Tactics 战场，而不是 SpringBoard、黑屏、崩溃或空白画面。
 - 下载目录大小是否合理，必要时运行 `du -sh /private/tmp/ww2tactics-c-review-<run_id>/`。
 
 CI 失败时，Agent C 写退回清单；Agent B 在 `main` 上追加修复 commit 并重新 push。

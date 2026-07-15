@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-`WW2Tactics` 的主链路是：玩家在 SwiftUI 六角格地图上选择单位和目标，`GameState` 根据 `GameModels` 执行移动、攻击、补给、AI、目标和胜负规则，v2.0 表现层由 `ContentView` 根编排、`BattlefieldChrome`、`BattlefieldMap`、`BattlefieldUnitViews` 和 `BattlefieldTheme` 将状态渲染为连续战区；测试层用 XCTest 和 smoke test 锁住核心规则。协作链路默认由 Agent B 在 `main` 提交并推送到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载结果包后验收。
+`WW2Tactics` 的主链路是：玩家在 SwiftUI 六角格地图上选择单位和目标，`GameState` 根据 `GameModels` 执行移动、攻击、补给、AI、目标和胜负规则，v2.0 表现层由 `ContentView` 根编排、`BattlefieldChrome`、`BattlefieldMap`、`BattlefieldUnitViews` 和 `BattlefieldTheme` 将状态渲染为连续战区；测试层用 XCTest 和 smoke test 锁住核心规则。云端链路在 build-for-testing 后启动模拟器生成首屏战场截图，未加密 artifact 同时保存规则、构建和视觉证据，下载后再验收。
 
 ## 1. 当前核心数据流
 

@@ -37,6 +37,8 @@ jobs:
             echo "RESULT_BUNDLE=ci-results/WW2Tactics.xcresult"
             echo "DERIVED_DATA=.derivedData-ci"
             echo "MODULE_CACHE=.module-cache-ci"
+            echo "BATTLEFIELD_SCREENSHOT=ci-results/battlefield-screenshot.png"
+            echo "SCREENSHOT_LOG=ci-results/battlefield-screenshot.log"
           } >> "$GITHUB_ENV"
 
       - name: Run checks and build
@@ -113,6 +115,135 @@ jobs:
             echo "BUILD_STATUS=$build_status"
           } >> "$GITHUB_ENV"
 
+      - name: Capture battlefield screenshot
+        if: always()
+        shell: bash
+        run: |
+          set +e
+
+          screenshot_status=1
+          screenshot_device_name="unavailable"
+          screenshot_runtime="unavailable"
+          device_udid=""
+
+          {
+            echo "## Battlefield screenshot"
+
+            if [[ "${BUILD_STATUS:-1}" != "0" ]]; then
+              echo "Skipping screenshot because build-for-testing failed."
+            else
+              device_line="$(python3 - <<'PY'
+          import json
+          import re
+          import subprocess
+
+          payload = subprocess.check_output(
+              ["xcrun", "simctl", "list", "devices", "available", "--json"],
+              text=True,
+          )
+          data = json.loads(payload)
+          candidates = []
+
+          for runtime, devices in data.get("devices", {}).items():
+              if ".iOS-" not in runtime:
+                  continue
+
+              version_text = runtime.rsplit(".iOS-", 1)[-1]
+              version = tuple(int(part) for part in re.findall(r"\d+", version_text))
+
+              for device in devices:
+                  if not device.get("isAvailable", False):
+                      continue
+
+                  name = device.get("name", "")
+                  if name == "iPad Pro 13-inch (M4)":
+                      device_rank = 4
+                  elif name.startswith("iPad Pro"):
+                      device_rank = 3
+                  elif name.startswith("iPad"):
+                      device_rank = 2
+                  elif name.startswith("iPhone"):
+                      device_rank = 1
+                  else:
+                      continue
+
+                  candidates.append(
+                      (device_rank, version, name, device["udid"], runtime)
+                  )
+
+          if candidates:
+              _, _, name, udid, runtime = max(candidates)
+              print(f"{udid}|{name}|{runtime}")
+          PY
+              )"
+
+              if [[ -z "$device_line" ]]; then
+                echo "No available iOS Simulator device was found."
+              else
+                IFS='|' read -r device_udid screenshot_device_name screenshot_runtime <<< "$device_line"
+                app_path="$DERIVED_DATA/Build/Products/Debug-iphonesimulator/WW2Tactics.app"
+
+                echo "device: $screenshot_device_name"
+                echo "runtime: $screenshot_runtime"
+                echo "udid: $device_udid"
+                echo "app: $app_path"
+
+                xcrun simctl boot "$device_udid" >/dev/null 2>&1 || true
+                xcrun simctl bootstatus "$device_udid" -b
+                boot_status=$?
+
+                if [[ $boot_status -ne 0 ]]; then
+                  echo "Simulator failed to boot."
+                elif [[ ! -d "$app_path" ]]; then
+                  echo "Built app was not found at $app_path."
+                else
+                  xcrun simctl ui "$device_udid" appearance dark || true
+                  xcrun simctl status_bar "$device_udid" override \
+                    --time 09:41 \
+                    --batteryState charged \
+                    --batteryLevel 100 || true
+                  xcrun simctl install "$device_udid" "$app_path"
+                  install_status=$?
+
+                  if [[ $install_status -ne 0 ]]; then
+                    echo "App installation failed."
+                  else
+                    xcrun simctl launch \
+                      --terminate-running-process \
+                      "$device_udid" \
+                      com.easytech.prototype.WW2Tactics
+                    launch_status=$?
+
+                    if [[ $launch_status -ne 0 ]]; then
+                      echo "App launch failed."
+                    else
+                      sleep 6
+                      xcrun simctl io "$device_udid" screenshot "$BATTLEFIELD_SCREENSHOT"
+                      capture_status=$?
+
+                      if [[ $capture_status -eq 0 && -s "$BATTLEFIELD_SCREENSHOT" ]]; then
+                        sips -g pixelWidth -g pixelHeight "$BATTLEFIELD_SCREENSHOT"
+                        screenshot_status=0
+                      else
+                        echo "Screenshot capture failed or produced an empty file."
+                      fi
+                    fi
+                  fi
+                fi
+              fi
+            fi
+          } > "$SCREENSHOT_LOG" 2>&1
+
+          if [[ -n "$device_udid" ]]; then
+            xcrun simctl shutdown "$device_udid" >> "$SCREENSHOT_LOG" 2>&1 || true
+          fi
+
+          {
+            echo "SCREENSHOT_STATUS=$screenshot_status"
+            echo "SCREENSHOT_DEVICE_NAME=$screenshot_device_name"
+            echo "SCREENSHOT_RUNTIME=$screenshot_runtime"
+          } >> "$GITHUB_ENV"
+
       - name: Generate result package metadata
         if: always()
         shell: bash
@@ -122,9 +253,11 @@ jobs:
           static_outcome="success"
           smoke_outcome="success"
           build_outcome="success"
+          screenshot_outcome="success"
           [[ "${STATIC_STATUS:-1}" == "0" ]] || static_outcome="failure"
           [[ "${SMOKE_STATUS:-1}" == "0" ]] || smoke_outcome="failure"
           [[ "${BUILD_STATUS:-1}" == "0" ]] || build_outcome="failure"
+          [[ "${SCREENSHOT_STATUS:-1}" == "0" ]] || screenshot_outcome="failure"
 
           result_bundle_exists="false"
           if [[ -d "$RESULT_BUNDLE" ]]; then
@@ -142,13 +275,16 @@ jobs:
             echo "- staticChecksOutcome: ${static_outcome}"
             echo "- smokeTestOutcome: ${smoke_outcome}"
             echo "- buildOutcome: ${build_outcome}"
+            echo "- screenshotOutcome: ${screenshot_outcome}"
+            echo "- screenshotDevice: ${SCREENSHOT_DEVICE_NAME:-unavailable}"
+            echo "- screenshotRuntime: ${SCREENSHOT_RUNTIME:-unavailable}"
             echo "- testOutcome: skipped"
             echo "- resultBundleExists: ${result_bundle_exists}"
             echo
-            if [[ "$static_outcome" == "success" && "$smoke_outcome" == "success" && "$build_outcome" == "success" ]]; then
-              echo "All configured CI checks passed. XCTest execution is skipped; build-for-testing produced the test bundle."
+            if [[ "$static_outcome" == "success" && "$smoke_outcome" == "success" && "$build_outcome" == "success" && "$screenshot_outcome" == "success" ]]; then
+              echo "All configured CI checks passed. XCTest execution is skipped; build-for-testing produced the test bundle and the app launch produced a battlefield screenshot."
             else
-              echo "One or more checks failed. Inspect ci-results/static-checks.log, ci-results/rules-smoke.log, and ci-results/xcodebuild.log."
+              echo "One or more checks failed. Inspect ci-results/static-checks.log, ci-results/rules-smoke.log, ci-results/xcodebuild.log, and ci-results/battlefield-screenshot.log."
             fi
           } > ci-results/ci-failure-summary.md
 
@@ -160,6 +296,7 @@ jobs:
           static_status = os.environ.get("STATIC_STATUS", "1")
           smoke_status = os.environ.get("SMOKE_STATUS", "1")
           build_status = os.environ.get("BUILD_STATUS", "1")
+          screenshot_status = os.environ.get("SCREENSHOT_STATUS", "1")
 
           def outcome(status):
               return "success" if status == "0" else "failure"
@@ -184,10 +321,17 @@ jobs:
               "staticChecksOutcome": outcome(static_status),
               "smokeTestOutcome": outcome(smoke_status),
               "buildOutcome": outcome(build_status),
+              "screenshotOutcome": outcome(screenshot_status),
+              "screenshotPath": os.environ["BATTLEFIELD_SCREENSHOT"],
+              "screenshotLogPath": os.environ["SCREENSHOT_LOG"],
+              "screenshotDevice": os.environ.get("SCREENSHOT_DEVICE_NAME", "unavailable"),
+              "screenshotRuntime": os.environ.get("SCREENSHOT_RUNTIME", "unavailable"),
               "testOutcome": "skipped",
               "projectSpecificReports": [
                   "ci-results/static-checks.log",
-                  "ci-results/rules-smoke.log"
+                  "ci-results/rules-smoke.log",
+                  "ci-results/battlefield-screenshot.log",
+                  "ci-results/battlefield-screenshot.png"
               ]
           }
 
@@ -204,6 +348,7 @@ jobs:
               ("static-checks", os.environ.get("STATIC_STATUS", "1"), "git diff --check and plutil"),
               ("rules-smoke", os.environ.get("SMOKE_STATUS", "1"), "RulesSmokeTest compile and run"),
               ("xcode-build-for-testing", os.environ.get("BUILD_STATUS", "1"), "xcodebuild build-for-testing"),
+              ("battlefield-screenshot", os.environ.get("SCREENSHOT_STATUS", "1"), "boot simulator, install app, launch app, and capture battlefield screenshot"),
           ]
           failures = sum(1 for _, status, _ in checks if status != "0")
           suite = ET.Element("testsuite", {
@@ -241,6 +386,6 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [[ "${STATIC_STATUS:-1}" != "0" || "${SMOKE_STATUS:-1}" != "0" || "${BUILD_STATUS:-1}" != "0" ]]; then
+          if [[ "${STATIC_STATUS:-1}" != "0" || "${SMOKE_STATUS:-1}" != "0" || "${BUILD_STATUS:-1}" != "0" || "${SCREENSHOT_STATUS:-1}" != "0" ]]; then
             exit 1
           fi

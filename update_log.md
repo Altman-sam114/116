@@ -45,11 +45,29 @@
 验证结果：
 
 - 人工明确禁止本地 build、typecheck、smoke、XCTest、模拟器和视觉测试；Agent B 仅执行静态 diff 范围检查。
-- GitHub Actions run、attempt 和 artifact 在 push 后按实际结果记录，不能用 v2.0 前基线替代。
+- GitHub Actions 最终成功 run 为 `29220790248`，attempt `1`，commit `277e6e0ab33fa88bce123240594285fa7974ce43`，artifact 为 `ww2tactics-ci-v2.0-main-277e6e0-run29220790248-attempt1`；static、rules smoke 和 build-for-testing 均成功，Agent C 已下载核对。
 
 遗留事项：
 
-- 等待 Agent C 下载并核对 v2.0 最新 run artifact；后续轮次只选择地貌细化或战斗动效之一。
+- v2.0 artifact 没有运行截图，尚不能证明像素级视觉质量；v2.1 补齐云端截图证据后，再选择地貌细化或战斗动效之一。
+
+### v2.1 / 云端战场截图验收链
+
+日期：2026-07-15
+
+核心变更：
+
+- GitHub Actions 在 build-for-testing 成功后动态选择可用 iOS Simulator，安装并启动 app，生成首屏战场 PNG 与启动日志。
+- screenshot outcome 进入 manifest、failure summary、JUnit 和最终失败门禁；artifact 同时保存构建、规则与视觉证据。
+- 本轮只改云端验证与文档，不改变 SwiftUI 画面或规则。
+
+验证结果：
+
+- 本地不运行 build、typecheck、smoke、XCTest、模拟器或截图；只做 Git diff 范围检查和 YAML 静态解析，重验证等待最新 `origin/main` run。
+
+遗留事项：
+
+- 下载最新 artifact 并实际查看 `battlefield-screenshot.png`；若为正常战场画面，再按真实截图进入地貌或战斗动效小轮次。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 
