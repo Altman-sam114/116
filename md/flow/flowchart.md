@@ -78,6 +78,19 @@ flowchart TD
     Deck --> Support["编队 / 战术 / 增援 / 图例"]
 ```
 
+## v2.3 地图优先工作区
+
+```mermaid
+flowchart LR
+    Workspace["BattlefieldWorkspace 全宽地图"] --> Map["MapCommandCenter + 六角战区"]
+    Workspace --> Toggle["44pt 战场情报按钮"]
+    Toggle --> State["本地 isInspectorExpanded"]
+    State --> Regular["regular：右缘覆盖 Inspector"]
+    State --> Compact["compact：底部覆盖 Inspector"]
+    Regular --> StateMachine["只读 GameState + 既有命令转发"]
+    Compact --> StateMachine
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

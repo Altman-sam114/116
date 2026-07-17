@@ -3,7 +3,7 @@ import UIKit
 
 
 struct ContentView: View {
-    @EnvironmentObject private var game: GameState
+    @State private var isInspectorExpanded = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -20,27 +20,14 @@ struct ContentView: View {
 
                 VStack(spacing: 0) {
                     TopCommandBar()
-
-                    if isRegular {
-                        HStack(spacing: isWide ? 12 : 10) {
-                            BattlefieldView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            InspectorPanel()
-                                .frame(width: inspectorWidth)
-                        }
-                        .padding(.horizontal, horizontalPadding)
-                        .padding(.bottom, isWide ? 14 : 10)
-                    } else {
-                        VStack(spacing: 8) {
-                            BattlefieldView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            InspectorPanel()
-                                .frame(maxWidth: .infinity)
-                                .frame(height: compactInspectorHeight)
-                        }
-                        .padding(.horizontal, horizontalPadding)
-                        .padding(.bottom, 8)
-                    }
+                    BattlefieldWorkspace(
+                        isInspectorExpanded: $isInspectorExpanded,
+                        isRegular: isRegular,
+                        horizontalPadding: horizontalPadding,
+                        bottomPadding: isWide ? 14 : (isRegular ? 10 : 8),
+                        inspectorWidth: inspectorWidth,
+                        compactInspectorHeight: compactInspectorHeight
+                    )
                 }
             }
         }
@@ -79,6 +66,93 @@ struct ContentView: View {
             }
         }
         .ignoresSafeArea()
+    }
+}
+
+private struct BattlefieldWorkspace: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Binding var isInspectorExpanded: Bool
+    let isRegular: Bool
+    let horizontalPadding: CGFloat
+    let bottomPadding: CGFloat
+    let inspectorWidth: CGFloat
+    let compactInspectorHeight: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            BattlefieldView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if isInspectorExpanded {
+                inspectorOverlay
+                    .transition(inspectorTransition)
+            }
+
+            inspectorToggle
+                .padding(.trailing, isInspectorExpanded && isRegular ? inspectorWidth + 18 : 10)
+        }
+        .padding(.horizontal, horizontalPadding)
+        .padding(.bottom, bottomPadding)
+    }
+
+    private var inspectorOverlay: some View {
+        Group {
+            if isRegular {
+                InspectorPanel()
+                    .frame(width: inspectorWidth)
+                    .frame(maxHeight: .infinity)
+            } else {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 60)
+                    InspectorPanel()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: compactInspectorHeight)
+                }
+            }
+        }
+        .padding(8)
+    }
+
+    private var inspectorToggle: some View {
+        Button(
+            isInspectorExpanded ? "收起战场情报" : "展开战场情报",
+            systemImage: "sidebar.right",
+            action: toggleInspector
+        )
+        .labelStyle(.iconOnly)
+        .font(.headline.bold())
+        .foregroundStyle(isInspectorExpanded ? BattlefieldTheme.commandDeckDeep : BattlefieldTheme.brass)
+        .frame(width: 44, height: 44)
+        .background(
+            isInspectorExpanded ? BattlefieldTheme.brass : BattlefieldTheme.commandDeckDeep.opacity(0.94),
+            in: RoundedRectangle(cornerRadius: 7)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(BattlefieldTheme.brass.opacity(0.72), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.34), radius: 7, x: 0, y: 4)
+        .buttonStyle(.plain)
+        .help(isInspectorExpanded ? "收起战场情报" : "展开战场情报")
+        .accessibilityValue(isInspectorExpanded ? "已展开" : "已收起")
+    }
+
+    private var inspectorTransition: AnyTransition {
+        if isRegular {
+            .move(edge: .trailing).combined(with: .opacity)
+        } else {
+            .move(edge: .bottom).combined(with: .opacity)
+        }
+    }
+
+    private func toggleInspector() {
+        if reduceMotion {
+            isInspectorExpanded.toggle()
+        } else {
+            withAnimation(.snappy) {
+                isInspectorExpanded.toggle()
+            }
+        }
     }
 }
 
@@ -1041,7 +1115,7 @@ private struct InspectorPanel: View {
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(BattlefieldTheme.commandDeck.opacity(0.66))
+                    .fill(BattlefieldTheme.commandDeck.opacity(0.94))
                 LinearGradient(
                     colors: [
                         BattlefieldTheme.brass.opacity(0.08),

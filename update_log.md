@@ -84,11 +84,31 @@
 
 验证结果：
 
+- 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器或视觉测试。
+- GitHub Actions run `29589038142`、attempt `1`、commit `b1184544b2ef4f3f9c6ab1f3464f847b537957c2` 成功；artifact `ww2tactics-ci-v2.2-main-b118454-run29589038142-attempt1` 的 static、rules smoke、build 和 screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-29589038142/` 并核对 manifest、failure summary、JUnit、日志、`.xcresult` 和 2064x2752 iPad 战场截图。
+
+遗留事项：
+
+- v2.2 截图确认单行顶栏、默认收起支援甲板、地形代码降噪和单位放大均生效；但常驻 Inspector 仍占据约三分之一首屏宽度，v2.3 改为地图优先情报抽屉。
+
+### v2.3 / 地图优先情报抽屉
+
+日期：2026-07-17
+
+核心变更：
+
+- 地图默认占满顶栏以下工作区，不再为 Inspector 预留固定宽度或高度。
+- Inspector 改为 44pt 边缘按钮按需展开；regular 宽度从右缘覆盖，compact 宽度从底部覆盖，全部详情和命令入口保留。
+- 抽屉展开尊重 Reduce Motion，提供 VoiceOver 标签、状态值和 hover help；覆盖背景提高不透明度。
+
+验证结果：
+
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器或视觉测试；等待最新 `origin/main` run 与截图 artifact。
 
 遗留事项：
 
-- 下载 v2.2 新截图与 v2.1 基线对比，确认地图占比、单位可读性和 marker 遮挡情况后再进入下一轮。
+- 通过 v2.3 截图确认抽屉默认收起、地图宽度增益、按钮位置和六角画布填充，再选择地貌、单位模型或战斗动效的下一小轮。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 
