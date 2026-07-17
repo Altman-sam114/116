@@ -91,6 +91,18 @@ flowchart LR
     Compact --> StateMachine
 ```
 
+## v2.4 连续地貌派生
+
+```mermaid
+flowchart LR
+    Tile["TerrainTile + q/r"] --> Seed["确定性地貌 seed"]
+    Neighbors["同类 neighbors"] --> Connections["河流 / 道路 / 弱林带连接"]
+    Seed --> Variants["田垄 / 树簇 / 城市块 / 山脊 / 雪纹变体"]
+    Connections --> Texture["TerrainTexture 只读绘制"]
+    Variants --> Texture
+    Texture --> Hex["HexTileView：frame / hit path / marker 不变"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

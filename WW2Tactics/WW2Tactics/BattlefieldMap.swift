@@ -729,37 +729,45 @@ struct TerrainTexture: View {
     }
 
     private func connectionLayer(in size: CGSize) -> some View {
-        Path { path in
-            let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            for direction in connectionDirections {
-                path.move(to: center)
-                path.addLine(to: endpoint(for: direction, in: size))
+        Group {
+            if tile.terrain.showsMapConnections {
+                Path { path in
+                    let center = CGPoint(x: size.width / 2, y: size.height / 2)
+                    for direction in connectionDirections {
+                        path.move(to: center)
+                        path.addLine(to: endpoint(for: direction, in: size))
+                    }
+                }
+                .stroke(
+                    tile.terrain.connectionColor,
+                    style: StrokeStyle(lineWidth: tile.terrain.connectionWidth, lineCap: .round, lineJoin: .round)
+                )
             }
         }
-        .stroke(
-            tile.terrain.connectionColor,
-            style: StrokeStyle(lineWidth: tile.terrain.connectionWidth, lineCap: .round, lineJoin: .round)
-        )
     }
 
     private func fieldLines(in size: CGSize) -> some View {
+        let spacing = CGFloat(15 + terrainSeed % 5)
+        let start = -size.height * (0.10 + seedFraction(multiplier: 7, offset: 11) * 0.18)
+        let rise = size.height * (0.12 + seedFraction(multiplier: 13, offset: 5) * 0.16)
+
         Path { path in
-            for offset in stride(from: -size.height * 0.2, through: size.height, by: 11) {
+            for offset in stride(from: start, through: size.height, by: spacing) {
                 path.move(to: CGPoint(x: 0, y: offset))
-                path.addLine(to: CGPoint(x: size.width, y: offset + size.height * 0.34))
+                path.addLine(to: CGPoint(x: size.width, y: offset + rise))
             }
         }
-        .stroke(Color.yellow.opacity(0.13), lineWidth: 1)
+        .stroke(Color.yellow.opacity(0.075), lineWidth: 0.8)
     }
 
     private func forestClusters(in size: CGSize) -> some View {
         ZStack {
-            ForEach(0..<7, id: \.self) { index in
-                let x = size.width * (0.18 + CGFloat((index * 37) % 67) / 100)
-                let y = size.height * (0.18 + CGFloat((index * 23) % 61) / 100)
+            ForEach(0..<5, id: \.self) { index in
+                let x = size.width * (0.14 + seededFraction(index: index, multiplier: 37, offset: 17) * 0.72)
+                let y = size.height * (0.16 + seededFraction(index: index, multiplier: 23, offset: 41) * 0.66)
                 Image(systemName: "tree.fill")
-                    .font(.system(size: index.isMultiple(of: 3) ? 13 : 10, weight: .bold))
-                    .foregroundStyle(Color.black.opacity(0.28))
+                    .font(.system(size: 8 + CGFloat((terrainSeed + index * 5) % 5), weight: .bold))
+                    .foregroundStyle(Color.black.opacity(0.20))
                     .position(x: x, y: y)
             }
         }
@@ -773,40 +781,51 @@ struct TerrainTexture: View {
                 path.move(to: CGPoint(x: size.width * 0.46, y: 0))
                 path.addLine(to: CGPoint(x: size.width * 0.56, y: size.height))
             }
-            .stroke(Color.black.opacity(0.20), lineWidth: 5)
-            ForEach(0..<5, id: \.self) { index in
+            .stroke(Color.black.opacity(0.13), lineWidth: 4)
+            ForEach(0..<4, id: \.self) { index in
                 Rectangle()
-                    .fill(Color.white.opacity(0.16))
-                    .frame(width: index.isMultiple(of: 2) ? 13 : 9, height: index.isMultiple(of: 2) ? 9 : 13)
+                    .fill(Color.white.opacity(0.12))
+                    .frame(
+                        width: 8 + CGFloat((terrainSeed + index * 3) % 6),
+                        height: 8 + CGFloat((terrainSeed + index * 7) % 6)
+                    )
                     .position(
-                        x: size.width * (0.22 + CGFloat((index * 31) % 57) / 100),
-                        y: size.height * (0.20 + CGFloat((index * 19) % 58) / 100)
+                        x: size.width * (0.18 + seededFraction(index: index, multiplier: 31, offset: 7) * 0.64),
+                        y: size.height * (0.18 + seededFraction(index: index, multiplier: 19, offset: 29) * 0.64)
                     )
             }
         }
     }
 
     private func mountainRidges(in size: CGSize) -> some View {
+        let firstPeak = 0.22 + seedFraction(multiplier: 11, offset: 3) * 0.16
+        let secondPeak = 0.58 + seedFraction(multiplier: 17, offset: 19) * 0.16
+        let firstHeight = 0.24 + seedFraction(multiplier: 23, offset: 13) * 0.18
+        let secondHeight = 0.20 + seedFraction(multiplier: 29, offset: 31) * 0.20
+
         Path { path in
-            path.move(to: CGPoint(x: size.width * 0.08, y: size.height * 0.76))
-            path.addLine(to: CGPoint(x: size.width * 0.32, y: size.height * 0.26))
-            path.addLine(to: CGPoint(x: size.width * 0.48, y: size.height * 0.58))
-            path.addLine(to: CGPoint(x: size.width * 0.66, y: size.height * 0.20))
-            path.addLine(to: CGPoint(x: size.width * 0.92, y: size.height * 0.72))
+            path.move(to: CGPoint(x: size.width * 0.08, y: size.height * 0.72))
+            path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
+            path.addLine(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
+            path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
+            path.addLine(to: CGPoint(x: size.width * 0.92, y: size.height * 0.70))
         }
-        .stroke(Color.white.opacity(0.28), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+        .stroke(Color.white.opacity(0.20), style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
     }
 
     private func snowDrifts(in size: CGSize) -> some View {
+        let startY = 0.48 + seedFraction(multiplier: 13, offset: 23) * 0.16
+        let endY = 0.36 + seedFraction(multiplier: 19, offset: 37) * 0.18
+
         Path { path in
-            path.move(to: CGPoint(x: 0, y: size.height * 0.58))
+            path.move(to: CGPoint(x: 0, y: size.height * startY))
             path.addCurve(
-                to: CGPoint(x: size.width, y: size.height * 0.42),
-                control1: CGPoint(x: size.width * 0.28, y: size.height * 0.28),
-                control2: CGPoint(x: size.width * 0.68, y: size.height * 0.78)
+                to: CGPoint(x: size.width, y: size.height * endY),
+                control1: CGPoint(x: size.width * 0.28, y: size.height * (startY - 0.22)),
+                control2: CGPoint(x: size.width * 0.68, y: size.height * (endY + 0.24))
             )
         }
-        .stroke(Color.white.opacity(0.42), lineWidth: 2)
+        .stroke(Color.white.opacity(0.26), lineWidth: 1.5)
     }
 
     private func waterHighlight(in size: CGSize) -> some View {
@@ -826,7 +845,19 @@ struct TerrainTexture: View {
             path.move(to: CGPoint(x: 0, y: size.height * 0.52))
             path.addLine(to: CGPoint(x: size.width, y: size.height * 0.48))
         }
-        .stroke(Color.white.opacity(0.24), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+        .stroke(Color.white.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+    }
+
+    private var terrainSeed: Int {
+        abs(tile.coordinate.q * 73 + tile.coordinate.r * 151 + 97)
+    }
+
+    private func seedFraction(multiplier: Int, offset: Int) -> CGFloat {
+        CGFloat((terrainSeed * multiplier + offset) % 100) / 100
+    }
+
+    private func seededFraction(index: Int, multiplier: Int, offset: Int) -> CGFloat {
+        CGFloat((terrainSeed + index * multiplier + offset) % 100) / 100
     }
 
     private func endpoint(for direction: Int, in size: CGSize) -> CGPoint {
@@ -1585,14 +1616,23 @@ final class HexInputView: UIView {
 }
 
 extension TerrainKind {
+    var showsMapConnections: Bool {
+        switch self {
+        case .river, .road, .forest:
+            true
+        case .plains, .city, .mountain, .snow:
+            false
+        }
+    }
+
     var connectionColor: Color {
         switch self {
         case .river:
             Color(red: 0.18, green: 0.46, blue: 0.68).opacity(0.82)
         case .road:
-            Color(red: 0.62, green: 0.52, blue: 0.34).opacity(0.72)
+            Color(red: 0.62, green: 0.52, blue: 0.34).opacity(0.48)
         case .forest:
-            Color(red: 0.12, green: 0.28, blue: 0.14).opacity(0.32)
+            Color(red: 0.12, green: 0.28, blue: 0.14).opacity(0.16)
         case .city:
             Color.black.opacity(0.12)
         case .mountain:
@@ -1606,9 +1646,10 @@ extension TerrainKind {
 
     var connectionWidth: CGFloat {
         switch self {
-        case .river: 17
-        case .road: 9
-        case .forest, .city: 12
+        case .river: 15
+        case .road: 6
+        case .forest: 8
+        case .city: 12
         case .mountain, .snow, .plains: 7
         }
     }

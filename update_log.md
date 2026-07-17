@@ -104,11 +104,31 @@
 
 验证结果：
 
+- 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器或视觉测试。
+- GitHub Actions run `29596560289`、attempt `1`、commit `cb01d29f8e2c4df9943ea8cd8208c4fbe1f3688c` 成功；artifact `ww2tactics-ci-v2.3-main-cb01d29-run29596560289-attempt1` 的 static、rules smoke、build 和 screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-29596560289/`，核对 manifest、failure summary、JUnit、日志、`.xcresult` 与 2064x2752 iPad 截图；地图全宽和右缘抽屉按钮均符合 v2.3 验收标准。
+
+遗留事项：
+
+- 地图占比问题已解决；截图显示普通地貌仍重复同一中心辐射线和纹理位置，v2.4 优先自然化连续地貌。
+
+### v2.4 / 连续地貌自然化
+
+日期：2026-07-18
+
+核心变更：
+
+- 普通平原、城市、山地和雪地不再绘制同类邻接中心辐射，河流/道路保留并收细连接，森林使用更弱连接带。
+- 由 q/r 坐标计算确定性 seed，改变田垄坡度、树簇位置与尺寸、城市块、山脊峰位和雪纹曲线，重绘稳定且不写回模型。
+- 降低普通地貌纹理密度与对比，保留单位、据点和战术 marker 的视觉优先级。
+
+验证结果：
+
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器或视觉测试；等待最新 `origin/main` run 与截图 artifact。
 
 遗留事项：
 
-- 通过 v2.3 截图确认抽屉默认收起、地图宽度增益、按钮位置和六角画布填充，再选择地貌、单位模型或战斗动效的下一小轮。
+- 通过 v2.4 截图确认拼花减少且河路不断裂，再选择单位模型层次或战斗动效作为下一轮。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 
