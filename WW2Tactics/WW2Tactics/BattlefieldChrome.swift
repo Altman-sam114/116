@@ -1,33 +1,20 @@
 import SwiftUI
 
 struct TopCommandBar: View {
-    @EnvironmentObject private var game: GameState
-
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
-                CommandTitle()
-                CampaignPicker()
-                    .frame(width: 190)
-                Spacer(minLength: 8)
+        HStack(spacing: 8) {
+            CommandTitle()
+                .layoutPriority(2)
+            CampaignPicker()
+
+            ScrollView(.horizontal, showsIndicators: false) {
                 StatusStrip()
-                EndTurnButton()
             }
 
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    CommandTitle()
-                    Spacer()
-                    EndTurnButton(iconOnly: true)
-                }
-                CampaignPicker()
-                ScrollView(.horizontal, showsIndicators: false) {
-                    StatusStrip()
-                }
-            }
+            EndTurnButton(iconOnly: true)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         .background(
             Rectangle()
                 .fill(BattlefieldTheme.commandDeckDeep.opacity(0.92))
@@ -44,22 +31,24 @@ struct CampaignPicker: View {
     @EnvironmentObject private var game: GameState
 
     var body: some View {
-        Picker("战役", selection: selectedScenarioID) {
+        Menu("切换战役", systemImage: "map.fill") {
             ForEach(game.campaignCatalog) { scenario in
-                Text(scenario.name)
-                    .tag(scenario.id)
+                Button {
+                    game.selectScenario(id: scenario.id)
+                } label: {
+                    if scenario.id == game.scenario.id {
+                        Label(scenario.name, systemImage: "checkmark")
+                    } else {
+                        Text(scenario.name)
+                    }
+                }
             }
         }
-        .pickerStyle(.menu)
+        .labelStyle(.iconOnly)
+        .frame(width: 44, height: 44)
         .tint(.white)
         .accessibilityLabel("选择战役")
-    }
-
-    private var selectedScenarioID: Binding<String> {
-        Binding(
-            get: { game.scenario.id },
-            set: { game.selectScenario(id: $0) }
-        )
+        .accessibilityValue(game.scenario.name)
     }
 }
 
@@ -95,8 +84,6 @@ struct StatusStrip: View {
             StatusChip(icon: "hourglass", label: "剩余 \(game.remainingTurns)")
             StatusChip(icon: "shield.lefthalf.filled", label: game.activeFaction.title)
             StatusChip(icon: "scope", label: "据点 \(game.alliedScore):\(game.axisScore)")
-            StatusChip(icon: "chart.bar.fill", label: "战力 \(game.alliedStrength):\(game.axisStrength)")
-            StatusChip(icon: "star.fill", label: "星 \(game.earnedStars)")
             StatusChip(icon: "star.circle.fill", label: "指令 \(game.activeCommandPoints)")
             StatusChip(icon: "person.3.fill", label: "待命 \(game.readyUnitCount)")
         }
@@ -153,22 +140,23 @@ struct StatusChip: View {
 struct BattlefieldView: View {
     @EnvironmentObject private var game: GameState
     @State private var mapScaleMode: MapScaleMode = .campaign
+    @State private var isSupportDeckExpanded = false
 
     var body: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: 6) {
             HStack(spacing: 10) {
                 Label {
                     Text(game.message)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(2)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
                         .foregroundStyle(BattlefieldTheme.ink)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } icon: {
                     Image(systemName: "dot.radiowaves.left.and.right")
                         .foregroundStyle(BattlefieldTheme.signal)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
                 .background(BattlefieldTheme.commandDeckDeep.opacity(0.56), in: RoundedRectangle(cornerRadius: 8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -189,14 +177,69 @@ struct BattlefieldView: View {
 
             MapCommandCenter(mapScaleMode: $mapScaleMode)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            ForceRibbon()
-            TacticalOrderStrip()
-            ReinforcementDock()
-
-            MapLegendView()
+            BattlefieldSupportDeck(isExpanded: $isSupportDeckExpanded)
         }
-        .padding(8)
+        .padding(6)
         .tacticalSurface(cornerRadius: 10, fillOpacity: 0.36, borderOpacity: 0.10, shadowOpacity: 0.18)
+    }
+}
+
+struct BattlefieldSupportDeck: View {
+    @EnvironmentObject private var game: GameState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Button(action: toggleDeck) {
+                HStack(spacing: 8) {
+                    Image(systemName: "square.3.layers.3d.down.right")
+                        .foregroundStyle(BattlefieldTheme.brass)
+                    Text("支援甲板")
+                        .font(.caption.bold())
+                        .foregroundStyle(BattlefieldTheme.ink)
+                    Text("\(game.readyUnitCount) READY")
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .foregroundStyle(BattlefieldTheme.signal)
+                    Text("CMD \(game.activeCommandPoints)")
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .foregroundStyle(BattlefieldTheme.brass)
+                    Spacer(minLength: 6)
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.up")
+                        .font(.caption.bold())
+                        .foregroundStyle(BattlefieldTheme.mutedInk)
+                }
+                .frame(minHeight: 44)
+                .padding(.horizontal, 10)
+                .background(BattlefieldTheme.commandDeckDeep.opacity(0.58), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(BattlefieldTheme.brass.opacity(0.16), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isExpanded ? "收起支援甲板" : "展开支援甲板")
+
+            if isExpanded {
+                VStack(spacing: 6) {
+                    ForceRibbon()
+                    TacticalOrderStrip()
+                    ReinforcementDock()
+                    MapLegendView()
+                }
+                .transition(.opacity)
+            }
+        }
+    }
+
+    private func toggleDeck() {
+        if reduceMotion {
+            isExpanded.toggle()
+        } else {
+            withAnimation(.snappy) {
+                isExpanded.toggle()
+            }
+        }
     }
 }
 
@@ -257,20 +300,9 @@ struct MapCommandCenter: View {
                     let isCompactMapChrome = mapProxy.size.width < 680
 
                     VStack(spacing: 0) {
-                        Group {
-                            if isCompactMapChrome {
-                                VStack(alignment: .trailing, spacing: 6) {
-                                    MapCampaignHUD(compact: true)
-                                    MapActionHUD(compact: true)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                            } else {
-                                HStack(alignment: .top, spacing: 8) {
-                                    MapCampaignHUD()
-                                    Spacer(minLength: 8)
-                                    MapActionHUD()
-                                }
-                            }
+                        HStack(alignment: .top) {
+                            Spacer(minLength: 8)
+                            MapActionHUD(compact: isCompactMapChrome)
                         }
                         .padding(isCompactMapChrome ? 6 : 8)
 
@@ -321,20 +353,13 @@ struct MapToolbar: View {
     @Binding var mapScaleMode: MapScaleMode
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) {
-                toolbarTitle
-                Spacer(minLength: 8)
-                scalePicker
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                toolbarTitle
-                scalePicker
-            }
+        HStack(spacing: 10) {
+            toolbarTitle
+            Spacer(minLength: 8)
+            scalePicker
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.vertical, 5)
         .background(BattlefieldTheme.commandDeck.opacity(0.80))
         .overlay(alignment: .bottom) {
             Rectangle()
@@ -344,28 +369,23 @@ struct MapToolbar: View {
     }
 
     private var toolbarTitle: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: 7) {
             Image(systemName: "map.fill")
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(BattlefieldTheme.brass)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("战区地图 \(game.scenario.mapColumns)x\(game.scenario.mapRows)")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(BattlefieldTheme.ink)
-                Text(toolbarSubtitle)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(BattlefieldTheme.mutedInk)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
+            Text("战区 \(game.scenario.mapColumns)x\(game.scenario.mapRows)")
+                .font(.caption.bold())
+                .foregroundStyle(BattlefieldTheme.ink)
+                .lineLimit(1)
         }
+        .accessibilityLabel(toolbarAccessibilityLabel)
     }
 
-    private var toolbarSubtitle: String {
-        if let coordinate = game.focusedCoordinate {
-            return "\(mapScaleMode.title)缩放 · 焦点 q\(coordinate.q),r\(coordinate.r)"
+    private var toolbarAccessibilityLabel: String {
+        guard let coordinate = game.focusedCoordinate else {
+            return "战区地图，\(mapScaleMode.title)缩放"
         }
-        return "\(mapScaleMode.title)缩放 · 点选单位或据点定位"
+        return "战区地图，\(mapScaleMode.title)缩放，焦点 q\(coordinate.q), r\(coordinate.r)"
     }
 
     private var scalePicker: some View {
@@ -376,7 +396,7 @@ struct MapToolbar: View {
             }
         }
         .pickerStyle(.segmented)
-        .frame(width: 184)
+        .frame(width: 164)
         .accessibilityLabel("地图缩放")
     }
 }
@@ -545,7 +565,9 @@ struct MapActionHUD: View {
                     }
                 }
 
-                InlineMapCommandPreview()
+                if game.focusedCommandPreview?.isExecutable == true {
+                    InlineMapCommandPreview()
+                }
             } else {
                 HStack(spacing: 7) {
                     Image(systemName: "scope")

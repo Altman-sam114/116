@@ -26,10 +26,11 @@ struct UnitCounter: View {
                 faction: unit.faction,
                 hasCommander: unit.commander != nil,
                 rank: unit.rank,
+                supplyState: game.supplyState(for: unit),
                 tacticalStatus: unit.tacticalStatus,
                 isSpent: unit.hasAttacked,
                 width: unit.kind.counterWidth,
-                height: 32,
+                height: 37,
                 lineWidth: unit.hasAttacked ? 1 : 2
             )
             .overlay(alignment: .topLeading) {
@@ -47,7 +48,7 @@ struct UnitCounter: View {
                         .frame(width: proxy.size.width * unit.hpRatio)
                 }
             }
-            .frame(width: 46, height: 5)
+            .frame(width: 54, height: 6)
         }
         .opacity(unit.hasAttacked ? 0.72 : 1)
         .accessibilityElement(children: .ignore)
@@ -319,13 +320,13 @@ extension UnitKind {
     var counterWidth: CGFloat {
         switch self {
         case .infantry:
-            43
+            52
         case .tank:
-            49
+            58
         case .artillery:
-            45
+            55
         case .recon:
-            44
+            53
         }
     }
 }

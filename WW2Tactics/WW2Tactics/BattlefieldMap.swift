@@ -311,7 +311,7 @@ struct HexTileView: View {
                 )
                 .overlay(
                     Hexagon()
-                        .stroke(Color.black.opacity(tile.isObjective ? 0.12 : 0.08), lineWidth: 0.6)
+                        .stroke(Color.black.opacity(tile.isObjective ? 0.10 : 0.035), lineWidth: 0.35)
                 )
                 .overlay(
                     Hexagon()
@@ -411,7 +411,7 @@ struct HexTileView: View {
                 HStack {
                     if tile.isObjective {
                         ObjectiveFlagMarker(owner: tile.owner)
-                    } else {
+                    } else if isFocused && unit == nil {
                         TerrainCodeBadge(code: tile.terrain.code)
                     }
                     Spacer(minLength: 0)
@@ -421,7 +421,6 @@ struct HexTileView: View {
 
                 if let unit {
                     UnitCounter(unit: unit)
-                    UnitStatusPlate(unit: unit)
                 } else if let objectiveName = tile.objectiveName {
                     ObjectiveNamePlate(name: objectiveName, owner: tile.owner)
                 } else {
@@ -458,7 +457,7 @@ struct HexTileView: View {
         if isFocused { return .white.opacity(0.9) }
         if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.9) }
         if !aiPhaseMapMarkers.isEmpty { return .indigo.opacity(0.86) }
-        return .black.opacity(0.28)
+        return .white.opacity(0.045)
     }
 
     private var borderWidth: CGFloat {
@@ -481,7 +480,7 @@ struct HexTileView: View {
         if isFocused { return 2 }
         if tile.isObjective { return 2 }
         if !aiPhaseMapMarkers.isEmpty { return 2 }
-        return 1
+        return 0.45
     }
 
     private var shouldShowUnavailableTargetMarker: Bool {
@@ -905,33 +904,6 @@ struct ObjectiveNamePlate: View {
             .shadow(color: .black.opacity(0.24), radius: 2, x: 0, y: 1)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
-    }
-}
-
-struct UnitStatusPlate: View {
-    let unit: BattleUnit
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: unit.hasAttacked ? "checkmark.seal.fill" : "bolt.fill")
-                .font(.system(size: 7, weight: .black))
-            Text(unit.hasAttacked ? "DONE" : "READY")
-                .font(.system(size: 7, weight: .black, design: .rounded))
-            Spacer(minLength: 2)
-            Text("\(unit.hp)")
-                .font(.system(size: 8, weight: .black, design: .rounded))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 5)
-        .padding(.vertical, 2)
-        .frame(maxWidth: .infinity)
-        .background(unit.faction.accentColor.opacity(unit.hasAttacked ? 0.58 : 0.84), in: RoundedRectangle(cornerRadius: 5))
-        .overlay(
-            RoundedRectangle(cornerRadius: 5)
-                .stroke(Color.white.opacity(unit.hasAttacked ? 0.20 : 0.38), lineWidth: 1)
-        )
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }
 
@@ -1656,57 +1628,57 @@ extension TerrainKind {
     var mapColor: Color {
         switch self {
         case .plains:
-            Color(red: 0.54, green: 0.61, blue: 0.41)
+            Color(red: 0.46, green: 0.52, blue: 0.34)
         case .forest:
-            Color(red: 0.25, green: 0.42, blue: 0.26)
+            Color(red: 0.20, green: 0.34, blue: 0.21)
         case .city:
-            Color(red: 0.54, green: 0.53, blue: 0.49)
+            Color(red: 0.49, green: 0.48, blue: 0.43)
         case .mountain:
-            Color(red: 0.48, green: 0.48, blue: 0.45)
+            Color(red: 0.43, green: 0.43, blue: 0.40)
         case .snow:
-            Color(red: 0.78, green: 0.82, blue: 0.80)
+            Color(red: 0.74, green: 0.78, blue: 0.76)
         case .river:
-            Color(red: 0.22, green: 0.42, blue: 0.60)
+            Color(red: 0.19, green: 0.37, blue: 0.52)
         case .road:
-            Color(red: 0.62, green: 0.55, blue: 0.42)
+            Color(red: 0.52, green: 0.47, blue: 0.36)
         }
     }
 
     private var mapHighlightColor: Color {
         switch self {
         case .plains:
-            Color(red: 0.66, green: 0.72, blue: 0.48)
+            Color(red: 0.55, green: 0.60, blue: 0.39)
         case .forest:
-            Color(red: 0.34, green: 0.52, blue: 0.31)
+            Color(red: 0.27, green: 0.43, blue: 0.26)
         case .city:
-            Color(red: 0.66, green: 0.65, blue: 0.58)
+            Color(red: 0.58, green: 0.57, blue: 0.50)
         case .mountain:
-            Color(red: 0.62, green: 0.61, blue: 0.56)
+            Color(red: 0.53, green: 0.52, blue: 0.47)
         case .snow:
-            Color(red: 0.92, green: 0.95, blue: 0.92)
+            Color(red: 0.87, green: 0.90, blue: 0.88)
         case .river:
-            Color(red: 0.34, green: 0.56, blue: 0.74)
+            Color(red: 0.27, green: 0.47, blue: 0.63)
         case .road:
-            Color(red: 0.74, green: 0.66, blue: 0.48)
+            Color(red: 0.62, green: 0.56, blue: 0.41)
         }
     }
 
     private var mapShadowColor: Color {
         switch self {
         case .plains:
-            Color(red: 0.40, green: 0.48, blue: 0.31)
+            Color(red: 0.34, green: 0.41, blue: 0.27)
         case .forest:
-            Color(red: 0.16, green: 0.29, blue: 0.18)
+            Color(red: 0.12, green: 0.24, blue: 0.14)
         case .city:
-            Color(red: 0.40, green: 0.40, blue: 0.36)
+            Color(red: 0.37, green: 0.37, blue: 0.33)
         case .mountain:
-            Color(red: 0.34, green: 0.34, blue: 0.32)
+            Color(red: 0.31, green: 0.31, blue: 0.29)
         case .snow:
-            Color(red: 0.64, green: 0.72, blue: 0.72)
+            Color(red: 0.62, green: 0.69, blue: 0.69)
         case .river:
-            Color(red: 0.14, green: 0.30, blue: 0.48)
+            Color(red: 0.12, green: 0.27, blue: 0.41)
         case .road:
-            Color(red: 0.46, green: 0.40, blue: 0.30)
+            Color(red: 0.40, green: 0.36, blue: 0.28)
         }
     }
 

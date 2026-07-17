@@ -66,6 +66,18 @@ flowchart LR
     Artifact --> Review["下载并查看真实战场画面"]
 ```
 
+## v2.2 首屏层级
+
+```mermaid
+flowchart TD
+    Top["单行 TopCommandBar"] --> Field["BattlefieldView"]
+    Field --> Map["MapCommandCenter + 六角战区"]
+    Map --> Action["当前 MapActionHUD"]
+    Map --> Markers["战术 marker 与快速定位"]
+    Field --> Deck["默认收起 BattlefieldSupportDeck"]
+    Deck --> Support["编队 / 战术 / 增援 / 图例"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

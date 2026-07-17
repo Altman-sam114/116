@@ -4,6 +4,8 @@
 
 `WW2Tactics` 的主链路是：玩家在 SwiftUI 六角格地图上选择单位和目标，`GameState` 根据 `GameModels` 执行移动、攻击、补给、AI、目标和胜负规则，v2.0 表现层由 `ContentView` 根编排、`BattlefieldChrome`、`BattlefieldMap`、`BattlefieldUnitViews` 和 `BattlefieldTheme` 将状态渲染为连续战区；测试层用 XCTest 和 smoke test 锁住核心规则。云端链路在 build-for-testing 后启动模拟器生成首屏战场截图，未加密 artifact 同时保存规则、构建和视觉证据，下载后再验收。
 
+v2.2 首屏 chrome 保持单行顶栏，地图内只叠加当前动作 HUD；编队、战术、增援和图例由 `BattlefieldSupportDeck` 管理本地展开状态，默认收起以扩大地图，但内部按钮仍直接调用既有 `GameState` 入口。普通地格不再常驻地形代码，战术 marker 与 VoiceOver 数据不变。
+
 ## 1. 当前核心数据流
 
 ```text

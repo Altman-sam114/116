@@ -63,11 +63,32 @@
 
 验证结果：
 
-- 本地不运行 build、typecheck、smoke、XCTest、模拟器或截图；只做 Git diff 范围检查和 YAML 静态解析，重验证等待最新 `origin/main` run。
+- 本地未运行 build、typecheck、smoke、XCTest、模拟器或截图，只做 Git diff 范围检查和 YAML 静态解析。
+- GitHub Actions run `29426676489`、attempt `1`、commit `b2d97b685448a2aec8d8d0296feb041d8839d61c` 成功；artifact `ww2tactics-ci-v2.1-main-b2d97b6-run29426676489-attempt1` 的 static、rules smoke、build 和 screenshot 均成功，JUnit 4 项 0 failures。
+- 云端 iPad Pro 13-inch (M5) / iOS 26.5 截图为 2064x2752，确认 app 正常启动并显示战场，而非黑屏或 SpringBoard。
 
 遗留事项：
 
-- 下载最新 artifact 并实际查看 `battlefield-screenshot.png`；若为正常战场画面，再按真实截图进入地貌或战斗动效小轮次。
+- 首张截图显示顶栏过高、地图内战役信息重复、支援区常驻、地形代码和默认边线噪音偏大、单位偏小；v2.2 按这些证据修正。
+
+### v2.2 / 战场占比与信息降噪
+
+日期：2026-07-17
+
+核心变更：
+
+- 顶栏固定为单行，战役切换改为图标菜单，状态条横向滚动；地图内移除重复战役 HUD。
+- 编队、战术、增援和图例进入默认收起的支援甲板，地图获得更多首屏高度。
+- 普通格地形代码仅在焦点空地显示，默认六角边线和地貌色阶降噪；交互与风险 marker 保持原优先级。
+- 地图单位与 HP 条放大、传入真实补给状态，删除重复 READY/DONE/HP 条。
+
+验证结果：
+
+- 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器或视觉测试；等待最新 `origin/main` run 与截图 artifact。
+
+遗留事项：
+
+- 下载 v2.2 新截图与 v2.1 基线对比，确认地图占比、单位可读性和 marker 遮挡情况后再进入下一轮。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 
