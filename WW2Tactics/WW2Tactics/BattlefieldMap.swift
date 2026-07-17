@@ -751,7 +751,7 @@ struct TerrainTexture: View {
         let start = -size.height * (0.10 + seedFraction(multiplier: 7, offset: 11) * 0.18)
         let rise = size.height * (0.12 + seedFraction(multiplier: 13, offset: 5) * 0.16)
 
-        Path { path in
+        return Path { path in
             for offset in stride(from: start, through: size.height, by: spacing) {
                 path.move(to: CGPoint(x: 0, y: offset))
                 path.addLine(to: CGPoint(x: size.width, y: offset + rise))
@@ -803,7 +803,7 @@ struct TerrainTexture: View {
         let firstHeight = 0.24 + seedFraction(multiplier: 23, offset: 13) * 0.18
         let secondHeight = 0.20 + seedFraction(multiplier: 29, offset: 31) * 0.20
 
-        Path { path in
+        return Path { path in
             path.move(to: CGPoint(x: size.width * 0.08, y: size.height * 0.72))
             path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
             path.addLine(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
@@ -817,7 +817,7 @@ struct TerrainTexture: View {
         let startY = 0.48 + seedFraction(multiplier: 13, offset: 23) * 0.16
         let endY = 0.36 + seedFraction(multiplier: 19, offset: 37) * 0.18
 
-        Path { path in
+        return Path { path in
             path.move(to: CGPoint(x: 0, y: size.height * startY))
             path.addCurve(
                 to: CGPoint(x: size.width, y: size.height * endY),
