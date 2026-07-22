@@ -5,13 +5,31 @@ struct MiniHealthBar: View {
 
     var body: some View {
         GeometryReader { proxy in
+            let clampedRatio = max(0, min(ratio, 1))
+
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.black.opacity(0.42))
                 Capsule()
-                    .fill(ratio > 0.45 ? Color.green : Color.red)
-                    .frame(width: proxy.size.width * ratio)
+                    .fill(clampedRatio > 0.45 ? Color.green : Color.red)
+                    .frame(width: proxy.size.width * clampedRatio)
+            }
+            .clipShape(Capsule())
+            .overlay {
+                Path { path in
+                    for index in 1..<5 {
+                        let x = proxy.size.width * CGFloat(index) / 5
+                        path.move(to: CGPoint(x: x, y: 0))
+                        path.addLine(to: CGPoint(x: x, y: proxy.size.height))
+                    }
+                }
+                .stroke(Color.black.opacity(0.34), lineWidth: 0.6)
+            }
+            .overlay {
+                Capsule()
+                    .stroke(Color.white.opacity(0.26), lineWidth: 0.6)
             }
         }
+        .accessibilityHidden(true)
     }
 }
 
@@ -40,14 +58,7 @@ struct UnitCounter: View {
                 }
             }
 
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.black.opacity(0.42))
-                    Capsule()
-                        .fill(unit.hpRatio > 0.45 ? Color.green : Color.red)
-                        .frame(width: proxy.size.width * unit.hpRatio)
-                }
-            }
+            MiniHealthBar(ratio: unit.hpRatio)
             .frame(width: 54, height: 6)
         }
         .opacity(unit.hasAttacked ? 0.72 : 1)
@@ -97,24 +108,9 @@ struct UnitShapeBadge: View {
                 }
                 .shadow(color: .black.opacity(0.42), radius: 2, x: 0, y: 2)
 
-            UnitMarkerShape(kind: kind)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.82, green: 0.82, blue: 0.70),
-                            Color(red: 0.28, green: 0.31, blue: 0.25)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .overlay {
-                    UnitMarkerShape(kind: kind)
-                        .stroke(Color.black.opacity(0.78), lineWidth: 0.8)
-                }
+            UnitModelView(kind: kind, faction: faction, isSpent: isSpent)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 4)
-                .shadow(color: .black.opacity(0.48), radius: 1, x: 0, y: 1)
 
             Text(rank.insignia)
                 .font(.system(size: 6, weight: .black, design: .rounded))
@@ -153,6 +149,167 @@ struct UnitShapeBadge: View {
         .frame(width: width, height: height)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(rank.title)\(kind.title)\(hasCommander ? "，有将领" : "")，\(supplyState.title)，\(tacticalStatus.title)")
+    }
+}
+
+struct UnitModelView: View {
+    let kind: UnitKind
+    let faction: Faction
+    let isSpent: Bool
+
+    var body: some View {
+        GeometryReader { proxy in
+            let detailLineWidth = max(0.45, min(proxy.size.height * 0.035, 0.9))
+
+            ZStack {
+                Ellipse()
+                    .fill(Color.black.opacity(isSpent ? 0.24 : 0.38))
+                    .frame(width: proxy.size.width * 0.76, height: max(2, proxy.size.height * 0.20))
+                    .position(x: proxy.size.width * 0.48, y: proxy.size.height * 0.84)
+                    .blur(radius: 0.6)
+
+                ZStack {
+                    UnitMarkerShape(kind: kind)
+                        .fill(faction.unitModelGradient(isSpent: isSpent))
+                        .overlay {
+                            UnitMarkerShape(kind: kind)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(isSpent ? 0.08 : 0.22),
+                                            .clear,
+                                            Color.black.opacity(0.22)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        }
+                        .overlay {
+                            UnitMarkerShape(kind: kind)
+                                .stroke(faction.unitModelEdgeColor.opacity(isSpent ? 0.64 : 0.92), lineWidth: detailLineWidth + 0.25)
+                        }
+
+                    UnitModelDetailShape(kind: kind)
+                        .stroke(
+                            faction.unitModelDetailColor.opacity(isSpent ? 0.48 : 0.78),
+                            style: StrokeStyle(lineWidth: detailLineWidth, lineCap: .round, lineJoin: .round)
+                        )
+                }
+                .padding(.horizontal, 1)
+                .padding(.bottom, 3)
+                .offset(y: -1)
+                .shadow(color: .black.opacity(isSpent ? 0.28 : 0.48), radius: 1.2, x: 0, y: 1.4)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+struct UnitModelDetailShape: Shape {
+    let kind: UnitKind
+
+    func path(in rect: CGRect) -> Path {
+        switch kind {
+        case .infantry:
+            infantryDetails(in: rect)
+        case .tank:
+            tankDetails(in: rect)
+        case .artillery:
+            artilleryDetails(in: rect)
+        case .recon:
+            reconDetails(in: rect)
+        }
+    }
+
+    private func infantryDetails(in rect: CGRect) -> Path {
+        var path = Path()
+        for centerX in [0.30, 0.51, 0.70] {
+            path.move(to: point(x: centerX, y: 0.29, in: rect))
+            path.addLine(to: point(x: centerX, y: 0.72, in: rect))
+        }
+        path.move(to: point(x: 0.16, y: 0.70, in: rect))
+        path.addLine(to: point(x: 0.91, y: 0.33, in: rect))
+        return path
+    }
+
+    private func tankDetails(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: point(x: 0.06, y: 0.28, in: rect))
+        path.addLine(to: point(x: 0.76, y: 0.28, in: rect))
+        path.move(to: point(x: 0.06, y: 0.72, in: rect))
+        path.addLine(to: point(x: 0.76, y: 0.72, in: rect))
+
+        let wheelSize = rect.height * 0.13
+        for centerX in [0.17, 0.35, 0.53, 0.70] {
+            path.addEllipse(
+                in: CGRect(
+                    x: rect.minX + rect.width * centerX - wheelSize / 2,
+                    y: rect.minY + rect.height * 0.72 - wheelSize / 2,
+                    width: wheelSize,
+                    height: wheelSize
+                )
+            )
+        }
+
+        path.addRoundedRect(
+            in: CGRect(
+                x: rect.minX + rect.width * 0.31,
+                y: rect.minY + rect.height * 0.08,
+                width: rect.width * 0.33,
+                height: rect.height * 0.27
+            ),
+            cornerSize: CGSize(width: rect.height * 0.08, height: rect.height * 0.08)
+        )
+        path.move(to: point(x: 0.61, y: 0.20, in: rect))
+        path.addLine(to: point(x: 0.96, y: 0.20, in: rect))
+        return path
+    }
+
+    private func artilleryDetails(in rect: CGRect) -> Path {
+        var path = Path()
+        let wheelSize = rect.height * 0.19
+        for centerX in [0.35, 0.73] {
+            path.addEllipse(
+                in: CGRect(
+                    x: rect.minX + rect.width * centerX - wheelSize / 2,
+                    y: rect.minY + rect.height * 0.78 - wheelSize / 2,
+                    width: wheelSize,
+                    height: wheelSize
+                )
+            )
+        }
+        path.move(to: point(x: 0.20, y: 0.72, in: rect))
+        path.addLine(to: point(x: 0.49, y: 0.52, in: rect))
+        path.addLine(to: point(x: 0.82, y: 0.72, in: rect))
+        path.move(to: point(x: 0.39, y: 0.51, in: rect))
+        path.addLine(to: point(x: 0.95, y: 0.17, in: rect))
+        return path
+    }
+
+    private func reconDetails(in rect: CGRect) -> Path {
+        var path = Path()
+        let wheelSize = rect.height * 0.13
+        for centerX in [0.28, 0.72] {
+            path.addEllipse(
+                in: CGRect(
+                    x: rect.minX + rect.width * centerX - wheelSize / 2,
+                    y: rect.minY + rect.height * 0.76 - wheelSize / 2,
+                    width: wheelSize,
+                    height: wheelSize
+                )
+            )
+        }
+        path.move(to: point(x: 0.28, y: 0.34, in: rect))
+        path.addLine(to: point(x: 0.72, y: 0.34, in: rect))
+        path.addLine(to: point(x: 0.82, y: 0.52, in: rect))
+        path.move(to: point(x: 0.52, y: 0.25, in: rect))
+        path.addLine(to: point(x: 0.52, y: 0.05, in: rect))
+        return path
+    }
+
+    private func point(x: CGFloat, y: CGFloat, in rect: CGRect) -> CGPoint {
+        CGPoint(x: rect.minX + rect.width * x, y: rect.minY + rect.height * y)
     }
 }
 
@@ -327,6 +484,52 @@ extension UnitKind {
             55
         case .recon:
             53
+        }
+    }
+}
+
+extension Faction {
+    func unitModelGradient(isSpent: Bool) -> LinearGradient {
+        let opacity = isSpent ? 0.72 : 1.0
+        return LinearGradient(
+            colors: unitModelColors.map { $0.opacity(opacity) },
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    var unitModelEdgeColor: Color {
+        switch self {
+        case .allies:
+            Color(red: 0.12, green: 0.16, blue: 0.10)
+        case .axis:
+            Color(red: 0.13, green: 0.12, blue: 0.11)
+        }
+    }
+
+    var unitModelDetailColor: Color {
+        switch self {
+        case .allies:
+            Color(red: 0.10, green: 0.15, blue: 0.08)
+        case .axis:
+            Color(red: 0.16, green: 0.13, blue: 0.11)
+        }
+    }
+
+    private var unitModelColors: [Color] {
+        switch self {
+        case .allies:
+            [
+                Color(red: 0.76, green: 0.76, blue: 0.54),
+                Color(red: 0.43, green: 0.47, blue: 0.30),
+                Color(red: 0.22, green: 0.27, blue: 0.17)
+            ]
+        case .axis:
+            [
+                Color(red: 0.72, green: 0.68, blue: 0.58),
+                Color(red: 0.43, green: 0.39, blue: 0.34),
+                Color(red: 0.21, green: 0.19, blue: 0.17)
+            ]
         }
     }
 }

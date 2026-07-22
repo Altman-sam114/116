@@ -103,6 +103,23 @@ flowchart LR
     Texture --> Hex["HexTileView：frame / hit path / marker 不变"]
 ```
 
+## v2.5 单位模型派生
+
+```mermaid
+flowchart LR
+    Kind["UnitKind"] --> Silhouette["四类军械外轮廓"]
+    Kind --> Details["履带 / 炮塔 / 轮组 / 枪线 / 车窗"]
+    Faction["Faction"] --> Palette["盟军橄榄 / 轴心灰褐色板"]
+    Spent["isSpent"] --> Opacity["模型与阴影透明度"]
+    Silhouette --> Model["UnitModelView"]
+    Details --> Model
+    Palette --> Model
+    Opacity --> Model
+    HP["既有 hpRatio"] --> Bar["MiniHealthBar 五段刻度"]
+    Model --> Badge["UnitShapeBadge 原 frame 与状态角标"]
+    Bar --> Counter["UnitCounter"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

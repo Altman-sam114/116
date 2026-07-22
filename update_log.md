@@ -124,11 +124,33 @@
 
 验证结果：
 
+- 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器或视觉测试。
+- 首次 run `29600905223` / commit `79cef65d48673a5fc1efc49bc3a6beef6ed1c01d` 因三个带局部参数的 `some View` 函数缺少显式返回而 build 失败，截图按门禁跳过；随后追加修复 commit。
+- 最终 GitHub Actions run `29604249640`、attempt `1`、commit `e884fd417331808d5eb48e922fbf103aa4127659` 成功；artifact `ww2tactics-ci-v2.4-main-e884fd4-run29604249640-attempt1` 的 static、rules smoke、build 和 screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-29604249640/` 并核对 manifest、failure summary、JUnit、日志、`.xcresult` 与 2064x2752 iPad 截图；普通地貌拼花减少，河流/道路连续，单位与 marker 层级未受影响。
+
+遗留事项：
+
+- 地貌自然化已通过；截图中单位仍以单色合并剪影为主，v2.5 优先强化军械模型层次。
+
+### v2.5 / 单位模型层次
+
+日期：2026-07-18
+
+核心变更：
+
+- 盟军使用橄榄军械色板、轴心使用灰褐色板，并保留蓝色圆角/红色切角阵营底座。
+- `UnitModelView` 为四类单位增加落地阴影、边缘高光和内部结构线：步兵队形/枪线、坦克履带/负重轮/炮塔、火炮轮组/炮架、侦察车轮毂/车窗/天线。
+- `MiniHealthBar` 统一地图 HP 绘制，保留现有比例与红绿阈值并增加五段刻度。
+- UnitShapeBadge 外接尺寸、Commander、rank、CUT、战术状态、spent、地图 marker 和规则状态保持不变。
+
+验证结果：
+
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器或视觉测试；等待最新 `origin/main` run 与截图 artifact。
 
 遗留事项：
 
-- 通过 v2.4 截图确认拼花减少且河路不断裂，再选择单位模型层次或战斗动效作为下一轮。
+- 通过 v2.5 截图确认小尺寸结构线、阵营色板和 HP 刻度清晰且不遮挡 marker，再决定是否进入战斗动效。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 

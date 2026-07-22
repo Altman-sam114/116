@@ -4,7 +4,7 @@
 
 `WW2Tactics` 的主链路是：玩家在 SwiftUI 六角格地图上选择单位和目标，`GameState` 根据 `GameModels` 执行移动、攻击、补给、AI、目标和胜负规则，v2.0 表现层由 `ContentView` 根编排、`BattlefieldChrome`、`BattlefieldMap`、`BattlefieldUnitViews` 和 `BattlefieldTheme` 将状态渲染为连续战区；测试层用 XCTest 和 smoke test 锁住核心规则。云端链路在 build-for-testing 后启动模拟器生成首屏战场截图，未加密 artifact 同时保存规则、构建和视觉证据，下载后再验收。
 
-v2.2 首屏 chrome 保持单行顶栏，地图内只叠加当前动作 HUD；编队、战术、增援和图例由 `BattlefieldSupportDeck` 管理本地展开状态，默认收起以扩大地图，但内部按钮仍直接调用既有 `GameState` 入口。普通地格不再常驻地形代码，战术 marker 与 VoiceOver 数据不变。v2.3 进一步由 `BattlefieldWorkspace` 让地图占满主工作区，Inspector 只以本地 SwiftUI 状态从右缘或底部按需覆盖展开；它不进入 `GameState`，也不删除任何规则信息或命令入口。v2.4 的 `TerrainTexture` 仅为河流、道路和弱林带绘制跨格连接，其他纹理从 q/r 坐标确定性派生位置与坡度，避免随机状态和重复拼花。
+v2.2 首屏 chrome 保持单行顶栏，地图内只叠加当前动作 HUD；编队、战术、增援和图例由 `BattlefieldSupportDeck` 管理本地展开状态，默认收起以扩大地图，但内部按钮仍直接调用既有 `GameState` 入口。普通地格不再常驻地形代码，战术 marker 与 VoiceOver 数据不变。v2.3 进一步由 `BattlefieldWorkspace` 让地图占满主工作区，Inspector 只以本地 SwiftUI 状态从右缘或底部按需覆盖展开；它不进入 `GameState`，也不删除任何规则信息或命令入口。v2.4 的 `TerrainTexture` 仅为河流、道路和弱林带绘制跨格连接，其他纹理从 q/r 坐标确定性派生位置与坡度，避免随机状态和重复拼花。v2.5 的 `UnitModelView` 从现有 `UnitKind`、`Faction` 和 spent 状态只读派生军械色板、结构线与阴影，`MiniHealthBar` 只读取既有 HP 比例绘制五段刻度。
 
 ## 1. 当前核心数据流
 
@@ -78,7 +78,7 @@ v2.2 首屏 chrome 保持单行顶栏，地图内只叠加当前动作 HUD；编
 - `BattlefieldChrome.swift` 提供薄顶栏、地图工具条、HUD、边缘快捷命令和地图外壳；按钮 action 继续原样转发 `GameState`。
 - `BattlefieldMap.swift` 保持原有 `position(for:)`、tile frame、`Hexagon` 命中路径和 `HexInputReader` 三种输入链；连续田野、森林、城市、山地、雪地、河流与公路纹理只从 `TerrainTile` 和 `HexCoordinate.neighbors` 只读派生。
 - 地貌 seed 只由 `HexCoordinate.q/r` 计算并用于绘制参数，不写回模型；河流/道路连续性仍来自同类邻接方向。
-- `BattlefieldUnitViews.swift` 提供坦克、步兵、火炮、侦察车具象轮廓、非纯颜色阵营底座、HP、状态角标和通用将领徽章；不计算单位规则。
+- `BattlefieldUnitViews.swift` 提供坦克、步兵、火炮、侦察车具象轮廓、盟军橄榄/轴心灰褐军械色板、兵种内部结构线、落地阴影、非纯颜色阵营底座、五段 HP、状态角标和通用将领徽章；不计算单位规则。
 - 地图 marker 的数据源、排序、顶/底槽位、溢出、边框优先级和无障碍摘要保持不变；Reduce Motion 只取消滚动动画，不改变焦点目标。
 - 将地图左键/点按/右键转换为 `GameState` 方法调用。
 - 用统一顶/底 marker 槽位与角落命令角标显示 MOVE、ATK、POS、NEXT、OBJ、CAP、THR、INT、AI 复盘（同格最多 2 个栈内徽标 + 溢出 +N，布局纯派生不改 marker 数据源）、战线态势汇总、据点压力行当前态、据点压力来源标识、据点压力态势对照、据点压力敌方回合影响、据点压力地图标记、据点压力复盘线索、战线态势复盘影响来源、态势响应地图标记、态势响应定位入口、态势响应上一条/下一条历史查看、首要定位入口、下一步提示、执行反馈、普通行动态势响应、敌方回合影响和关联 AI 复盘入口、补给线、控制区、攻击覆盖、战斗预览和战斗结果等标记与反馈卡；态势简报和 AI 回放各子 View 只接收既有模型、状态和 action，仍由 `GameState` 完成定位、播放状态和复盘切换，Timer 只在 active 时调用既有 advance 入口。 v1.76 起据点压力行与复盘影响入口使用更强的指挥台卡片与当前态反馈。
