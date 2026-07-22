@@ -146,11 +146,31 @@
 
 验证结果：
 
+- 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器或视觉测试。
+- GitHub Actions run `29884658051`、attempt `1`、commit `f1fc7fce80654e440a2b2cb95a5fcae172807246` 成功；artifact `ww2tactics-ci-v2.5-main-f1fc7fc-run29884658051-attempt1` 的 static、rules smoke、build 和 screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-29884658051/` 并核对 manifest、failure summary、JUnit、日志、`.xcresult` 与 2064x2752 iPad 截图；四类单位、阵营军械色板和内部结构清晰，既有角标与 marker 未被遮挡。
+
+遗留事项：
+
+- 单位模型层次已通过；截图显示固定 0.86 缩放使地图上下保留明显空带，v2.6 优先让战区满幅占据工作区。
+
+### v2.6 / 战区满幅构图
+
+日期：2026-07-22
+
+核心变更：
+
+- 默认战役档从固定绝对缩放改为按当前地图 viewport 高度计算 fill scale，避免地图内容较矮时在上下居中形成大块空带。
+- 战术与细节档改为满幅基线上的 1.16 / 1.32 倍放大，保留双轴滚动；切换缩放后重新居中当前焦点。
+- tile 尺寸、坐标、地图输入、marker、HUD、规则与 `GameState` 保持不变。
+
+验证结果：
+
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器或视觉测试；等待最新 `origin/main` run 与截图 artifact。
 
 遗留事项：
 
-- 通过 v2.5 截图确认小尺寸结构线、阵营色板和 HP 刻度清晰且不遮挡 marker，再决定是否进入战斗动效。
+- 通过 v2.6 截图确认地图上下空带消失、首屏仍保留双方单位与关键战区语义，再进入战斗反馈与动效。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 

@@ -3,7 +3,8 @@ import UIKit
 
 struct HexMapView: View {
     @EnvironmentObject private var game: GameState
-    let tileScale: CGFloat
+    let scaleMultiplier: CGFloat
+    let viewportHeight: CGFloat
 
     private let tileWidth: CGFloat = 86
     private let tileHeight: CGFloat = 74
@@ -43,6 +44,8 @@ struct HexMapView: View {
         let terrainByCoordinate = Dictionary(uniqueKeysWithValues: game.tiles.map { ($0.coordinate, $0.terrain) })
         let contentWidth = CGFloat(game.scenario.mapColumns) * tileWidth * 0.78 + tileWidth
         let contentHeight = CGFloat(game.scenario.mapRows) * tileHeight * 0.78 + tileHeight
+        let fillScale = max(0.86, (viewportHeight - 16) / contentHeight)
+        let resolvedScale = fillScale * scaleMultiplier
 
         ZStack(alignment: .topLeading) {
             MapGridBackdrop(width: contentWidth, height: contentHeight)
@@ -114,10 +117,10 @@ struct HexMapView: View {
             }
         }
         .frame(width: contentWidth, height: contentHeight)
-        .scaleEffect(tileScale, anchor: .topLeading)
+        .scaleEffect(resolvedScale, anchor: .topLeading)
         .frame(
-            width: contentWidth * tileScale,
-            height: contentHeight * tileScale,
+            width: contentWidth * resolvedScale,
+            height: contentHeight * resolvedScale,
             alignment: .topLeading
         )
     }

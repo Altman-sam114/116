@@ -261,14 +261,14 @@ enum MapScaleMode: String, CaseIterable, Identifiable {
         }
     }
 
-    var scale: CGFloat {
+    var scaleMultiplier: CGFloat {
         switch self {
         case .campaign:
-            0.86
-        case .tactical:
             1.0
+        case .tactical:
+            1.16
         case .detail:
-            1.14
+            1.32
         }
     }
 }
@@ -282,22 +282,28 @@ struct MapCommandCenter: View {
         VStack(spacing: 0) {
             MapToolbar(mapScaleMode: $mapScaleMode)
 
-            ZStack {
-                ScrollViewReader { proxy in
-                    ScrollView([.horizontal, .vertical], showsIndicators: true) {
-                        HexMapView(tileScale: mapScaleMode.scale)
-                            .padding(22)
-                    }
-                    .onAppear {
-                        scrollToFocusedCoordinate(with: proxy, animated: false)
-                    }
-                    .onChange(of: game.focusedCoordinate?.id) { _, _ in
-                        scrollToFocusedCoordinate(with: proxy, animated: true)
-                    }
-                }
+            GeometryReader { mapProxy in
+                let isCompactMapChrome = mapProxy.size.width < 680
 
-                GeometryReader { mapProxy in
-                    let isCompactMapChrome = mapProxy.size.width < 680
+                ZStack {
+                    ScrollViewReader { proxy in
+                        ScrollView([.horizontal, .vertical], showsIndicators: true) {
+                            HexMapView(
+                                scaleMultiplier: mapScaleMode.scaleMultiplier,
+                                viewportHeight: mapProxy.size.height
+                            )
+                            .padding(8)
+                        }
+                        .onAppear {
+                            scrollToFocusedCoordinate(with: proxy, animated: false)
+                        }
+                        .onChange(of: game.focusedCoordinate?.id) { _, _ in
+                            scrollToFocusedCoordinate(with: proxy, animated: true)
+                        }
+                        .onChange(of: mapScaleMode) { _, _ in
+                            scrollToFocusedCoordinate(with: proxy, animated: true)
+                        }
+                    }
 
                     VStack(spacing: 0) {
                         HStack(alignment: .top) {

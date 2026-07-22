@@ -120,6 +120,21 @@ flowchart LR
     Bar --> Counter["UnitCounter"]
 ```
 
+## v2.6 战区满幅缩放
+
+```mermaid
+flowchart LR
+    Viewport["MapCommandCenter viewport 高度"] --> Fill["fill scale：至少铺满可视高度"]
+    Rows["scenario rows + 固定 tile 高度"] --> Content["未缩放地图高度"]
+    Content --> Fill
+    Mode["战役 / 战术 / 细节倍率"] --> Scale["resolved scale"]
+    Fill --> Scale
+    Scale --> Frame["HexMapView 渲染与滚动 frame"]
+    Focus["focusedCoordinate"] --> Center["初始 / 切档后居中"]
+    Frame --> Scroll["双轴 ScrollView"]
+    Center --> Scroll
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

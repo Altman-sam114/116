@@ -4,7 +4,7 @@
 
 `WW2Tactics` 的主链路是：玩家在 SwiftUI 六角格地图上选择单位和目标，`GameState` 根据 `GameModels` 执行移动、攻击、补给、AI、目标和胜负规则，v2.0 表现层由 `ContentView` 根编排、`BattlefieldChrome`、`BattlefieldMap`、`BattlefieldUnitViews` 和 `BattlefieldTheme` 将状态渲染为连续战区；测试层用 XCTest 和 smoke test 锁住核心规则。云端链路在 build-for-testing 后启动模拟器生成首屏战场截图，未加密 artifact 同时保存规则、构建和视觉证据，下载后再验收。
 
-v2.2 首屏 chrome 保持单行顶栏，地图内只叠加当前动作 HUD；编队、战术、增援和图例由 `BattlefieldSupportDeck` 管理本地展开状态，默认收起以扩大地图，但内部按钮仍直接调用既有 `GameState` 入口。普通地格不再常驻地形代码，战术 marker 与 VoiceOver 数据不变。v2.3 进一步由 `BattlefieldWorkspace` 让地图占满主工作区，Inspector 只以本地 SwiftUI 状态从右缘或底部按需覆盖展开；它不进入 `GameState`，也不删除任何规则信息或命令入口。v2.4 的 `TerrainTexture` 仅为河流、道路和弱林带绘制跨格连接，其他纹理从 q/r 坐标确定性派生位置与坡度，避免随机状态和重复拼花。v2.5 的 `UnitModelView` 从现有 `UnitKind`、`Faction` 和 spent 状态只读派生军械色板、结构线与阴影，`MiniHealthBar` 只读取既有 HP 比例绘制五段刻度。
+v2.2 首屏 chrome 保持单行顶栏，地图内只叠加当前动作 HUD；编队、战术、增援和图例由 `BattlefieldSupportDeck` 管理本地展开状态，默认收起以扩大地图，但内部按钮仍直接调用既有 `GameState` 入口。普通地格不再常驻地形代码，战术 marker 与 VoiceOver 数据不变。v2.3 进一步由 `BattlefieldWorkspace` 让地图占满主工作区，Inspector 只以本地 SwiftUI 状态从右缘或底部按需覆盖展开；它不进入 `GameState`，也不删除任何规则信息或命令入口。v2.4 的 `TerrainTexture` 仅为河流、道路和弱林带绘制跨格连接，其他纹理从 q/r 坐标确定性派生位置与坡度，避免随机状态和重复拼花。v2.5 的 `UnitModelView` 从现有 `UnitKind`、`Faction` 和 spent 状态只读派生军械色板、结构线与阴影，`MiniHealthBar` 只读取既有 HP 比例绘制五段刻度。v2.6 由 `MapCommandCenter` 把 viewport 高度传给 `HexMapView`，后者从既有地图行数与 tile 高度计算只读 fill scale，再叠加战役/战术/细节倍率；缩放只改变渲染与滚动范围，不改变 tile frame、坐标、命中或规则。
 
 ## 1. 当前核心数据流
 
@@ -76,7 +76,7 @@ v2.2 首屏 chrome 保持单行顶栏，地图内只叠加当前动作 HUD；编
 - `BattlefieldWorkspace` 默认收起 Inspector，regular 宽度从右缘覆盖、compact 宽度从底部覆盖；展开按钮保持 44pt、支持 VoiceOver 和 Reduce Motion，地图尺寸不随 Inspector 开关改变。
 - `BattlefieldTheme.swift` 提供颜色、tactical surface 和跨模块视觉 token。
 - `BattlefieldChrome.swift` 提供薄顶栏、地图工具条、HUD、边缘快捷命令和地图外壳；按钮 action 继续原样转发 `GameState`。
-- `BattlefieldMap.swift` 保持原有 `position(for:)`、tile frame、`Hexagon` 命中路径和 `HexInputReader` 三种输入链；连续田野、森林、城市、山地、雪地、河流与公路纹理只从 `TerrainTile` 和 `HexCoordinate.neighbors` 只读派生。
+- `BattlefieldMap.swift` 保持原有 `position(for:)`、tile frame、`Hexagon` 命中路径和 `HexInputReader` 三种输入链；连续田野、森林、城市、山地、雪地、河流与公路纹理只从 `TerrainTile` 和 `HexCoordinate.neighbors` 只读派生；地图外接 frame 按 viewport 高度计算满幅缩放。
 - 地貌 seed 只由 `HexCoordinate.q/r` 计算并用于绘制参数，不写回模型；河流/道路连续性仍来自同类邻接方向。
 - `BattlefieldUnitViews.swift` 提供坦克、步兵、火炮、侦察车具象轮廓、盟军橄榄/轴心灰褐军械色板、兵种内部结构线、落地阴影、非纯颜色阵营底座、五段 HP、状态角标和通用将领徽章；不计算单位规则。
 - 地图 marker 的数据源、排序、顶/底槽位、溢出、边框优先级和无障碍摘要保持不变；Reduce Motion 只取消滚动动画，不改变焦点目标。
