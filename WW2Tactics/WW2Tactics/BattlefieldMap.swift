@@ -840,7 +840,7 @@ struct TerrainTexture: View {
                             .stroke(
                                 connectionHighlightColor,
                                 style: StrokeStyle(
-                                    lineWidth: tile.terrain == .river ? 2 : 1,
+                                    lineWidth: tile.terrain == .river ? 1.3 : 0.7,
                                     lineCap: .round,
                                     lineJoin: .round,
                                     dash: tile.terrain == .road ? [5, 6] : []
@@ -866,7 +866,7 @@ struct TerrainTexture: View {
                 let angle = -16 + Double((terrainSeed + index * 19) % 24)
 
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(index.isMultiple(of: 2) ? Color.yellow.opacity(0.065) : Color.black.opacity(0.055))
+                    .fill(index.isMultiple(of: 2) ? Color.yellow.opacity(0.026) : Color.black.opacity(0.020))
                     .frame(width: patchWidth, height: patchHeight)
                     .rotationEffect(.degrees(angle))
                     .position(x: x, y: y)
@@ -878,7 +878,7 @@ struct TerrainTexture: View {
                     path.addLine(to: CGPoint(x: size.width, y: offset + rise))
                 }
             }
-            .stroke(Color.yellow.opacity(0.11), lineWidth: 0.8)
+            .stroke(Color.yellow.opacity(0.085), lineWidth: 0.8)
         }
     }
 
@@ -915,7 +915,7 @@ struct TerrainTexture: View {
                 path.move(to: CGPoint(x: size.width * 0.46, y: 0))
                 path.addLine(to: CGPoint(x: size.width * 0.56, y: size.height))
             }
-            .stroke(Color.black.opacity(0.22), lineWidth: 6)
+            .stroke(Color.black.opacity(0.14), lineWidth: 5)
 
             Path { path in
                 path.move(to: CGPoint(x: 0, y: size.height * 0.62))
@@ -923,7 +923,7 @@ struct TerrainTexture: View {
                 path.move(to: CGPoint(x: size.width * 0.46, y: 0))
                 path.addLine(to: CGPoint(x: size.width * 0.56, y: size.height))
             }
-            .stroke(Color.white.opacity(0.11), lineWidth: 2.5)
+            .stroke(Color.white.opacity(0.09), lineWidth: 2)
 
             ForEach(0..<5, id: \.self) { index in
                 let blockWidth = 9 + CGFloat((terrainSeed + index * 3) % 7)
@@ -1018,7 +1018,7 @@ struct TerrainTexture: View {
                 path.addLine(to: CGPoint(x: 0, y: size.height))
                 path.closeSubpath()
             }
-            .fill(Color.blue.opacity(0.07))
+            .fill(Color.blue.opacity(0.04))
 
             Path { path in
                 path.move(to: CGPoint(x: 0, y: size.height * startY))
@@ -1028,7 +1028,7 @@ struct TerrainTexture: View {
                     control2: CGPoint(x: size.width * 0.68, y: size.height * (endY + 0.24))
                 )
             }
-            .stroke(Color.white.opacity(0.38), lineWidth: 1.6)
+            .stroke(Color.white.opacity(0.30), lineWidth: 1.4)
 
             Path { path in
                 let lowerStart = min(0.86, startY + 0.23)
@@ -1040,22 +1040,12 @@ struct TerrainTexture: View {
                     control2: CGPoint(x: size.width * 0.72, y: size.height * (lowerEnd + 0.10))
                 )
             }
-            .stroke(Color.blue.opacity(0.12), lineWidth: 2.4)
+            .stroke(Color.blue.opacity(0.08), lineWidth: 2)
         }
     }
 
     private func waterHighlight(in size: CGSize) -> some View {
         ZStack {
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: size.height * 0.48))
-                path.addCurve(
-                    to: CGPoint(x: size.width, y: size.height * 0.52),
-                    control1: CGPoint(x: size.width * 0.30, y: size.height * 0.26),
-                    control2: CGPoint(x: size.width * 0.68, y: size.height * 0.72)
-                )
-            }
-            .stroke(Color.black.opacity(0.16), lineWidth: 5)
-
             Path { path in
                 path.move(to: CGPoint(x: 0, y: size.height * 0.46))
                 path.addCurve(
@@ -1064,7 +1054,7 @@ struct TerrainTexture: View {
                     control2: CGPoint(x: size.width * 0.68, y: size.height * 0.70)
                 )
             }
-            .stroke(Color.white.opacity(0.34), lineWidth: 1.8)
+            .stroke(Color.white.opacity(0.22), lineWidth: 1.4)
         }
     }
 
@@ -1074,13 +1064,7 @@ struct TerrainTexture: View {
                 path.move(to: CGPoint(x: 0, y: size.height * 0.52))
                 path.addLine(to: CGPoint(x: size.width, y: size.height * 0.48))
             }
-            .stroke(Color.black.opacity(0.18), lineWidth: 3)
-
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: size.height * 0.52))
-                path.addLine(to: CGPoint(x: size.width, y: size.height * 0.48))
-            }
-            .stroke(Color.white.opacity(0.24), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+            .stroke(Color.white.opacity(0.12), style: StrokeStyle(lineWidth: 0.8, dash: [5, 6]))
         }
     }
 
@@ -1097,23 +1081,23 @@ struct TerrainTexture: View {
     private var connectionShadowColor: Color {
         switch tile.terrain {
         case .river:
-            Color(red: 0.08, green: 0.19, blue: 0.29).opacity(0.72)
+            Color(red: 0.08, green: 0.19, blue: 0.29).opacity(0.20)
         case .road:
-            Color.black.opacity(0.24)
+            Color.black.opacity(0.06)
         case .forest, .city, .mountain, .snow, .plains:
-            Color.black.opacity(0.10)
+            Color.black.opacity(0.05)
         }
     }
 
     private var connectionHighlightColor: Color {
-        tile.terrain == .river ? Color.white.opacity(0.28) : Color.white.opacity(0.24)
+        tile.terrain == .river ? Color.white.opacity(0.18) : Color.white.opacity(0.14)
     }
 
     private var connectionShadowWidth: CGFloat {
         switch tile.terrain {
-        case .river: 4
-        case .road: 3
-        case .forest, .city, .mountain, .snow, .plains: 2
+        case .river: 1.5
+        case .road: 0.5
+        case .forest, .city, .mountain, .snow, .plains: 0.5
         }
     }
 
