@@ -128,6 +128,16 @@ struct HexMapView: View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
             }
+
+            if let combatResult = game.latestCombatResult {
+                CombatResolutionOverlay(
+                    summary: combatResult,
+                    attackerPoint: position(for: combatResult.attackerCoordinate),
+                    defenderPoint: position(for: combatResult.defenderCoordinate)
+                )
+                .frame(width: contentWidth, height: contentHeight, alignment: .topLeading)
+                .allowsHitTesting(false)
+            }
         }
         .frame(width: contentWidth, height: contentHeight)
         .scaleEffect(resolvedScale, anchor: .topLeading)
@@ -818,6 +828,132 @@ struct EngagementAxisOverlay: View {
             CGPoint(x: start.x + unitX * inset, y: start.y + unitY * inset),
             CGPoint(x: end.x - unitX * inset, y: end.y - unitY * inset)
         )
+    }
+}
+
+struct CombatResolutionOverlay: View {
+    let summary: CombatResultSummary
+    let attackerPoint: CGPoint
+    let defenderPoint: CGPoint
+
+    var body: some View {
+        let points = trimmedPoints
+        let midpoint = CGPoint(
+            x: (attackerPoint.x + defenderPoint.x) / 2,
+            y: (attackerPoint.y + defenderPoint.y) / 2
+        )
+
+        ZStack {
+            Path { path in
+                path.move(to: points.start)
+                path.addLine(to: points.end)
+            }
+            .stroke(Color.black.opacity(0.82), style: StrokeStyle(lineWidth: 6, lineCap: .round))
+
+            Path { path in
+                path.move(to: points.start)
+                path.addLine(to: points.end)
+            }
+            .stroke(
+                resultColor.opacity(0.96),
+                style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [5, 3])
+            )
+
+            CombatDamagePlate(
+                title: "HIT -\(summary.damage)",
+                hpText: "\(summary.defender.startingHP) -> \(summary.defender.endingHP)",
+                color: summary.didDestroyDefender ? .red : .orange
+            )
+            .position(x: defenderPoint.x, y: defenderPoint.y - 44)
+
+            if summary.hasCounterAttack {
+                CombatDamagePlate(
+                    title: "RET -\(summary.counterDamage)",
+                    hpText: "\(summary.attacker.startingHP) -> \(summary.attacker.endingHP)",
+                    color: .red
+                )
+                .position(x: attackerPoint.x, y: attackerPoint.y - 44)
+            }
+
+            Label(resultTitle, systemImage: resultIcon)
+                .font(.caption.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(Color.black.opacity(0.84), in: Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(resultColor.opacity(0.92), lineWidth: 1.5)
+                )
+                .position(x: midpoint.x, y: midpoint.y + 36)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var resultTitle: String {
+        if summary.didDestroyDefender { return "击毁" }
+        if summary.hasCounterAttack { return "交火" }
+        return "压制"
+    }
+
+    private var resultIcon: String {
+        if summary.didDestroyDefender { return "burst.fill" }
+        if summary.hasCounterAttack { return "scope" }
+        return "shield.lefthalf.filled"
+    }
+
+    private var resultColor: Color {
+        if summary.didDestroyDefender { return .red }
+        if summary.hasCounterAttack { return .orange }
+        return .yellow
+    }
+
+    private var accessibilitySummary: String {
+        let counterText = summary.hasCounterAttack
+            ? "，反击造成 \(summary.counterDamage) 伤害，攻击方耐久从 \(summary.attacker.startingHP) 降至 \(summary.attacker.endingHP)"
+            : "，没有反击"
+        return "\(resultTitle)。\(summary.attacker.name) 对 \(summary.defender.name) 造成 \(summary.damage) 伤害，防守方耐久从 \(summary.defender.startingHP) 降至 \(summary.defender.endingHP)\(counterText)。"
+    }
+
+    private var trimmedPoints: (start: CGPoint, end: CGPoint) {
+        let dx = defenderPoint.x - attackerPoint.x
+        let dy = defenderPoint.y - attackerPoint.y
+        let distance = max(1, hypot(dx, dy))
+        let inset = min(25, distance * 0.30)
+        let unitX = dx / distance
+        let unitY = dy / distance
+        return (
+            CGPoint(x: attackerPoint.x + unitX * inset, y: attackerPoint.y + unitY * inset),
+            CGPoint(x: defenderPoint.x - unitX * inset, y: defenderPoint.y - unitY * inset)
+        )
+    }
+}
+
+struct CombatDamagePlate: View {
+    let title: String
+    let hpText: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 1) {
+            Text(title)
+                .font(.caption.bold())
+            Text(hpText)
+                .font(.caption.bold())
+                .monospacedDigit()
+        }
+        .foregroundStyle(.white)
+        .lineLimit(1)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(Color.black.opacity(0.86), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(color.opacity(0.96), lineWidth: 1.5)
+        )
+        .shadow(color: .black.opacity(0.42), radius: 3, y: 2)
+        .accessibilityHidden(true)
     }
 }
 

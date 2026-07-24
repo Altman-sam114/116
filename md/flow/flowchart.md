@@ -251,6 +251,21 @@ flowchart LR
     Data["规则集合与 accessibility 文本"] --> KeepData["继续保留，不写回 GameState"]
 ```
 
+## v2.14 地图战斗结果反馈
+
+```mermaid
+flowchart LR
+    Fire["executeFocusedCommand 开火"] --> Attack["GameState.attack 真实结算"]
+    Attack --> Result["latestCombatResult"]
+    Coordinates["执行时 attacker / defender coordinate"] --> Result
+    Result --> Inspector["既有 Inspector 战斗结果卡"]
+    Result --> Map["CombatResolutionOverlay"]
+    Map --> Damage["HIT / RET + 双方 HP 前后"]
+    Map --> Outcome["交火 / 压制 / 击毁"]
+    Map --> Safety["allowsHitTesting false + 组合 VoiceOver 摘要"]
+    Selection["攻击后选择轮转 / 目标可能被击毁"] --> NoGuess["不用于推断上一场坐标"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

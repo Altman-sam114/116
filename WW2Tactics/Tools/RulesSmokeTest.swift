@@ -239,6 +239,8 @@ struct RulesSmokeTest {
                 return
             }
             require(resultSummary.damage == resultPreview.damage, "combat result damage should match preview")
+            require(resultSummary.attackerCoordinate == resultAttacker.position, "combat result should record attacker coordinate")
+            require(resultSummary.defenderCoordinate == resultDefender.position, "combat result should record defender coordinate")
             require(resultSummary.counterDamage > 0, "combat result should record actual counter damage")
             require(resultSummary.attacker.startingHP == resultAttacker.hp, "combat result should record attacker starting HP")
             require(resultSummary.attacker.endingHP == finalResultAttacker.hp, "combat result should record attacker ending HP")

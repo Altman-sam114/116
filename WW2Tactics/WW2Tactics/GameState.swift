@@ -5530,6 +5530,8 @@ final class GameState: ObservableObject {
             latestCombatResult = CombatResultSummary(
                 attacker: combatantResultSnapshot(starting: attacker, ending: finalAttacker),
                 defender: combatantResultSnapshot(starting: defender, ending: finalDefender),
+                attackerCoordinate: attacker.position,
+                defenderCoordinate: defender.position,
                 damage: damage,
                 counterDamage: counterDamage,
                 supportDamageBonusPercent: supportBonus,

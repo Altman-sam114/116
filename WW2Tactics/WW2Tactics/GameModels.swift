@@ -596,6 +596,8 @@ struct CombatResultSummary: Identifiable, Equatable {
     let id = UUID()
     let attacker: CombatantResultSnapshot
     let defender: CombatantResultSnapshot
+    let attackerCoordinate: HexCoordinate
+    let defenderCoordinate: HexCoordinate
     let damage: Int
     let counterDamage: Int
     let supportDamageBonusPercent: Int

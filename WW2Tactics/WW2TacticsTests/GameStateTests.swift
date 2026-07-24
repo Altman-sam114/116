@@ -2162,6 +2162,8 @@ final class GameStateTests: XCTestCase {
 
         XCTAssertEqual(summary.attacker.unitID, attacker.id)
         XCTAssertEqual(summary.defender.unitID, defender.id)
+        XCTAssertEqual(summary.attackerCoordinate, attacker.position)
+        XCTAssertEqual(summary.defenderCoordinate, defender.position)
         XCTAssertEqual(summary.damage, preview.damage)
         XCTAssertGreaterThan(summary.counterDamage, 0)
         XCTAssertEqual(summary.supportDamageBonusPercent, 0)

@@ -314,11 +314,33 @@
 
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器、截图或 YAML 解析；提交前只做 Git 状态、diff 与提交范围检查。
 - 初始 commit `87a01ca4df62dea028988643ed5d5499183cb32f` 对应 run `30073533656`、attempt `1` 的 static 与 rules smoke 成功，但 Xcode build-for-testing 因在 `ViewBuilder` body 内分支赋值触发 `type '()' cannot conform to 'View'` 而失败，截图按门禁跳过；Agent C 已下载失败 artifact 并退回同版本修复。
+- 修复 commit `3bb90532e075e559b3254671d13f86d7a7714d50` 对应 run `30073890297`、attempt `1` 成功；artifact `ww2tactics-ci-v2.13-main-3bb9053-run30073890297-attempt1` 的 static、rules smoke、build 和 selected-attack screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-30073890297/` 并核对 manifest SHA/run/attempt、failure summary、JUnit、日志、`.xcresult` 和 2064x2752、5,769,576-byte PNG；截图保留 v2.12 火力解算与焦点 ATK，同时隐藏全图控制区/覆盖/次要 chips，并显示 M10 到目标的短橙色交战轴线。
+
+遗留事项：
+
+- v2.13 已通过；下一轮补齐真实开火后的地图级战损与结果反馈。
+
+### v2.14 / 短促战斗结果反馈
+
+日期：2026-07-24
+
+核心变更：
+
+- `CombatResultSummary` 增加攻击方与防守方执行时坐标，`GameState.attack` 与真实伤害、反击、HP 快照一起写入，避免攻击后选择轮转或击毁目标导致地图定位丢失。
+- `CombatResolutionOverlay` 从 `latestCombatResult` 只读显示防守端 HIT/HP、实际反击时的 RET/攻击方 HP，以及交火、压制或击毁结论；叠层不拦截输入并提供组合 VoiceOver 摘要。
+- XCTest 与 RulesSmokeTest 增加双方结果坐标断言。
+- CI 新增 `--ci-selected-combat-result` 场景，复用公开地图动作链完成接敌移动和真实攻击；workflow 元数据切换为 `selected-combat-result`，旧预览参数继续保留。
+- README、flow、flowchart、test 和 prompt 索引同步当前实现与云端验收要求。
+
+验证结果：
+
+- 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器、截图或 YAML 解析；提交前只做 Git 状态、diff 与提交范围检查。
 - 等待本轮 `origin/main` GitHub Actions run 与 Agent C artifact 验收。
 
 遗留事项：
 
-- 必须由云端截图确认交战轴线清晰但不遮挡模型、焦点 ATK marker 保留，并与 v2.12 对比覆盖层噪音确实下降。
+- 必须由云端截图确认场景已经执行攻击、双方 HP 真实变化，HIT/RET/HP/结果贴近交战位置且不遮挡单位、地图或 HUD。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 
