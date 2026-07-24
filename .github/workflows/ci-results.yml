@@ -220,13 +220,21 @@ jobs:
                     if [[ $launch_status -ne 0 ]]; then
                       echo "App launch failed."
                     else
-                      sleep 6
-                      xcrun simctl io "$device_udid" screenshot "$BATTLEFIELD_SCREENSHOT"
-                      capture_status=$?
                       screenshot_size=0
-                      if [[ -f "$BATTLEFIELD_SCREENSHOT" ]]; then
-                        screenshot_size="$(stat -f '%z' "$BATTLEFIELD_SCREENSHOT")"
-                      fi
+                      capture_status=1
+                      for capture_attempt in 1 2 3 4; do
+                        sleep 6
+                        xcrun simctl io "$device_udid" screenshot "$BATTLEFIELD_SCREENSHOT"
+                        capture_status=$?
+                        screenshot_size=0
+                        if [[ -f "$BATTLEFIELD_SCREENSHOT" ]]; then
+                          screenshot_size="$(stat -f '%z' "$BATTLEFIELD_SCREENSHOT")"
+                        fi
+                        echo "capture attempt $capture_attempt: status=$capture_status bytes=$screenshot_size"
+                        if [[ $capture_status -eq 0 && $screenshot_size -ge 500000 ]]; then
+                          break
+                        fi
+                      done
 
                       if [[ $capture_status -eq 0 && $screenshot_size -ge 500000 ]]; then
                         sips -g pixelWidth -g pixelHeight "$BATTLEFIELD_SCREENSHOT"

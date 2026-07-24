@@ -336,6 +336,8 @@
 验证结果：
 
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器、截图或 YAML 解析；提交前只做 Git 状态、diff 与提交范围检查。
+- 初始 commit `812512b11a9cab273fa7398fa237a0d05e066502` 对应 run `30075113736`、attempt `1` 的 static、rules smoke 与 Xcode build-for-testing 成功，但模拟器 launch 后首次截图只有 117,630 bytes；Agent C 下载 artifact 到 `/private/tmp/ww2tactics-c-review-30075113736/`，核对 manifest 和日志并实际确认 PNG 为黑屏，因此验收不通过。
+- workflow 保持 500 KB 门禁，改为 launch 后最多 4 次、每次间隔 6 秒的有界截图重试，并把每次状态与大小写入日志；不修改游戏实现或放宽黑屏判定。
 - 等待本轮 `origin/main` GitHub Actions run 与 Agent C artifact 验收。
 
 遗留事项：
