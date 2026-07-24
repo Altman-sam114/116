@@ -11,12 +11,6 @@ struct HexMapView: View {
 
     var body: some View {
         let selected = game.selectedUnit
-        let isAttackFocusMode: Bool
-        if let preview = game.focusedCommandPreview, case .attack = preview {
-            isAttackFocusMode = true
-        } else {
-            isAttackFocusMode = false
-        }
         let supplyLine = selected.map { game.supplyLineTiles(for: $0) } ?? []
         let enemyControlZones = selected.map { game.enemyControlZoneTiles(for: $0.faction) } ?? []
         let threatenedReachableTiles = selected.map { game.threatenedReachableTiles(for: $0) } ?? []
@@ -148,6 +142,12 @@ struct HexMapView: View {
         let x = CGFloat(coordinate.q) * tileWidth * 0.78 + CGFloat(coordinate.r) * tileWidth * 0.39 + tileWidth / 2
         let y = CGFloat(coordinate.r) * tileHeight * 0.76 + tileHeight / 2
         return CGPoint(x: x, y: y)
+    }
+
+    private var isAttackFocusMode: Bool {
+        guard let preview = game.focusedCommandPreview else { return false }
+        if case .attack = preview { return true }
+        return false
     }
 }
 

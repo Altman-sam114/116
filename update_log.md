@@ -313,6 +313,7 @@
 验证结果：
 
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器、截图或 YAML 解析；提交前只做 Git 状态、diff 与提交范围检查。
+- 初始 commit `87a01ca4df62dea028988643ed5d5499183cb32f` 对应 run `30073533656`、attempt `1` 的 static 与 rules smoke 成功，但 Xcode build-for-testing 因在 `ViewBuilder` body 内分支赋值触发 `type '()' cannot conform to 'View'` 而失败，截图按门禁跳过；Agent C 已下载失败 artifact 并退回同版本修复。
 - 等待本轮 `origin/main` GitHub Actions run 与 Agent C artifact 验收。
 
 遗留事项：
