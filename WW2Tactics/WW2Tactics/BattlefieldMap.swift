@@ -810,19 +810,44 @@ struct TerrainTexture: View {
     }
 
     private func connectionLayer(in size: CGSize) -> some View {
-        Group {
+        let path = connectionPath(in: size)
+
+        return Group {
             if tile.terrain.showsMapConnections {
-                Path { path in
-                    let center = CGPoint(x: size.width / 2, y: size.height / 2)
-                    for direction in connectionDirections {
-                        path.move(to: center)
-                        path.addLine(to: endpoint(for: direction, in: size))
+                ZStack {
+                    path
+                        .stroke(
+                            connectionShadowColor,
+                            style: StrokeStyle(
+                                lineWidth: tile.terrain.connectionWidth + connectionShadowWidth,
+                                lineCap: .round,
+                                lineJoin: .round
+                            )
+                        )
+
+                    path
+                        .stroke(
+                            tile.terrain.connectionColor,
+                            style: StrokeStyle(
+                                lineWidth: tile.terrain.connectionWidth,
+                                lineCap: .round,
+                                lineJoin: .round
+                            )
+                        )
+
+                    if tile.terrain == .river || tile.terrain == .road {
+                        path
+                            .stroke(
+                                connectionHighlightColor,
+                                style: StrokeStyle(
+                                    lineWidth: tile.terrain == .river ? 2 : 1,
+                                    lineCap: .round,
+                                    lineJoin: .round,
+                                    dash: tile.terrain == .road ? [5, 6] : []
+                                )
+                            )
                     }
                 }
-                .stroke(
-                    tile.terrain.connectionColor,
-                    style: StrokeStyle(lineWidth: tile.terrain.connectionWidth, lineCap: .round, lineJoin: .round)
-                )
             }
         }
     }
@@ -832,23 +857,51 @@ struct TerrainTexture: View {
         let start = -size.height * (0.10 + seedFraction(multiplier: 7, offset: 11) * 0.18)
         let rise = size.height * (0.12 + seedFraction(multiplier: 13, offset: 5) * 0.16)
 
-        return Path { path in
-            for offset in stride(from: start, through: size.height, by: spacing) {
-                path.move(to: CGPoint(x: 0, y: offset))
-                path.addLine(to: CGPoint(x: size.width, y: offset + rise))
+        return ZStack {
+            ForEach(0..<3, id: \.self) { index in
+                let patchWidth = size.width * (0.34 + seededFraction(index: index, multiplier: 17, offset: 5) * 0.18)
+                let patchHeight = size.height * (0.18 + seededFraction(index: index, multiplier: 29, offset: 13) * 0.12)
+                let x = size.width * (0.18 + seededFraction(index: index, multiplier: 37, offset: 23) * 0.64)
+                let y = size.height * (0.16 + seededFraction(index: index, multiplier: 43, offset: 31) * 0.68)
+                let angle = -16 + Double((terrainSeed + index * 19) % 24)
+
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(index.isMultiple(of: 2) ? Color.yellow.opacity(0.065) : Color.black.opacity(0.055))
+                    .frame(width: patchWidth, height: patchHeight)
+                    .rotationEffect(.degrees(angle))
+                    .position(x: x, y: y)
             }
+
+            Path { path in
+                for offset in stride(from: start, through: size.height, by: spacing) {
+                    path.move(to: CGPoint(x: 0, y: offset))
+                    path.addLine(to: CGPoint(x: size.width, y: offset + rise))
+                }
+            }
+            .stroke(Color.yellow.opacity(0.11), lineWidth: 0.8)
         }
-        .stroke(Color.yellow.opacity(0.075), lineWidth: 0.8)
     }
 
     private func forestClusters(in size: CGSize) -> some View {
         ZStack {
-            ForEach(0..<5, id: \.self) { index in
+            ForEach(0..<6, id: \.self) { index in
                 let x = size.width * (0.14 + seededFraction(index: index, multiplier: 37, offset: 17) * 0.72)
                 let y = size.height * (0.16 + seededFraction(index: index, multiplier: 23, offset: 41) * 0.66)
+                let treeSize = 9 + CGFloat((terrainSeed + index * 5) % 6)
+
+                Ellipse()
+                    .fill(Color.black.opacity(0.20))
+                    .frame(width: treeSize * 0.92, height: treeSize * 0.34)
+                    .position(x: x + 1.5, y: y + treeSize * 0.42)
+
                 Image(systemName: "tree.fill")
-                    .font(.system(size: 8 + CGFloat((terrainSeed + index * 5) % 5), weight: .bold))
-                    .foregroundStyle(Color.black.opacity(0.20))
+                    .font(.system(size: treeSize, weight: .bold))
+                    .foregroundStyle(
+                        index.isMultiple(of: 2)
+                            ? Color(red: 0.31, green: 0.46, blue: 0.25).opacity(0.72)
+                            : Color.black.opacity(0.32)
+                    )
+                    .shadow(color: Color.black.opacity(0.22), radius: 0.7, x: 1, y: 1.2)
                     .position(x: x, y: y)
             }
         }
@@ -862,18 +915,41 @@ struct TerrainTexture: View {
                 path.move(to: CGPoint(x: size.width * 0.46, y: 0))
                 path.addLine(to: CGPoint(x: size.width * 0.56, y: size.height))
             }
-            .stroke(Color.black.opacity(0.13), lineWidth: 4)
-            ForEach(0..<4, id: \.self) { index in
-                Rectangle()
-                    .fill(Color.white.opacity(0.12))
-                    .frame(
-                        width: 8 + CGFloat((terrainSeed + index * 3) % 6),
-                        height: 8 + CGFloat((terrainSeed + index * 7) % 6)
+            .stroke(Color.black.opacity(0.22), lineWidth: 6)
+
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: size.height * 0.62))
+                path.addLine(to: CGPoint(x: size.width, y: size.height * 0.38))
+                path.move(to: CGPoint(x: size.width * 0.46, y: 0))
+                path.addLine(to: CGPoint(x: size.width * 0.56, y: size.height))
+            }
+            .stroke(Color.white.opacity(0.11), lineWidth: 2.5)
+
+            ForEach(0..<5, id: \.self) { index in
+                let blockWidth = 9 + CGFloat((terrainSeed + index * 3) % 7)
+                let blockHeight = 9 + CGFloat((terrainSeed + index * 7) % 7)
+                let x = size.width * (0.16 + seededFraction(index: index, multiplier: 31, offset: 7) * 0.68)
+                let y = size.height * (0.16 + seededFraction(index: index, multiplier: 19, offset: 29) * 0.68)
+
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(Color.black.opacity(0.24))
+                    .frame(width: blockWidth, height: blockHeight)
+                    .position(x: x + 2, y: y + 2.5)
+
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.28), Color.white.opacity(0.10)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                    .position(
-                        x: size.width * (0.18 + seededFraction(index: index, multiplier: 31, offset: 7) * 0.64),
-                        y: size.height * (0.18 + seededFraction(index: index, multiplier: 19, offset: 29) * 0.64)
-                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .stroke(Color.white.opacity(0.18), lineWidth: 0.6)
+                    }
+                    .frame(width: blockWidth, height: blockHeight)
+                    .position(x: x, y: y)
             }
         }
     }
@@ -884,49 +960,161 @@ struct TerrainTexture: View {
         let firstHeight = 0.24 + seedFraction(multiplier: 23, offset: 13) * 0.18
         let secondHeight = 0.20 + seedFraction(multiplier: 29, offset: 31) * 0.20
 
-        return Path { path in
-            path.move(to: CGPoint(x: size.width * 0.08, y: size.height * 0.72))
-            path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
-            path.addLine(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
-            path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
-            path.addLine(to: CGPoint(x: size.width * 0.92, y: size.height * 0.70))
+        return ZStack {
+            Path { path in
+                path.move(to: CGPoint(x: size.width * 0.06, y: size.height * 0.76))
+                path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
+                path.addLine(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
+                path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
+                path.addLine(to: CGPoint(x: size.width * 0.94, y: size.height * 0.74))
+                path.addLine(to: CGPoint(x: size.width * 0.78, y: size.height * 0.88))
+                path.addLine(to: CGPoint(x: size.width * 0.20, y: size.height * 0.88))
+                path.closeSubpath()
+            }
+            .fill(Color.black.opacity(0.15))
+
+            Path { path in
+                path.move(to: CGPoint(x: size.width * 0.06, y: size.height * 0.76))
+                path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
+                path.addLine(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
+                path.addLine(to: CGPoint(x: size.width * 0.31, y: size.height * 0.83))
+                path.closeSubpath()
+            }
+            .fill(Color.white.opacity(0.12))
+
+            Path { path in
+                path.move(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
+                path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
+                path.addLine(to: CGPoint(x: size.width * 0.94, y: size.height * 0.74))
+                path.addLine(to: CGPoint(x: size.width * 0.72, y: size.height * 0.84))
+                path.closeSubpath()
+            }
+            .fill(Color.white.opacity(0.08))
+
+            Path { path in
+                path.move(to: CGPoint(x: size.width * 0.08, y: size.height * 0.72))
+                path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
+                path.addLine(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
+                path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
+                path.addLine(to: CGPoint(x: size.width * 0.92, y: size.height * 0.70))
+            }
+            .stroke(Color.white.opacity(0.30), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
         }
-        .stroke(Color.white.opacity(0.20), style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
     }
 
     private func snowDrifts(in size: CGSize) -> some View {
         let startY = 0.48 + seedFraction(multiplier: 13, offset: 23) * 0.16
         let endY = 0.36 + seedFraction(multiplier: 19, offset: 37) * 0.18
 
-        return Path { path in
-            path.move(to: CGPoint(x: 0, y: size.height * startY))
-            path.addCurve(
-                to: CGPoint(x: size.width, y: size.height * endY),
-                control1: CGPoint(x: size.width * 0.28, y: size.height * (startY - 0.22)),
-                control2: CGPoint(x: size.width * 0.68, y: size.height * (endY + 0.24))
-            )
+        return ZStack {
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: size.height * startY))
+                path.addCurve(
+                    to: CGPoint(x: size.width, y: size.height * endY),
+                    control1: CGPoint(x: size.width * 0.28, y: size.height * (startY - 0.22)),
+                    control2: CGPoint(x: size.width * 0.68, y: size.height * (endY + 0.24))
+                )
+                path.addLine(to: CGPoint(x: size.width, y: size.height))
+                path.addLine(to: CGPoint(x: 0, y: size.height))
+                path.closeSubpath()
+            }
+            .fill(Color.blue.opacity(0.07))
+
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: size.height * startY))
+                path.addCurve(
+                    to: CGPoint(x: size.width, y: size.height * endY),
+                    control1: CGPoint(x: size.width * 0.28, y: size.height * (startY - 0.22)),
+                    control2: CGPoint(x: size.width * 0.68, y: size.height * (endY + 0.24))
+                )
+            }
+            .stroke(Color.white.opacity(0.38), lineWidth: 1.6)
+
+            Path { path in
+                let lowerStart = min(0.86, startY + 0.23)
+                let lowerEnd = min(0.84, endY + 0.27)
+                path.move(to: CGPoint(x: 0, y: size.height * lowerStart))
+                path.addCurve(
+                    to: CGPoint(x: size.width, y: size.height * lowerEnd),
+                    control1: CGPoint(x: size.width * 0.34, y: size.height * (lowerStart - 0.12)),
+                    control2: CGPoint(x: size.width * 0.72, y: size.height * (lowerEnd + 0.10))
+                )
+            }
+            .stroke(Color.blue.opacity(0.12), lineWidth: 2.4)
         }
-        .stroke(Color.white.opacity(0.26), lineWidth: 1.5)
     }
 
     private func waterHighlight(in size: CGSize) -> some View {
-        Path { path in
-            path.move(to: CGPoint(x: 0, y: size.height * 0.48))
-            path.addCurve(
-                to: CGPoint(x: size.width, y: size.height * 0.52),
-                control1: CGPoint(x: size.width * 0.30, y: size.height * 0.26),
-                control2: CGPoint(x: size.width * 0.68, y: size.height * 0.72)
-            )
+        ZStack {
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: size.height * 0.48))
+                path.addCurve(
+                    to: CGPoint(x: size.width, y: size.height * 0.52),
+                    control1: CGPoint(x: size.width * 0.30, y: size.height * 0.26),
+                    control2: CGPoint(x: size.width * 0.68, y: size.height * 0.72)
+                )
+            }
+            .stroke(Color.black.opacity(0.16), lineWidth: 5)
+
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: size.height * 0.46))
+                path.addCurve(
+                    to: CGPoint(x: size.width, y: size.height * 0.50),
+                    control1: CGPoint(x: size.width * 0.30, y: size.height * 0.24),
+                    control2: CGPoint(x: size.width * 0.68, y: size.height * 0.70)
+                )
+            }
+            .stroke(Color.white.opacity(0.34), lineWidth: 1.8)
         }
-        .stroke(Color.white.opacity(0.26), lineWidth: 2)
     }
 
     private func roadHighlight(in size: CGSize) -> some View {
-        Path { path in
-            path.move(to: CGPoint(x: 0, y: size.height * 0.52))
-            path.addLine(to: CGPoint(x: size.width, y: size.height * 0.48))
+        ZStack {
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: size.height * 0.52))
+                path.addLine(to: CGPoint(x: size.width, y: size.height * 0.48))
+            }
+            .stroke(Color.black.opacity(0.18), lineWidth: 3)
+
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: size.height * 0.52))
+                path.addLine(to: CGPoint(x: size.width, y: size.height * 0.48))
+            }
+            .stroke(Color.white.opacity(0.24), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
         }
-        .stroke(Color.white.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+    }
+
+    private func connectionPath(in size: CGSize) -> Path {
+        Path { path in
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            for direction in connectionDirections {
+                path.move(to: center)
+                path.addLine(to: endpoint(for: direction, in: size))
+            }
+        }
+    }
+
+    private var connectionShadowColor: Color {
+        switch tile.terrain {
+        case .river:
+            Color(red: 0.08, green: 0.19, blue: 0.29).opacity(0.72)
+        case .road:
+            Color.black.opacity(0.24)
+        case .forest, .city, .mountain, .snow, .plains:
+            Color.black.opacity(0.10)
+        }
+    }
+
+    private var connectionHighlightColor: Color {
+        tile.terrain == .river ? Color.white.opacity(0.28) : Color.white.opacity(0.24)
+    }
+
+    private var connectionShadowWidth: CGFloat {
+        switch tile.terrain {
+        case .river: 4
+        case .road: 3
+        case .forest, .city, .mountain, .snow, .plains: 2
+        }
     }
 
     private var terrainSeed: Int {

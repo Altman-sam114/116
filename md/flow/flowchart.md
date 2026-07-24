@@ -167,6 +167,27 @@ flowchart LR
     Badge["非地图 UnitShapeBadge"] --> Existing["HUD / 侧栏 / 编队条保持原样"]
 ```
 
+## v2.9 地貌纵深派生
+
+```mermaid
+flowchart LR
+    Tile["TerrainTile + q/r"] --> Seed["确定性 seed"]
+    Neighbors["同类 neighbors"] --> Path["唯一 connection Path"]
+    Seed --> Plain["田块 + 田垄"]
+    Seed --> Forest["树冠 + 落地影"]
+    Seed --> City["屋顶 + 建筑投影"]
+    Seed --> Mountain["亮面 + 暗面 + 脊线"]
+    Seed --> Snow["冷色凹陷 + 雪脊"]
+    Path --> RiverRoad["暗边 + 主体 + 高光"]
+    Plain --> Texture["TerrainTexture 只读绘制"]
+    Forest --> Texture
+    City --> Texture
+    Mountain --> Texture
+    Snow --> Texture
+    RiverRoad --> Texture
+    Texture --> Hex["HexTileView：frame / hit path / marker 不变"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

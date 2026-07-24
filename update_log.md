@@ -206,11 +206,32 @@
 
 验证结果：
 
+- 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器或视觉测试。
+- GitHub Actions run `30066551656`、attempt `1`、commit `99de0e88cdda06c6d613542ab11e2171d7240779` 成功；artifact `ww2tactics-ci-v2.8-main-99de0e8-run30066551656-attempt1` 的 static、rules smoke、build 和 screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-30066551656/` 并核对 manifest、failure summary、JUnit、日志、`.xcresult` 与 2064x2752 iPad 截图；四类地图军械已直接落在透明阵营地面环上，AL/AX、Commander、HP 与既有 marker 清晰，非地图徽章未受影响。
+
+遗留事项：
+
+- 地图单位落地模型已通过；截图中地貌仍主要是平铺色块和细线符号，v2.9 优先增强田块、树林、城市、山地、雪地与河路纵深。
+
+### v2.9 / 地貌纵深与战区质感
+
+日期：2026-07-24
+
+核心变更：
+
+- 平原增加稳定田块深浅与田垄，森林增加树冠前后层和落地影，城市增加道路底槽、建筑投影与屋顶高光。
+- 山地增加闭合亮面/暗面与脊线，雪地增加冷色凹陷与双层雪脊。
+- 河流和道路的暗边、主体与高光复用同一邻接 Path，保持连续；全部变体只由 q/r seed 派生。
+- 不改变 tile frame、坐标、命中、marker、单位、规则或 `GameState`。
+
+验证结果：
+
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器或视觉测试；等待最新 `origin/main` run 与截图 artifact。
 
 遗留事项：
 
-- 需由 v2.8 云端截图确认军械模型更突出、地面环不遮挡相邻 tile/marker，全部状态角标和 HP 仍清晰。
+- 需由 v2.9 云端截图确认地貌纵深明显但不过度强化六角拼块感，河流/道路连续且单位、HP 和 marker 仍清晰。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 
