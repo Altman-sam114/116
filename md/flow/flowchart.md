@@ -205,20 +205,19 @@ flowchart LR
     NoArgument["普通启动：无参数"] --> Default["默认未选中状态"]
 ```
 
-## v2.11 战术覆盖层焦点分级
+## v2.11 战术覆盖层短标签
 
 ```mermaid
 flowchart LR
-    Hint["MapActionHint"] --> Marker["ActionMarker"]
-    Focus["isFocused"] --> Marker
-    Marker -->|焦点| Expanded["完整 M / ATK / POS 胶囊"]
-    Marker -->|非焦点 MOVE| Cost["紧凑成本圆点"]
-    Marker -->|非焦点 ATK / POS| Icon["target / scope 图标"]
-    Threat["threatenedReachableTiles"] --> Triangle["小型警告三角"]
-    Expanded --> Render["HexTileView 只读叠加"]
-    Cost --> Render
-    Icon --> Render
-    Triangle --> Render
+    Hint["MapActionHint"] --> Marker["既有 ActionMarker HStack"]
+    Marker --> Move["MOVE: M5 -> 5"]
+    Marker --> Attack["ATK: A12 -> 12"]
+    Marker --> Position["POS3 -> P3"]
+    Threat["threatenedReachableTiles"] --> Warning["THR -> !"]
+    Move --> Render["更小 padding 的胶囊"]
+    Attack --> Render
+    Position --> Render
+    Warning --> Render
     Render --> Boundary["规则集合 / 命中 / VoiceOver 主摘要不变"]
 ```
 

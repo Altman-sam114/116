@@ -262,15 +262,16 @@
 
 核心变更：
 
-- 焦点 MOVE/ATK/POS 保留完整标签和数值，非焦点 MOVE 改为紧凑成本圆点，非焦点 ATK/POS 改为类型图标。
-- THR 从文字胶囊改为小型红色警告三角，减少重复文字对地貌和军械的遮挡。
-- 只向 `ActionMarker` 传递既有 `isFocused`；不修改 `GameState`、可达/攻击/接敌/风险集合、tile 命中或 VoiceOver 主摘要。
+- 最终修复保持 v2.10 已验证的 `ActionMarker` 与 `ThreatenedMoveMarker` 单一 HStack 结构，不再传入 `isFocused` 或创建条件视图。
+- MOVE、ATK、POS、THR 的重复前缀分别缩为成本数字、伤害数字、`P` 和 `!`，同时减小字号、padding 和描边。
+- 不修改 `GameState`、可达/攻击/接敌/风险集合、tile 命中或 VoiceOver 主摘要；当前目标继续由准星和完整动作 HUD 表达。
 
 验证结果：
 
 - 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器、YAML 解析或视觉测试。
 - 初始 commit `32a4bfc553d892739d006cdafa011b30511d7982` 对应 run `30069332880` attempt 1/2 的 static、smoke、build 和脚本截图状态均成功，但两份 PNG SHA-256 完全相同且仅 117,630 bytes，实际画面除状态栏与 home indicator 外全黑；Agent C 两次均不通过。
-- 同轮修复把 `ActionMarker` 收敛为单一 HStack 渲染路径，并给 CI 截图增加 500 KB 下限；等待修复 commit 的最新云端 run 与 artifact。
+- 第一份修复 commit `9f5732999b3bca572cb4b0d11c9ad6f02e869767` 对应 run `30070660664` 的 static/smoke/build 成功，但 PNG 仍仅 155,086 bytes；新门禁正确输出 `screenshotOutcome=failure`、JUnit 1 failure，Agent C 不通过。
+- 第二份同轮修复完全恢复 v2.10 marker 结构，只使用固定短标签和紧凑样式；等待最新云端 run 与 artifact。
 
 遗留事项：
 

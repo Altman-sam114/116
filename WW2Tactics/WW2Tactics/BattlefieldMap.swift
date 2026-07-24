@@ -397,7 +397,7 @@ struct HexTileView: View {
             }
 
             if actionHint.isCommandable {
-                ActionMarker(actionHint: actionHint, isFocused: isFocused)
+                ActionMarker(actionHint: actionHint)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .padding(.top, 5)
                     .padding(.trailing, 8)
@@ -1282,12 +1282,22 @@ struct AttackPositionMarker: View {
 
 struct ThreatenedMoveMarker: View {
     var body: some View {
-        Image(systemName: "exclamationmark.triangle.fill")
-            .font(.system(size: 11, weight: .black))
-            .foregroundStyle(Color.red.opacity(0.90))
-            .shadow(color: .black.opacity(0.48), radius: 1, x: 0, y: 1)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        HStack(spacing: 1) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 7, weight: .black))
+            Text("!")
+                .font(.system(size: 6, weight: .black, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 3)
+        .padding(.vertical, 2)
+        .background(Color.red.opacity(0.78), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.30), lineWidth: 0.8)
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -1644,43 +1654,24 @@ struct TerrainSymbol: View {
 
 struct ActionMarker: View {
     let actionHint: MapActionHint
-    let isFocused: Bool
 
     var body: some View {
-        HStack(spacing: isFocused ? 3 : 1) {
-            if isFocused || !actionHint.isMove {
-                Image(systemName: icon)
-                    .font(.system(size: isFocused ? 7 : 8, weight: .black))
-            }
-            if let displayedLabel {
-                Text(displayedLabel)
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-            }
+        HStack(spacing: 2) {
+            Image(systemName: icon)
+                .font(.system(size: 7, weight: .black))
+            Text(label)
+                .font(.system(size: 7, weight: .black, design: .rounded))
         }
         .foregroundStyle(.white)
-        .padding(.horizontal, isFocused ? 5 : 4)
-        .padding(.vertical, isFocused ? 3 : 2)
-        .frame(minWidth: isFocused ? nil : 18, minHeight: isFocused ? nil : 18)
+        .padding(.horizontal, 3)
+        .padding(.vertical, 2)
         .background(backgroundColor, in: Capsule())
         .overlay(
             Capsule()
-                .stroke(Color.white.opacity(isFocused ? 0.34 : 0.28), lineWidth: isFocused ? 1 : 0.8)
+                .stroke(Color.white.opacity(0.30), lineWidth: 0.8)
         )
         .allowsHitTesting(false)
         .accessibilityHidden(true)
-    }
-
-    private var displayedLabel: String? {
-        if isFocused {
-            return label
-        }
-
-        switch actionHint {
-        case let .move(cost, controlZonePenalty):
-            return controlZonePenalty > 0 ? "\(cost)+" : "\(cost)"
-        case .attack, .approachAttack, .none, .selectedUnit, .selectableUnit, .friendlyOccupied, .enemyOutOfRange, .enemyUnavailable:
-            return nil
-        }
     }
 
     private var icon: String {
@@ -1699,12 +1690,12 @@ struct ActionMarker: View {
     private var label: String {
         switch actionHint {
         case let .move(cost, controlZonePenalty):
-            return controlZonePenalty > 0 ? "M\(cost)+" : "M\(cost)"
+            return controlZonePenalty > 0 ? "\(cost)+" : "\(cost)"
         case let .attack(damage, counterDamage, willDestroy):
             let counterText = counterDamage > 0 ? "/C\(counterDamage)" : ""
-            return willDestroy ? "KILL" : "A\(damage)\(counterText)"
+            return willDestroy ? "K" : "\(damage)\(counterText)"
         case let .approachAttack(cost, controlZonePenalty):
-            return controlZonePenalty > 0 ? "POS\(cost)+" : "POS\(cost)"
+            return controlZonePenalty > 0 ? "P\(cost)+" : "P\(cost)"
         case .none, .selectedUnit, .selectableUnit, .friendlyOccupied, .enemyOutOfRange, .enemyUnavailable:
             return ""
         }
