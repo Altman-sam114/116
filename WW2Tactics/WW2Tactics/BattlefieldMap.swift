@@ -397,7 +397,7 @@ struct HexTileView: View {
             }
 
             if actionHint.isCommandable {
-                ActionMarker(actionHint: actionHint)
+                ActionMarker(actionHint: actionHint, isFocused: isFocused)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .padding(.top, 5)
                     .padding(.trailing, 8)
@@ -1282,22 +1282,12 @@ struct AttackPositionMarker: View {
 
 struct ThreatenedMoveMarker: View {
     var body: some View {
-        HStack(spacing: 2) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 7, weight: .black))
-            Text("THR")
-                .font(.system(size: 7, weight: .black, design: .rounded))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3)
-        .background(Color.red.opacity(0.78), in: Capsule())
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(0.34), lineWidth: 1)
-        )
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+        Image(systemName: "exclamationmark.triangle.fill")
+            .font(.system(size: 11, weight: .black))
+            .foregroundStyle(Color.red.opacity(0.90))
+            .shadow(color: .black.opacity(0.48), radius: 1, x: 0, y: 1)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
@@ -1654,8 +1644,21 @@ struct TerrainSymbol: View {
 
 struct ActionMarker: View {
     let actionHint: MapActionHint
+    let isFocused: Bool
 
     var body: some View {
+        Group {
+            if isFocused {
+                expandedMarker
+            } else {
+                compactMarker
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var expandedMarker: some View {
         HStack(spacing: 3) {
             Image(systemName: icon)
                 .font(.system(size: 7, weight: .black))
@@ -1670,8 +1673,31 @@ struct ActionMarker: View {
             Capsule()
                 .stroke(Color.white.opacity(0.34), lineWidth: 1)
         )
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+    }
+
+    private var compactMarker: some View {
+        ZStack {
+            Circle()
+                .fill(backgroundColor)
+                .frame(width: 18, height: 18)
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.30), lineWidth: 0.8)
+                )
+
+            switch actionHint {
+            case let .move(cost, controlZonePenalty):
+                Text(controlZonePenalty > 0 ? "\(cost)+" : "\(cost)")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+            case .attack, .approachAttack:
+                Image(systemName: icon)
+                    .font(.system(size: 8, weight: .black))
+                    .foregroundStyle(.white)
+            case .none, .selectedUnit, .selectableUnit, .friendlyOccupied, .enemyOutOfRange, .enemyUnavailable:
+                EmptyView()
+            }
+        }
     }
 
     private var icon: String {

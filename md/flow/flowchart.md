@@ -203,6 +203,23 @@ flowchart LR
     NoArgument["普通启动：无参数"] --> Default["默认未选中状态"]
 ```
 
+## v2.11 战术覆盖层焦点分级
+
+```mermaid
+flowchart LR
+    Hint["MapActionHint"] --> Marker["ActionMarker"]
+    Focus["isFocused"] --> Marker
+    Marker -->|焦点| Expanded["完整 M / ATK / POS 胶囊"]
+    Marker -->|非焦点 MOVE| Cost["紧凑成本圆点"]
+    Marker -->|非焦点 ATK / POS| Icon["target / scope 图标"]
+    Threat["threatenedReachableTiles"] --> Triangle["小型警告三角"]
+    Expanded --> Render["HexTileView 只读叠加"]
+    Cost --> Render
+    Icon --> Render
+    Triangle --> Render
+    Render --> Boundary["规则集合 / 命中 / VoiceOver 主摘要不变"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

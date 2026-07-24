@@ -248,11 +248,31 @@
 
 验证结果：
 
-- 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器或视觉测试；等待最新 `origin/main` run 与截图 artifact。
+- 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器、YAML 解析或视觉测试。
+- GitHub Actions run `30068638485`、attempt `1`、commit `e01348e1b227dad26593526c49502e00f0686151` 成功；artifact `ww2tactics-ci-v2.10-main-e01348e-run30068638485-attempt1` 的 static、rules smoke、build 和 selected-approach screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-30068638485/` 并核对 manifest、failure summary、JUnit、日志、`.xcresult` 与 2064x2752 iPad 截图；M10 蓝色选中反馈、敌方侦察单位橙色 POS 准星、动作 HUD 和接敌预览同屏成立。
 
 遗留事项：
 
-- 需由 v2.10 云端截图确认蓝色选中环/四角框、橙色 POS 准星、接敌位置提示和动作 HUD 同屏清晰，且未遮挡地貌、单位与主要地图反馈。
+- v2.10 已通过；截图同时暴露 29 个 MOVE、9 个 THR 和多枚 POS 文字胶囊过密，v2.11 优先收敛非焦点战术标记。
+
+### v2.11 / 战术覆盖层降噪
+
+日期：2026-07-24
+
+核心变更：
+
+- 焦点 MOVE/ATK/POS 保留完整标签和数值，非焦点 MOVE 改为紧凑成本圆点，非焦点 ATK/POS 改为类型图标。
+- THR 从文字胶囊改为小型红色警告三角，减少重复文字对地貌和军械的遮挡。
+- 只向 `ActionMarker` 传递既有 `isFocused`；不修改 `GameState`、可达/攻击/接敌/风险集合、tile 命中或 VoiceOver 主摘要。
+
+验证结果：
+
+- 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器、YAML 解析或视觉测试；等待最新 `origin/main` run 与截图 artifact。
+
+遗留事项：
+
+- 需由 v2.11 云端截图确认重复文字显著减少、当前 POS 焦点语义仍完整、紧凑成本与警告图标在 iPad 尺寸可辨认。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 
