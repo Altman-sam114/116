@@ -338,11 +338,13 @@
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器、截图或 YAML 解析；提交前只做 Git 状态、diff 与提交范围检查。
 - 初始 commit `812512b11a9cab273fa7398fa237a0d05e066502` 对应 run `30075113736`、attempt `1` 的 static、rules smoke 与 Xcode build-for-testing 成功，但模拟器 launch 后首次截图只有 117,630 bytes；Agent C 下载 artifact 到 `/private/tmp/ww2tactics-c-review-30075113736/`，核对 manifest 和日志并实际确认 PNG 为黑屏，因此验收不通过。
 - workflow 保持 500 KB 门禁，改为 launch 后最多 4 次、每次间隔 6 秒的有界截图重试，并把每次状态与大小写入日志；不修改游戏实现或放宽黑屏判定。
-- 等待本轮 `origin/main` GitHub Actions run 与 Agent C artifact 验收。
+- 修复 commit `a28e82586cfd65e9716ac09e10bc47fdb8df13ac` 对应 run `30075856174`、attempt `1` 成功；artifact `ww2tactics-ci-v2.14-main-a28e825-run30075856174-attempt1` 的 static、rules smoke、build 和 selected-combat-result screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-30075856174/` 并核对 manifest SHA/run/attempt、failure summary、JUnit、日志、`.xcresult` 和 2064x2752、5,930,084-byte PNG；首次截图即通过 500 KB 门禁。
+- Agent C 实际查看 PNG：画面为真实攻击后状态，攻击方显示 `RET -7 / 64 -> 57`，防守方显示 `HIT -21 / 64 -> 43`，中央“交火”明确；三块地图反馈贴近原交战位置且没有遮挡双方单位主体。
 
 遗留事项：
 
-- 必须由云端截图确认场景已经执行攻击、双方 HP 真实变化，HIT/RET/HP/结果贴近交战位置且不遮挡单位、地图或 HUD。
+- v2.14 已通过。攻击前预判为 RET -11、真实结算为 RET -7，后续轮次应单独核对经验/晋升或状态变化导致的预判与实战差异；不得在 View 修正或伪造数值。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 
