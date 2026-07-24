@@ -292,11 +292,32 @@
 验证结果：
 
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器、截图或 YAML 解析；提交前只做 Git 状态、diff 与提交范围检查。
+- GitHub Actions run `30072585832`、attempt `1`、commit `aa394f17fa9b180b939dfd115f5ed72aec9ade51` 成功；artifact `ww2tactics-ci-v2.12-main-aa394f1-run30072585832-attempt1` 的 static、rules smoke、build 和 selected-attack screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-30072585832/` 并核对 manifest SHA/run/attempt、failure summary、JUnit、日志、`.xcresult` 和 2064x2752、5,875,823-byte PNG；截图清楚显示 M10 与装甲侦察营双方 HP 预测、HIT -21、RET -11、OUT 存活、红色 ATK 准星和手动开火入口，顶部消息证明仍为攻击前状态。
+
+遗留事项：
+
+- v2.12 已通过；截图显示全图控制区、射程覆盖和次要 marker 仍抢占攻击焦点，v2.13 继续专项降噪。
+
+### v2.13 / 交战轴线与攻击态降噪
+
+日期：2026-07-24
+
+核心变更：
+
+- `HexMapView` 从现有 `.attack` 预览只读派生攻击聚焦模式，不新增规则状态。
+- 攻击态下暂时隐藏非焦点控制区、射程覆盖、命令 marker 与次要态势 chips；当前焦点 ATK 标记、红色准星、双方单位/HP、地形和据点保持。
+- `EngagementAxisOverlay` 使用 selected/focused 地图点位连接攻击方与目标，缩短端点以避开单位模型，并关闭 hit testing 与无障碍读取。
+- 底层规则集合、tile accessibility、frame、坐标、滚动、缩放和输入链不变；离开 `.attack` 后覆盖层恢复。
+
+验证结果：
+
+- 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器、截图或 YAML 解析；提交前只做 Git 状态、diff 与提交范围检查。
 - 等待本轮 `origin/main` GitHub Actions run 与 Agent C artifact 验收。
 
 遗留事项：
 
-- 必须由云端截图确认火力解算带不遮挡地图、红色 ATK 准星和双方数值可读，并核对攻击仍未执行。
+- 必须由云端截图确认交战轴线清晰但不遮挡模型、焦点 ATK marker 保留，并与 v2.12 对比覆盖层噪音确实下降。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 

@@ -11,6 +11,12 @@ struct HexMapView: View {
 
     var body: some View {
         let selected = game.selectedUnit
+        let isAttackFocusMode: Bool
+        if let preview = game.focusedCommandPreview, case .attack = preview {
+            isAttackFocusMode = true
+        } else {
+            isAttackFocusMode = false
+        }
         let supplyLine = selected.map { game.supplyLineTiles(for: $0) } ?? []
         let enemyControlZones = selected.map { game.enemyControlZoneTiles(for: $0.faction) } ?? []
         let threatenedReachableTiles = selected.map { game.threatenedReachableTiles(for: $0) } ?? []
@@ -77,6 +83,7 @@ struct HexMapView: View {
                     unit: game.unit(at: tile.coordinate),
                     isSelected: selected?.position == tile.coordinate,
                     isFocused: game.focusedCoordinate == tile.coordinate,
+                    isAttackFocusMode: isAttackFocusMode,
                     actionHint: game.mapActionHint(for: tile.coordinate),
                     isMovementRoute: focusedRouteCoordinates.contains(tile.coordinate),
                     isRouteDestination: focusedRoute?.destination == tile.coordinate,
@@ -114,6 +121,18 @@ struct HexMapView: View {
                         }
                     )
                 )
+            }
+
+            if isAttackFocusMode,
+               let attackerCoordinate = selected?.position,
+               let targetCoordinate = game.focusedCoordinate {
+                EngagementAxisOverlay(
+                    start: position(for: attackerCoordinate),
+                    end: position(for: targetCoordinate)
+                )
+                .frame(width: contentWidth, height: contentHeight, alignment: .topLeading)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
             }
         }
         .frame(width: contentWidth, height: contentHeight)
@@ -274,6 +293,7 @@ struct HexTileView: View {
     let unit: BattleUnit?
     let isSelected: Bool
     let isFocused: Bool
+    let isAttackFocusMode: Bool
     let actionHint: MapActionHint
     let isMovementRoute: Bool
     let isRouteDestination: Bool
@@ -332,16 +352,16 @@ struct HexTileView: View {
 
             TerrainTexture(tile: tile, connectionDirections: terrainConnectionDirections)
 
-            if isSupplyLine {
+            if isSupplyLine && !isAttackFocusMode {
                 SupplyLineMarker()
             }
 
-            if isMovementRoute {
+            if isMovementRoute && !isAttackFocusMode {
                 MovementRouteMarker(step: routeStepPreview, isDestination: isRouteDestination)
             }
 
             // Unified top stack: focus / situation chips with overflow collapse.
-            if !visibleTopOverlayChips.isEmpty || topOverlayOverflowCount > 0 {
+            if !isAttackFocusMode && (!visibleTopOverlayChips.isEmpty || topOverlayOverflowCount > 0) {
                 VStack(spacing: 2) {
                     ForEach(visibleTopOverlayChips) { chip in
                         topOverlayChipView(chip)
@@ -356,7 +376,7 @@ struct HexTileView: View {
             }
 
             // Unified bottom stack: AI replay / attack position with overflow collapse.
-            if !visibleBottomOverlayChips.isEmpty || bottomOverlayOverflowCount > 0 {
+            if !isAttackFocusMode && (!visibleBottomOverlayChips.isEmpty || bottomOverlayOverflowCount > 0) {
                 VStack(spacing: 2) {
                     if bottomOverlayOverflowCount > 0 {
                         HexTileOverflowChip(count: bottomOverlayOverflowCount)
@@ -370,33 +390,33 @@ struct HexTileView: View {
                 .padding(.horizontal, 4)
             }
 
-            if isAttackCoverage {
+            if isAttackCoverage && !isAttackFocusMode {
                 AttackCoverageMarker()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                     .padding(.bottom, 6)
                     .padding(.leading, 9)
             }
 
-            if isPostMoveAttackTarget {
+            if isPostMoveAttackTarget && !isAttackFocusMode {
                 PostMoveAttackMarker()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .padding(.leading, 8)
             }
 
-            if isEnemyControlZone {
+            if isEnemyControlZone && !isAttackFocusMode {
                 ControlZoneMarker()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .padding(.bottom, 6)
                     .padding(.trailing, 9)
             }
 
-            if isThreatenedMoveTile {
+            if isThreatenedMoveTile && !isAttackFocusMode {
                 ThreatenedMoveMarker()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                     .padding(.trailing, 9)
             }
 
-            if actionHint.isCommandable {
+            if shouldShowActionMarker {
                 ActionMarker(actionHint: actionHint)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .padding(.top, 5)
@@ -451,6 +471,12 @@ struct HexTileView: View {
     }
 
     private var borderColor: Color {
+        if isAttackFocusMode {
+            if isSelected { return .yellow }
+            if isFocused && actionHint.isAttack { return .red }
+            if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.72) }
+            return .white.opacity(0.045)
+        }
         if isSelected { return .yellow }
         if actionHint.isAttack { return .red }
         if actionHint.isApproachAttack { return .orange.opacity(0.92) }
@@ -477,6 +503,11 @@ struct HexTileView: View {
     }
 
     private var borderWidth: CGFloat {
+        if isAttackFocusMode {
+            if isSelected || (isFocused && actionHint.isAttack) { return 3 }
+            if tile.isObjective { return 1.5 }
+            return 0.45
+        }
         if isSelected || actionHint.isAttack || actionHint.isApproachAttack || actionHint.isMove { return 3 }
         if isPostMoveAttackTarget { return 3 }
         if isAttackPosition { return 3 }
@@ -507,7 +538,13 @@ struct HexTileView: View {
         return nil
     }
 
+    private var shouldShowActionMarker: Bool {
+        guard actionHint.isCommandable else { return false }
+        return !isAttackFocusMode || (isFocused && actionHint.isAttack)
+    }
+
     private var shouldShowUnavailableTargetMarker: Bool {
+        if isAttackFocusMode { return false }
         switch actionHint {
         case .enemyOutOfRange, .enemyUnavailable:
             return true
@@ -733,6 +770,54 @@ struct SelectedUnitGroundHalo: View {
             }
             .shadow(color: Color.cyan.opacity(0.72), radius: 6)
             .accessibilityHidden(true)
+    }
+}
+
+struct EngagementAxisOverlay: View {
+    let start: CGPoint
+    let end: CGPoint
+
+    var body: some View {
+        let angle = Angle(radians: Double(atan2(end.y - start.y, end.x - start.x)))
+        let points = trimmedPoints
+
+        ZStack {
+            Path { path in
+                path.move(to: points.start)
+                path.addLine(to: points.end)
+            }
+            .stroke(Color.black.opacity(0.78), style: StrokeStyle(lineWidth: 5, lineCap: .round))
+
+            Path { path in
+                path.move(to: points.start)
+                path.addLine(to: points.end)
+            }
+            .stroke(
+                Color.orange.opacity(0.94),
+                style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [7, 4])
+            )
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9, weight: .black))
+                .foregroundStyle(.white)
+                .padding(3)
+                .background(Color.red.opacity(0.92), in: Circle())
+                .rotationEffect(angle)
+                .position(points.end)
+        }
+    }
+
+    private var trimmedPoints: (start: CGPoint, end: CGPoint) {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let distance = max(1, hypot(dx, dy))
+        let inset = min(22, distance * 0.28)
+        let unitX = dx / distance
+        let unitY = dy / distance
+        return (
+            CGPoint(x: start.x + unitX * inset, y: start.y + unitY * inset),
+            CGPoint(x: end.x - unitX * inset, y: end.y - unitY * inset)
+        )
     }
 }
 

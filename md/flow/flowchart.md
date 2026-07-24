@@ -237,6 +237,20 @@ flowchart LR
     NoArgument["普通启动 / 旧 POS 参数"] --> Existing["既有默认或诊断行为"]
 ```
 
+## v2.13 攻击态视觉聚焦
+
+```mermaid
+flowchart LR
+    Preview["focusedCommandPreview.attack"] --> Focus["isAttackFocusMode"]
+    Focus --> Tile["HexTileView 视觉过滤"]
+    Tile --> Hide["隐藏非焦点 ZOC / coverage / command / chips"]
+    Tile --> Keep["保留 selected / focused ATK / 准星 / 单位 / HP"]
+    Focus --> Axis["EngagementAxisOverlay"]
+    Coordinates["selected + focused coordinate"] --> Axis
+    Axis --> Input["allowsHitTesting false + accessibilityHidden"]
+    Data["规则集合与 accessibility 文本"] --> KeepData["继续保留，不写回 GameState"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
