@@ -39,27 +39,25 @@ struct UnitCounter: View {
 
     var body: some View {
         VStack(spacing: 3) {
-            UnitShapeBadge(
+            MapUnitPiece(
                 kind: unit.kind,
                 faction: unit.faction,
-                hasCommander: unit.commander != nil,
                 rank: unit.rank,
                 supplyState: game.supplyState(for: unit),
                 tacticalStatus: unit.tacticalStatus,
                 isSpent: unit.hasAttacked,
-                width: unit.kind.counterWidth,
-                height: 37,
-                lineWidth: unit.hasAttacked ? 1 : 2
+                width: unit.kind.mapPieceWidth,
+                height: 40
             )
             .overlay(alignment: .topLeading) {
                 if let commander = unit.commander {
                     CommanderBadge(commander: commander, faction: unit.faction)
-                        .offset(x: -7, y: -8)
+                        .offset(x: -6, y: -7)
                 }
             }
 
             MiniHealthBar(ratio: unit.hpRatio)
-            .frame(width: 54, height: 6)
+                .frame(width: 58, height: 6)
         }
         .opacity(unit.hasAttacked ? 0.72 : 1)
         .accessibilityElement(children: .ignore)
@@ -70,6 +68,88 @@ struct UnitCounter: View {
         let commanderText = unit.commander.map { "，将领\($0.name)" } ?? ""
         let supplyText = game.supplyState(for: unit).title
         return "\(unit.name)，\(unit.kind.title)，\(unit.faction.title)，生命 \(unit.hp) / \(unit.maxHP)\(commanderText)，\(unit.rank.title)，\(supplyText)，\(unit.tacticalStatus.title)，\(unit.actionStateText)"
+    }
+}
+
+struct MapUnitPiece: View {
+    let kind: UnitKind
+    let faction: Faction
+    let rank: UnitRank
+    let supplyState: SupplyState
+    let tacticalStatus: UnitTacticalStatus
+    let isSpent: Bool
+    let width: CGFloat
+    let height: CGFloat
+
+    var body: some View {
+        ZStack {
+            Ellipse()
+                .fill(Color.black.opacity(isSpent ? 0.20 : 0.34))
+                .frame(width: width * 0.88, height: height * 0.42)
+                .offset(y: height * 0.24)
+                .blur(radius: 1)
+
+            Ellipse()
+                .fill(faction.accentColor.opacity(isSpent ? 0.10 : 0.18))
+                .overlay {
+                    Ellipse()
+                        .stroke(
+                            faction.accentColor.opacity(isSpent ? 0.58 : 0.96),
+                            style: StrokeStyle(
+                                lineWidth: isSpent ? 1.5 : 2.5,
+                                dash: faction == .axis ? [5, 3] : []
+                            )
+                        )
+                }
+                .frame(width: width * 0.92, height: height * 0.46)
+                .offset(y: height * 0.20)
+
+            UnitModelView(kind: kind, faction: faction, isSpent: isSpent)
+                .frame(width: width - 4, height: height - 4)
+                .offset(y: -2)
+
+            Text(factionCode)
+                .font(.system(size: 6, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 3)
+                .padding(.vertical, 1)
+                .background(faction.accentColor.opacity(0.94), in: Capsule())
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+
+            Text(rank.insignia)
+                .font(.system(size: 6, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 3)
+                .padding(.vertical, 1)
+                .background(BattlefieldTheme.commandDeckDeep.opacity(0.82), in: Capsule())
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+
+            if supplyState == .isolated {
+                Text("CUT")
+                    .font(.system(size: 6, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 1)
+                    .background(Color.red.opacity(0.94), in: Capsule())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+
+            if tacticalStatus != .normal {
+                Text(tacticalStatus.shortTitle)
+                    .font(.system(size: 6, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 1)
+                    .background(tacticalStatus.mapColor.opacity(0.95), in: Capsule())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            }
+        }
+        .frame(width: width, height: height)
+        .accessibilityHidden(true)
+    }
+
+    private var factionCode: String {
+        faction == .allies ? "AL" : "AX"
     }
 }
 
@@ -484,6 +564,19 @@ extension UnitKind {
             55
         case .recon:
             53
+        }
+    }
+
+    var mapPieceWidth: CGFloat {
+        switch self {
+        case .infantry:
+            62
+        case .tank:
+            68
+        case .artillery:
+            65
+        case .recon:
+            64
         }
     }
 }

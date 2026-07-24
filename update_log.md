@@ -186,11 +186,31 @@
 
 验证结果：
 
+- 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器或视觉测试。
+- GitHub Actions run `30065985230`、attempt `1`、commit `512c819d06da3721c5a3638e7f74010f00f35622` 成功；artifact `ww2tactics-ci-v2.7-main-512c819-run30065985230-attempt1` 的 static、rules smoke、build 和 screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-30065985230/` 并核对 manifest、failure summary、JUnit、日志、`.xcresult` 与 2064x2752 iPad 截图；空闲动作卡已收敛为小型 `NEXT` 指挥坞，地图继续满幅，双方单位、Inspector、目标跳转条和支援甲板入口仍可见。
+
+遗留事项：
+
+- 空闲 HUD 收敛已通过；截图中地图单位仍被大面积圆形阵营底板包裹，v2.8 优先让军械模型直接落在地表。
+
+### v2.8 / 地图单位落地模型
+
+日期：2026-07-24
+
+核心变更：
+
+- 地图 `UnitCounter` 改用透明 `MapUnitPiece`，放大既有四类军械模型并移除大面积实心阵营徽章底板。
+- 阵营改由蓝/红椭圆地面环、盟军实线/轴心虚线和 AL/AX 短码共同表达。
+- Commander、rank、CUT、战术状态、spent 和五段 HP 保持；HUD、侧栏和编队条继续使用原 `UnitShapeBadge`。
+
+验证结果：
+
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器或视觉测试；等待最新 `origin/main` run 与截图 artifact。
 
 遗留事项：
 
-- 需由 v2.7 云端截图确认空闲指挥坞显著缩小且满幅地图、双方单位、Inspector、目标坞和支援甲板入口仍完整可见；选中与目标准星由代码审查和云端 build 覆盖。
+- 需由 v2.8 云端截图确认军械模型更突出、地面环不遮挡相邻 tile/marker，全部状态角标和 HP 仍清晰。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 

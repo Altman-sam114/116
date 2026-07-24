@@ -152,6 +152,21 @@ flowchart LR
     Render --> Boundary["frame / hit path / marker / GameState 不变"]
 ```
 
+## v2.8 地图单位落地模型
+
+```mermaid
+flowchart LR
+    Unit["BattleUnit 既有状态"] --> Counter["地图 UnitCounter"]
+    Counter --> Piece["透明 MapUnitPiece"]
+    Kind["UnitKind"] --> Model["放大 UnitModelView"]
+    Faction["Faction"] --> Ring["蓝/红 + 实/虚线 + AL/AX 地面环"]
+    State["rank / CUT / tactical / spent"] --> Piece
+    Model --> Piece
+    Ring --> Piece
+    HP["hpRatio"] --> Bar["五段 MiniHealthBar"]
+    Badge["非地图 UnitShapeBadge"] --> Existing["HUD / 侧栏 / 编队条保持原样"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
