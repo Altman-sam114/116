@@ -268,7 +268,9 @@
 
 验证结果：
 
-- 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器、YAML 解析或视觉测试；等待最新 `origin/main` run 与截图 artifact。
+- 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器、YAML 解析或视觉测试。
+- 初始 commit `32a4bfc553d892739d006cdafa011b30511d7982` 对应 run `30069332880` attempt 1/2 的 static、smoke、build 和脚本截图状态均成功，但两份 PNG SHA-256 完全相同且仅 117,630 bytes，实际画面除状态栏与 home indicator 外全黑；Agent C 两次均不通过。
+- 同轮修复把 `ActionMarker` 收敛为单一 HStack 渲染路径，并给 CI 截图增加 500 KB 下限；等待修复 commit 的最新云端 run 与 artifact。
 
 遗留事项：
 

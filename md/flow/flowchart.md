@@ -62,7 +62,9 @@ flowchart LR
     Build --> Simulator["启动可用 iOS Simulator"]
     Simulator --> Launch["安装并启动 WW2Tactics"]
     Launch --> Screenshot["battlefield-screenshot.png"]
-    Screenshot --> Artifact["manifest + logs + JUnit + xcresult + PNG"]
+    Screenshot --> Size{"PNG >= 500 KB"}
+    Size -->|是| Artifact["manifest + logs + JUnit + xcresult + PNG"]
+    Size -->|否| Fail["截图门禁失败：拒绝黑屏小图"]
     Artifact --> Review["下载并查看真实战场画面"]
 ```
 

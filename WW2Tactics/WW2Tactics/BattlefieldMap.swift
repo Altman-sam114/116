@@ -1647,56 +1647,39 @@ struct ActionMarker: View {
     let isFocused: Bool
 
     var body: some View {
-        Group {
-            if isFocused {
-                expandedMarker
-            } else {
-                compactMarker
+        HStack(spacing: isFocused ? 3 : 1) {
+            if isFocused || !actionHint.isMove {
+                Image(systemName: icon)
+                    .font(.system(size: isFocused ? 7 : 8, weight: .black))
+            }
+            if let displayedLabel {
+                Text(displayedLabel)
+                    .font(.system(size: 8, weight: .black, design: .rounded))
             }
         }
+        .foregroundStyle(.white)
+        .padding(.horizontal, isFocused ? 5 : 4)
+        .padding(.vertical, isFocused ? 3 : 2)
+        .frame(minWidth: isFocused ? nil : 18, minHeight: isFocused ? nil : 18)
+        .background(backgroundColor, in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(isFocused ? 0.34 : 0.28), lineWidth: isFocused ? 1 : 0.8)
+        )
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
-    private var expandedMarker: some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 7, weight: .black))
-            Text(label)
-                .font(.system(size: 8, weight: .black, design: .rounded))
+    private var displayedLabel: String? {
+        if isFocused {
+            return label
         }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3)
-        .background(backgroundColor, in: Capsule())
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(0.34), lineWidth: 1)
-        )
-    }
 
-    private var compactMarker: some View {
-        ZStack {
-            Circle()
-                .fill(backgroundColor)
-                .frame(width: 18, height: 18)
-                .overlay(
-                    Circle()
-                        .stroke(Color.white.opacity(0.30), lineWidth: 0.8)
-                )
-
-            switch actionHint {
-            case let .move(cost, controlZonePenalty):
-                Text(controlZonePenalty > 0 ? "\(cost)+" : "\(cost)")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-            case .attack, .approachAttack:
-                Image(systemName: icon)
-                    .font(.system(size: 8, weight: .black))
-                    .foregroundStyle(.white)
-            case .none, .selectedUnit, .selectableUnit, .friendlyOccupied, .enemyOutOfRange, .enemyUnavailable:
-                EmptyView()
-            }
+        switch actionHint {
+        case let .move(cost, controlZonePenalty):
+            return controlZonePenalty > 0 ? "\(cost)+" : "\(cost)"
+        case .attack, .approachAttack, .none, .selectedUnit, .selectableUnit, .friendlyOccupied, .enemyOutOfRange, .enemyUnavailable:
+            return nil
         }
     }
 

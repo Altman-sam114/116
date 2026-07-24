@@ -223,12 +223,17 @@ jobs:
                       sleep 6
                       xcrun simctl io "$device_udid" screenshot "$BATTLEFIELD_SCREENSHOT"
                       capture_status=$?
+                      screenshot_size=0
+                      if [[ -f "$BATTLEFIELD_SCREENSHOT" ]]; then
+                        screenshot_size="$(stat -f '%z' "$BATTLEFIELD_SCREENSHOT")"
+                      fi
 
-                      if [[ $capture_status -eq 0 && -s "$BATTLEFIELD_SCREENSHOT" ]]; then
+                      if [[ $capture_status -eq 0 && $screenshot_size -ge 500000 ]]; then
                         sips -g pixelWidth -g pixelHeight "$BATTLEFIELD_SCREENSHOT"
+                        echo "bytes: $screenshot_size"
                         screenshot_status=0
                       else
-                        echo "Screenshot capture failed or produced an empty file."
+                        echo "Screenshot capture failed or produced an implausibly small image ($screenshot_size bytes)."
                       fi
                     fi
                   fi
