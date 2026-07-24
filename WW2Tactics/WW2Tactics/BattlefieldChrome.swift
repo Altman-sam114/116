@@ -308,7 +308,11 @@ struct MapCommandCenter: View {
                     VStack(spacing: 0) {
                         HStack(alignment: .top) {
                             Spacer(minLength: 8)
-                            MapActionHUD(compact: isCompactMapChrome)
+                            if game.selectedUnit != nil {
+                                MapActionHUD(compact: isCompactMapChrome)
+                            } else {
+                                MapIdleCommandDock()
+                            }
                         }
                         .padding(isCompactMapChrome ? 6 : 8)
 
@@ -574,51 +578,37 @@ struct MapActionHUD: View {
                 if game.focusedCommandPreview?.isExecutable == true {
                     InlineMapCommandPreview()
                 }
-            } else {
-                HStack(spacing: 7) {
-                    Image(systemName: "scope")
-                        .font(.caption.weight(.black))
-                        .foregroundStyle(.yellow)
-                        .frame(width: 24, height: 24)
-                        .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 5))
-
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(focusTitle)
-                            .font(.caption.weight(.black))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.72)
-                        Text(game.message)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.62))
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.72)
-                    }
-                }
-
-                MapQuickCommandButton(
-                    icon: "forward.fill",
-                    title: "NEXT",
-                    color: .yellow,
-                    isEnabled: !game.readyUnits.isEmpty
-                ) {
-                    game.selectNextReadyUnitFromMap()
-                }
             }
         }
         .padding(compact ? 7 : 8)
         .frame(width: compact ? 268 : 304, alignment: .leading)
         .background(MapHudBackground())
     }
+}
 
-    private var focusTitle: String {
-        if let unit = game.focusedUnit {
-            return "\(unit.faction.title) \(unit.name)"
+struct MapIdleCommandDock: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        Button {
+            game.selectNextReadyUnitFromMap()
+        } label: {
+            Label("NEXT", systemImage: "forward.fill")
+                .font(.caption.bold())
+                .foregroundStyle(game.readyUnits.isEmpty ? Color.white.opacity(0.38) : BattlefieldTheme.signal)
+                .frame(minWidth: 82, minHeight: 44)
+                .padding(.horizontal, 8)
+                .background(MapHudBackground())
+                .overlay(alignment: .leading) {
+                    Rectangle()
+                        .fill(game.readyUnits.isEmpty ? Color.white.opacity(0.18) : BattlefieldTheme.signal)
+                        .frame(width: 3)
+                }
         }
-        if let tile = game.focusedTile {
-            return tile.objectiveName ?? tile.terrain.title
-        }
-        return "战场焦点"
+        .buttonStyle(.plain)
+        .disabled(game.readyUnits.isEmpty)
+        .accessibilityLabel("选择下一支待命部队")
+        .accessibilityHint("从地图选择下一支仍可行动的部队")
     }
 }
 

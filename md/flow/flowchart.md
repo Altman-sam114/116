@@ -135,6 +135,23 @@ flowchart LR
     Center --> Scroll
 ```
 
+## v2.7 战斗焦点反馈
+
+```mermaid
+flowchart LR
+    Selected["selectedUnit"] --> HUD{"是否已选中"}
+    HUD -->|是| Action["紧凑 MapActionHUD"]
+    HUD -->|否| Idle["边缘 NEXT 指挥坞"]
+    Selected --> Halo["蓝色地面光环 + 四角选中框"]
+    Focus["focusedCoordinate"] --> Target{"当前 actionHint"}
+    Target -->|ATK| Red["红色四角准星"]
+    Target -->|POS| Orange["橙色四角准星"]
+    Halo --> Render["HexTileView 只读叠加"]
+    Red --> Render
+    Orange --> Render
+    Render --> Boundary["frame / hit path / marker / GameState 不变"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

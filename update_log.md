@@ -166,11 +166,31 @@
 
 验证结果：
 
+- 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器或视觉测试。
+- GitHub Actions run `29885508105`、attempt `1`、commit `bfdaf9780ec0beba8eb8186ecca6e8e906ad253a` 成功；artifact `ww2tactics-ci-v2.6-main-bfdaf97-run29885508105-attempt1` 的 static、rules smoke、build 和 screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-29885508105/` 并核对 manifest、failure summary、JUnit、日志、`.xcresult` 与 2064x2752 iPad 截图；地图已覆盖工作区高度，双方单位、据点和既有边缘入口仍可见。
+
+遗留事项：
+
+- 满幅构图已通过；空闲态大型动作卡仍遮挡地图，选中和攻击焦点主要依赖六角边框，v2.7 优先收敛 HUD 并强化战斗焦点。
+
+### v2.7 / 战斗焦点与空闲 HUD 收敛
+
+日期：2026-07-24
+
+核心变更：
+
+- 未选择单位时以小型边缘 `NEXT` 指挥坞替代大型空闲动作卡，选中单位后仍显示完整紧凑动作 HUD。
+- 选中单位增加蓝色地面光环与四角框；当前聚焦的 ATK/POS 目标分别增加红色/橙色四角准星。
+- 所有反馈只读现有 `selectedUnit`、`focusedCoordinate` 和 `MapActionHint`，不改变规则、tile frame、坐标、命中或 marker 数据。
+
+验证结果：
+
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器或视觉测试；等待最新 `origin/main` run 与截图 artifact。
 
 遗留事项：
 
-- 通过 v2.6 截图确认地图上下空带消失、首屏仍保留双方单位与关键战区语义，再进入战斗反馈与动效。
+- 需由 v2.7 云端截图确认空闲指挥坞显著缩小且满幅地图、双方单位、Inspector、目标坞和支援甲板入口仍完整可见；选中与目标准星由代码审查和云端 build 覆盖。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 

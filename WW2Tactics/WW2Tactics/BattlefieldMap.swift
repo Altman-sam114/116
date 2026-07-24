@@ -410,6 +410,12 @@ struct HexTileView: View {
                     .padding(.trailing, 8)
             }
 
+            if isSelected && unit != nil {
+                SelectedUnitGroundHalo()
+                    .frame(width: 58, height: 24)
+                    .offset(y: 13)
+            }
+
             VStack(spacing: 3) {
                 HStack {
                     if tile.isObjective {
@@ -432,6 +438,13 @@ struct HexTileView: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
+
+            if let reticleColor {
+                TacticalCornerReticle(color: reticleColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .allowsHitTesting(false)
+            }
         }
         .contentShape(Hexagon())
         .accessibilityLabel(accessibilityLabel)
@@ -484,6 +497,14 @@ struct HexTileView: View {
         if tile.isObjective { return 2 }
         if !aiPhaseMapMarkers.isEmpty { return 2 }
         return 0.45
+    }
+
+    private var reticleColor: Color? {
+        if isSelected { return Color(red: 0.42, green: 0.82, blue: 1.0) }
+        guard isFocused else { return nil }
+        if actionHint.isAttack { return .red }
+        if actionHint.isApproachAttack { return .orange }
+        return nil
     }
 
     private var shouldShowUnavailableTargetMarker: Bool {
@@ -695,6 +716,63 @@ struct HexTileView: View {
         case .enemyUnavailable:
             return "敌军当前不可攻击"
         }
+    }
+}
+
+struct SelectedUnitGroundHalo: View {
+    var body: some View {
+        Ellipse()
+            .fill(Color.cyan.opacity(0.20))
+            .overlay {
+                Ellipse()
+                    .stroke(Color.black.opacity(0.58), lineWidth: 4)
+            }
+            .overlay {
+                Ellipse()
+                    .stroke(Color(red: 0.42, green: 0.82, blue: 1.0), lineWidth: 2)
+            }
+            .shadow(color: Color.cyan.opacity(0.72), radius: 6)
+            .accessibilityHidden(true)
+    }
+}
+
+struct TacticalCornerReticle: View {
+    let color: Color
+
+    var body: some View {
+        ZStack {
+            CornerReticleShape()
+                .stroke(Color.black.opacity(0.78), style: StrokeStyle(lineWidth: 5, lineCap: .square, lineJoin: .miter))
+            CornerReticleShape()
+                .stroke(color, style: StrokeStyle(lineWidth: 2.5, lineCap: .square, lineJoin: .miter))
+        }
+        .shadow(color: color.opacity(0.48), radius: 3)
+        .accessibilityHidden(true)
+    }
+}
+
+struct CornerReticleShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let arm = min(rect.width, rect.height) * 0.22
+        var path = Path()
+
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY + arm))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX + arm, y: rect.minY))
+
+        path.move(to: CGPoint(x: rect.maxX - arm, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + arm))
+
+        path.move(to: CGPoint(x: rect.maxX, y: rect.maxY - arm))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX - arm, y: rect.maxY))
+
+        path.move(to: CGPoint(x: rect.minX + arm, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - arm))
+
+        return path
     }
 }
 
