@@ -241,6 +241,9 @@ struct RulesSmokeTest {
             require(resultSummary.damage == resultPreview.damage, "combat result damage should match preview")
             require(resultSummary.attackerCoordinate == resultAttacker.position, "combat result should record attacker coordinate")
             require(resultSummary.defenderCoordinate == resultDefender.position, "combat result should record defender coordinate")
+            require(resultSummary.counterDamage == resultPreview.counterDamage, "combat result counter damage should match preview")
+            require(resultSummary.defender.endingHP == resultPreview.defenderHPAfterAttack, "combat result defender HP should match preview")
+            require(resultSummary.attacker.endingHP == resultPreview.attackerHPAfterCounter, "combat result attacker HP should match preview")
             require(resultSummary.counterDamage > 0, "combat result should record actual counter damage")
             require(resultSummary.attacker.startingHP == resultAttacker.hp, "combat result should record attacker starting HP")
             require(resultSummary.attacker.endingHP == finalResultAttacker.hp, "combat result should record attacker ending HP")
@@ -251,6 +254,24 @@ struct RulesSmokeTest {
             require(resultSummary.defender.moraleDelta == finalResultDefender.morale - resultDefender.morale, "combat result should record defender morale delta")
             combatResultGame.restart()
             require(combatResultGame.latestCombatResult == nil, "restart should clear latest combat result")
+
+            let ardennesPreviewGame = GameState()
+            ardennesPreviewGame.handleTap(on: HexCoordinate(q: 7, r: 6))
+            ardennesPreviewGame.handleSecondaryAction(on: HexCoordinate(q: 9, r: 6))
+            guard let ardennesPreview = ardennesPreviewGame.combatPreviewAgainstFocusedTarget() else {
+                require(false, "M10 screenshot scenario should produce combat preview")
+                return
+            }
+            require(ardennesPreview.damage == 21, "M10 preview should report 21 primary damage")
+            require(ardennesPreview.counterDamage == 7, "M10 preview should use damaged defender state for 7 counter damage")
+            ardennesPreviewGame.executeFocusedCommand()
+            guard let ardennesResult = ardennesPreviewGame.latestCombatResult else {
+                require(false, "M10 screenshot scenario should publish combat result")
+                return
+            }
+            require(ardennesResult.counterDamage == ardennesPreview.counterDamage, "M10 result counter damage should match preview")
+            require(ardennesResult.defender.endingHP == ardennesPreview.defenderHPAfterAttack, "M10 defender HP should match preview")
+            require(ardennesResult.attacker.endingHP == ardennesPreview.attackerHPAfterCounter, "M10 attacker HP should match preview")
 
             let baselineAuraGame = GameState(scenario: commanderAuraScenario(includeCommander: false))
             let auraGame = GameState(scenario: commanderAuraScenario(includeCommander: true))

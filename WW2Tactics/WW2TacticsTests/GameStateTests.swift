@@ -2182,6 +2182,9 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(summary.attacker.startingRank, attacker.rank)
         XCTAssertEqual(summary.attacker.endingRank, finalAttacker.rank)
         XCTAssertTrue(summary.attacker.didPromote)
+        XCTAssertEqual(summary.counterDamage, preview.counterDamage)
+        XCTAssertEqual(summary.defender.endingHP, preview.defenderHPAfterAttack)
+        XCTAssertEqual(summary.attacker.endingHP, preview.attackerHPAfterCounter)
         let attackerHPGain = summary.attacker.endingRank.hpBonus - summary.attacker.startingRank.hpBonus
         let attackerHPBeforeCounter = min(
             finalAttacker.maxHP,
@@ -2200,6 +2203,60 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(summary.defender.startingRank, defender.rank)
         XCTAssertEqual(summary.defender.endingRank, finalDefender.rank)
         XCTAssertFalse(finalDefender.isEntrenched)
+    }
+
+    func testCombatPreviewUsesPostHitMoraleAndClearedAttackerEntrenchmentForCounter() throws {
+        var scenario = Self.combatResultScenario(
+            attackerKind: .tank,
+            defenderKind: .infantry,
+            attackerExperience: 0,
+            defenderEntrenched: false
+        )
+        let attackerIndex = try XCTUnwrap(scenario.units.firstIndex { $0.name == "结果攻击方" })
+        let defenderIndex = try XCTUnwrap(scenario.units.firstIndex { $0.name == "结果防守方" })
+        scenario.units[attackerIndex].isEntrenched = true
+        scenario.units[defenderIndex].morale = 40
+
+        let game = GameState(scenario: scenario)
+        let attacker = try XCTUnwrap(game.units.first { $0.name == "结果攻击方" })
+        let defender = try XCTUnwrap(game.units.first { $0.name == "结果防守方" })
+        let preview = try XCTUnwrap(game.combatPreview(attacker: attacker, defender: defender))
+
+        XCTAssertEqual(defender.moraleState, .steady)
+        XCTAssertTrue(attacker.isEntrenched)
+        XCTAssertNil(game.latestCombatResult)
+
+        game.handleTap(on: attacker.position)
+        game.handleTap(on: defender.position)
+
+        let result = try XCTUnwrap(game.latestCombatResult)
+        XCTAssertGreaterThan(preview.counterDamage, 0)
+        XCTAssertEqual(result.defender.endingMorale, 34)
+        XCTAssertEqual(MoraleState.state(for: result.defender.endingMorale), .shaken)
+        XCTAssertEqual(result.counterDamage, preview.counterDamage)
+        XCTAssertEqual(result.defender.endingHP, preview.defenderHPAfterAttack)
+        XCTAssertEqual(result.attacker.endingHP, preview.attackerHPAfterCounter)
+    }
+
+    func testArdennesM10AttackPreviewMatchesExecutedCombatResult() throws {
+        let game = GameState()
+
+        game.handleTap(on: HexCoordinate(q: 7, r: 6))
+        game.handleSecondaryAction(on: HexCoordinate(q: 9, r: 6))
+
+        let preview = try XCTUnwrap(game.combatPreviewAgainstFocusedTarget())
+        XCTAssertEqual(preview.damage, 21)
+        XCTAssertEqual(preview.counterDamage, 7)
+        XCTAssertEqual(preview.defenderHPAfterAttack, 43)
+        XCTAssertEqual(preview.attackerHPAfterCounter, 57)
+
+        game.executeFocusedCommand()
+
+        let result = try XCTUnwrap(game.latestCombatResult)
+        XCTAssertEqual(result.damage, preview.damage)
+        XCTAssertEqual(result.counterDamage, preview.counterDamage)
+        XCTAssertEqual(result.defender.endingHP, preview.defenderHPAfterAttack)
+        XCTAssertEqual(result.attacker.endingHP, preview.attackerHPAfterCounter)
     }
 
     func testCombatAndTacticalCommandResultsAreMutuallyExclusive() throws {

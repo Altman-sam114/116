@@ -266,6 +266,22 @@ flowchart LR
     Selection["攻击后选择轮转 / 目标可能被击毁"] --> NoGuess["不用于推断上一场坐标"]
 ```
 
+## v2.15 攻击预判与结算一致性
+
+```mermaid
+flowchart LR
+    Original["原始 attacker / defender"] --> Main["damageValue 主伤害"]
+    Main --> Copy["纯 BattleUnit 副本"]
+    Copy --> Defender["防守方：扣 HP / 士气 -10 / 清姿态"]
+    Copy --> Attacker["攻击方：经验晋升 / HP 增益 / 士气 +6 / 清姿态"]
+    Defender --> Counter["既有 counterDamageValue"]
+    Attacker --> Counter
+    Counter --> Preview["CombatPreview RET + 双方预计 HP"]
+    Preview --> Execute["真实 attack"]
+    Execute --> Assert["CombatResultSummary 与 Preview 一致"]
+    Copy --> Pure["不写 scenario / log / latest result"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

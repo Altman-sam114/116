@@ -341,10 +341,32 @@
 - 修复 commit `a28e82586cfd65e9716ac09e10bc47fdb8df13ac` 对应 run `30075856174`、attempt `1` 成功；artifact `ww2tactics-ci-v2.14-main-a28e825-run30075856174-attempt1` 的 static、rules smoke、build 和 selected-combat-result screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
 - Agent C 已下载到 `/private/tmp/ww2tactics-c-review-30075856174/` 并核对 manifest SHA/run/attempt、failure summary、JUnit、日志、`.xcresult` 和 2064x2752、5,930,084-byte PNG；首次截图即通过 500 KB 门禁。
 - Agent C 实际查看 PNG：画面为真实攻击后状态，攻击方显示 `RET -7 / 64 -> 57`，防守方显示 `HIT -21 / 64 -> 43`，中央“交火”明确；三块地图反馈贴近原交战位置且没有遮挡双方单位主体。
+- Agent C 验收记录 commit `51dad562c78dcffa26f9246fd721b7ec38acf71e` 对应最新 run `30076575519`、attempt `1` 再次成功；artifact `ww2tactics-ci-v2.14-main-51dad56-run30076575519-attempt1` 已下载到 `/private/tmp/ww2tactics-c-review-30076575519/`，manifest 与 `origin/main` 完全一致，四项 JUnit 0 failures，截图仍为 5,930,084 bytes 且目视内容一致。
 
 遗留事项：
 
 - v2.14 已通过。攻击前预判为 RET -11、真实结算为 RET -7，后续轮次应单独核对经验/晋升或状态变化导致的预判与实战差异；不得在 View 修正或伪造数值。
+
+### v2.15 / 攻击预判与结算一致性
+
+日期：2026-07-24
+
+核心变更：
+
+- 定位预判差异根因：`combatPreview` 原先用受击前防守方计算反击，真实攻击则在防守方扣血、士气下降和双方姿态清除之后计算。
+- `previewCombatantsAfterPrimaryAttack` 使用 `BattleUnit` 值副本模拟主伤害后的必要状态：防守方 HP/士气/姿态，攻击方经验、晋升 HP、士气与姿态；不写入 scenario、日志或 latest result。
+- `combatPreview` 继续复用既有 `counterDamageValue`，不复制伤害公式；击毁或超出反击射程时仍返回 0。
+- XCTest 和 RulesSmokeTest 直接断言 preview/result 的主伤害、反击伤害和双方最终 HP 一致，并覆盖士气跨阈值、攻击方防御姿态清除和晋升 HP 增益。
+- README、flow、flowchart、test 与 prompt 索引同步当前规则链。
+
+验证结果：
+
+- 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器、截图或 YAML 解析；提交前只做 Git 状态、diff 与提交范围检查。
+- 等待本轮 `origin/main` GitHub Actions run 与 Agent C artifact 验收。
+
+遗留事项：
+
+- 云端必须证明规则 smoke 与 build-for-testing 通过，并确认 selected-combat-result 截图仍显示真实 `RET -7` 与 `HIT -21`。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 

@@ -2255,16 +2255,26 @@ final class GameState: ObservableObject {
         let supportBonus = flankingSupportDamageBonusPercent(forSupportCount: supportUnits.count)
         let damage = damageValue(attacker: attacker, defender: defender)
         let defenderHPAfterAttack = max(0, defender.hp - damage)
+        let targetDestroyed = defenderHPAfterAttack == 0
+        let postAttackCombatants = previewCombatantsAfterPrimaryAttack(
+            attacker: attacker,
+            defender: defender,
+            damage: damage,
+            targetDestroyed: targetDestroyed
+        )
         let counterDamage: Int
         let attackerHPAfterCounter: Int
 
-        if defenderHPAfterAttack > 0,
+        if !targetDestroyed,
            defender.position.distance(to: attacker.position) <= defender.range {
-            counterDamage = counterDamageValue(defender: defender, attacker: attacker)
-            attackerHPAfterCounter = max(0, attacker.hp - counterDamage)
+            counterDamage = counterDamageValue(
+                defender: postAttackCombatants.defender,
+                attacker: postAttackCombatants.attacker
+            )
+            attackerHPAfterCounter = max(0, postAttackCombatants.attacker.hp - counterDamage)
         } else {
             counterDamage = 0
-            attackerHPAfterCounter = attacker.hp
+            attackerHPAfterCounter = postAttackCombatants.attacker.hp
         }
 
         return CombatPreview(
@@ -2284,9 +2294,39 @@ final class GameState: ObservableObject {
             defenseMultiplierPercent: defenseDamageMultiplierPercent(for: defender),
             defenderHPAfterAttack: defenderHPAfterAttack,
             attackerHPAfterCounter: attackerHPAfterCounter,
-            willDestroyDefender: defenderHPAfterAttack == 0,
+            willDestroyDefender: targetDestroyed,
             willLoseAttacker: attackerHPAfterCounter == 0
         )
+    }
+
+    private func previewCombatantsAfterPrimaryAttack(
+        attacker: BattleUnit,
+        defender: BattleUnit,
+        damage: Int,
+        targetDestroyed: Bool
+    ) -> (attacker: BattleUnit, defender: BattleUnit) {
+        var projectedAttacker = attacker
+        let previousRank = projectedAttacker.rank
+        projectedAttacker.experience += experienceForDamage(damage) + (targetDestroyed ? 18 : 0)
+        let projectedRank = projectedAttacker.rank
+        if projectedRank != previousRank {
+            let hpGain = projectedRank.hpBonus - previousRank.hpBonus
+            projectedAttacker.hp = min(
+                projectedAttacker.maxHP,
+                projectedAttacker.hp + max(0, hpGain)
+            )
+        }
+        projectedAttacker.morale = max(0, min(100, projectedAttacker.morale + (targetDestroyed ? 12 : 6)))
+        projectedAttacker.isEntrenched = false
+
+        var projectedDefender = defender
+        projectedDefender.hp = max(0, defender.hp - damage)
+        projectedDefender.isEntrenched = false
+        if !targetDestroyed {
+            projectedDefender.morale = max(0, min(100, projectedDefender.morale - 10))
+        }
+
+        return (projectedAttacker, projectedDefender)
     }
 
     func combatPreviewAgainstFocusedTarget() -> CombatPreview? {
