@@ -221,6 +221,22 @@ flowchart LR
     Render --> Boundary["规则集合 / 命中 / VoiceOver 主摘要不变"]
 ```
 
+## v2.12 攻击火力解算
+
+```mermaid
+flowchart LR
+    Launch["CI --ci-selected-attack-preview"] --> Select["handleTap q7,r6：选择 M10"]
+    Select --> Approach["handleSecondaryAction q9,r6：真实接敌移动"]
+    Approach --> Focus["敌方目标保持聚焦"]
+    Focus --> Attack["focusedCommandPreview.attack"]
+    Attack --> Combat["combatPreviewAgainstFocusedTarget"]
+    Combat --> HUD["火力解算：双方 HP + HIT / RET / OUT"]
+    HUD --> Wait["攻击前状态"]
+    Wait --> Fire["玩家点击 44pt 开火按钮"]
+    Fire --> Execute["executeFocusedCommand"]
+    NoArgument["普通启动 / 旧 POS 参数"] --> Existing["既有默认或诊断行为"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

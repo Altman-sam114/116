@@ -6,7 +6,10 @@ struct WW2TacticsApp: App {
 
     init() {
         let game = GameState()
-        if CommandLine.arguments.contains("--ci-selected-approach-preview") {
+        if CommandLine.arguments.contains("--ci-selected-attack-preview") {
+            game.handleTap(on: HexCoordinate(q: 7, r: 6))
+            game.handleSecondaryAction(on: HexCoordinate(q: 9, r: 6))
+        } else if CommandLine.arguments.contains("--ci-selected-approach-preview") {
             game.handleTap(on: HexCoordinate(q: 7, r: 6))
             game.focus(coordinate: HexCoordinate(q: 9, r: 6))
         }

@@ -397,6 +397,33 @@ struct InlineMapCommandPreview: View {
     var body: some View {
         let preview = game.focusedCommandPreview
 
+        if case let .some(.attack(attackerName, defenderName, damage, counterDamage, defenderHPAfterAttack, willDestroy)) = preview,
+           let attacker = game.selectedUnit,
+           let defender = game.focusedUnit {
+            InlineAttackFireSolution(
+                attackerName: attackerName,
+                defenderName: defenderName,
+                attackerHP: attacker.hp,
+                attackerMaxHP: attacker.maxHP,
+                attackerHPAfterCounter: game.combatPreviewAgainstFocusedTarget()?.attackerHPAfterCounter,
+                defenderHP: defender.hp,
+                defenderMaxHP: defender.maxHP,
+                defenderHPAfterAttack: defenderHPAfterAttack,
+                damage: damage,
+                counterDamage: counterDamage,
+                willDestroy: willDestroy,
+                execute: executeFocusedCommand
+            )
+        } else {
+            compactPreview(preview)
+        }
+    }
+
+    private func executeFocusedCommand() {
+        game.executeFocusedCommand()
+    }
+
+    private func compactPreview(_ preview: MapCommandPreview?) -> some View {
         HStack(spacing: 9) {
             Image(systemName: preview.map(MapCommandPreviewChrome.iconName) ?? "scope")
                 .font(.caption.weight(.bold))
@@ -419,9 +446,7 @@ struct InlineMapCommandPreview: View {
             Spacer(minLength: 6)
 
             if let preview, preview.isExecutable {
-                Button {
-                    game.executeFocusedCommand()
-                } label: {
+                Button(action: executeFocusedCommand) {
                     Label("执行", systemImage: MapCommandPreviewChrome.commandActionIcon(for: preview))
                         .font(.system(size: 10, weight: .black, design: .rounded))
                         .labelStyle(.titleAndIcon)
@@ -480,6 +505,175 @@ struct InlineMapCommandPreview: View {
         case let .inspectTerrain(terrainName):
             return "\(terrainName) 地格。"
         }
+    }
+}
+
+private struct InlineAttackFireSolution: View {
+    let attackerName: String
+    let defenderName: String
+    let attackerHP: Int
+    let attackerMaxHP: Int
+    let attackerHPAfterCounter: Int?
+    let defenderHP: Int
+    let defenderMaxHP: Int
+    let defenderHPAfterAttack: Int
+    let damage: Int
+    let counterDamage: Int
+    let willDestroy: Bool
+    let execute: () -> Void
+
+    var body: some View {
+        VStack(spacing: 7) {
+            HStack(spacing: 7) {
+                Label("火力解算", systemImage: "scope")
+                    .font(.caption.bold())
+                    .foregroundStyle(.orange)
+                Text("ATK")
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .foregroundStyle(.black.opacity(0.82))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(.orange, in: RoundedRectangle(cornerRadius: 3))
+                Spacer(minLength: 4)
+                Label("攻击前", systemImage: "clock.fill")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.white.opacity(0.58))
+            }
+
+            HStack(spacing: 6) {
+                FireSolutionUnitStatus(
+                    role: "我方",
+                    name: attackerName,
+                    icon: "shield.lefthalf.filled",
+                    currentHP: attackerHP,
+                    projectedHP: attackerHPAfterCounter,
+                    maxHP: attackerMaxHP,
+                    color: .cyan
+                )
+                Image(systemName: "arrow.right")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.orange)
+                    .accessibilityHidden(true)
+                FireSolutionUnitStatus(
+                    role: "目标",
+                    name: defenderName,
+                    icon: "scope",
+                    currentHP: defenderHP,
+                    projectedHP: defenderHPAfterAttack,
+                    maxHP: defenderMaxHP,
+                    color: .red
+                )
+            }
+
+            HStack(spacing: 5) {
+                FireSolutionMetric(label: "HIT", icon: "burst.fill", value: "-\(damage)", color: .orange)
+                FireSolutionMetric(
+                    label: "RET",
+                    icon: counterDamage > 0 ? "arrow.uturn.backward.circle.fill" : "shield.slash.fill",
+                    value: counterDamage > 0 ? "-\(counterDamage)" : "无",
+                    color: counterDamage > 0 ? .yellow : .white.opacity(0.62)
+                )
+                FireSolutionMetric(
+                    label: "OUT",
+                    icon: willDestroy ? "xmark.octagon.fill" : "heart.fill",
+                    value: willDestroy ? "击毁" : "存活",
+                    color: willDestroy ? .red : .green
+                )
+            }
+
+            Button(action: execute) {
+                Label("开火", systemImage: "scope")
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Color.red.opacity(0.78), in: RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.orange.opacity(0.74), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("开火攻击 \(defenderName)")
+            .accessibilityHint("执行当前火力解算中的攻击命令")
+        }
+        .padding(8)
+        .background(Color.red.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.orange.opacity(0.38), lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct FireSolutionUnitStatus: View {
+    let role: String
+    let name: String
+    let icon: String
+    let currentHP: Int
+    let projectedHP: Int?
+    let maxHP: Int
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .foregroundStyle(color)
+                Text(role)
+                    .foregroundStyle(color)
+                Text(name)
+                    .foregroundStyle(.white.opacity(0.82))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+            }
+            .font(.caption2.bold())
+
+            HStack(spacing: 3) {
+                Text("HP")
+                    .foregroundStyle(.white.opacity(0.48))
+                Text("\(currentHP)/\(maxHP)")
+                    .foregroundStyle(.white)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.38))
+                Text(projectedHP.map { String($0) } ?? "--")
+                    .foregroundStyle(projectedHP == 0 ? .red : color)
+            }
+            .font(.caption2.monospacedDigit().bold())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(6)
+        .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
+        .overlay(
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(color.opacity(0.28), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(role) \(name)，当前耐久 \(currentHP)，预计耐久 \(projectedHP.map { String($0) } ?? "未知")")
+    }
+}
+
+private struct FireSolutionMetric: View {
+    let label: String
+    let icon: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Label(label, systemImage: icon)
+                .font(.system(size: 9, weight: .black, design: .rounded))
+                .foregroundStyle(color)
+                .lineLimit(1)
+            Text(value)
+                .font(.caption.monospacedDigit().bold())
+                .foregroundStyle(.white)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, minHeight: 36)
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 5))
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -39,7 +39,7 @@ jobs:
             echo "MODULE_CACHE=.module-cache-ci"
             echo "BATTLEFIELD_SCREENSHOT=ci-results/battlefield-screenshot.png"
             echo "SCREENSHOT_LOG=ci-results/battlefield-screenshot.log"
-            echo "SCREENSHOT_SCENARIO=selected-approach-preview"
+            echo "SCREENSHOT_SCENARIO=selected-attack-preview"
           } >> "$GITHUB_ENV"
 
       - name: Run checks and build
@@ -214,7 +214,7 @@ jobs:
                       --terminate-running-process \
                       "$device_udid" \
                       com.easytech.prototype.WW2Tactics \
-                      --ci-selected-approach-preview
+                      --ci-selected-attack-preview
                     launch_status=$?
 
                     if [[ $launch_status -ne 0 ]]; then

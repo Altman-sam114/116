@@ -271,11 +271,32 @@
 - 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器、YAML 解析或视觉测试。
 - 初始 commit `32a4bfc553d892739d006cdafa011b30511d7982` 对应 run `30069332880` attempt 1/2 的 static、smoke、build 和脚本截图状态均成功，但两份 PNG SHA-256 完全相同且仅 117,630 bytes，实际画面除状态栏与 home indicator 外全黑；Agent C 两次均不通过。
 - 第一份修复 commit `9f5732999b3bca572cb4b0d11c9ad6f02e869767` 对应 run `30070660664` 的 static/smoke/build 成功，但 PNG 仍仅 155,086 bytes；新门禁正确输出 `screenshotOutcome=failure`、JUnit 1 failure，Agent C 不通过。
-- 第二份同轮修复完全恢复 v2.10 marker 结构，只使用固定短标签和紧凑样式；等待最新云端 run 与 artifact。
+- 第二份同轮修复完全恢复 v2.10 marker 结构，只使用固定短标签和紧凑样式；commit `0c3d1f8e9cf96de5b3dc0af0b3c33414888c17ae` 对应 GitHub Actions run `30071383570`、attempt `1` 成功，artifact `ww2tactics-ci-v2.11-main-0c3d1f8-run30071383570-attempt1` 的 static、rules smoke、build 和 screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-30071383570/`，核对 manifest SHA/run/attempt、failure summary、JUnit、日志、`.xcresult` 与 2064x2752、5,982,330-byte iPad 战场截图；短标签、橙色 POS 准星、M10 选中态和完整动作 HUD 均成立。
 
 遗留事项：
 
-- 需由 v2.11 云端截图确认重复文字显著减少、当前 POS 焦点语义仍完整、紧凑成本与警告图标在 iPad 尺寸可辨认。
+- v2.11 已通过；下一轮进入真实 ATK 攻击判定与火力解算界面。
+
+### v2.12 / 攻击判定与火力解算
+
+日期：2026-07-24
+
+核心变更：
+
+- CI 新增 `--ci-selected-attack-preview` 场景，复用 `handleTap` 与 `handleSecondaryAction` 让 M10 真实接敌移动后停在攻击前状态；旧 POS 参数和普通启动保持不变。
+- `InlineMapCommandPreview` 的 `.attack` 分支升级为紧凑火力解算带，显示双方当前/预计 HP、HIT 主伤害、RET 反击和 OUT 战果，并提供 44pt 手动“开火”入口。
+- 所有预测读取 `.attack` 关联值、选中/聚焦单位和 `combatPreviewAgainstFocusedTarget()`；不修改规则公式或自动执行攻击。
+- workflow 截图场景切换为 `selected-attack-preview`，继续保留 500 KB 黑屏门禁和完整 artifact 元数据。
+
+验证结果：
+
+- 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器、截图或 YAML 解析；提交前只做 Git 状态、diff 与提交范围检查。
+- 等待本轮 `origin/main` GitHub Actions run 与 Agent C artifact 验收。
+
+遗留事项：
+
+- 必须由云端截图确认火力解算带不遮挡地图、红色 ATK 准星和双方数值可读，并核对攻击仍未执行。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 
