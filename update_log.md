@@ -227,11 +227,32 @@
 
 验证结果：
 
+- 人工要求全部云端，本地未运行 build、typecheck、smoke、XCTest、模拟器或视觉测试。
+- 首次 run `30067386520` 虽通过技术门禁，但 Agent C 从截图发现道路黑色三角、河流黑线和田块过重，退回 Agent B 收敛连接层。
+- 修复 commit `1911ae4104f61433b909804f89c2ade1e2d347b7` 对应 GitHub Actions run `30067975922`、attempt `1` 成功；artifact `ww2tactics-ci-v2.9-main-1911ae4-run30067975922-attempt1` 的 static、rules smoke、build 和 screenshot 均成功，JUnit 4 项 0 failures，`.xcresult` 存在。
+- Agent C 已下载到 `/private/tmp/ww2tactics-c-review-30067975922/` 并核对 manifest、failure summary、JUnit、日志、`.xcresult` 与 2064x2752 iPad 截图；异常黑色连接层已消失，七类地貌层次与单位、HP、marker、NEXT 坞和 Inspector 入口清晰。
+
+遗留事项：
+
+- v2.9 已通过；既有 CI 截图仍是空闲态，v2.10 优先补齐选中单位和 POS 目标的云端视觉证据。
+
+### v2.10 / 选中与接敌态云端证据
+
+日期：2026-07-24
+
+核心变更：
+
+- CI 截图启动使用 `--ci-selected-approach-preview`，稳定选择阿登 M10 并聚焦敌方装甲侦察营，形成不执行命令的 POS 接敌预览。
+- 启动场景复用现有 `GameState.handleTap` 与 `focus`，不直接写规则字段；普通启动不带参数时保持默认状态。
+- 截图场景名写入截图日志、failure summary、manifest 和 JUnit 描述，便于 Agent C 区分选中态证据与旧空闲截图。
+
+验证结果：
+
 - 人工要求全部云端，本地不运行 build、typecheck、smoke、XCTest、模拟器或视觉测试；等待最新 `origin/main` run 与截图 artifact。
 
 遗留事项：
 
-- 需由 v2.9 云端截图确认地貌纵深明显但不过度强化六角拼块感，河流/道路连续且单位、HP 和 marker 仍清晰。
+- 需由 v2.10 云端截图确认蓝色选中环/四角框、橙色 POS 准星、接敌位置提示和动作 HUD 同屏清晰，且未遮挡地貌、单位与主要地图反馈。
 
 ### v0.1 / 初始 SwiftUI 战棋原型
 

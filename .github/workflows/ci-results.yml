@@ -39,6 +39,7 @@ jobs:
             echo "MODULE_CACHE=.module-cache-ci"
             echo "BATTLEFIELD_SCREENSHOT=ci-results/battlefield-screenshot.png"
             echo "SCREENSHOT_LOG=ci-results/battlefield-screenshot.log"
+            echo "SCREENSHOT_SCENARIO=selected-approach-preview"
           } >> "$GITHUB_ENV"
 
       - name: Run checks and build
@@ -128,6 +129,7 @@ jobs:
 
           {
             echo "## Battlefield screenshot"
+            echo "scenario: $SCREENSHOT_SCENARIO"
 
             if [[ "${BUILD_STATUS:-1}" != "0" ]]; then
               echo "Skipping screenshot because build-for-testing failed."
@@ -211,7 +213,8 @@ jobs:
                     xcrun simctl launch \
                       --terminate-running-process \
                       "$device_udid" \
-                      com.easytech.prototype.WW2Tactics
+                      com.easytech.prototype.WW2Tactics \
+                      --ci-selected-approach-preview
                     launch_status=$?
 
                     if [[ $launch_status -ne 0 ]]; then
@@ -276,6 +279,7 @@ jobs:
             echo "- smokeTestOutcome: ${smoke_outcome}"
             echo "- buildOutcome: ${build_outcome}"
             echo "- screenshotOutcome: ${screenshot_outcome}"
+            echo "- screenshotScenario: ${SCREENSHOT_SCENARIO}"
             echo "- screenshotDevice: ${SCREENSHOT_DEVICE_NAME:-unavailable}"
             echo "- screenshotRuntime: ${SCREENSHOT_RUNTIME:-unavailable}"
             echo "- testOutcome: skipped"
@@ -322,6 +326,7 @@ jobs:
               "smokeTestOutcome": outcome(smoke_status),
               "buildOutcome": outcome(build_status),
               "screenshotOutcome": outcome(screenshot_status),
+              "screenshotScenario": os.environ["SCREENSHOT_SCENARIO"],
               "screenshotPath": os.environ["BATTLEFIELD_SCREENSHOT"],
               "screenshotLogPath": os.environ["SCREENSHOT_LOG"],
               "screenshotDevice": os.environ.get("SCREENSHOT_DEVICE_NAME", "unavailable"),
@@ -348,7 +353,7 @@ jobs:
               ("static-checks", os.environ.get("STATIC_STATUS", "1"), "git diff --check and plutil"),
               ("rules-smoke", os.environ.get("SMOKE_STATUS", "1"), "RulesSmokeTest compile and run"),
               ("xcode-build-for-testing", os.environ.get("BUILD_STATUS", "1"), "xcodebuild build-for-testing"),
-              ("battlefield-screenshot", os.environ.get("SCREENSHOT_STATUS", "1"), "boot simulator, install app, launch app, and capture battlefield screenshot"),
+              ("battlefield-screenshot", os.environ.get("SCREENSHOT_STATUS", "1"), f"boot simulator, install app, launch {os.environ['SCREENSHOT_SCENARIO']}, and capture battlefield screenshot"),
           ]
           failures = sum(1 for _, status, _ in checks if status != "0")
           suite = ET.Element("testsuite", {

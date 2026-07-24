@@ -188,6 +188,21 @@ flowchart LR
     Texture --> Hex["HexTileView：frame / hit path / marker 不变"]
 ```
 
+## v2.10 云端选中与接敌态证据
+
+```mermaid
+flowchart LR
+    Launch["CI simctl launch"] --> Argument["--ci-selected-approach-preview"]
+    Argument --> App["WW2TacticsApp"]
+    App --> Select["handleTap(q7,r6)：选择 M10"]
+    Select --> Focus["focus(q9,r6)：聚焦敌方侦察"]
+    Focus --> Preview["既有 POS 只读预览"]
+    Preview --> Visual["蓝色选中环 + 橙色准星 + 动作 HUD"]
+    Visual --> Screenshot["battlefield-screenshot.png"]
+    Scenario["selected-approach-preview"] --> Metadata["log + summary + manifest"]
+    NoArgument["普通启动：无参数"] --> Default["默认未选中状态"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
