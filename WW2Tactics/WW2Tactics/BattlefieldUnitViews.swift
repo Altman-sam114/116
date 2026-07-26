@@ -142,14 +142,12 @@ struct MapUnitPiece: View {
                 .frame(width: width - 4, height: height - 4)
                 .offset(y: -2)
 
-            // Faction ring + tinted HP bar carry allegiance; keep only the
-            // rank chevron chip so the piece stays close to a GoG3 miniature.
+            // Faction ring + tinted HP bar carry allegiance; rank shows as a
+            // bare gold insignia (GoG3-style chevron) without a dark capsule.
             Text(rank.insignia)
-                .font(.system(size: 6, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 3)
-                .padding(.vertical, 1)
-                .background(BattlefieldTheme.commandDeckDeep.opacity(0.82), in: Capsule())
+                .font(.system(size: 7, weight: .black, design: .rounded))
+                .foregroundStyle(Color(red: 0.98, green: 0.83, blue: 0.36))
+                .shadow(color: .black.opacity(0.85), radius: 0.6, x: 0.5, y: 0.8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
 
             if supplyState == .isolated {
@@ -601,20 +599,31 @@ struct CommanderBadge: View {
     let faction: Faction
 
     var body: some View {
+        // GoG3-style portrait plaque: warm parchment tile with a gold frame.
         ZStack {
+            RoundedRectangle(cornerRadius: 4)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.93, green: 0.87, blue: 0.72),
+                            Color(red: 0.78, green: 0.70, blue: 0.54)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color(red: 0.85, green: 0.66, blue: 0.30), lineWidth: 1.4)
+            Image(systemName: "person.fill")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Color(red: 0.32, green: 0.26, blue: 0.18))
             Circle()
-                .fill(BattlefieldTheme.commandDeckDeep)
-            Circle()
-                .stroke(faction.accentColor, lineWidth: 2)
-            Image(systemName: "person.crop.circle.fill")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.88))
-            Text(String(commander.name.prefix(1)))
-                .font(.system(size: 7, weight: .black, design: .rounded))
-                .foregroundStyle(.yellow)
+                .fill(faction.accentColor)
+                .frame(width: 6, height: 6)
                 .offset(x: 7, y: 7)
         }
-        .frame(width: 24, height: 24)
+        .frame(width: 20, height: 20)
+        .shadow(color: .black.opacity(0.4), radius: 1.5, y: 1)
         .accessibilityHidden(true)
     }
 }

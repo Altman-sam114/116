@@ -450,12 +450,8 @@ struct HexTileView: View {
                 .padding(.horizontal, 4)
             }
 
-            if isAttackCoverage && !isAttackFocusMode {
-                AttackCoverageMarker()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                    .padding(.bottom, 6)
-                    .padding(.leading, 9)
-            }
+            // Attack coverage reads from the soft orange border alone; the
+            // per-tile scope chip repeated the same signal on every enemy hex.
 
             if isPostMoveAttackTarget && !isAttackFocusMode {
                 PostMoveAttackMarker()
