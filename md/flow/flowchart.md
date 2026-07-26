@@ -409,6 +409,20 @@ flowchart LR
     Scroll["既有横向 ScrollView"] --> Strip
 ```
 
+## v2.23 立体军械兵模
+
+```mermaid
+flowchart LR
+    Input["UnitKind / Faction / isSpent"] --> Model["UnitModelView"]
+    Model --> Depth["暗色厚度层"]
+    Model --> Material["阵营主材质"]
+    Model --> Plate["军种装备面"]
+    Model --> Detail["结构线"]
+    Model --> Highlight["顶缘高光"]
+    Model --> AX["装饰层隐藏；UnitCounter 单一摘要"]
+    Tile["HexTile frame / contentShape / 输入"] --> Stable["保持不变"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

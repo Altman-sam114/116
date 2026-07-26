@@ -47,7 +47,7 @@ struct UnitCounter: View {
                 tacticalStatus: unit.tacticalStatus,
                 isSpent: isActionComplete,
                 width: unit.kind.mapPieceWidth,
-                height: 40
+                height: 44
             )
             .overlay(alignment: .topLeading) {
                 if let commander = unit.commander {
@@ -282,15 +282,20 @@ struct UnitModelView: View {
     var body: some View {
         GeometryReader { proxy in
             let detailLineWidth = max(0.45, min(proxy.size.height * 0.035, 0.9))
+            let depthOffset = max(1.2, proxy.size.height * 0.055)
 
             ZStack {
                 Ellipse()
                     .fill(Color.black.opacity(isSpent ? 0.24 : 0.38))
-                    .frame(width: proxy.size.width * 0.76, height: max(2, proxy.size.height * 0.20))
-                    .position(x: proxy.size.width * 0.48, y: proxy.size.height * 0.84)
-                    .blur(radius: 0.6)
+                    .frame(width: proxy.size.width * 0.82, height: max(2, proxy.size.height * 0.22))
+                    .position(x: proxy.size.width * 0.48, y: proxy.size.height * 0.86)
+                    .blur(radius: 0.8)
 
                 ZStack {
+                    UnitMarkerShape(kind: kind)
+                        .fill(faction.unitModelDepthColor.opacity(isSpent ? 0.56 : 0.92))
+                        .offset(y: depthOffset)
+
                     UnitMarkerShape(kind: kind)
                         .fill(faction.unitModelGradient(isSpent: isSpent))
                         .overlay {
@@ -312,19 +317,193 @@ struct UnitModelView: View {
                                 .stroke(faction.unitModelEdgeColor.opacity(isSpent ? 0.64 : 0.92), lineWidth: detailLineWidth + 0.25)
                         }
 
+                    UnitModelPlateShape(kind: kind)
+                        .fill(faction.unitModelPlateColor.opacity(isSpent ? 0.44 : 0.78))
+
                     UnitModelDetailShape(kind: kind)
                         .stroke(
                             faction.unitModelDetailColor.opacity(isSpent ? 0.48 : 0.78),
                             style: StrokeStyle(lineWidth: detailLineWidth, lineCap: .round, lineJoin: .round)
                         )
+
+                    UnitModelHighlightShape(kind: kind)
+                        .stroke(
+                            faction.unitModelHighlightColor.opacity(isSpent ? 0.32 : 0.70),
+                            style: StrokeStyle(lineWidth: detailLineWidth * 0.72, lineCap: .round, lineJoin: .round)
+                        )
                 }
                 .padding(.horizontal, 1)
-                .padding(.bottom, 3)
-                .offset(y: -1)
-                .shadow(color: .black.opacity(isSpent ? 0.28 : 0.48), radius: 1.2, x: 0, y: 1.4)
+                .padding(.bottom, 4)
+                .offset(y: -2)
+                .shadow(color: .black.opacity(isSpent ? 0.30 : 0.54), radius: 1.6, x: 0, y: 1.8)
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+struct UnitModelPlateShape: Shape {
+    let kind: UnitKind
+
+    func path(in rect: CGRect) -> Path {
+        switch kind {
+        case .infantry:
+            infantryPlate(in: rect)
+        case .tank:
+            tankPlate(in: rect)
+        case .artillery:
+            artilleryPlate(in: rect)
+        case .recon:
+            reconPlate(in: rect)
+        }
+    }
+
+    private func infantryPlate(in rect: CGRect) -> Path {
+        var path = Path()
+        let helmetSize = rect.height * 0.16
+        for centerX in [0.30, 0.51, 0.70] {
+            path.addEllipse(
+                in: CGRect(
+                    x: rect.minX + rect.width * centerX - helmetSize / 2,
+                    y: rect.minY + rect.height * 0.015,
+                    width: helmetSize,
+                    height: helmetSize * 0.72
+                )
+            )
+            path.addRoundedRect(
+                in: CGRect(
+                    x: rect.minX + rect.width * centerX - helmetSize * 0.28,
+                    y: rect.minY + rect.height * 0.30,
+                    width: helmetSize * 0.56,
+                    height: rect.height * 0.22
+                ),
+                cornerSize: CGSize(width: helmetSize * 0.16, height: helmetSize * 0.16)
+            )
+        }
+        return path
+    }
+
+    private func tankPlate(in rect: CGRect) -> Path {
+        var path = Path()
+        path.addRoundedRect(
+            in: CGRect(
+                x: rect.minX + rect.width * 0.30,
+                y: rect.minY + rect.height * 0.055,
+                width: rect.width * 0.35,
+                height: rect.height * 0.30
+            ),
+            cornerSize: CGSize(width: rect.height * 0.10, height: rect.height * 0.10)
+        )
+        path.move(to: point(x: 0.12, y: 0.34, in: rect))
+        path.addLine(to: point(x: 0.76, y: 0.34, in: rect))
+        path.addLine(to: point(x: 0.69, y: 0.54, in: rect))
+        path.addLine(to: point(x: 0.18, y: 0.54, in: rect))
+        path.closeSubpath()
+        return path
+    }
+
+    private func artilleryPlate(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: point(x: 0.32, y: 0.38, in: rect))
+        path.addLine(to: point(x: 0.61, y: 0.30, in: rect))
+        path.addLine(to: point(x: 0.68, y: 0.63, in: rect))
+        path.addLine(to: point(x: 0.38, y: 0.66, in: rect))
+        path.closeSubpath()
+        path.addEllipse(
+            in: CGRect(
+                x: rect.minX + rect.width * 0.46,
+                y: rect.minY + rect.height * 0.42,
+                width: rect.height * 0.18,
+                height: rect.height * 0.18
+            )
+        )
+        return path
+    }
+
+    private func reconPlate(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: point(x: 0.28, y: 0.27, in: rect))
+        path.addLine(to: point(x: 0.66, y: 0.27, in: rect))
+        path.addLine(to: point(x: 0.77, y: 0.49, in: rect))
+        path.addLine(to: point(x: 0.20, y: 0.49, in: rect))
+        path.closeSubpath()
+        path.addRoundedRect(
+            in: CGRect(
+                x: rect.minX + rect.width * 0.52,
+                y: rect.minY + rect.height * 0.49,
+                width: rect.width * 0.34,
+                height: rect.height * 0.16
+            ),
+            cornerSize: CGSize(width: rect.height * 0.04, height: rect.height * 0.04)
+        )
+        return path
+    }
+
+    private func point(x: CGFloat, y: CGFloat, in rect: CGRect) -> CGPoint {
+        CGPoint(x: rect.minX + rect.width * x, y: rect.minY + rect.height * y)
+    }
+}
+
+struct UnitModelHighlightShape: Shape {
+    let kind: UnitKind
+
+    func path(in rect: CGRect) -> Path {
+        switch kind {
+        case .infantry:
+            infantryHighlight(in: rect)
+        case .tank:
+            tankHighlight(in: rect)
+        case .artillery:
+            artilleryHighlight(in: rect)
+        case .recon:
+            reconHighlight(in: rect)
+        }
+    }
+
+    private func infantryHighlight(in rect: CGRect) -> Path {
+        var path = Path()
+        for centerX in [0.30, 0.51, 0.70] {
+            path.move(to: point(x: centerX - 0.055, y: 0.09, in: rect))
+            path.addLine(to: point(x: centerX + 0.045, y: 0.09, in: rect))
+            path.move(to: point(x: centerX - 0.045, y: 0.35, in: rect))
+            path.addLine(to: point(x: centerX + 0.035, y: 0.31, in: rect))
+        }
+        return path
+    }
+
+    private func tankHighlight(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: point(x: 0.11, y: 0.32, in: rect))
+        path.addLine(to: point(x: 0.72, y: 0.32, in: rect))
+        path.move(to: point(x: 0.34, y: 0.10, in: rect))
+        path.addLine(to: point(x: 0.61, y: 0.10, in: rect))
+        path.move(to: point(x: 0.63, y: 0.18, in: rect))
+        path.addLine(to: point(x: 0.94, y: 0.18, in: rect))
+        return path
+    }
+
+    private func artilleryHighlight(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: point(x: 0.43, y: 0.47, in: rect))
+        path.addLine(to: point(x: 0.94, y: 0.15, in: rect))
+        path.move(to: point(x: 0.35, y: 0.40, in: rect))
+        path.addLine(to: point(x: 0.60, y: 0.33, in: rect))
+        return path
+    }
+
+    private func reconHighlight(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: point(x: 0.30, y: 0.30, in: rect))
+        path.addLine(to: point(x: 0.63, y: 0.30, in: rect))
+        path.move(to: point(x: 0.55, y: 0.52, in: rect))
+        path.addLine(to: point(x: 0.82, y: 0.52, in: rect))
+        path.move(to: point(x: 0.52, y: 0.22, in: rect))
+        path.addLine(to: point(x: 0.52, y: 0.05, in: rect))
+        return path
+    }
+
+    private func point(x: CGFloat, y: CGFloat, in rect: CGRect) -> CGPoint {
+        CGPoint(x: rect.minX + rect.width * x, y: rect.minY + rect.height * y)
     }
 }
 
@@ -612,13 +791,13 @@ extension UnitKind {
     var mapPieceWidth: CGFloat {
         switch self {
         case .infantry:
-            62
-        case .tank:
             68
+        case .tank:
+            74
         case .artillery:
-            65
+            71
         case .recon:
-            64
+            70
         }
     }
 }
@@ -648,6 +827,33 @@ extension Faction {
             Color(red: 0.10, green: 0.15, blue: 0.08)
         case .axis:
             Color(red: 0.16, green: 0.13, blue: 0.11)
+        }
+    }
+
+    var unitModelDepthColor: Color {
+        switch self {
+        case .allies:
+            Color(red: 0.09, green: 0.12, blue: 0.07)
+        case .axis:
+            Color(red: 0.10, green: 0.09, blue: 0.08)
+        }
+    }
+
+    var unitModelPlateColor: Color {
+        switch self {
+        case .allies:
+            Color(red: 0.66, green: 0.68, blue: 0.43)
+        case .axis:
+            Color(red: 0.62, green: 0.59, blue: 0.51)
+        }
+    }
+
+    var unitModelHighlightColor: Color {
+        switch self {
+        case .allies:
+            Color(red: 0.91, green: 0.90, blue: 0.65)
+        case .axis:
+            Color(red: 0.88, green: 0.84, blue: 0.74)
         }
     }
 
