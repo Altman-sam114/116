@@ -397,6 +397,19 @@ struct HexTileView: View {
                     )
             }
 
+            // GoG3-style soft range tinting: threatened / control-zone tiles
+            // read as a translucent wash instead of hard red outlines.
+            if !isAttackFocusMode {
+                if isThreatenedMoveTile {
+                    Hexagon().fill(Color.red.opacity(0.10))
+                } else if isEnemyControlZone {
+                    Hexagon().fill(Color.red.opacity(0.06))
+                }
+                if actionHint.isMove {
+                    Hexagon().fill(Color.cyan.opacity(0.10))
+                }
+            }
+
             TerrainTexture(tile: tile, connectionDirections: terrainConnectionDirections)
 
             if isSupplyLine && !isAttackFocusMode {
@@ -539,10 +552,10 @@ struct HexTileView: View {
         if let battlefieldSituationResponseMarker { return battlefieldSituationResponseColor(for: battlefieldSituationResponseMarker.kind).opacity(0.96) }
         if isEnemyThreatIntentTarget { return .pink.opacity(0.92) }
         if isMovementRoute { return .cyan.opacity(0.88) }
-        if isAttackCoverage { return .orange.opacity(0.58) }
+        if isAttackCoverage { return .orange.opacity(0.40) }
         if isSupplyLine { return .green.opacity(0.9) }
-        if isThreatenedMoveTile { return .red.opacity(0.76) }
-        if isEnemyControlZone { return .red.opacity(0.62) }
+        if isThreatenedMoveTile { return .red.opacity(0.34) }
+        if isEnemyControlZone { return .red.opacity(0.26) }
         if isFocused { return .white.opacity(0.9) }
         if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.9) }
         if !aiPhaseMapMarkers.isEmpty { return .indigo.opacity(0.86) }
@@ -567,10 +580,10 @@ struct HexTileView: View {
         if battlefieldSituationResponseMarker != nil { return 3 }
         if isEnemyThreatIntentTarget { return 2 }
         if isMovementRoute { return 2 }
-        if isAttackCoverage { return 2 }
+        if isAttackCoverage { return 1 }
         if isSupplyLine { return 2 }
-        if isThreatenedMoveTile { return 2 }
-        if isEnemyControlZone { return 2 }
+        if isThreatenedMoveTile { return 1 }
+        if isEnemyControlZone { return 1 }
         if isFocused { return 2 }
         if tile.isObjective { return 2 }
         if !aiPhaseMapMarkers.isEmpty { return 2 }
@@ -1485,6 +1498,13 @@ struct TerrainTexture: View {
 
     private func waterHighlight(in size: CGSize) -> some View {
         ZStack {
+            // Central pool so an isolated river hex still reads as water even
+            // before the winding connection band joins its neighbours.
+            Ellipse()
+                .fill(Color(red: 0.30, green: 0.49, blue: 0.63).opacity(0.85))
+                .frame(width: size.width * 0.34, height: size.height * 0.30)
+                .position(x: size.width * 0.5, y: size.height * 0.5)
+
             Path { path in
                 path.move(to: CGPoint(x: 0, y: size.height * 0.46))
                 path.addCurve(
@@ -1493,7 +1513,7 @@ struct TerrainTexture: View {
                     control2: CGPoint(x: size.width * 0.68, y: size.height * 0.70)
                 )
             }
-            .stroke(Color.white.opacity(0.22), lineWidth: 1.4)
+            .stroke(Color.white.opacity(0.24), lineWidth: 1.4)
         }
     }
 
@@ -2338,7 +2358,7 @@ extension TerrainKind {
 
     var connectionWidth: CGFloat {
         switch self {
-        case .river: 15
+        case .river: 11
         case .road: 6
         case .forest: 8
         case .city: 12
@@ -2374,7 +2394,9 @@ extension TerrainKind {
         case .snow:
             Color(red: 0.87, green: 0.89, blue: 0.89)
         case .river:
-            Color(red: 0.30, green: 0.47, blue: 0.60)
+            // Land-toned fill: the winding blue connection band carries the
+            // water so rivers read as a channel, not a solid blue hex.
+            Color(red: 0.56, green: 0.62, blue: 0.50)
         case .road:
             Color(red: 0.61, green: 0.62, blue: 0.44)
         }
@@ -2393,7 +2415,7 @@ extension TerrainKind {
         case .snow:
             Color(red: 0.91, green: 0.93, blue: 0.93)
         case .river:
-            Color(red: 0.35, green: 0.52, blue: 0.65)
+            Color(red: 0.60, green: 0.66, blue: 0.54)
         case .road:
             Color(red: 0.65, green: 0.66, blue: 0.47)
         }
@@ -2412,7 +2434,7 @@ extension TerrainKind {
         case .snow:
             Color(red: 0.83, green: 0.86, blue: 0.86)
         case .river:
-            Color(red: 0.25, green: 0.42, blue: 0.55)
+            Color(red: 0.52, green: 0.58, blue: 0.46)
         case .road:
             Color(red: 0.57, green: 0.58, blue: 0.41)
         }
