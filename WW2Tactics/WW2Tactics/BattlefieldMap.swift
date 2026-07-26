@@ -207,9 +207,9 @@ struct MapGridBackdrop: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color(red: 0.27, green: 0.28, blue: 0.22),
-                            Color(red: 0.16, green: 0.17, blue: 0.14),
-                            Color(red: 0.10, green: 0.11, blue: 0.10)
+                            Color(red: 0.56, green: 0.60, blue: 0.43),
+                            Color(red: 0.52, green: 0.57, blue: 0.41),
+                            Color(red: 0.47, green: 0.52, blue: 0.38)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -267,9 +267,9 @@ struct CoordinateLabel: View {
     var body: some View {
         Text(text)
             .font(.system(size: 9, weight: .black, design: .rounded))
-            .foregroundStyle(.white.opacity(0.36))
+            .foregroundStyle(.white.opacity(0.72))
             .frame(width: 22, height: 16)
-            .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 4))
+            .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 4))
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
@@ -369,9 +369,9 @@ struct HexTileView: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(0.08),
+                                    Color.white.opacity(0.05),
                                     Color.clear,
-                                    Color.black.opacity(0.10)
+                                    Color.black.opacity(0.05)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -379,8 +379,9 @@ struct HexTileView: View {
                         )
                 )
                 .overlay(
+                    // GoG3-style etched hex grid: a light hairline on every tile.
                     Hexagon()
-                        .stroke(Color.black.opacity(tile.isObjective ? 0.10 : 0.035), lineWidth: 0.35)
+                        .stroke(Color.white.opacity(tile.isObjective ? 0.34 : 0.26), lineWidth: 0.7)
                 )
                 .overlay(
                     Hexagon()
@@ -591,6 +592,10 @@ struct HexTileView: View {
 
     private var shouldShowUnavailableTargetMarker: Bool {
         if isAttackFocusMode { return false }
+        // Only explain out-of-range/unavailable on the tile the player is
+        // actually inspecting — ambient "7>1" chips on every enemy read as
+        // noise (GoG3 keeps the field clean until you ask).
+        guard isFocused else { return false }
         switch actionHint {
         case .enemyOutOfRange, .enemyUnavailable:
             return true
@@ -1287,7 +1292,7 @@ struct TerrainTexture: View {
                 let angle = -16 + Double((terrainSeed + index * 19) % 24)
 
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(index.isMultiple(of: 2) ? Color.yellow.opacity(0.026) : Color.black.opacity(0.020))
+                    .fill(index.isMultiple(of: 2) ? Color(red: 0.72, green: 0.66, blue: 0.38).opacity(0.16) : Color(red: 0.42, green: 0.48, blue: 0.30).opacity(0.18))
                     .frame(width: patchWidth, height: patchHeight)
                     .rotationEffect(.degrees(angle))
                     .position(x: x, y: y)
@@ -1299,30 +1304,30 @@ struct TerrainTexture: View {
                     path.addLine(to: CGPoint(x: size.width, y: offset + rise))
                 }
             }
-            .stroke(Color.yellow.opacity(0.085), lineWidth: 0.8)
+            .stroke(Color(red: 0.40, green: 0.45, blue: 0.28).opacity(0.20), lineWidth: 0.8)
         }
     }
 
     private func forestClusters(in size: CGSize) -> some View {
         ZStack {
-            ForEach(0..<6, id: \.self) { index in
+            ForEach(0..<7, id: \.self) { index in
                 let x = size.width * (0.14 + seededFraction(index: index, multiplier: 37, offset: 17) * 0.72)
                 let y = size.height * (0.16 + seededFraction(index: index, multiplier: 23, offset: 41) * 0.66)
-                let treeSize = 9 + CGFloat((terrainSeed + index * 5) % 6)
+                let treeSize = 10 + CGFloat((terrainSeed + index * 5) % 7)
 
                 Ellipse()
-                    .fill(Color.black.opacity(0.20))
-                    .frame(width: treeSize * 0.92, height: treeSize * 0.34)
-                    .position(x: x + 1.5, y: y + treeSize * 0.42)
+                    .fill(Color.black.opacity(0.24))
+                    .frame(width: treeSize * 0.95, height: treeSize * 0.34)
+                    .position(x: x + 1.5, y: y + treeSize * 0.44)
 
                 Image(systemName: "tree.fill")
                     .font(.system(size: treeSize, weight: .bold))
                     .foregroundStyle(
                         index.isMultiple(of: 2)
-                            ? Color(red: 0.31, green: 0.46, blue: 0.25).opacity(0.72)
-                            : Color.black.opacity(0.32)
+                            ? Color(red: 0.22, green: 0.38, blue: 0.20)
+                            : Color(red: 0.30, green: 0.46, blue: 0.25)
                     )
-                    .shadow(color: Color.black.opacity(0.22), radius: 0.7, x: 1, y: 1.2)
+                    .shadow(color: Color.black.opacity(0.25), radius: 0.7, x: 1, y: 1.2)
                     .position(x: x, y: y)
             }
         }
@@ -1336,7 +1341,7 @@ struct TerrainTexture: View {
                 path.move(to: CGPoint(x: size.width * 0.46, y: 0))
                 path.addLine(to: CGPoint(x: size.width * 0.56, y: size.height))
             }
-            .stroke(Color.black.opacity(0.14), lineWidth: 5)
+            .stroke(Color(red: 0.45, green: 0.44, blue: 0.38).opacity(0.60), lineWidth: 5)
 
             Path { path in
                 path.move(to: CGPoint(x: 0, y: size.height * 0.62))
@@ -1344,30 +1349,43 @@ struct TerrainTexture: View {
                 path.move(to: CGPoint(x: size.width * 0.46, y: 0))
                 path.addLine(to: CGPoint(x: size.width * 0.56, y: size.height))
             }
-            .stroke(Color.white.opacity(0.09), lineWidth: 2)
+            .stroke(Color.white.opacity(0.20), lineWidth: 2)
 
-            ForEach(0..<5, id: \.self) { index in
+            // GoG3-style building cluster: pale walls, warm tiled roofs.
+            ForEach(0..<6, id: \.self) { index in
                 let blockWidth = 9 + CGFloat((terrainSeed + index * 3) % 7)
                 let blockHeight = 9 + CGFloat((terrainSeed + index * 7) % 7)
                 let x = size.width * (0.16 + seededFraction(index: index, multiplier: 31, offset: 7) * 0.68)
                 let y = size.height * (0.16 + seededFraction(index: index, multiplier: 19, offset: 29) * 0.68)
 
                 RoundedRectangle(cornerRadius: 1.5)
-                    .fill(Color.black.opacity(0.24))
+                    .fill(Color.black.opacity(0.30))
                     .frame(width: blockWidth, height: blockHeight)
                     .position(x: x + 2, y: y + 2.5)
 
                 RoundedRectangle(cornerRadius: 1.5)
                     .fill(
                         LinearGradient(
-                            colors: [Color.white.opacity(0.28), Color.white.opacity(0.10)],
+                            colors: [Color(red: 0.93, green: 0.90, blue: 0.83), Color(red: 0.78, green: 0.74, blue: 0.66)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                     .overlay {
                         RoundedRectangle(cornerRadius: 1.5)
-                            .stroke(Color.white.opacity(0.18), lineWidth: 0.6)
+                            .stroke(Color(red: 0.36, green: 0.33, blue: 0.28).opacity(0.55), lineWidth: 0.6)
+                    }
+                    .overlay(alignment: .top) {
+                        // Roof band.
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(
+                                index.isMultiple(of: 2)
+                                    ? Color(red: 0.70, green: 0.36, blue: 0.26)
+                                    : Color(red: 0.52, green: 0.44, blue: 0.38)
+                            )
+                            .frame(height: blockHeight * 0.42)
+                            .padding(.horizontal, 0.6)
+                            .padding(.top, 0.6)
                     }
                     .frame(width: blockWidth, height: blockHeight)
                     .position(x: x, y: y)
@@ -1392,7 +1410,7 @@ struct TerrainTexture: View {
                 path.addLine(to: CGPoint(x: size.width * 0.20, y: size.height * 0.88))
                 path.closeSubpath()
             }
-            .fill(Color.black.opacity(0.15))
+            .fill(Color(red: 0.30, green: 0.30, blue: 0.27).opacity(0.55))
 
             Path { path in
                 path.move(to: CGPoint(x: size.width * 0.06, y: size.height * 0.76))
@@ -1401,7 +1419,7 @@ struct TerrainTexture: View {
                 path.addLine(to: CGPoint(x: size.width * 0.31, y: size.height * 0.83))
                 path.closeSubpath()
             }
-            .fill(Color.white.opacity(0.12))
+            .fill(Color.white.opacity(0.55))
 
             Path { path in
                 path.move(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
@@ -1410,7 +1428,7 @@ struct TerrainTexture: View {
                 path.addLine(to: CGPoint(x: size.width * 0.72, y: size.height * 0.84))
                 path.closeSubpath()
             }
-            .fill(Color.white.opacity(0.08))
+            .fill(Color.white.opacity(0.42))
 
             Path { path in
                 path.move(to: CGPoint(x: size.width * 0.08, y: size.height * 0.72))
@@ -2302,11 +2320,11 @@ extension TerrainKind {
     var connectionColor: Color {
         switch self {
         case .river:
-            Color(red: 0.18, green: 0.46, blue: 0.68).opacity(0.82)
+            Color(red: 0.26, green: 0.50, blue: 0.68).opacity(0.90)
         case .road:
-            Color(red: 0.62, green: 0.52, blue: 0.34).opacity(0.48)
+            Color(red: 0.66, green: 0.58, blue: 0.40).opacity(0.72)
         case .forest:
-            Color(red: 0.12, green: 0.28, blue: 0.14).opacity(0.16)
+            Color(red: 0.30, green: 0.44, blue: 0.26).opacity(0.22)
         case .city:
             Color.black.opacity(0.12)
         case .mountain:
@@ -2340,60 +2358,63 @@ extension TerrainKind {
         )
     }
 
+    // EasyTech GoG3-style continuous ground: neighbours share one pale
+    // field tone so the battlefield reads as a single painted landscape,
+    // with terrain identity carried mostly by the painted texture layer.
     var mapColor: Color {
         switch self {
         case .plains:
-            Color(red: 0.46, green: 0.52, blue: 0.34)
+            Color(red: 0.60, green: 0.64, blue: 0.45)
         case .forest:
-            Color(red: 0.20, green: 0.34, blue: 0.21)
+            Color(red: 0.52, green: 0.59, blue: 0.41)
         case .city:
-            Color(red: 0.49, green: 0.48, blue: 0.43)
+            Color(red: 0.61, green: 0.62, blue: 0.51)
         case .mountain:
-            Color(red: 0.43, green: 0.43, blue: 0.40)
+            Color(red: 0.58, green: 0.58, blue: 0.48)
         case .snow:
-            Color(red: 0.74, green: 0.78, blue: 0.76)
+            Color(red: 0.87, green: 0.89, blue: 0.89)
         case .river:
-            Color(red: 0.19, green: 0.37, blue: 0.52)
+            Color(red: 0.30, green: 0.47, blue: 0.60)
         case .road:
-            Color(red: 0.52, green: 0.47, blue: 0.36)
+            Color(red: 0.61, green: 0.62, blue: 0.44)
         }
     }
 
     private var mapHighlightColor: Color {
         switch self {
         case .plains:
-            Color(red: 0.55, green: 0.60, blue: 0.39)
+            Color(red: 0.64, green: 0.68, blue: 0.48)
         case .forest:
-            Color(red: 0.27, green: 0.43, blue: 0.26)
+            Color(red: 0.56, green: 0.63, blue: 0.44)
         case .city:
-            Color(red: 0.58, green: 0.57, blue: 0.50)
+            Color(red: 0.65, green: 0.66, blue: 0.55)
         case .mountain:
-            Color(red: 0.53, green: 0.52, blue: 0.47)
+            Color(red: 0.62, green: 0.62, blue: 0.52)
         case .snow:
-            Color(red: 0.87, green: 0.90, blue: 0.88)
+            Color(red: 0.91, green: 0.93, blue: 0.93)
         case .river:
-            Color(red: 0.27, green: 0.47, blue: 0.63)
+            Color(red: 0.35, green: 0.52, blue: 0.65)
         case .road:
-            Color(red: 0.62, green: 0.56, blue: 0.41)
+            Color(red: 0.65, green: 0.66, blue: 0.47)
         }
     }
 
     private var mapShadowColor: Color {
         switch self {
         case .plains:
-            Color(red: 0.34, green: 0.41, blue: 0.27)
+            Color(red: 0.56, green: 0.60, blue: 0.42)
         case .forest:
-            Color(red: 0.12, green: 0.24, blue: 0.14)
+            Color(red: 0.48, green: 0.55, blue: 0.38)
         case .city:
-            Color(red: 0.37, green: 0.37, blue: 0.33)
+            Color(red: 0.57, green: 0.58, blue: 0.47)
         case .mountain:
-            Color(red: 0.31, green: 0.31, blue: 0.29)
+            Color(red: 0.54, green: 0.54, blue: 0.44)
         case .snow:
-            Color(red: 0.62, green: 0.69, blue: 0.69)
+            Color(red: 0.83, green: 0.86, blue: 0.86)
         case .river:
-            Color(red: 0.12, green: 0.27, blue: 0.41)
+            Color(red: 0.25, green: 0.42, blue: 0.55)
         case .road:
-            Color(red: 0.40, green: 0.36, blue: 0.28)
+            Color(red: 0.57, green: 0.58, blue: 0.41)
         }
     }
 

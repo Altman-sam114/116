@@ -2,15 +2,18 @@ import SwiftUI
 
 struct MiniHealthBar: View {
     let ratio: CGFloat
+    /// GoG3-style faction-tinted bar: allies blue / axis red. nil keeps the
+    /// classic green-red readiness coloring used by HUD and side panels.
+    var factionTint: Color? = nil
 
     var body: some View {
         GeometryReader { proxy in
             let clampedRatio = max(0, min(ratio, 1))
 
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.black.opacity(0.42))
+                Capsule().fill(Color.black.opacity(0.52))
                 Capsule()
-                    .fill(clampedRatio > 0.45 ? Color.green : Color.red)
+                    .fill(fillColor(for: clampedRatio))
                     .frame(width: proxy.size.width * clampedRatio)
             }
             .clipShape(Capsule())
@@ -26,10 +29,17 @@ struct MiniHealthBar: View {
             }
             .overlay {
                 Capsule()
-                    .stroke(Color.white.opacity(0.26), lineWidth: 0.6)
+                    .stroke(Color.white.opacity(0.30), lineWidth: 0.6)
             }
         }
         .accessibilityHidden(true)
+    }
+
+    private func fillColor(for clampedRatio: CGFloat) -> Color {
+        if let factionTint {
+            return clampedRatio > 0.3 ? factionTint : Color.red
+        }
+        return clampedRatio > 0.45 ? Color.green : Color.red
     }
 }
 
@@ -75,7 +85,12 @@ struct UnitCounter: View {
                             .stroke(unit.hasMoved ? Color.white.opacity(0.42) : Color.cyan.opacity(0.72), lineWidth: 0.6)
                     }
 
-                MiniHealthBar(ratio: unit.hpRatio)
+                MiniHealthBar(
+                    ratio: unit.hpRatio,
+                    factionTint: unit.faction == .allies
+                        ? Color(red: 0.30, green: 0.62, blue: 0.92)
+                        : Color(red: 0.86, green: 0.26, blue: 0.22)
+                )
                     .frame(width: 32, height: 6)
 
                 Group {
@@ -150,14 +165,8 @@ struct MapUnitPiece: View {
                 .frame(width: width - 4, height: height - 4)
                 .offset(y: -2)
 
-            Text(factionCode)
-                .font(.system(size: 6, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 3)
-                .padding(.vertical, 1)
-                .background(faction.accentColor.opacity(0.94), in: Capsule())
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-
+            // Faction ring + tinted HP bar carry allegiance; keep only the
+            // rank chevron chip so the piece stays close to a GoG3 miniature.
             Text(rank.insignia)
                 .font(.system(size: 6, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
@@ -188,10 +197,6 @@ struct MapUnitPiece: View {
         }
         .frame(width: width, height: height)
         .accessibilityHidden(true)
-    }
-
-    private var factionCode: String {
-        faction == .allies ? "AL" : "AX"
     }
 }
 
@@ -844,7 +849,7 @@ extension Faction {
         case .allies:
             Color(red: 0.66, green: 0.68, blue: 0.43)
         case .axis:
-            Color(red: 0.62, green: 0.59, blue: 0.51)
+            Color(red: 0.60, green: 0.61, blue: 0.70)
         }
     }
 
@@ -853,7 +858,7 @@ extension Faction {
         case .allies:
             Color(red: 0.91, green: 0.90, blue: 0.65)
         case .axis:
-            Color(red: 0.88, green: 0.84, blue: 0.74)
+            Color(red: 0.83, green: 0.85, blue: 0.93)
         }
     }
 
@@ -866,10 +871,11 @@ extension Faction {
                 Color(red: 0.22, green: 0.27, blue: 0.17)
             ]
         case .axis:
+            // GoG3-style German field-blue armor plate.
             [
-                Color(red: 0.72, green: 0.68, blue: 0.58),
-                Color(red: 0.43, green: 0.39, blue: 0.34),
-                Color(red: 0.21, green: 0.19, blue: 0.17)
+                Color(red: 0.68, green: 0.70, blue: 0.79),
+                Color(red: 0.42, green: 0.44, blue: 0.54),
+                Color(red: 0.22, green: 0.23, blue: 0.30)
             ]
         }
     }
