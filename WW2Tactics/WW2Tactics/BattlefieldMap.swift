@@ -1,6 +1,17 @@
 import SwiftUI
 import UIKit
 
+private struct CombatResolutionSteadyStateKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var combatResolutionSteadyState: Bool {
+        get { self[CombatResolutionSteadyStateKey.self] }
+        set { self[CombatResolutionSteadyStateKey.self] = newValue }
+    }
+}
+
 struct HexMapView: View {
     @EnvironmentObject private var game: GameState
     let scaleMultiplier: CGFloat
@@ -135,6 +146,7 @@ struct HexMapView: View {
                     attackerPoint: position(for: combatResult.attackerCoordinate),
                     defenderPoint: position(for: combatResult.defenderCoordinate)
                 )
+                .id(combatResult.id)
                 .frame(width: contentWidth, height: contentHeight, alignment: .topLeading)
                 .allowsHitTesting(false)
             }
@@ -832,9 +844,14 @@ struct EngagementAxisOverlay: View {
 }
 
 struct CombatResolutionOverlay: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.combatResolutionSteadyState) private var isSteadyState
+
     let summary: CombatResultSummary
     let attackerPoint: CGPoint
     let defenderPoint: CGPoint
+
+    @State private var phase: CombatResolutionPhase = .impact
 
     var body: some View {
         let points = trimmedPoints
@@ -856,8 +873,16 @@ struct CombatResolutionOverlay: View {
             }
             .stroke(
                 resultColor.opacity(0.96),
-                style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [5, 3])
+                style: StrokeStyle(lineWidth: activePhase == .impact ? 3.2 : 2.5, lineCap: .round, dash: [5, 3])
             )
+
+            CombatImpactMarker(
+                color: resultColor,
+                isImpactPhase: activePhase == .impact,
+                reduceMotion: reduceMotion || isSteadyState
+            )
+            .frame(width: 62, height: 62)
+            .position(defenderPoint)
 
             CombatDamagePlate(
                 title: "HIT -\(summary.damage)",
@@ -865,6 +890,9 @@ struct CombatResolutionOverlay: View {
                 color: summary.didDestroyDefender ? .red : .orange
             )
             .position(x: defenderPoint.x, y: defenderPoint.y - 44)
+            .opacity(showsPrimaryDamage ? 1 : 0)
+            .scaleEffect(plateScale(isVisible: showsPrimaryDamage))
+            .offset(y: plateOffset(isVisible: showsPrimaryDamage))
 
             if summary.hasCounterAttack {
                 CombatDamagePlate(
@@ -873,6 +901,9 @@ struct CombatResolutionOverlay: View {
                     color: .red
                 )
                 .position(x: attackerPoint.x, y: attackerPoint.y - 44)
+                .opacity(showsCounterDamage ? 1 : 0)
+                .scaleEffect(plateScale(isVisible: showsCounterDamage))
+                .offset(y: plateOffset(isVisible: showsCounterDamage))
             }
 
             Label(resultTitle, systemImage: resultIcon)
@@ -886,9 +917,76 @@ struct CombatResolutionOverlay: View {
                         .stroke(resultColor.opacity(0.92), lineWidth: 1.5)
                 )
                 .position(x: midpoint.x, y: midpoint.y + 36)
+                .opacity(showsResolution ? 1 : 0)
+                .scaleEffect(plateScale(isVisible: showsResolution))
+                .offset(y: plateOffset(isVisible: showsResolution))
+                .accessibilityHidden(true)
         }
+        .animation(presentationAnimation, value: phase)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
+        .task(id: summary.id) {
+            await playPresentationSequence()
+        }
+    }
+
+    private var activePhase: CombatResolutionPhase {
+        reduceMotion || isSteadyState ? .resolved : phase
+    }
+
+    private var showsPrimaryDamage: Bool {
+        activePhase.rawValue >= CombatResolutionPhase.damage.rawValue
+    }
+
+    private var showsCounterDamage: Bool {
+        activePhase.rawValue >= CombatResolutionPhase.counterDamage.rawValue
+    }
+
+    private var showsResolution: Bool {
+        activePhase == .resolved
+    }
+
+    private var presentationAnimation: Animation? {
+        reduceMotion || isSteadyState ? nil : .easeOut(duration: 0.11)
+    }
+
+    private func plateScale(isVisible: Bool) -> CGFloat {
+        guard !reduceMotion && !isSteadyState else { return 1 }
+        return isVisible ? 1 : 0.96
+    }
+
+    private func plateOffset(isVisible: Bool) -> CGFloat {
+        guard !reduceMotion && !isSteadyState else { return 0 }
+        return isVisible ? 0 : 4
+    }
+
+    @MainActor
+    private func playPresentationSequence() async {
+        if reduceMotion || isSteadyState {
+            phase = .resolved
+            return
+        }
+
+        phase = .impact
+        do {
+            try await Task.sleep(for: .milliseconds(130))
+            try Task.checkCancellation()
+            phase = .damage
+
+            if summary.hasCounterAttack {
+                try await Task.sleep(for: .milliseconds(90))
+                try Task.checkCancellation()
+                phase = .counterDamage
+            }
+
+            try await Task.sleep(for: .milliseconds(110))
+            try Task.checkCancellation()
+            phase = .resolved
+        } catch is CancellationError {
+            return
+        } catch {
+            return
+        }
     }
 
     private var resultTitle: String {
@@ -927,6 +1025,57 @@ struct CombatResolutionOverlay: View {
             CGPoint(x: attackerPoint.x + unitX * inset, y: attackerPoint.y + unitY * inset),
             CGPoint(x: defenderPoint.x - unitX * inset, y: defenderPoint.y - unitY * inset)
         )
+    }
+}
+
+private enum CombatResolutionPhase: Int {
+    case impact
+    case damage
+    case counterDamage
+    case resolved
+}
+
+private struct CombatImpactMarker: View {
+    let color: Color
+    let isImpactPhase: Bool
+    let reduceMotion: Bool
+
+    var body: some View {
+        CombatImpactShape()
+            .stroke(
+                color.opacity(isImpactPhase ? 0.92 : 0.34),
+                style: StrokeStyle(lineWidth: isImpactPhase ? 2.2 : 1.2, lineCap: .square)
+            )
+            .scaleEffect(reduceMotion ? 1 : (isImpactPhase ? 1.08 : 1))
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: isImpactPhase)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct CombatImpactShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let ringInset = min(rect.width, rect.height) * 0.20
+        let innerRadius = min(rect.width, rect.height) * 0.32
+        let outerRadius = min(rect.width, rect.height) * 0.47
+        var path = Path()
+
+        path.addEllipse(in: rect.insetBy(dx: ringInset, dy: ringInset))
+        for angle in stride(from: 0.0, to: 360.0, by: 45.0) {
+            let radians = angle * .pi / 180
+            let directionX = CGFloat(cos(radians))
+            let directionY = CGFloat(sin(radians))
+            path.move(to: CGPoint(
+                x: center.x + directionX * innerRadius,
+                y: center.y + directionY * innerRadius
+            ))
+            path.addLine(to: CGPoint(
+                x: center.x + directionX * outerRadius,
+                y: center.y + directionY * outerRadius
+            ))
+        }
+        return path
     }
 }
 

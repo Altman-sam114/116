@@ -282,6 +282,24 @@ flowchart LR
     Copy --> Pure["不写 scenario / log / latest result"]
 ```
 
+## v2.16 命中冲击与战果出现节奏
+
+```mermaid
+flowchart TD
+    Result["latestCombatResult 真实战果"] --> Coordinate["defenderCoordinate -> position(for:)"]
+    Result --> Task[".task(id: summary.id)"]
+    Task --> Mode{"Reduce Motion / CI steady-state?"}
+    Mode -->|否| Impact["impact：目标格冲击环与轴线增强"]
+    Impact --> Hit["damage：HIT + 防守方 HP"]
+    Hit --> Counter{"真实 hasCounterAttack?"}
+    Counter -->|是| Ret["RET + 攻击方 HP"]
+    Counter -->|否| Resolved["resolved：压制 / 击毁"]
+    Ret --> Resolved2["resolved：交火"]
+    Mode -->|是| Stable["同一 resolved 画面 + 静态冲击残迹"]
+    Task --> Cancel["新 summary / View 消失：取消旧任务"]
+    Result --> ReadOnly["phase 仅控制绘制，不写 GameState"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
