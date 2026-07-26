@@ -922,16 +922,18 @@ struct CombatResolutionOverlay: View {
                 .offset(y: plateOffset(isVisible: showsResolution))
                 .accessibilityHidden(true)
         }
+        .opacity(overlayOpacity)
         .animation(presentationAnimation, value: phase)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
+        .accessibilityHidden(activePhase == .hidden)
         .task(id: summary.id) {
             await playPresentationSequence()
         }
     }
 
     private var activePhase: CombatResolutionPhase {
-        reduceMotion || isSteadyState ? .resolved : phase
+        isSteadyState ? .resolved : phase
     }
 
     private var showsPrimaryDamage: Bool {
@@ -943,11 +945,24 @@ struct CombatResolutionOverlay: View {
     }
 
     private var showsResolution: Bool {
-        activePhase == .resolved
+        activePhase.rawValue >= CombatResolutionPhase.resolved.rawValue
+    }
+
+    private var overlayOpacity: Double {
+        switch activePhase {
+        case .dismissing, .hidden:
+            return 0
+        default:
+            return 1
+        }
     }
 
     private var presentationAnimation: Animation? {
-        reduceMotion || isSteadyState ? nil : .easeOut(duration: 0.11)
+        guard !isSteadyState else { return nil }
+        if phase == .dismissing {
+            return .easeOut(duration: 0.22)
+        }
+        return reduceMotion ? nil : .easeOut(duration: 0.11)
     }
 
     private func plateScale(isVisible: Bool) -> CGFloat {
@@ -962,26 +977,36 @@ struct CombatResolutionOverlay: View {
 
     @MainActor
     private func playPresentationSequence() async {
-        if reduceMotion || isSteadyState {
+        if isSteadyState {
             phase = .resolved
             return
         }
 
-        phase = .impact
+        phase = reduceMotion ? .resolved : .impact
         do {
-            try await Task.sleep(for: .milliseconds(130))
-            try Task.checkCancellation()
-            phase = .damage
-
-            if summary.hasCounterAttack {
-                try await Task.sleep(for: .milliseconds(90))
+            if !reduceMotion {
+                try await Task.sleep(for: .milliseconds(130))
                 try Task.checkCancellation()
-                phase = .counterDamage
+                phase = .damage
+
+                if summary.hasCounterAttack {
+                    try await Task.sleep(for: .milliseconds(90))
+                    try Task.checkCancellation()
+                    phase = .counterDamage
+                }
+
+                try await Task.sleep(for: .milliseconds(110))
+                try Task.checkCancellation()
+                phase = .resolved
             }
 
-            try await Task.sleep(for: .milliseconds(110))
+            try await Task.sleep(for: .milliseconds(2400))
             try Task.checkCancellation()
-            phase = .resolved
+            phase = .dismissing
+
+            try await Task.sleep(for: .milliseconds(220))
+            try Task.checkCancellation()
+            phase = .hidden
         } catch is CancellationError {
             return
         } catch {
@@ -1033,6 +1058,8 @@ private enum CombatResolutionPhase: Int {
     case damage
     case counterDamage
     case resolved
+    case dismissing
+    case hidden
 }
 
 private struct CombatImpactMarker: View {

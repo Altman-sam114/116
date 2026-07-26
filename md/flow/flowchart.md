@@ -300,6 +300,24 @@ flowchart TD
     Result --> ReadOnly["phase 仅控制绘制，不写 GameState"]
 ```
 
+## v2.17 战果反馈消退与复盘保留
+
+```mermaid
+flowchart TD
+    Result["latestCombatResult 真实结果"] --> Task[".task(id: summary.id)"]
+    Task --> Steady{"CI steady-state?"}
+    Steady -->|是| Fixed["resolved：持续显示云端证据"]
+    Steady -->|否| Motion{"Reduce Motion?"}
+    Motion -->|否| Sequence["impact -> HIT -> RET -> resolved"]
+    Motion -->|是| Reduced["resolved：无缩放与位移"]
+    Sequence --> Hold["停留约 2.4 秒"]
+    Reduced --> Hold
+    Hold --> Fade["dismissing：仅 opacity 淡出"]
+    Fade --> Hidden["hidden：无 VoiceOver、无输入阻挡"]
+    Result --> Preserve["Inspector / 态势响应 / 复盘继续保留"]
+    Task --> Cancel["新 summary 或 View 消失：取消旧任务"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
