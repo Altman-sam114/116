@@ -397,6 +397,18 @@ flowchart LR
     Height["删除地图外消息 HStack"] --> MapHeight["回收纵向战场高度"]
 ```
 
+## v2.22 单层战役资源栏
+
+```mermaid
+flowchart LR
+    GS["GameState 既有只读状态"] --> Title["单行 WW2 / 战役名 / 年份"]
+    GS --> Strip["六项图标 + 短值资源"]
+    Strip --> AX["完整 accessibility label / value"]
+    End["44x44 方形结束回合"] --> Action["仅转发 game.endTurn()"]
+    Winner["winner 禁用条件"] --> End
+    Scroll["既有横向 ScrollView"] --> Strip
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

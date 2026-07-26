@@ -11,10 +11,9 @@ struct TopCommandBar: View {
                 StatusStrip()
             }
 
-            EndTurnButton(iconOnly: true)
+            EndTurnButton()
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 4)
         .background(
             Rectangle()
                 .fill(BattlefieldTheme.commandDeckDeep.opacity(0.92))
@@ -56,22 +55,24 @@ struct CommandTitle: View {
     @EnvironmentObject private var game: GameState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 7) {
-                Text("WW2")
-                    .font(.system(size: 10, weight: .black, design: .rounded))
-                    .foregroundStyle(.black.opacity(0.82))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(BattlefieldTheme.brass, in: Capsule())
-                Text(game.scenario.name)
-                    .font(.headline.weight(.black))
-                    .foregroundStyle(BattlefieldTheme.ink)
-            }
-            Text("\(game.scenario.year) · 战区指挥台")
-                .font(.caption.weight(.semibold))
+        HStack(spacing: 7) {
+            Text("WW2")
+                .font(.system(size: 10, weight: .black, design: .rounded))
+                .foregroundStyle(.black.opacity(0.82))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(BattlefieldTheme.brass, in: Capsule())
+            Text(game.scenario.name)
+                .font(.subheadline.weight(.black))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .lineLimit(1)
+            Text("\(game.scenario.year)")
+                .font(.caption.weight(.bold))
                 .foregroundStyle(BattlefieldTheme.mutedInk)
+                .lineLimit(1)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("第二次世界大战，\(game.scenario.name)，\(game.scenario.year)年")
     }
 }
 
@@ -80,60 +81,70 @@ struct StatusStrip: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            StatusChip(icon: "flag.fill", label: "回合 \(game.turn)")
-            StatusChip(icon: "hourglass", label: "剩余 \(game.remainingTurns)")
-            StatusChip(icon: "shield.lefthalf.filled", label: game.activeFaction.title)
-            StatusChip(icon: "scope", label: "据点 \(game.alliedScore):\(game.axisScore)")
-            StatusChip(icon: "star.circle.fill", label: "指令 \(game.activeCommandPoints)")
-            StatusChip(icon: "person.3.fill", label: "待命 \(game.readyUnitCount)")
+            StatusChip(icon: "flag.fill", value: "\(game.turn)", label: "当前回合")
+            StatusChip(icon: "hourglass", value: "\(game.remainingTurns)", label: "剩余回合")
+            StatusChip(
+                icon: "shield.lefthalf.filled",
+                value: game.activeFaction.shortTitle,
+                label: "当前阵营",
+                accessibilityValue: game.activeFaction.title
+            )
+            StatusChip(
+                icon: "scope",
+                value: "\(game.alliedScore):\(game.axisScore)",
+                label: "据点控制",
+                accessibilityValue: "盟军 \(game.alliedScore)，轴心 \(game.axisScore)"
+            )
+            StatusChip(icon: "star.circle.fill", value: "\(game.activeCommandPoints)", label: "可用指令点")
+            StatusChip(icon: "person.3.fill", value: "\(game.readyUnitCount)", label: "待命单位")
         }
     }
 }
 
 struct EndTurnButton: View {
     @EnvironmentObject private var game: GameState
-    var iconOnly = false
 
     var body: some View {
-        Button {
-            game.endTurn()
-        } label: {
-            if iconOnly {
-                Image(systemName: "forward.end.fill")
-                    .font(.body.weight(.bold))
-                    .frame(width: 44, height: 44)
-            } else {
-                Label("结束回合", systemImage: "forward.end.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(minHeight: 44)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
-            }
+        Button(action: game.endTurn) {
+            Image(systemName: "forward.end.fill")
+                .font(.body.weight(.black))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .background(BattlefieldTheme.alert, in: RoundedRectangle(cornerRadius: 8))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(.white.opacity(0.18), lineWidth: 1)
+                }
         }
-        .buttonStyle(.borderedProminent)
-        .tint(BattlefieldTheme.alert)
+        .buttonStyle(.plain)
         .disabled(game.winner != nil)
         .accessibilityLabel("结束回合")
+        .accessibilityHint("结束当前阵营行动并推进战局")
     }
 }
 
 struct StatusChip: View {
     let icon: String
+    let value: String
     let label: String
+    var accessibilityValue: String? = nil
 
     var body: some View {
-        Label(label, systemImage: icon)
+        Label(value, systemImage: icon)
             .font(.caption.bold())
             .foregroundStyle(BattlefieldTheme.ink)
             .lineLimit(1)
-            .minimumScaleFactor(0.72)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 5)
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, 6)
+            .frame(height: 30)
             .background(BattlefieldTheme.fieldGlass.opacity(0.62), in: RoundedRectangle(cornerRadius: 6))
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
                     .stroke(BattlefieldTheme.hairline, lineWidth: 1)
             )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(label)
+            .accessibilityValue(accessibilityValue ?? value)
     }
 }
 
