@@ -1278,32 +1278,22 @@ struct TerrainTexture: View {
     }
 
     private func fieldLines(in size: CGSize) -> some View {
-        let spacing = CGFloat(15 + terrainSeed % 5)
-        let start = -size.height * (0.10 + seedFraction(multiplier: 7, offset: 11) * 0.18)
-        let rise = size.height * (0.12 + seedFraction(multiplier: 13, offset: 5) * 0.16)
-
-        return ZStack {
-            ForEach(0..<3, id: \.self) { index in
-                let patchWidth = size.width * (0.34 + seededFraction(index: index, multiplier: 17, offset: 5) * 0.18)
-                let patchHeight = size.height * (0.18 + seededFraction(index: index, multiplier: 29, offset: 13) * 0.12)
+        // Soft farmland patches only — hex-spanning furrow lines chained into
+        // map-length diagonals on the pale ground, so they were removed.
+        ZStack {
+            ForEach(0..<4, id: \.self) { index in
+                let patchWidth = size.width * (0.30 + seededFraction(index: index, multiplier: 17, offset: 5) * 0.18)
+                let patchHeight = size.height * (0.16 + seededFraction(index: index, multiplier: 29, offset: 13) * 0.12)
                 let x = size.width * (0.18 + seededFraction(index: index, multiplier: 37, offset: 23) * 0.64)
                 let y = size.height * (0.16 + seededFraction(index: index, multiplier: 43, offset: 31) * 0.68)
                 let angle = -16 + Double((terrainSeed + index * 19) % 24)
 
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(index.isMultiple(of: 2) ? Color(red: 0.72, green: 0.66, blue: 0.38).opacity(0.16) : Color(red: 0.42, green: 0.48, blue: 0.30).opacity(0.18))
+                    .fill(index.isMultiple(of: 2) ? Color(red: 0.72, green: 0.66, blue: 0.38).opacity(0.14) : Color(red: 0.42, green: 0.48, blue: 0.30).opacity(0.15))
                     .frame(width: patchWidth, height: patchHeight)
                     .rotationEffect(.degrees(angle))
                     .position(x: x, y: y)
             }
-
-            Path { path in
-                for offset in stride(from: start, through: size.height, by: spacing) {
-                    path.move(to: CGPoint(x: 0, y: offset))
-                    path.addLine(to: CGPoint(x: size.width, y: offset + rise))
-                }
-            }
-            .stroke(Color(red: 0.40, green: 0.45, blue: 0.28).opacity(0.20), lineWidth: 0.8)
         }
     }
 
