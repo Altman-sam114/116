@@ -1395,48 +1395,46 @@ struct TerrainTexture: View {
     private func mountainRidges(in size: CGSize) -> some View {
         let firstPeak = 0.22 + seedFraction(multiplier: 11, offset: 3) * 0.16
         let secondPeak = 0.58 + seedFraction(multiplier: 17, offset: 19) * 0.16
-        let firstHeight = 0.24 + seedFraction(multiplier: 23, offset: 13) * 0.18
-        let secondHeight = 0.20 + seedFraction(multiplier: 29, offset: 31) * 0.20
+        let firstHeight = 0.14 + seedFraction(multiplier: 23, offset: 13) * 0.14
+        let secondHeight = 0.10 + seedFraction(multiplier: 29, offset: 31) * 0.16
 
         return ZStack {
+            // Massif silhouette: rocky gray body rising from the hex floor.
             Path { path in
-                path.move(to: CGPoint(x: size.width * 0.06, y: size.height * 0.76))
+                path.move(to: CGPoint(x: size.width * 0.02, y: size.height * 0.84))
                 path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
-                path.addLine(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
+                path.addLine(to: CGPoint(x: size.width * 0.49, y: size.height * 0.52))
                 path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
-                path.addLine(to: CGPoint(x: size.width * 0.94, y: size.height * 0.74))
-                path.addLine(to: CGPoint(x: size.width * 0.78, y: size.height * 0.88))
-                path.addLine(to: CGPoint(x: size.width * 0.20, y: size.height * 0.88))
+                path.addLine(to: CGPoint(x: size.width * 0.97, y: size.height * 0.82))
                 path.closeSubpath()
             }
-            .fill(Color(red: 0.30, green: 0.30, blue: 0.27).opacity(0.55))
+            .fill(Color(red: 0.42, green: 0.41, blue: 0.38))
 
+            // Sunlit west faces.
             Path { path in
-                path.move(to: CGPoint(x: size.width * 0.06, y: size.height * 0.76))
+                path.move(to: CGPoint(x: size.width * 0.02, y: size.height * 0.84))
                 path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
-                path.addLine(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
-                path.addLine(to: CGPoint(x: size.width * 0.31, y: size.height * 0.83))
+                path.addLine(to: CGPoint(x: size.width * (firstPeak + 0.10), y: size.height * 0.84))
+                path.closeSubpath()
+                path.move(to: CGPoint(x: size.width * 0.49, y: size.height * 0.52))
+                path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
+                path.addLine(to: CGPoint(x: size.width * (secondPeak + 0.10), y: size.height * 0.82))
                 path.closeSubpath()
             }
-            .fill(Color.white.opacity(0.55))
+            .fill(Color(red: 0.60, green: 0.59, blue: 0.55))
 
+            // Snow caps on both peaks.
             Path { path in
-                path.move(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
+                path.move(to: CGPoint(x: size.width * (firstPeak - 0.07), y: size.height * (firstHeight + 0.16)))
+                path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
+                path.addLine(to: CGPoint(x: size.width * (firstPeak + 0.07), y: size.height * (firstHeight + 0.16)))
+                path.closeSubpath()
+                path.move(to: CGPoint(x: size.width * (secondPeak - 0.07), y: size.height * (secondHeight + 0.15)))
                 path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
-                path.addLine(to: CGPoint(x: size.width * 0.94, y: size.height * 0.74))
-                path.addLine(to: CGPoint(x: size.width * 0.72, y: size.height * 0.84))
+                path.addLine(to: CGPoint(x: size.width * (secondPeak + 0.07), y: size.height * (secondHeight + 0.15)))
                 path.closeSubpath()
             }
-            .fill(Color.white.opacity(0.42))
-
-            Path { path in
-                path.move(to: CGPoint(x: size.width * 0.08, y: size.height * 0.72))
-                path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
-                path.addLine(to: CGPoint(x: size.width * 0.49, y: size.height * 0.60))
-                path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
-                path.addLine(to: CGPoint(x: size.width * 0.92, y: size.height * 0.70))
-            }
-            .stroke(Color.white.opacity(0.30), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            .fill(Color.white.opacity(0.92))
         }
     }
 
@@ -2328,7 +2326,8 @@ extension TerrainKind {
         case .river:
             Color(red: 0.26, green: 0.50, blue: 0.68).opacity(0.90)
         case .road:
-            Color(red: 0.66, green: 0.58, blue: 0.40).opacity(0.72)
+            // Dirt-tan road band, dark enough to read across pale ground.
+            Color(red: 0.55, green: 0.46, blue: 0.30).opacity(0.85)
         case .forest:
             Color(red: 0.30, green: 0.44, blue: 0.26).opacity(0.22)
         case .city:
