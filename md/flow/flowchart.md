@@ -384,6 +384,19 @@ flowchart LR
     AX --> ReadOnly
 ```
 
+## v2.21 战场通讯贴边化
+
+```mermaid
+flowchart LR
+    Message["GameState.message"] --> Dock["地图左上 BattlefieldMessageDock"]
+    Dock --> Input["allowsHitTesting(false)\n地图输入穿透"]
+    Restart["MapToolbar 44pt 重开按钮"] --> Action["game.restart()"]
+    HUD["右上动作坞"] --> Map["六角地图 overlay"]
+    Dock --> Map
+    Input --> Map
+    Height["删除地图外消息 HStack"] --> MapHeight["回收纵向战场高度"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

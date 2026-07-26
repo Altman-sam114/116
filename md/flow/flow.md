@@ -83,6 +83,7 @@ v2.19 将 `MapActionHUD` 从选中单位摘要、指标、命令三行收敛为�
 - `BattlefieldTheme.swift` 提供颜色、tactical surface 和跨模块视觉 token。
 - `BattlefieldChrome.swift` 提供薄顶栏、地图工具条、两行选中单位边缘动作坞、空闲 `NEXT` 指挥坞、边缘快捷命令和地图外壳；compact 指标只显示图标/数值并保留完整 VoiceOver 语义，按钮 action 继续原样转发 `GameState`。
 - `ObjectiveJumpDock` 将 `mapFriendlyFocusUnits`、按既有 `objectiveSort` 排列的 `objectiveTiles` 和 `mapEnemyFocusUnits` 分别放入同时可见的 AL/OBJ/AX 有界 section；每段只读完整数组并独立横向滚动，不截断、不缓存、不改排序。友军继续调用 `select(unitID:)`，敌军继续调用 `focus(unitID:)`，据点继续调用 `focus(coordinate:)`，焦点变化沿既有 `ScrollViewReader` 链定位地图。
+- v2.21 不再让 `BattlefieldView` 用独立 HStack 压缩地图；`BattlefieldMessageDock` 在地图左上只读 `game.message` 并关闭 hit testing，右上动作坞和底部定位轨道保持原链。`MapRestartButton` 位于地图工具栏，只把 Button action 转发给既有 `game.restart()`。
 - `BattlefieldMap.swift` 保持原有 `position(for:)`、tile frame、`Hexagon` 命中路径和 `HexInputReader` 三种输入链；连续田块、分层树林、建筑体块、山地明暗面、雪地凹陷、河流与公路多层纹理只从 `TerrainTile`、q/r seed 和 `HexCoordinate.neighbors` 只读派生；河路暗边、主体和高光复用同一连接 Path；地图外接 frame 按 viewport 高度计算满幅缩放；选中光环与目标准星只叠加绘制，不参与命中。地格 sibling 呈现层级只从当前单位、聚焦和选中状态派生，不改变数据、布局或输入。
 - `CombatResolutionOverlay` 用 `summary.id` 驱动可取消的一次性表现 phase；冲击点由 `summary.defenderCoordinate` 经既有 `position(for:)` 定位，HIT、RET、HP 和结论只读 summary。反馈层不响应输入并只暴露一条组合 VoiceOver 摘要；Reduce Motion 禁用缩放和位移。
 - `CombatResolutionOverlay` 的任务由 `summary.id` 驱动并在每次阶段写入前检查取消；新战果会从 impact 或 Reduce Motion 的 resolved 重新开始，不继承旧 hidden。hidden 后不暴露 VoiceOver 元素，整个反馈层始终不响应输入。

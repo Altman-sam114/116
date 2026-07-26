@@ -138,43 +138,11 @@ struct StatusChip: View {
 }
 
 struct BattlefieldView: View {
-    @EnvironmentObject private var game: GameState
     @State private var mapScaleMode: MapScaleMode = .campaign
     @State private var isSupportDeckExpanded = false
 
     var body: some View {
         VStack(spacing: 6) {
-            HStack(spacing: 10) {
-                Label {
-                    Text(game.message)
-                        .font(.caption.weight(.semibold))
-                        .lineLimit(1)
-                        .foregroundStyle(BattlefieldTheme.ink)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } icon: {
-                    Image(systemName: "dot.radiowaves.left.and.right")
-                        .foregroundStyle(BattlefieldTheme.signal)
-                }
-                .padding(.horizontal, 9)
-                .padding(.vertical, 6)
-                .background(BattlefieldTheme.commandDeckDeep.opacity(0.56), in: RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(BattlefieldTheme.hairline, lineWidth: 1)
-                )
-
-                Button {
-                    game.restart()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.body.weight(.bold))
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.bordered)
-                .tint(.white)
-                .accessibilityLabel("重新开始")
-            }
-
             MapCommandCenter(mapScaleMode: $mapScaleMode)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             BattlefieldSupportDeck(isExpanded: $isSupportDeckExpanded)
@@ -284,6 +252,7 @@ struct MapCommandCenter: View {
 
             GeometryReader { mapProxy in
                 let isCompactMapChrome = mapProxy.size.width < 680
+                let isTightMapChrome = mapProxy.size.width < 820
 
                 ZStack {
                     ScrollViewReader { proxy in
@@ -306,8 +275,11 @@ struct MapCommandCenter: View {
                     }
 
                     VStack(spacing: 0) {
-                        HStack(alignment: .top) {
-                            Spacer(minLength: 8)
+                        HStack(alignment: .top, spacing: 6) {
+                            BattlefieldMessageDock(compact: isTightMapChrome)
+
+                            Spacer(minLength: 6)
+
                             if game.selectedUnit != nil {
                                 MapActionHUD(compact: isCompactMapChrome)
                             } else {
@@ -367,9 +339,10 @@ struct MapToolbar: View {
             toolbarTitle
             Spacer(minLength: 8)
             scalePicker
+            MapRestartButton()
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .padding(.vertical, 2)
         .background(BattlefieldTheme.commandDeck.opacity(0.80))
         .overlay(alignment: .bottom) {
             Rectangle()
@@ -408,6 +381,58 @@ struct MapToolbar: View {
         .pickerStyle(.segmented)
         .frame(width: 164)
         .accessibilityLabel("地图缩放")
+    }
+}
+
+struct BattlefieldMessageDock: View {
+    @EnvironmentObject private var game: GameState
+    let compact: Bool
+
+    var body: some View {
+        Label {
+            Text(game.message)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } icon: {
+            Image(systemName: "dot.radiowaves.left.and.right")
+                .foregroundStyle(BattlefieldTheme.signal)
+                .accessibilityHidden(true)
+        }
+        .foregroundStyle(BattlefieldTheme.ink)
+        .padding(.horizontal, 9)
+        .frame(width: compact ? 180 : 420, height: 44, alignment: .leading)
+        .background(BattlefieldTheme.commandDeckDeep.opacity(0.76), in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("战场通讯")
+        .accessibilityValue(game.message)
+        .allowsHitTesting(false)
+    }
+}
+
+struct MapRestartButton: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        Button(action: game.restart) {
+            Image(systemName: "arrow.clockwise")
+                .font(.body.weight(.bold))
+                .frame(width: 44, height: 44)
+                .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 7))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(BattlefieldTheme.hairline, lineWidth: 1)
+                }
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(BattlefieldTheme.ink)
+        .accessibilityLabel("重新开始")
+        .accessibilityHint("重新开始当前战役")
     }
 }
 
