@@ -1433,6 +1433,7 @@ struct TerrainTexture: View {
         let endY = 0.36 + seedFraction(multiplier: 19, offset: 37) * 0.18
 
         return ZStack {
+            // Drift shading.
             Path { path in
                 path.move(to: CGPoint(x: 0, y: size.height * startY))
                 path.addCurve(
@@ -1456,17 +1457,25 @@ struct TerrainTexture: View {
             }
             .stroke(Color.white.opacity(0.30), lineWidth: 1.4)
 
-            Path { path in
-                let lowerStart = min(0.86, startY + 0.23)
-                let lowerEnd = min(0.84, endY + 0.27)
-                path.move(to: CGPoint(x: 0, y: size.height * lowerStart))
-                path.addCurve(
-                    to: CGPoint(x: size.width, y: size.height * lowerEnd),
-                    control1: CGPoint(x: size.width * 0.34, y: size.height * (lowerStart - 0.12)),
-                    control2: CGPoint(x: size.width * 0.72, y: size.height * (lowerEnd + 0.10))
-                )
+            // GoG3-style snow-dusted conifers scattered on roughly half of
+            // the snowfield hexes.
+            if terrainSeed % 2 == 0 {
+                ForEach(0..<3, id: \.self) { index in
+                    let x = size.width * (0.22 + seededFraction(index: index, multiplier: 41, offset: 11) * 0.56)
+                    let y = size.height * (0.30 + seededFraction(index: index, multiplier: 27, offset: 47) * 0.44)
+                    let treeHeight = 10 + CGFloat((terrainSeed + index * 7) % 5)
+
+                    SnowConiferShape()
+                        .fill(Color(red: 0.24, green: 0.36, blue: 0.28))
+                        .overlay {
+                            SnowConiferCapShape()
+                                .fill(Color.white.opacity(0.88))
+                        }
+                        .frame(width: treeHeight * 0.72, height: treeHeight)
+                        .shadow(color: Color.black.opacity(0.20), radius: 0.7, x: 0.8, y: 1)
+                        .position(x: x, y: y)
+                }
             }
-            .stroke(Color.blue.opacity(0.08), lineWidth: 2)
         }
     }
 
@@ -1603,8 +1612,7 @@ struct ObjectiveFlagMarker: View {
 }
 
 /// A small banner with a gently waving fly edge.
-struct WavingFlagShape: Shape {
-    func path(in rect: CGRect) -> Path {
+struct WavingFlagShape: Shape {    func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.minX, y: rect.minY))
         path.addCurve(
@@ -1618,6 +1626,43 @@ struct WavingFlagShape: Shape {
             control1: CGPoint(x: rect.width * 0.62, y: rect.maxY + rect.height * 0.14),
             control2: CGPoint(x: rect.width * 0.34, y: rect.maxY - rect.height * 0.26)
         )
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Two stacked triangles forming a stylized conifer silhouette.
+struct SnowConiferShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        // Upper canopy.
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.18, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.18, y: rect.midY))
+        path.closeSubpath()
+        // Lower canopy.
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.28))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - rect.height * 0.14))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - rect.height * 0.14))
+        path.closeSubpath()
+        // Trunk.
+        path.addRect(CGRect(
+            x: rect.midX - rect.width * 0.07,
+            y: rect.maxY - rect.height * 0.16,
+            width: rect.width * 0.14,
+            height: rect.height * 0.16
+        ))
+        return path
+    }
+}
+
+/// Snow highlight covering the conifer's top canopy.
+struct SnowConiferCapShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.midX + rect.width * 0.22, y: rect.minY + rect.height * 0.30))
+        path.addLine(to: CGPoint(x: rect.midX - rect.width * 0.22, y: rect.minY + rect.height * 0.30))
         path.closeSubpath()
         return path
     }

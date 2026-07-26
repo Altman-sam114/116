@@ -542,8 +542,21 @@ struct UnitModelDetailShape: Shape {
             ),
             cornerSize: CGSize(width: rect.height * 0.08, height: rect.height * 0.08)
         )
+        // Commander hatch on the turret roof.
+        let hatchSize = rect.height * 0.12
+        path.addEllipse(
+            in: CGRect(
+                x: rect.minX + rect.width * 0.41 - hatchSize / 2,
+                y: rect.minY + rect.height * 0.15 - hatchSize / 2,
+                width: hatchSize,
+                height: hatchSize
+            )
+        )
         path.move(to: point(x: 0.61, y: 0.20, in: rect))
         path.addLine(to: point(x: 0.96, y: 0.20, in: rect))
+        // Muzzle brake tick at the barrel tip.
+        path.move(to: point(x: 0.93, y: 0.15, in: rect))
+        path.addLine(to: point(x: 0.93, y: 0.25, in: rect))
         return path
     }
 
