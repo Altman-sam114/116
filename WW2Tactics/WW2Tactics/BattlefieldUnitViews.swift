@@ -58,10 +58,17 @@ struct UnitCounter: View {
             .opacity(isActionComplete ? 0.78 : 1)
 
             HStack(spacing: 3) {
-                Image(systemName: unit.hasMoved ? "checkmark" : "arrow.up.right")
-                    .font(.system(size: 8, weight: .black))
+                Group {
+                    if unit.hasMoved {
+                        Text("✓")
+                            .font(.system(size: 10, weight: .black, design: .rounded))
+                    } else {
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 8, weight: .black))
+                    }
+                }
                     .foregroundStyle(unit.hasMoved ? Color.white.opacity(0.92) : Color.cyan)
-                    .frame(width: 11, height: 11)
+                    .frame(width: 13, height: 13)
                     .background(Color.black.opacity(0.68), in: Circle())
                     .overlay {
                         Circle()
@@ -69,19 +76,26 @@ struct UnitCounter: View {
                     }
 
                 MiniHealthBar(ratio: unit.hpRatio)
-                    .frame(width: 36, height: 6)
+                    .frame(width: 32, height: 6)
 
-                Image(systemName: unit.hasAttacked ? "checkmark" : "scope")
-                    .font(.system(size: 8, weight: .black))
+                Group {
+                    if unit.hasAttacked {
+                        Text("✓")
+                            .font(.system(size: 10, weight: .black, design: .rounded))
+                    } else {
+                        Image(systemName: "scope")
+                            .font(.system(size: 8, weight: .black))
+                    }
+                }
                     .foregroundStyle(unit.hasAttacked ? Color.white.opacity(0.92) : Color.orange)
-                    .frame(width: 11, height: 11)
+                    .frame(width: 13, height: 13)
                     .background(Color.black.opacity(0.68), in: Circle())
                     .overlay {
                         Circle()
                             .stroke(unit.hasAttacked ? Color.white.opacity(0.42) : Color.orange.opacity(0.72), lineWidth: 0.6)
                     }
             }
-            .frame(width: 64, height: 11)
+            .frame(width: 64, height: 13)
             .accessibilityHidden(true)
         }
         .accessibilityElement(children: .ignore)
