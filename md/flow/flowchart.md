@@ -346,6 +346,22 @@ flowchart LR
     Visible --> Combat["交战轴线 / 战果叠层继续在最上层"]
 ```
 
+## v2.19 选中单位边缘动作坞
+
+```mermaid
+flowchart LR
+    Selected["selectedUnit"] --> Dock["两行 MapActionHUD"]
+    Selected --> Summary["军械徽章 + 单位名 / HP"]
+    Selected --> Metrics["MOVE / ATK / THR / SUP 只读数值"]
+    Metrics --> Compact["上行图标 + 数值"]
+    Metrics --> VoiceOver["完整标签 + 数值朗读"]
+    Dock --> Wait["44pt 待命 -> waitSelectedUnit"]
+    Dock --> Commands["44pt NEXT / ATK / POS / OBJ"]
+    Commands --> Actions["原样转发 GameState action"]
+    Preview{"focusedCommandPreview 可执行?"} -->|是| Inline["按需展开 InlineMapCommandPreview"]
+    Preview -->|否| TwoRows["保持两行紧凑高度"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

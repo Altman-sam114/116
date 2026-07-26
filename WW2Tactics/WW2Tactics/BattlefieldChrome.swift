@@ -494,17 +494,19 @@ struct MapActionHUD: View {
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 5 : 7) {
             if let unit = game.selectedUnit {
-                HStack(spacing: 7) {
+                let supplyState = game.supplyState(for: unit)
+
+                HStack(spacing: 4) {
                     UnitShapeBadge(
                         kind: unit.kind,
                         faction: unit.faction,
                         hasCommander: unit.commander != nil,
                         rank: unit.rank,
-                        supplyState: game.supplyState(for: unit),
+                        supplyState: supplyState,
                         tacticalStatus: unit.tacticalStatus,
                         isSpent: unit.hasMoved && unit.hasAttacked,
-                        width: 48,
-                        height: 28
+                        width: compact ? 34 : 36,
+                        height: 24
                     )
 
                     VStack(alignment: .leading, spacing: 1) {
@@ -513,32 +515,66 @@ struct MapActionHUD: View {
                             .foregroundStyle(.white)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
-                        Text("\(unit.kind.title) · HP \(unit.hp)/\(unit.maxHP)")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                        Text("\(unit.kind.title) · \(unit.hp)/\(unit.maxHP)")
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
                             .foregroundStyle(.white.opacity(0.62))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
                     }
+                    .frame(maxWidth: compact ? 48 : 72, alignment: .leading)
 
-                    Spacer(minLength: 4)
+                    MapHudMetric(
+                        icon: "point.topleft.down.curvedto.point.bottomright.up",
+                        label: "MOVE",
+                        value: "\(game.reachableTiles(for: unit).count)",
+                        color: .cyan,
+                        compact: true
+                    )
+                    .frame(width: compact ? 24 : 27)
 
-                    Button {
-                        game.waitSelectedUnit()
-                    } label: {
+                    MapHudMetric(
+                        icon: "target",
+                        label: "ATK",
+                        value: "\(game.attackableTiles(for: unit).count)",
+                        color: .orange,
+                        compact: true
+                    )
+                    .frame(width: compact ? 24 : 27)
+
+                    MapHudMetric(
+                        icon: "exclamationmark.triangle.fill",
+                        label: "THR",
+                        value: "\(game.threatenedReachableTiles(for: unit).count)",
+                        color: .red,
+                        compact: true
+                    )
+                    .frame(width: compact ? 24 : 27)
+
+                    MapHudMetric(
+                        icon: supplyState == .supplied ? "fuelpump.fill" : "exclamationmark.octagon.fill",
+                        label: supplyState.shortTitle,
+                        value: "\(max(0, game.supplyLineTiles(for: unit).count - 1))",
+                        color: supplyState == .supplied ? .green : .red,
+                        compact: true
+                    )
+                    .frame(width: compact ? 24 : 27)
+
+                    Button(action: game.waitSelectedUnit) {
                         Image(systemName: "pause.fill")
                             .font(.caption.weight(.black))
-                            .frame(width: 30, height: 30)
+                            .foregroundStyle(unit.hasMoved && unit.hasAttacked ? Color.white.opacity(0.34) : Color.white)
+                            .frame(width: 44, height: 44)
+                            .background(Color.white.opacity(unit.hasMoved && unit.hasAttacked ? 0.05 : 0.10), in: RoundedRectangle(cornerRadius: 6))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color.white.opacity(unit.hasMoved && unit.hasAttacked ? 0.08 : 0.20), lineWidth: 1)
+                            }
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.white)
+                    .buttonStyle(.plain)
                     .disabled(unit.hasMoved && unit.hasAttacked)
                     .accessibilityLabel("待命")
                 }
-
-                HStack(spacing: 5) {
-                    MapHudMetric(icon: "point.topleft.down.curvedto.point.bottomright.up", label: "MOVE", value: "\(game.reachableTiles(for: unit).count)", color: .cyan)
-                    MapHudMetric(icon: "target", label: "ATK", value: "\(game.attackableTiles(for: unit).count)", color: .orange)
-                    MapHudMetric(icon: "exclamationmark.triangle.fill", label: "THR", value: "\(game.threatenedReachableTiles(for: unit).count)", color: .red)
-                    MapHudMetric(icon: game.supplyState(for: unit) == .supplied ? "fuelpump.fill" : "exclamationmark.octagon.fill", label: game.supplyState(for: unit).shortTitle, value: "\(max(0, game.supplyLineTiles(for: unit).count - 1))", color: game.supplyState(for: unit) == .supplied ? .green : .red)
-                }
+                .frame(minHeight: 44)
 
                 HStack(spacing: 5) {
                     MapQuickCommandButton(
@@ -626,10 +662,9 @@ struct MapQuickCommandButton: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
                 .foregroundStyle(isEnabled ? color : Color.white.opacity(0.38))
+                .padding(.horizontal, 6)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 44)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 5)
                 .background((isEnabled ? color : Color.white).opacity(isEnabled ? 0.16 : 0.06), in: RoundedRectangle(cornerRadius: 6))
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
@@ -655,23 +690,40 @@ struct MapHudMetric: View {
     let label: String
     let value: String
     let color: Color
+    var compact: Bool = false
 
     var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 8, weight: .black))
-            Text(label)
-                .font(.system(size: 8, weight: .black, design: .rounded))
-            Text(value)
-                .font(.system(size: 10, weight: .black, design: .rounded))
+        if compact {
+            VStack(spacing: 1) {
+                Image(systemName: icon)
+                    .font(.system(size: 8, weight: .black))
+                Text(value)
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+            }
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .frame(maxWidth: .infinity, minHeight: 30)
+            .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 5))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(label) \(value)")
+        } else {
+            HStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.system(size: 8, weight: .black))
+                Text(label)
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+                Text(value)
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+            }
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity)
+            .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 5))
         }
-        .foregroundStyle(color)
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
-        .padding(.horizontal, 5)
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity)
-        .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 5))
     }
 }
 

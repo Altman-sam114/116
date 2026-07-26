@@ -10,6 +10,8 @@ v2.17 在 resolved 后增加只属于 `CombatResolutionOverlay` 的 dismissing/h
 
 v2.18 让 `UnitCounter` 直接读取 `BattleUnit.hasMoved/hasAttacked`，在军械模型下方以固定的移动图标、五段 HP 和开火图标表达剩余行动资源；消耗后的图标在原位切为完成符号。只有两个资源都耗尽时才把 `MapUnitPiece` 视为 spent 并整体降权，不新增或回写规则状态。`HexMapView` 同时从 tile 是否有单位、是否聚焦/选中只读派生 sibling `zIndex`，使含单位的整格高于普通地形，而交战轴线和战果叠层继续位于所有 tile 上方。
 
+v2.19 将 `MapActionHUD` 从选中单位摘要、指标、命令三行收敛为两行边缘动作坞：上行合并军械徽章、单位名/HP、图标数值和 44pt 待命，下行保留四个 44pt 快捷命令。`MapHudMetric.compact` 只改变可视排版，VoiceOver 继续读出完整标签/数值；`InlineMapCommandPreview` 仍只在可执行时按需展开。
+
 ## 1. 当前核心数据流
 
 ```text
@@ -79,7 +81,7 @@ v2.18 让 `UnitCounter` 直接读取 `BattleUnit.hasMoved/hasAttacked`，在军�
 - `ContentView.swift` 只负责根响应式编排、Inspector 和本轮未拆分的侧栏/战报组件。
 - `BattlefieldWorkspace` 默认收起 Inspector，regular 宽度从右缘覆盖、compact 宽度从底部覆盖；展开按钮保持 44pt、支持 VoiceOver 和 Reduce Motion，地图尺寸不随 Inspector 开关改变。
 - `BattlefieldTheme.swift` 提供颜色、tactical surface 和跨模块视觉 token。
-- `BattlefieldChrome.swift` 提供薄顶栏、地图工具条、选中单位 HUD、空闲 `NEXT` 指挥坞、边缘快捷命令和地图外壳；按钮 action 继续原样转发 `GameState`。
+- `BattlefieldChrome.swift` 提供薄顶栏、地图工具条、两行选中单位边缘动作坞、空闲 `NEXT` 指挥坞、边缘快捷命令和地图外壳；compact 指标只显示图标/数值并保留完整 VoiceOver 语义，按钮 action 继续原样转发 `GameState`。
 - `BattlefieldMap.swift` 保持原有 `position(for:)`、tile frame、`Hexagon` 命中路径和 `HexInputReader` 三种输入链；连续田块、分层树林、建筑体块、山地明暗面、雪地凹陷、河流与公路多层纹理只从 `TerrainTile`、q/r seed 和 `HexCoordinate.neighbors` 只读派生；河路暗边、主体和高光复用同一连接 Path；地图外接 frame 按 viewport 高度计算满幅缩放；选中光环与目标准星只叠加绘制，不参与命中。地格 sibling 呈现层级只从当前单位、聚焦和选中状态派生，不改变数据、布局或输入。
 - `CombatResolutionOverlay` 用 `summary.id` 驱动可取消的一次性表现 phase；冲击点由 `summary.defenderCoordinate` 经既有 `position(for:)` 定位，HIT、RET、HP 和结论只读 summary。反馈层不响应输入并只暴露一条组合 VoiceOver 摘要；Reduce Motion 禁用缩放和位移。
 - `CombatResolutionOverlay` 的任务由 `summary.id` 驱动并在每次阶段写入前检查取消；新战果会从 impact 或 Reduce Motion 的 resolved 重新开始，不继承旧 hidden。hidden 后不暴露 VoiceOver 元素，整个反馈层始终不响应输入。
