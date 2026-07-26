@@ -318,6 +318,29 @@ flowchart TD
     Task --> Cancel["新 summary 或 View 消失：取消旧任务"]
 ```
 
+## v2.18 单位行动状态可读性
+
+```mermaid
+flowchart LR
+    Unit["BattleUnit 规则事实"] --> Moved{"hasMoved?"}
+    Unit --> Attacked{"hasAttacked?"}
+    Unit --> HP["hp / maxHP"]
+    Moved -->|否| MoveReady["左侧：移动可用图标"]
+    Moved -->|是| MoveDone["左侧：完成符号"]
+    Attacked -->|否| FireReady["右侧：开火可用图标"]
+    Attacked -->|是| FireDone["右侧：完成符号"]
+    HP --> Health["中央：五段 HP"]
+    Moved --> Both{"移动与开火都耗尽?"}
+    Attacked --> Both
+    Both -->|否| Clear["模型保持清楚"]
+    Both -->|是| Spent["模型与地面环整体降权"]
+    Unit --> VoiceOver["actionStateText 组合朗读"]
+    MoveReady --> Decorative["图标装饰：无重复 VoiceOver"]
+    MoveDone --> Decorative
+    FireReady --> Decorative
+    FireDone --> Decorative
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

@@ -45,7 +45,7 @@ struct UnitCounter: View {
                 rank: unit.rank,
                 supplyState: game.supplyState(for: unit),
                 tacticalStatus: unit.tacticalStatus,
-                isSpent: unit.hasAttacked,
+                isSpent: isActionComplete,
                 width: unit.kind.mapPieceWidth,
                 height: 40
             )
@@ -56,12 +56,40 @@ struct UnitCounter: View {
                 }
             }
 
-            MiniHealthBar(ratio: unit.hpRatio)
-                .frame(width: 58, height: 6)
+            HStack(spacing: 3) {
+                Image(systemName: unit.hasMoved ? "checkmark.circle.fill" : "arrow.up.right.circle.fill")
+                    .font(.system(size: 7, weight: .black))
+                    .foregroundStyle(unit.hasMoved ? Color.white.opacity(0.56) : Color.cyan)
+                    .frame(width: 10, height: 10)
+                    .background(Color.black.opacity(0.68), in: Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(unit.hasMoved ? Color.white.opacity(0.20) : Color.cyan.opacity(0.72), lineWidth: 0.6)
+                    }
+
+                MiniHealthBar(ratio: unit.hpRatio)
+                    .frame(width: 38, height: 6)
+
+                Image(systemName: unit.hasAttacked ? "checkmark.circle.fill" : "scope")
+                    .font(.system(size: 7, weight: .black))
+                    .foregroundStyle(unit.hasAttacked ? Color.white.opacity(0.56) : Color.orange)
+                    .frame(width: 10, height: 10)
+                    .background(Color.black.opacity(0.68), in: Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(unit.hasAttacked ? Color.white.opacity(0.20) : Color.orange.opacity(0.72), lineWidth: 0.6)
+                    }
+            }
+            .frame(width: 64, height: 10)
+            .accessibilityHidden(true)
         }
-        .opacity(unit.hasAttacked ? 0.72 : 1)
+        .opacity(isActionComplete ? 0.68 : 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var isActionComplete: Bool {
+        unit.hasMoved && unit.hasAttacked
     }
 
     private var accessibilitySummary: String {
