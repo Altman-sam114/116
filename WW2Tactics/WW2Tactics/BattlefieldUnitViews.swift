@@ -68,21 +68,14 @@ struct UnitCounter: View {
             .opacity(isActionComplete ? 0.78 : 1)
 
             HStack(spacing: 3) {
-                Group {
-                    if unit.hasMoved {
-                        Text("✓")
-                            .font(.system(size: 10, weight: .black, design: .rounded))
-                    } else {
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 8, weight: .black))
-                    }
-                }
-                    .foregroundStyle(unit.hasMoved ? Color.white.opacity(0.92) : Color.cyan)
-                    .frame(width: 13, height: 13)
-                    .background(Color.black.opacity(0.68), in: Circle())
+                // Single readiness pip replaces the old move/attack chip pair:
+                // green = fully ready, yellow = one action left, gray = done.
+                Circle()
+                    .fill(readinessColor)
+                    .frame(width: 7, height: 7)
                     .overlay {
                         Circle()
-                            .stroke(unit.hasMoved ? Color.white.opacity(0.42) : Color.cyan.opacity(0.72), lineWidth: 0.6)
+                            .stroke(Color.black.opacity(0.55), lineWidth: 0.8)
                     }
 
                 MiniHealthBar(
@@ -91,26 +84,9 @@ struct UnitCounter: View {
                         ? Color(red: 0.30, green: 0.62, blue: 0.92)
                         : Color(red: 0.86, green: 0.26, blue: 0.22)
                 )
-                    .frame(width: 32, height: 6)
-
-                Group {
-                    if unit.hasAttacked {
-                        Text("✓")
-                            .font(.system(size: 10, weight: .black, design: .rounded))
-                    } else {
-                        Image(systemName: "scope")
-                            .font(.system(size: 8, weight: .black))
-                    }
-                }
-                    .foregroundStyle(unit.hasAttacked ? Color.white.opacity(0.92) : Color.orange)
-                    .frame(width: 13, height: 13)
-                    .background(Color.black.opacity(0.68), in: Circle())
-                    .overlay {
-                        Circle()
-                            .stroke(unit.hasAttacked ? Color.white.opacity(0.42) : Color.orange.opacity(0.72), lineWidth: 0.6)
-                    }
+                    .frame(width: 40, height: 6)
             }
-            .frame(width: 64, height: 13)
+            .frame(width: 56, height: 11)
             .accessibilityHidden(true)
         }
         .accessibilityElement(children: .ignore)
@@ -119,6 +95,17 @@ struct UnitCounter: View {
 
     private var isActionComplete: Bool {
         unit.hasMoved && unit.hasAttacked
+    }
+
+    private var readinessColor: Color {
+        switch (unit.hasMoved, unit.hasAttacked) {
+        case (false, false):
+            return Color.green
+        case (true, true):
+            return Color.white.opacity(0.55)
+        default:
+            return Color.yellow
+        }
     }
 
     private var accessibilitySummary: String {
@@ -140,23 +127,13 @@ struct MapUnitPiece: View {
 
     var body: some View {
         ZStack {
+            // GoG3-style soft ground disc: one translucent faction-tinted
+            // ellipse with a thin solid rim — no heavy dashes or blur shadow.
             Ellipse()
-                .fill(Color.black.opacity(isSpent ? 0.20 : 0.34))
-                .frame(width: width * 0.88, height: height * 0.42)
-                .offset(y: height * 0.24)
-                .blur(radius: 1)
-
-            Ellipse()
-                .fill(faction.accentColor.opacity(isSpent ? 0.10 : 0.18))
+                .fill(faction.accentColor.opacity(isSpent ? 0.16 : 0.30))
                 .overlay {
                     Ellipse()
-                        .stroke(
-                            faction.accentColor.opacity(isSpent ? 0.58 : 0.96),
-                            style: StrokeStyle(
-                                lineWidth: isSpent ? 1.5 : 2.5,
-                                dash: faction == .axis ? [5, 3] : []
-                            )
-                        )
+                        .stroke(faction.accentColor.opacity(isSpent ? 0.40 : 0.70), lineWidth: 1.3)
                 }
                 .frame(width: width * 0.92, height: height * 0.46)
                 .offset(y: height * 0.20)
