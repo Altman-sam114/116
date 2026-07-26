@@ -2369,8 +2369,9 @@ extension TerrainKind {
         case .river:
             Color(red: 0.26, green: 0.50, blue: 0.68).opacity(0.90)
         case .road:
-            // Dirt-tan road band, dark enough to read across pale ground.
-            Color(red: 0.55, green: 0.46, blue: 0.30).opacity(0.85)
+            // Dirt-tan road band; slimmer + softer so clustered road hexes
+            // read as winding paths instead of a heavy triangle lattice.
+            Color(red: 0.55, green: 0.46, blue: 0.30).opacity(0.68)
         case .forest:
             Color(red: 0.30, green: 0.44, blue: 0.26).opacity(0.22)
         case .city:
@@ -2387,7 +2388,7 @@ extension TerrainKind {
     var connectionWidth: CGFloat {
         switch self {
         case .river: 11
-        case .road: 6
+        case .road: 4.5
         case .forest: 8
         case .city: 12
         case .mountain, .snow, .plains: 7
