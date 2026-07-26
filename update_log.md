@@ -368,6 +368,28 @@
 
 - 云端必须证明规则 smoke 与 build-for-testing 通过，并确认 selected-combat-result 截图仍显示真实 `RET -7` 与 `HIT -21`。
 
+### 维护 / Unity 迁移可行性分析
+
+日期：2026-07-26
+
+核心结论：
+
+- 基于当前 SwiftUI 状态机、22x14 六角地图、115 个 XCTest 方法、RulesSmokeTest 的 1,333 个断言调用和现有 Xcode CI 证据，暂不建议全量重写为 Unity。
+- Unity 的合理触发条件是明确的 Android/PC 发布、多战役内容生产/编辑器，或对实时战斗演出与地图表现提出已确认的需求；当前地图规模不是迁移理由。
+- 若立项，先在 Swift 主线完成稳定单位 ID、版本化战役 JSON、结构化命令/事件和跨引擎 golden fixtures，再以诺曼底基本回合链做独立 Unity 2D 纵切；不得直接翻译 UI 或在 Unity 中重算 View 反馈。
+
+关键文件：
+
+- `md/unity分析/Unity迁移可行性分析报告.md`
+
+验证结果：
+
+- 本轮为文档分析，不运行 Swift、Xcode、Unity 或 GitHub Actions 验证；文档完成后执行 `git diff --check`。
+
+遗留事项：
+
+- 是否启动 Unity 取决于人工确认的发布平台、内容生产、演出目标，以及 Unity 许可和 CI 凭据可用性。
+
 ### v0.1 / 初始 SwiftUI 战棋原型
 
 日期：2026-06-27 前后
