@@ -318,7 +318,7 @@ struct MapCommandCenter: View {
 
                         Spacer(minLength: 6)
 
-                        ObjectiveJumpDock()
+                        ObjectiveJumpDock(compact: isCompactMapChrome)
                             .padding(.horizontal, isCompactMapChrome ? 6 : 8)
                             .padding(.bottom, isCompactMapChrome ? 6 : 8)
                     }
@@ -678,9 +678,12 @@ struct MapQuickCommandButton: View {
 }
 
 struct ObjectiveJumpDock: View {
+    let compact: Bool
+
     var body: some View {
-        ObjectiveJumpStrip()
-            .padding(8)
+        ObjectiveJumpStrip(compact: compact)
+            .frame(height: 66)
+            .padding(5)
             .background(MapHudBackground())
     }
 }
@@ -781,33 +784,63 @@ struct FrontlineStrip: View {
 
 struct ObjectiveJumpStrip: View {
     @EnvironmentObject private var game: GameState
+    let compact: Bool
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(game.mapFriendlyFocusUnits) { unit in
-                    UnitFocusButton(unit: unit)
+        let friendlyUnits = game.mapFriendlyFocusUnits
+        let objectives = game.objectiveTiles.sorted(by: objectiveSort)
+        let enemyUnits = game.mapEnemyFocusUnits
+
+        GeometryReader { proxy in
+            let spacing: CGFloat = 4
+            let availableWidth = max(0, proxy.size.width - spacing * 2)
+
+            HStack(spacing: spacing) {
+                ObjectiveJumpSection(
+                    icon: "shield.fill",
+                    code: "AL",
+                    title: "友军编队",
+                    count: friendlyUnits.count,
+                    color: Faction.allies.accentColor
+                ) {
+                    ForEach(friendlyUnits) { unit in
+                        UnitFocusButton(unit: unit, compact: compact)
+                    }
                 }
+                .frame(width: availableWidth * friendlySectionRatio)
 
-                Divider()
-                    .frame(height: 30)
-                    .overlay(Color.white.opacity(0.16))
-
-                ForEach(game.objectiveTiles.sorted(by: objectiveSort)) { tile in
-                    ObjectiveJumpButton(tile: tile)
+                ObjectiveJumpSection(
+                    icon: "flag.fill",
+                    code: "OBJ",
+                    title: "战役据点",
+                    count: objectives.count,
+                    color: BattlefieldTheme.brass
+                ) {
+                    ForEach(objectives) { tile in
+                        ObjectiveJumpButton(tile: tile, compact: compact)
+                    }
                 }
+                .frame(width: availableWidth * objectiveSectionRatio)
 
-                Divider()
-                    .frame(height: 30)
-                    .overlay(Color.white.opacity(0.16))
-
-                ForEach(game.mapEnemyFocusUnits) { unit in
-                    UnitFocusButton(unit: unit)
+                ObjectiveJumpSection(
+                    icon: "scope",
+                    code: "AX",
+                    title: "敌军编队",
+                    count: enemyUnits.count,
+                    color: Faction.axis.accentColor
+                ) {
+                    ForEach(enemyUnits) { unit in
+                        UnitFocusButton(unit: unit, compact: compact)
+                    }
                 }
+                .frame(width: availableWidth * enemySectionRatio)
             }
-            .padding(.vertical, 1)
         }
     }
+
+    private var friendlySectionRatio: CGFloat { compact ? 1.0 / 3.0 : 0.40 }
+    private var objectiveSectionRatio: CGFloat { compact ? 1.0 / 3.0 : 0.26 }
+    private var enemySectionRatio: CGFloat { compact ? 1.0 / 3.0 : 0.34 }
 
     private func objectiveSort(_ left: TerrainTile, _ right: TerrainTile) -> Bool {
         let leftOwnerRank = ownerRank(left.owner)
@@ -830,31 +863,81 @@ struct ObjectiveJumpStrip: View {
     }
 }
 
+struct ObjectiveJumpSection<Content: View>: View {
+    let icon: String
+    let code: String
+    let title: String
+    let count: Int
+    let color: Color
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(spacing: 2) {
+            HStack(spacing: 3) {
+                Image(systemName: icon)
+                    .accessibilityHidden(true)
+                Text(code)
+                Spacer(minLength: 2)
+                Text("\(count)")
+                    .monospacedDigit()
+            }
+            .font(.system(size: 9, weight: .black, design: .rounded))
+            .foregroundStyle(color)
+            .frame(height: 14)
+            .padding(.horizontal, 4)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(title)，共 \(count) 项")
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 4) {
+                    content
+                }
+                .padding(.horizontal, 3)
+            }
+            .frame(height: 50)
+        }
+        .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(color.opacity(0.28), lineWidth: 1)
+        }
+    }
+}
+
 struct ObjectiveJumpButton: View {
     @EnvironmentObject private var game: GameState
     let tile: TerrainTile
+    let compact: Bool
 
     var body: some View {
-        Button {
-            game.focus(coordinate: tile.coordinate)
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "flag.fill")
-                    .font(.caption2.weight(.black))
+        Button(action: focusObjective) {
+            VStack(spacing: 1) {
+                HStack(spacing: 4) {
+                    Image(systemName: "flag.fill")
+                        .font(.system(size: 14, weight: .black))
+                    Text(ownerCode)
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .padding(.horizontal, 4)
+                        .frame(minHeight: 16)
+                        .background(ownerColor.opacity(0.18), in: Capsule())
+                        .overlay {
+                            Capsule()
+                                .stroke(ownerColor.opacity(0.52), style: ownerStrokeStyle)
+                        }
+                }
+
                 Text(tile.objectiveName ?? "据点")
-                    .font(.caption2.weight(.bold))
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.68)
-                Text(ownerCode)
+                    .minimumScaleFactor(0.72)
+
+                Text("q\(tile.coordinate.q),r\(tile.coordinate.r)")
                     .font(.system(size: 9, weight: .black, design: .rounded))
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(ownerColor.opacity(0.18), in: Capsule())
+                    .foregroundStyle(.white.opacity(0.56))
             }
             .foregroundStyle(ownerColor)
-            .frame(minHeight: 40)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 3)
+            .frame(width: itemWidth, height: 50)
             .background(Color.white.opacity(isFocused ? 0.14 : 0.07), in: RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7)
@@ -862,8 +945,13 @@ struct ObjectiveJumpButton: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("定位据点\(tile.objectiveName ?? "据点")")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("定位据点，\(tile.objectiveName ?? "据点")")
+        .accessibilityValue("\(ownerTitle)，坐标 q\(tile.coordinate.q), r\(tile.coordinate.r)\(isFocused ? "，当前焦点" : "")")
+        .accessibilityHint("在地图上定位该据点，不执行命令")
     }
+
+    private var itemWidth: CGFloat { compact ? 72 : 84 }
 
     private var isFocused: Bool {
         game.focusedCoordinate == tile.coordinate
@@ -876,41 +964,77 @@ struct ObjectiveJumpButton: View {
     private var ownerCode: String {
         tile.owner?.shortTitle ?? "NEU"
     }
+
+    private var ownerTitle: String {
+        tile.owner?.title ?? "中立"
+    }
+
+    private var ownerStrokeStyle: StrokeStyle {
+        StrokeStyle(lineWidth: 1, dash: tile.owner == .axis ? [3, 2] : [])
+    }
+
+    private func focusObjective() {
+        game.focus(coordinate: tile.coordinate)
+    }
 }
 
 struct UnitFocusButton: View {
     @EnvironmentObject private var game: GameState
     let unit: BattleUnit
+    let compact: Bool
 
     var body: some View {
-        Button {
-            if unit.faction == game.activeFaction {
-                game.select(unitID: unit.id)
-            } else {
-                game.focus(unitID: unit.id)
-            }
-        } label: {
-            HStack(spacing: 6) {
-                UnitShapeBadge(
-                    kind: unit.kind,
-                    faction: unit.faction,
-                    hasCommander: unit.commander != nil,
-                    rank: unit.rank,
-                    supplyState: game.supplyState(for: unit),
-                    tacticalStatus: unit.tacticalStatus,
-                    isSpent: unit.hasMoved && unit.hasAttacked,
-                    width: 34,
-                    height: 20
-                )
-                Text(unit.name)
-                    .font(.caption2.weight(.bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.68)
+        Button(action: focusUnit) {
+            VStack(spacing: 2) {
+                HStack(spacing: 3) {
+                    UnitShapeBadge(
+                        kind: unit.kind,
+                        faction: unit.faction,
+                        hasCommander: unit.commander != nil,
+                        rank: unit.rank,
+                        supplyState: supplyState,
+                        tacticalStatus: unit.tacticalStatus,
+                        isSpent: isActionComplete,
+                        width: compact ? 30 : 34,
+                        height: 20
+                    )
+
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(unit.name)
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                        Text("\(unit.hp)/\(unit.maxHP)")
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.68))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                HStack(spacing: 2) {
+                    CompactUnitActionState(
+                        code: "M",
+                        readyIcon: "arrow.up.right",
+                        isConsumed: unit.hasMoved,
+                        readyColor: .cyan
+                    )
+                    MiniHealthBar(ratio: unit.hpRatio)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 6)
+                    CompactUnitActionState(
+                        code: "A",
+                        readyIcon: "scope",
+                        isConsumed: unit.hasAttacked,
+                        readyColor: .orange
+                    )
+                }
             }
             .foregroundStyle(.white.opacity(0.82))
-            .frame(minHeight: 40)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 3)
+            .frame(width: itemWidth, height: 50)
             .background(Color.white.opacity(isFocused ? 0.14 : 0.07), in: RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7)
@@ -918,11 +1042,66 @@ struct UnitFocusButton: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(unit.faction == game.activeFaction ? "选择\(unit.name)" : "定位\(unit.name)")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(actionTitle)，\(unit.name)")
+        .accessibilityValue(accessibilityValue)
+        .accessibilityHint("在地图上\(actionTitle)该单位，不执行命令")
+    }
+
+    private var itemWidth: CGFloat { compact ? 72 : 84 }
+
+    private var isActionComplete: Bool {
+        unit.hasMoved && unit.hasAttacked
+    }
+
+    private var supplyState: SupplyState {
+        game.supplyState(for: unit)
+    }
+
+    private var actionTitle: String {
+        unit.faction == game.activeFaction ? "选择" : "定位"
+    }
+
+    private var accessibilityValue: String {
+        let moveText = unit.hasMoved ? "移动已用" : "移动可用"
+        let attackText = unit.hasAttacked ? "攻击已用" : "攻击可用"
+        let commanderText = unit.commander.map { "，将领\($0.name)" } ?? "，无将领"
+        return "\(unit.faction.title)，\(unit.kind.title)，生命 \(unit.hp) / \(unit.maxHP)，\(moveText)，\(attackText)，\(supplyState.title)，\(unit.tacticalStatus.title)，\(unit.rank.title)\(commanderText)"
     }
 
     private var isFocused: Bool {
         game.focusedUnit?.id == unit.id
+    }
+
+    private func focusUnit() {
+        if unit.faction == game.activeFaction {
+            game.select(unitID: unit.id)
+        } else {
+            game.focus(unitID: unit.id)
+        }
+    }
+}
+
+struct CompactUnitActionState: View {
+    let code: String
+    let readyIcon: String
+    let isConsumed: Bool
+    let readyColor: Color
+
+    var body: some View {
+        HStack(spacing: 1) {
+            Text(code)
+            Image(systemName: isConsumed ? "checkmark" : readyIcon)
+        }
+        .font(.system(size: 9, weight: .black, design: .rounded))
+        .foregroundStyle(isConsumed ? Color.white.opacity(0.72) : readyColor)
+        .frame(width: 22, height: 13)
+        .background(Color.black.opacity(0.52), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(isConsumed ? Color.white.opacity(0.30) : readyColor.opacity(0.62), lineWidth: 0.6)
+        }
+        .accessibilityHidden(true)
     }
 }
 

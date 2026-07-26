@@ -362,6 +362,28 @@ flowchart LR
     Preview -->|否| TwoRows["保持两行紧凑高度"]
 ```
 
+## v2.20 紧凑编队与目标轨道
+
+```mermaid
+flowchart LR
+    Friendly["mapFriendlyFocusUnits 完整既有排序"] --> AL["AL section 独立横滚"]
+    Objectives["objectiveTiles + 既有 objectiveSort"] --> OBJ["OBJ section 独立横滚"]
+    Enemy["mapEnemyFocusUnits 完整既有排序"] --> AX["AX section 独立横滚"]
+    AL --> UnitView["固定宽度模型 / HP / M-A 状态"]
+    AX --> UnitView
+    OBJ --> ObjectiveView["固定宽度旗标 / AL-AX-NEU / 坐标"]
+    UnitView --> FriendlyAction{"当前行动阵营?"}
+    FriendlyAction -->|是| Select["select(unitID:)"]
+    FriendlyAction -->|否| FocusUnit["focus(unitID:)"]
+    ObjectiveView --> FocusObjective["focus(coordinate:)"]
+    Select --> Scroll["既有地图 ScrollViewReader 定位链"]
+    FocusUnit --> Scroll
+    FocusObjective --> Scroll
+    AL --> ReadOnly["不截断 / 不缓存 / 不执行命令"]
+    OBJ --> ReadOnly
+    AX --> ReadOnly
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
