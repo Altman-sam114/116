@@ -463,18 +463,8 @@ struct HexTileView: View {
                     .padding(.leading, 8)
             }
 
-            if isEnemyControlZone && !isAttackFocusMode {
-                ControlZoneMarker()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                    .padding(.bottom, 6)
-                    .padding(.trailing, 9)
-            }
-
-            if isThreatenedMoveTile && !isAttackFocusMode {
-                ThreatenedMoveMarker()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                    .padding(.trailing, 9)
-            }
+            // Threatened / control-zone tiles rely on the red hex wash alone —
+            // per-tile "!" and triangle chips doubled the same signal.
 
             if shouldShowActionMarker {
                 ActionMarker(actionHint: actionHint)
