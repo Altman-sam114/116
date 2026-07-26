@@ -79,15 +79,18 @@ struct HexMapView: View {
 
             ForEach(game.tiles) { tile in
                 let point = position(for: tile.coordinate)
+                let unit = game.unit(at: tile.coordinate)
+                let tileIsSelected = selected?.position == tile.coordinate
+                let tileIsFocused = game.focusedCoordinate == tile.coordinate
                 let terrainConnectionDirections = tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
                     terrainByCoordinate[coordinate] == tile.terrain ? index : nil
                 }
                 HexTileView(
                     tile: tile,
                     terrainConnectionDirections: terrainConnectionDirections,
-                    unit: game.unit(at: tile.coordinate),
-                    isSelected: selected?.position == tile.coordinate,
-                    isFocused: game.focusedCoordinate == tile.coordinate,
+                    unit: unit,
+                    isSelected: tileIsSelected,
+                    isFocused: tileIsFocused,
                     isAttackFocusMode: isAttackFocusMode,
                     actionHint: game.mapActionHint(for: tile.coordinate),
                     isMovementRoute: focusedRouteCoordinates.contains(tile.coordinate),
@@ -126,6 +129,13 @@ struct HexMapView: View {
                         }
                     )
                 )
+                .zIndex(
+                    tilePresentationLayer(
+                        hasUnit: unit != nil,
+                        isSelected: tileIsSelected,
+                        isFocused: tileIsFocused
+                    )
+                )
             }
 
             if isAttackFocusMode,
@@ -138,6 +148,7 @@ struct HexMapView: View {
                 .frame(width: contentWidth, height: contentHeight, alignment: .topLeading)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+                .zIndex(10)
             }
 
             if let combatResult = game.latestCombatResult {
@@ -149,6 +160,7 @@ struct HexMapView: View {
                 .id(combatResult.id)
                 .frame(width: contentWidth, height: contentHeight, alignment: .topLeading)
                 .allowsHitTesting(false)
+                .zIndex(20)
             }
         }
         .frame(width: contentWidth, height: contentHeight)
@@ -164,6 +176,18 @@ struct HexMapView: View {
         let x = CGFloat(coordinate.q) * tileWidth * 0.78 + CGFloat(coordinate.r) * tileWidth * 0.39 + tileWidth / 2
         let y = CGFloat(coordinate.r) * tileHeight * 0.76 + tileHeight / 2
         return CGPoint(x: x, y: y)
+    }
+
+    private func tilePresentationLayer(
+        hasUnit: Bool,
+        isSelected: Bool,
+        isFocused: Bool
+    ) -> Double {
+        if isSelected { return 3 }
+        if hasUnit && isFocused { return 2.5 }
+        if hasUnit { return 2 }
+        if isFocused { return 1 }
+        return 0
     }
 
     private var isAttackFocusMode: Bool {

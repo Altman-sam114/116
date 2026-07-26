@@ -339,6 +339,11 @@ flowchart LR
     MoveDone --> Decorative
     FireReady --> Decorative
     FireDone --> Decorative
+    Unit --> Tile["含单位 HexTileView"]
+    Tile --> Layer["sibling zIndex：单位 < 聚焦 < 选中"]
+    Terrain["普通地形 tile"] --> Layer
+    Layer --> Visible["超出 tile frame 的状态轨道仍可见"]
+    Visible --> Combat["交战轴线 / 战果叠层继续在最上层"]
 ```
 
 ## 2. 地图命令执行流

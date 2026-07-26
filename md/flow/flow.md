@@ -8,7 +8,7 @@ v2.2 首屏 chrome 保持单行顶栏，地图内只叠加当前动作 HUD；编
 
 v2.17 在 resolved 后增加只属于 `CombatResolutionOverlay` 的 dismissing/hidden phase：地图战果停留约 2.4 秒后以 opacity 淡出，`latestCombatResult` 本身继续保留给 Inspector、态势响应和复盘。Reduce Motion 跳过缩放与位移但仍会透明度退场；`--ci-selected-combat-impact-steady` 永远固定在 resolved，不进入退场计时。
 
-v2.18 让 `UnitCounter` 直接读取 `BattleUnit.hasMoved/hasAttacked`，在军械模型下方以固定的移动图标、五段 HP 和开火图标表达剩余行动资源；消耗后的图标在原位切为完成符号。只有两个资源都耗尽时才把 `MapUnitPiece` 视为 spent 并整体降权，不新增或回写规则状态。
+v2.18 让 `UnitCounter` 直接读取 `BattleUnit.hasMoved/hasAttacked`，在军械模型下方以固定的移动图标、五段 HP 和开火图标表达剩余行动资源；消耗后的图标在原位切为完成符号。只有两个资源都耗尽时才把 `MapUnitPiece` 视为 spent 并整体降权，不新增或回写规则状态。`HexMapView` 同时从 tile 是否有单位、是否聚焦/选中只读派生 sibling `zIndex`，使含单位的整格高于普通地形，而交战轴线和战果叠层继续位于所有 tile 上方。
 
 ## 1. 当前核心数据流
 
@@ -80,12 +80,12 @@ v2.18 让 `UnitCounter` 直接读取 `BattleUnit.hasMoved/hasAttacked`，在军�
 - `BattlefieldWorkspace` 默认收起 Inspector，regular 宽度从右缘覆盖、compact 宽度从底部覆盖；展开按钮保持 44pt、支持 VoiceOver 和 Reduce Motion，地图尺寸不随 Inspector 开关改变。
 - `BattlefieldTheme.swift` 提供颜色、tactical surface 和跨模块视觉 token。
 - `BattlefieldChrome.swift` 提供薄顶栏、地图工具条、选中单位 HUD、空闲 `NEXT` 指挥坞、边缘快捷命令和地图外壳；按钮 action 继续原样转发 `GameState`。
-- `BattlefieldMap.swift` 保持原有 `position(for:)`、tile frame、`Hexagon` 命中路径和 `HexInputReader` 三种输入链；连续田块、分层树林、建筑体块、山地明暗面、雪地凹陷、河流与公路多层纹理只从 `TerrainTile`、q/r seed 和 `HexCoordinate.neighbors` 只读派生；河路暗边、主体和高光复用同一连接 Path；地图外接 frame 按 viewport 高度计算满幅缩放；选中光环与目标准星只叠加绘制，不参与命中。
+- `BattlefieldMap.swift` 保持原有 `position(for:)`、tile frame、`Hexagon` 命中路径和 `HexInputReader` 三种输入链；连续田块、分层树林、建筑体块、山地明暗面、雪地凹陷、河流与公路多层纹理只从 `TerrainTile`、q/r seed 和 `HexCoordinate.neighbors` 只读派生；河路暗边、主体和高光复用同一连接 Path；地图外接 frame 按 viewport 高度计算满幅缩放；选中光环与目标准星只叠加绘制，不参与命中。地格 sibling 呈现层级只从当前单位、聚焦和选中状态派生，不改变数据、布局或输入。
 - `CombatResolutionOverlay` 用 `summary.id` 驱动可取消的一次性表现 phase；冲击点由 `summary.defenderCoordinate` 经既有 `position(for:)` 定位，HIT、RET、HP 和结论只读 summary。反馈层不响应输入并只暴露一条组合 VoiceOver 摘要；Reduce Motion 禁用缩放和位移。
 - `CombatResolutionOverlay` 的任务由 `summary.id` 驱动并在每次阶段写入前检查取消；新战果会从 impact 或 Reduce Motion 的 resolved 重新开始，不继承旧 hidden。hidden 后不暴露 VoiceOver 元素，整个反馈层始终不响应输入。
 - 地貌 seed 只由 `HexCoordinate.q/r` 计算并用于绘制参数，不写回模型；河流/道路连续性仍来自同类邻接方向。
 - `BattlefieldUnitViews.swift` 提供坦克、步兵、火炮、侦察车具象轮廓、盟军橄榄/轴心灰褐军械色板、兵种内部结构线、落地阴影、五段 HP、状态角标和通用将领徽章；地图 `MapUnitPiece` 使用蓝/红、实/虚线和 AL/AX 的透明落地环，非地图 `UnitShapeBadge` 保留原阵营底座；两者都不计算单位规则。
-- 地图 `UnitCounter` 的固定底部轨道从左到右显示移动、HP、开火；图标直接只读 `hasMoved/hasAttacked` 并通过轮廓与明暗共同区分可用/已消耗，整枚棋子只在二者均耗尽时降权。图标隐藏于无障碍树，组合摘要继续使用 `actionStateText`。
+- 地图 `UnitCounter` 的固定底部轨道从左到右显示移动、HP、开火；图标直接只读 `hasMoved/hasAttacked` 并通过轮廓与明暗共同区分可用/已消耗，整枚棋子只在二者均耗尽时降权。图标隐藏于无障碍树，组合摘要继续使用 `actionStateText`；含单位 tile 整体高于普通地形 sibling，保证超出 tile frame 的轨道不被覆盖。
 - 地图 marker 的数据源、排序、顶/底槽位、溢出、边框优先级和无障碍摘要保持不变；Reduce Motion 只取消滚动动画，不改变焦点目标。
 - 将地图左键/点按/右键转换为 `GameState` 方法调用。
 - 用统一顶/底 marker 槽位与角落命令角标显示 MOVE、ATK、POS、NEXT、OBJ、CAP、THR、INT、AI 复盘（同格最多 2 个栈内徽标 + 溢出 +N，布局纯派生不改 marker 数据源）、战线态势汇总、据点压力行当前态、据点压力来源标识、据点压力态势对照、据点压力敌方回合影响、据点压力地图标记、据点压力复盘线索、战线态势复盘影响来源、态势响应地图标记、态势响应定位入口、态势响应上一条/下一条历史查看、首要定位入口、下一步提示、执行反馈、普通行动态势响应、敌方回合影响和关联 AI 复盘入口、补给线、控制区、攻击覆盖、战斗预览和战斗结果等标记与反馈卡；态势简报和 AI 回放各子 View 只接收既有模型、状态和 action，仍由 `GameState` 完成定位、播放状态和复盘切换，Timer 只在 active 时调用既有 advance 入口。 v1.76 起据点压力行与复盘影响入口使用更强的指挥台卡片与当前态反馈。
