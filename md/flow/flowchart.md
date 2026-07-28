@@ -437,6 +437,18 @@ flowchart LR
     Tile["地图坐标 / 输入 / GameState"] --> Stable["保持不变"]
 ```
 
+## v2.35 选中兵棋实体焦点
+
+```mermaid
+flowchart LR
+    Selected["既有 isSelected"] --> Token["暖金 selectedPiece token"]
+    Token --> Halo["象牙中心 / 暖金实体底座"]
+    Token --> Border["1.5pt 六角辅助边"]
+    Token --> Reticle["暖金四角框"]
+    Selected --> Lift["UnitCounter 静态上抬 3pt + 接地阴影"]
+    Stable["tile frame / contentShape / 输入 / GameState"] --> Same["保持不变"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

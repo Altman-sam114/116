@@ -496,6 +496,12 @@ struct HexTileView: View {
 
                 if let unit {
                     UnitCounter(unit: unit)
+                        .offset(y: isSelected ? -3 : 0)
+                        .shadow(
+                            color: isSelected ? BattlefieldTheme.selectedPiece.opacity(0.34) : .clear,
+                            radius: isSelected ? 4 : 0,
+                            y: isSelected ? 4 : 0
+                        )
                 } else if let objectiveName = tile.objectiveName {
                     ObjectiveNamePlate(name: objectiveName, owner: tile.owner)
                 } else {
@@ -518,12 +524,12 @@ struct HexTileView: View {
 
     private var borderColor: Color {
         if isAttackFocusMode {
-            if isSelected { return .yellow }
+            if isSelected { return BattlefieldTheme.selectedPiece }
             if isFocused && actionHint.isAttack { return .red }
             if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.72) }
             return .white.opacity(0.045)
         }
-        if isSelected { return .yellow }
+        if isSelected { return BattlefieldTheme.selectedPiece }
         if actionHint.isAttack { return .red }
         if actionHint.isApproachAttack { return .orange.opacity(0.92) }
         if actionHint.isMove { return .cyan }
@@ -550,11 +556,13 @@ struct HexTileView: View {
 
     private var borderWidth: CGFloat {
         if isAttackFocusMode {
-            if isSelected || (isFocused && actionHint.isAttack) { return 3 }
+            if isSelected { return 1.5 }
+            if isFocused && actionHint.isAttack { return 3 }
             if tile.isObjective { return 1.5 }
             return 0.45
         }
-        if isSelected || actionHint.isAttack || actionHint.isApproachAttack || actionHint.isMove { return 3 }
+        if isSelected { return 1.5 }
+        if actionHint.isAttack || actionHint.isApproachAttack || actionHint.isMove { return 3 }
         if isPostMoveAttackTarget { return 3 }
         if isAttackPosition { return 3 }
         if fireExposurePreview?.riskLevel.sortRank ?? 0 >= FireRiskLevel.high.sortRank { return 3 }
@@ -577,7 +585,7 @@ struct HexTileView: View {
     }
 
     private var reticleColor: Color? {
-        if isSelected { return Color(red: 0.42, green: 0.82, blue: 1.0) }
+        if isSelected { return BattlefieldTheme.selectedPiece }
         guard isFocused else { return nil }
         if actionHint.isAttack { return .red }
         if actionHint.isApproachAttack { return .orange }
@@ -809,16 +817,27 @@ struct HexTileView: View {
 struct SelectedUnitGroundHalo: View {
     var body: some View {
         Ellipse()
-            .fill(Color.cyan.opacity(0.20))
+            .fill(
+                RadialGradient(
+                    colors: [
+                        Color.white.opacity(0.34),
+                        BattlefieldTheme.selectedPiece.opacity(0.26),
+                        BattlefieldTheme.selectedPiece.opacity(0.08)
+                    ],
+                    center: .center,
+                    startRadius: 2,
+                    endRadius: 26
+                )
+            )
             .overlay {
                 Ellipse()
-                    .stroke(Color.black.opacity(0.58), lineWidth: 4)
+                    .stroke(Color.black.opacity(0.52), lineWidth: 3)
             }
             .overlay {
                 Ellipse()
-                    .stroke(Color(red: 0.42, green: 0.82, blue: 1.0), lineWidth: 2)
+                    .stroke(BattlefieldTheme.selectedPiece.opacity(0.94), lineWidth: 1.5)
             }
-            .shadow(color: Color.cyan.opacity(0.72), radius: 6)
+            .shadow(color: BattlefieldTheme.selectedPiece.opacity(0.58), radius: 5, y: 2)
             .accessibilityHidden(true)
     }
 }

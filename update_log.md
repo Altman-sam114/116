@@ -21,6 +21,25 @@
 
 ## 历史记录
 
+### v2.35 / 选中兵棋实体焦点
+
+日期：2026-07-28
+
+核心变更：
+
+- 选中态从黄色粗边、青色地环、蓝色四角框统一为暖金/象牙实体底座、1.5pt 辅助边和同色四角框。
+- 选中 `UnitCounter` 仅做 3pt 静态渲染抬升并增加暖金接地阴影，不改变布局或命中。
+- 新增共享 `BattlefieldTheme.selectedPiece` token；选中状态同时由底座、边框、四角、位移和阴影表达。
+
+关键文件：`BattlefieldTheme.swift`、`BattlefieldMap.swift`、README、flow、flowchart、test、prompt README、v2.35 prompt 和本日志。
+
+验证结果：
+
+- v2.34 修复 commit `cec4ecc102ae3608d4810b3109e17d0b254366dd`、run `30322225981`、attempt `1`、artifact `ww2tactics-ci-v2.34-main-cec4ecc-run30322225981-attempt1` 已完成结构核对和 PNG 实看；digest 匹配，四项检查成功，JUnit 4/4，XCTest 执行 skipped、测试 bundle 已构建，2064x2752 PNG 中 HIT/RET 已完全分离且无关键回归。
+- 本轮本地只做 Git 级检查，不运行 Swift、Xcode、smoke、XCTest、模拟器或截图。
+
+遗留事项：待 v2.35 云端 artifact 确认暖金实体选中焦点。
+
 ### v2.34 / 紧凑交战战果铭牌
 
 日期：2026-07-28

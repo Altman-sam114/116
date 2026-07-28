@@ -7,6 +7,7 @@ enum BattlefieldTheme {
     static let commandDeckDeep = Color(red: 0.045, green: 0.052, blue: 0.046)
     static let fieldGlass = Color(red: 0.18, green: 0.21, blue: 0.17)
     static let brass = Color(red: 0.86, green: 0.64, blue: 0.27)
+    static let selectedPiece = Color(red: 0.94, green: 0.78, blue: 0.38)
     static let signal = Color(red: 0.38, green: 0.75, blue: 0.62)
     static let alert = Color(red: 0.84, green: 0.33, blue: 0.22)
     static let ink = Color.white.opacity(0.90)
