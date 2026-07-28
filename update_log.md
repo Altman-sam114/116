@@ -47,6 +47,7 @@
 - v2.33 云端 artifact `ww2tactics-ci-v2.33-main-2684833-run30209317453-attempt1` 已下载到 `/private/tmp/ww2tactics-c-review-30209317453/`；digest、manifest、failure summary、JUnit、日志和 `.xcresult` 已核对，static、RulesSmokeTest、build-for-testing 与 screenshot 均成功，JUnit 4 项 0 失败，XCTest 执行按当前 CI 策略 skipped。
 - 已实际查看 v2.33 的 2064x2752、5,942,553-byte PNG：雪地针叶树、坦克舱口/炮口、细道路、山体、河流、单位底座、HIT/RET、动作坞和 AL/OBJ/AX 正常；双行战果牌遮挡交战关系是本轮依据。
 - 人工要求全部重验证走云端；本轮本地不运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器或截图，只做 Git 级检查。
+- 首个 v2.34 commit `e66f96b8ef9221a78aaaf94340b1a1007352fe9b` 的 run `30321435140`、attempt `1` 和 artifact `ww2tactics-ci-v2.34-main-e66f96b-run30321435140-attempt1` 配置检查全部成功；实看 2064x2752 PNG 后发现横向相邻交战的两块单行铭牌互相覆盖，视觉验收不通过，已在本版本追加沿交战轴向外错位的修复，并用 `@ScaledMetric` 恢复紧凑字号的 Dynamic Type 响应，等待新 run 复验。
 
 遗留事项：
 

@@ -874,6 +874,7 @@ struct EngagementAxisOverlay: View {
 struct CombatResolutionOverlay: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.combatResolutionSteadyState) private var isSteadyState
+    @ScaledMetric(relativeTo: .caption) private var outcomeFontSize: CGFloat = 9
 
     let summary: CombatResultSummary
     let attackerPoint: CGPoint
@@ -918,7 +919,7 @@ struct CombatResolutionOverlay: View {
                 hpText: "\(summary.defender.startingHP) -> \(summary.defender.endingHP)",
                 color: summary.didDestroyDefender ? .red : .orange
             )
-            .position(x: defenderPoint.x, y: defenderPoint.y - 38)
+            .position(damagePlatePoint(for: defenderPoint, opposite: attackerPoint))
             .opacity(showsPrimaryDamage ? 1 : 0)
             .scaleEffect(plateScale(isVisible: showsPrimaryDamage))
             .offset(y: plateOffset(isVisible: showsPrimaryDamage))
@@ -930,14 +931,14 @@ struct CombatResolutionOverlay: View {
                     hpText: "\(summary.attacker.startingHP) -> \(summary.attacker.endingHP)",
                     color: .red
                 )
-                .position(x: attackerPoint.x, y: attackerPoint.y - 38)
+                .position(damagePlatePoint(for: attackerPoint, opposite: defenderPoint))
                 .opacity(showsCounterDamage ? 1 : 0)
                 .scaleEffect(plateScale(isVisible: showsCounterDamage))
                 .offset(y: plateOffset(isVisible: showsCounterDamage))
             }
 
             Label(resultTitle, systemImage: resultIcon)
-                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .font(.system(size: outcomeFontSize, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 3)
@@ -1081,6 +1082,17 @@ struct CombatResolutionOverlay: View {
             CGPoint(x: defenderPoint.x - unitX * inset, y: defenderPoint.y - unitY * inset)
         )
     }
+
+    private func damagePlatePoint(for point: CGPoint, opposite: CGPoint) -> CGPoint {
+        let dx = point.x - opposite.x
+        let dy = point.y - opposite.y
+        let distance = max(1, hypot(dx, dy))
+        let outwardOffset: CGFloat = 18
+        return CGPoint(
+            x: point.x + dx / distance * outwardOffset,
+            y: point.y - 38 + dy / distance * outwardOffset
+        )
+    }
 }
 
 private enum CombatResolutionPhase: Int {
@@ -1137,6 +1149,10 @@ private struct CombatImpactShape: Shape {
 }
 
 struct CombatDamagePlate: View {
+    @ScaledMetric(relativeTo: .caption) private var iconFontSize: CGFloat = 7
+    @ScaledMetric(relativeTo: .caption) private var titleFontSize: CGFloat = 8
+    @ScaledMetric(relativeTo: .caption) private var hpFontSize: CGFloat = 7
+
     let systemImage: String
     let title: String
     let hpText: String
@@ -1145,18 +1161,18 @@ struct CombatDamagePlate: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: systemImage)
-                .font(.system(size: 7, weight: .black))
+                .font(.system(size: iconFontSize, weight: .black))
                 .foregroundStyle(color)
 
             Text(title)
-                .font(.system(size: 8, weight: .black, design: .rounded))
+                .font(.system(size: titleFontSize, weight: .black, design: .rounded))
 
             Rectangle()
                 .fill(Color.white.opacity(0.24))
                 .frame(width: 1, height: 10)
 
             Text(hpText)
-                .font(.system(size: 7, weight: .bold, design: .rounded))
+                .font(.system(size: hpFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
         }
         .foregroundStyle(.white)
