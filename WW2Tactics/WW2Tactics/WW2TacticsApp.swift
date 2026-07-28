@@ -13,6 +13,10 @@ struct WW2TacticsApp: App {
             game.handleTap(on: HexCoordinate(q: 7, r: 6))
             game.handleSecondaryAction(on: HexCoordinate(q: 9, r: 6))
             game.executeFocusedCommand()
+            if combatResolutionSteadyState,
+               let attackerCoordinate = game.latestCombatResult?.attackerCoordinate {
+                game.handleTap(on: attackerCoordinate)
+            }
         } else if arguments.contains("--ci-selected-attack-preview") {
             game.handleTap(on: HexCoordinate(q: 7, r: 6))
             game.handleSecondaryAction(on: HexCoordinate(q: 9, r: 6))

@@ -40,6 +40,8 @@
 
 遗留事项：待 v2.35 云端 artifact 确认暖金实体选中焦点。
 
+- 首个 v2.35 commit `72d48f7f8ee1ac33192a4e6afaeac1efb1eb9ed5` 的 run `30323099187` 配置检查全部成功，但 steady-state 截图在攻击后已自动选择另一支屏外单位，无法验收可见选中焦点；本版本追加只在 CI steady-state 下通过公开 `handleTap` 重新选择真实攻击方坐标，等待新 artifact 复验。
+
 ### v2.34 / 紧凑交战战果铭牌
 
 日期：2026-07-28
