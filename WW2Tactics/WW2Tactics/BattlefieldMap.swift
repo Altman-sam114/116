@@ -913,33 +913,35 @@ struct CombatResolutionOverlay: View {
             .position(defenderPoint)
 
             CombatDamagePlate(
+                systemImage: "burst.fill",
                 title: "HIT -\(summary.damage)",
                 hpText: "\(summary.defender.startingHP) -> \(summary.defender.endingHP)",
                 color: summary.didDestroyDefender ? .red : .orange
             )
-            .position(x: defenderPoint.x, y: defenderPoint.y - 44)
+            .position(x: defenderPoint.x, y: defenderPoint.y - 38)
             .opacity(showsPrimaryDamage ? 1 : 0)
             .scaleEffect(plateScale(isVisible: showsPrimaryDamage))
             .offset(y: plateOffset(isVisible: showsPrimaryDamage))
 
             if summary.hasCounterAttack {
                 CombatDamagePlate(
+                    systemImage: "arrow.uturn.backward",
                     title: "RET -\(summary.counterDamage)",
                     hpText: "\(summary.attacker.startingHP) -> \(summary.attacker.endingHP)",
                     color: .red
                 )
-                .position(x: attackerPoint.x, y: attackerPoint.y - 44)
+                .position(x: attackerPoint.x, y: attackerPoint.y - 38)
                 .opacity(showsCounterDamage ? 1 : 0)
                 .scaleEffect(plateScale(isVisible: showsCounterDamage))
                 .offset(y: plateOffset(isVisible: showsCounterDamage))
             }
 
             Label(resultTitle, systemImage: resultIcon)
-                .font(.caption.bold())
+                .font(.system(size: 9, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .background(Color.black.opacity(0.84), in: Capsule())
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Color.black.opacity(0.76), in: Capsule())
                 .overlay(
                     Capsule()
                         .stroke(resultColor.opacity(0.92), lineWidth: 1.5)
@@ -1135,28 +1137,49 @@ private struct CombatImpactShape: Shape {
 }
 
 struct CombatDamagePlate: View {
+    let systemImage: String
     let title: String
     let hpText: String
     let color: Color
 
     var body: some View {
-        VStack(spacing: 1) {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.system(size: 7, weight: .black))
+                .foregroundStyle(color)
+
             Text(title)
-                .font(.caption.bold())
+                .font(.system(size: 8, weight: .black, design: .rounded))
+
+            Rectangle()
+                .fill(Color.white.opacity(0.24))
+                .frame(width: 1, height: 10)
+
             Text(hpText)
-                .font(.caption.bold())
+                .font(.system(size: 7, weight: .bold, design: .rounded))
                 .monospacedDigit()
         }
         .foregroundStyle(.white)
         .lineLimit(1)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 4)
-        .background(Color.black.opacity(0.86), in: RoundedRectangle(cornerRadius: 6))
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(color.opacity(0.96), lineWidth: 1.5)
+        .fixedSize(horizontal: true, vertical: false)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(red: 0.18, green: 0.19, blue: 0.18).opacity(0.94),
+                    Color.black.opacity(0.80)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            ),
+            in: RoundedRectangle(cornerRadius: 4)
         )
-        .shadow(color: .black.opacity(0.42), radius: 3, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(color.opacity(0.82), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.34), radius: 2, y: 1)
         .accessibilityHidden(true)
     }
 }
@@ -1612,7 +1635,8 @@ struct ObjectiveFlagMarker: View {
 }
 
 /// A small banner with a gently waving fly edge.
-struct WavingFlagShape: Shape {    func path(in rect: CGRect) -> Path {
+struct WavingFlagShape: Shape {
+    func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.minX, y: rect.minY))
         path.addCurve(

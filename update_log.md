@@ -21,6 +21,37 @@
 
 ## 历史记录
 
+### v2.34 / 紧凑交战战果铭牌
+
+日期：2026-07-28
+
+核心变更：
+
+- HIT/RET 战果从上下两行黑牌收为单行金属铭牌，以不同系统图标、文字类型、伤害和 HP 前后共同编码。
+- 缩小铭牌的圆角、padding、描边、阴影和交战结论胶囊，减少对军械模型、状态条和交战轴线的遮挡。
+- 保持真实 `CombatResultSummary`、表现 phase、任务取消、Reduce Motion、steady-state、输入和单一 VoiceOver 摘要不变；同时修复 `WavingFlagShape` 声明排版。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.34（紧凑交战战果铭牌）.md`
+- `update_log.md`
+
+验证结果：
+
+- v2.33 云端 artifact `ww2tactics-ci-v2.33-main-2684833-run30209317453-attempt1` 已下载到 `/private/tmp/ww2tactics-c-review-30209317453/`；digest、manifest、failure summary、JUnit、日志和 `.xcresult` 已核对，static、RulesSmokeTest、build-for-testing 与 screenshot 均成功，JUnit 4 项 0 失败，XCTest 执行按当前 CI 策略 skipped。
+- 已实际查看 v2.33 的 2064x2752、5,942,553-byte PNG：雪地针叶树、坦克舱口/炮口、细道路、山体、河流、单位底座、HIT/RET、动作坞和 AL/OBJ/AX 正常；双行战果牌遮挡交战关系是本轮依据。
+- 人工要求全部重验证走云端；本轮本地不运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器或截图，只做 Git 级检查。
+
+遗留事项：
+
+- 待 v2.34 云端 artifact 实看确认铭牌收敛后的数值可读性和遮挡改善。
+
 ### v2.33 / 雪原针叶树与坦克细节
 
 日期：2026-07-26
@@ -38,7 +69,7 @@
 
 遗留事项：
 
-- 待本轮云端截图确认针叶树散布密度与坦克舱口细节在地图缩放下的观感。
+- v2.33 云端截图已确认针叶树散布密度、坦克舱口与炮口细节正常；后续聚焦交战反馈遮挡。
 
 ### v2.32 / 道路网细化
 

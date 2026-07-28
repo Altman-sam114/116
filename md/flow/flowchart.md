@@ -423,6 +423,20 @@ flowchart LR
     Tile["HexTile frame / contentShape / 输入"] --> Stable["保持不变"]
 ```
 
+## v2.34 紧凑交战战果铭牌
+
+```mermaid
+flowchart LR
+    Result["CombatResultSummary 真实战果"] --> Overlay["CombatResolutionOverlay"]
+    Overlay --> HIT["HIT 图标 + 伤害 + HP 前后"]
+    Overlay --> RET["RET 图标 + 伤害 + HP 前后"]
+    Overlay --> Outcome["紧凑交火 / 压制 / 击毁结论"]
+    Overlay --> Phase["既有 phase / Reduce Motion / steady-state"]
+    HIT --> AX["装饰隐藏；整层单一 VoiceOver 摘要"]
+    RET --> AX
+    Tile["地图坐标 / 输入 / GameState"] --> Stable["保持不变"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
