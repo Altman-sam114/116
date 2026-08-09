@@ -46,10 +46,12 @@
 
 - 本轮基于已由 Agent C 验收的 v2.38 `origin/main` commit `467c9aaa727933a3e9e4483d813f0d670b587d8d`、workflow run `31297090421`、attempt `1`、artifact `ww2tactics-ci-v2.38-main-467c9aa-run31297090421-attempt1`（digest `sha256:a660d3976d265706472f21adf503a55b4ee18f2dd782b3c3efbd4765c859614e`）实现本轮目标；这些是 v2.39 实现前基线，不是本轮验收结果。
 - 本地遵循人工要求，不运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器或截图；提交前仅执行 `git diff --check`、工作树/范围核对。v2.39 需由 GitHub Actions 和 Agent C 云端 artifact 完成重验证。
+- 功能实现 commit `97767158289b254863f53f6ad15c597202c486e1` 已由 workflow run `31298292205`、attempt `1` 通过 static checks、RulesSmokeTest、Xcode `build-for-testing` 和 `selected-combat-impact-steady` regular 截图；artifact 为 `ww2tactics-ci-v2.39-main-9776715-run31298292205-attempt1`，digest `sha256:de82e3d00734261fca8c3b9fa2cb6cdda28b2908b2f2ea828872782092749974`。
+- 该结果包的 `junit.xml` 为 4 tests、0 failures/errors/skips；截图为 iPad Pro 13-inch (M5) `2064x2752`、`5962104` bytes、SHA-256 `65f87208896cbbe5fd6f39dec26ea00336d8f4e34150318d66dd9a72da343649`，`WW2Tactics.xcresult/Info.plist` 可读且 `xcodebuild.log` 含 `** TEST BUILD SUCCEEDED **`。Agent C 已从 `/private/tmp/ww2tactics-c-review-31298292205/` 下载并实看该包。
 
 遗留事项：
 
-- v2.39 尚未提交、推送或获得新的 workflow/artifact；需在 `main` 直推后由 Agent C 下载结果包，核对 manifest 的 commit、run、attempt 和 regular PNG，并从源码复核 compact、`xxxLarge`、完整数组、命中区与道路环路策略。
+- 当前最新 `origin/main` 为 `v2.39: 补记云端验收` docs-only commit；需以该新 SHA 对应的 workflow/artifact 作为最终云端验收证据。现有 workflow 只生成 regular 截图，compact/Dynamic Type 仍依靠源码结构审查：短可视标签与 `.large` 上限、完整 VoiceOver/44pt 命中区、canonical 道路回边与规则/输入边界已核对。
 
 ### v2.38 / 支援甲板信息轨道
 
