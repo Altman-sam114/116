@@ -36,9 +36,12 @@
 验证结果：
 
 - 本地按人工要求未运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器、Playwright 或截图；仅执行 Git 状态、范围和 `git diff --check` 轻量检查。
-- 已提交并推送 `main` 后等待 GitHub Actions；本条目暂不填写 v2.36 run、attempt 或 artifact，必须由 Agent C 下载最新未加密结果包并实际查看 PNG 后补充。
+- Agent C 已下载并核对未加密 artifact `ww2tactics-ci-v2.36-main-1d1c518-run31290789962-attempt1`，digest 为 `sha256:131d5a87ebb8fdac2c390561489246b37bd70d457ac8715ea9a726a511b6a115`；manifest 的 `branch=main`、`commitSha=1d1c5186b8504ddb2bdd022a2aa0566f270fc6fa`、`runId=31290789962`、`runAttempt=1` 与 `origin/main` 完全一致。
+- static、RulesSmokeTest、Xcode `build-for-testing` 和 screenshot 四项 outcome 均为 success；JUnit 共 4 项、0 failures、0 errors、0 skips，`.xcresult` 有效，PNG 为 `2064x2752`、`5,959,930` bytes。
+- PNG 已实际查看：补给线收敛为低对比连续细笔触，不再形成绿色粗胶囊或整格粗边；白昼地貌、道路/河流、M10 暖金选中底座与抬升、军械模型、`HIT -21 / 64 -> 43`、`RET -7 / 64 -> 57`、“交火”、HUD、AL/OBJ/AX 和高优先级 marker 均保持清晰。
+- 验收记录修正：本条目此前仅记录等待云端结果，现补录本轮 commit、run、attempt、artifact、digest 和 Agent C 实看结论。
 
-遗留事项：待 v2.36 云端 artifact 核对 manifest、规则 smoke、Xcode build-for-testing、截图门禁和补给线层级实看。
+遗留事项：v2.36 已完成 Agent C 云端 artifact 验收；后续可基于该 PNG 再拆分下一轮表现目标。
 
 ### v2.35 / 选中兵棋实体焦点
 
