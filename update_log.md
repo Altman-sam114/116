@@ -37,9 +37,10 @@
 
 - 本轮分配依据为 v2.36 最终 commit `d69e0ae2d78d9f84ad7daa73ecae11ebb8ae03c1`、run `31291811412`、attempt `1`、artifact `ww2tactics-ci-v2.36-main-d69e0ae-run31291811412-attempt1`，digest `sha256:6ec6d20afeb0d92c8b165e18139d600b2c56dbb4aba162e51ca1d926f22f75c3`；PNG `2064x2752`、约 `5,959,930` bytes 已由 Agent C 实际查看并确认补给线、M10 暖金选中焦点、HIT/RET、交战结论、HUD 和 AL/OBJ/AX 清晰，道路 lattice 为下一轮依据。
 - 本地按人工要求未运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器、Playwright 或截图；仅执行 Git 状态、范围和 `git diff --check` 轻量检查。
-- v2.37 实现已落盘但尚未提交或推送；待 Agent B 完成范围检查后，再由 Agent C 对最新 commit 的云端 artifact、PNG、端点、路口和地图边缘连续性进行验收；本条目不把 v2.36 artifact 冒充本轮结果。
+- v2.37 功能实现先由 commit `9f6a7935c9374d29c54c9b767306fb53a2a7aced` 推送；首轮 run `31293202537` 的 static/smoke 通过但 Xcode 因 `ForEach(game.tiles)` 的 Binding overload 推断失败，截图被跳过。修复 commit `a235809125a883a34fc12028ff1a472f56820f9d` 显式加入 id 后仍复现同一错误，最终 commit `290b1e379b73ac9eb13c11a8b05fec3966aec534` 以明确 `[TerrainTile]` value collection 和单一 `[Int]` 三元派生收敛 `ViewBuilder` 类型推断；未改道路网络、路径或规则。
+- 最终 `origin/main` commit `290b1e379b73ac9eb13c11a8b05fec3966aec534` 对应 workflow run `31293767771`、attempt `1`，artifact `ww2tactics-ci-v2.37-main-290b1e3-run31293767771-attempt1`，digest `sha256:01fab665f36834b1d38b021ec72ca5adc1fc62c51c6ecbef5fa91298fcecc8ea`；manifest 的 branch/SHA/run/attempt 完全匹配，static、RulesSmokeTest、Xcode build-for-testing、截图均 success，JUnit `4 tests / 0 failures / 0 errors / 0 skipped`，PNG `2064x2752`、`5,938,459` bytes。Agent C 已下载并实看 PNG：道路读作细棕色斜向/蜿蜒走廊，孤立短笔触、端点、路口和地图边缘可读，未见首轮大面积三角 lattice；河流、地貌、单位模型、M10 暖金 selected、HIT/RET、交战结论、HUD、AL/OBJ/AX 均清晰。
 
-遗留事项：待 v2.37 云端截图确认 canonical 去重后的道路连续性、低对比层级和无回归。
+遗留事项：v2.37 已完成云端验收；后续迭代仍应观察不同地图种子下视觉森林对环路和多路口的保留程度，不得把道路视觉网络改写为规则路径状态。
 
 ### v2.36 / 补给线覆盖降噪
 
