@@ -39,7 +39,8 @@
 - Agent C 已下载并核对未加密 artifact `ww2tactics-ci-v2.36-main-1d1c518-run31290789962-attempt1`，digest 为 `sha256:131d5a87ebb8fdac2c390561489246b37bd70d457ac8715ea9a726a511b6a115`；manifest 的 `branch=main`、`commitSha=1d1c5186b8504ddb2bdd022a2aa0566f270fc6fa`、`runId=31290789962`、`runAttempt=1` 与 `origin/main` 完全一致。
 - static、RulesSmokeTest、Xcode `build-for-testing` 和 screenshot 四项 outcome 均为 success；JUnit 共 4 项、0 failures、0 errors、0 skips，`.xcresult` 有效，PNG 为 `2064x2752`、`5,959,930` bytes。
 - PNG 已实际查看：补给线收敛为低对比连续细笔触，不再形成绿色粗胶囊或整格粗边；白昼地貌、道路/河流、M10 暖金选中底座与抬升、军械模型、`HIT -21 / 64 -> 43`、`RET -7 / 64 -> 57`、“交火”、HUD、AL/OBJ/AX 和高优先级 marker 均保持清晰。
-- 验收记录修正：本条目此前仅记录等待云端结果，现补录本轮 commit、run、attempt、artifact、digest 和 Agent C 实看结论。
+- 随后文档修正 commit `ceb237d528757b9516312fd0e7039c239fd01ee3` 触发 run `31291315530`、attempt `1`，Agent C 已核对 artifact `ww2tactics-ci-v2.36-main-1d1c518-run31291315530-attempt1`，digest 为 `sha256:89bc298abb3d2cb8be22add78829816d7141dae1dc1a43d47b6ddb3c39cd34ac`；manifest 的 branch、commitSha、runId、runAttempt 全匹配，static、RulesSmokeTest、Xcode `build-for-testing`、screenshot 四项 outcome、JUnit 4/0 failures、规则 smoke、build、screenshot、PNG `2064x2752`/`5,959,947` bytes 与实看结论一致。
+- 两次验收链已闭合：功能 commit `1d1c518` 的源码/视觉 artifact 先完成验证，随后文档修正 commit `ceb237d` 的云端 run 复核了同一事实链；本条目不再保留“等待”或“待核对”状态。
 
 遗留事项：v2.36 已完成 Agent C 云端 artifact 验收；后续可基于该 PNG 再拆分下一轮表现目标。
 
