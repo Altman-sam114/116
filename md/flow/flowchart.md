@@ -461,6 +461,23 @@ flowchart LR
     Stable["tile frame / contentShape / 输入 / zIndex / VoiceOver / SupplyState"] --> Same["保持不变"]
 ```
 
+## v2.37 道路方向去重
+
+```mermaid
+flowchart LR
+    Terrain["TerrainTile / TerrainKind / neighbors"] --> Road["HexMapView road-only 稳定无向边网络"]
+    Road --> Edge["方向 0/1/2 每条边一次"]
+    Edge --> Paired["两端投影 paired half-path"]
+    Paired --> Path["TerrainTexture connectionPath"]
+    Path --> Shadow["道路 shadow"]
+    Path --> Main["道路主体"]
+    Path --> Highlight["道路高光"]
+    Road --> NoDash["移除逐格固定水平 roadHighlight；孤立格保留短中心笔触"]
+    RiverForest["river / forest 同类邻接"] --> Existing["既有完整连接链保持"]
+    Supply["v2.36 supplyLineTiles 投影"] --> SupplyMarker["低对比补给通道保持"]
+    Stable["视觉森林只读；TerrainKind / 路线成本 / 输入 / zIndex / VoiceOver"] --> Same["保持不变"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

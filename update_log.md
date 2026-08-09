@@ -21,6 +21,26 @@
 
 ## 历史记录
 
+### v2.37 / 道路方向去重
+
+日期：2026-08-09
+
+核心变更：
+
+- 依据 v2.36 最终云端截图中相邻道路格重复叠出棕色三角/交叉 lattice 的事实，仅在 `HexMapView` 表现层为 `.road` 构造稳定 canonical 无向边网络：按方向 `0/1/2` 确定性枚举每条视觉边一次，并向两端投影 paired half-path。
+- 道路 shadow、主体和 highlight 共用该 `connectionPath`，移除逐格固定水平 `roadHighlight`；无相邻道路的孤立格用确定性短中心笔触保持可读，河流、弱林带和其他地貌连接保持原邻接链。
+- 不改变 `TerrainKind`、`TerrainTile`、移动力、路线成本、路线预览、`GameState`、tile frame、contentShape、输入、zIndex、VoiceOver 或 v2.36 补给线/ v2.35 selected / v2.34 战果表现。
+
+关键文件：`BattlefieldMap.swift`、README、flow、flowchart、test、prompt README、v2.37 prompt 和本日志。
+
+验证依据与结果：
+
+- 本轮分配依据为 v2.36 最终 commit `d69e0ae2d78d9f84ad7daa73ecae11ebb8ae03c1`、run `31291811412`、attempt `1`、artifact `ww2tactics-ci-v2.36-main-d69e0ae-run31291811412-attempt1`，digest `sha256:6ec6d20afeb0d92c8b165e18139d600b2c56dbb4aba162e51ca1d926f22f75c3`；PNG `2064x2752`、约 `5,959,930` bytes 已由 Agent C 实际查看并确认补给线、M10 暖金选中焦点、HIT/RET、交战结论、HUD 和 AL/OBJ/AX 清晰，道路 lattice 为下一轮依据。
+- 本地按人工要求未运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器、Playwright 或截图；仅执行 Git 状态、范围和 `git diff --check` 轻量检查。
+- v2.37 实现已落盘但尚未提交或推送；待 Agent B 完成范围检查后，再由 Agent C 对最新 commit 的云端 artifact、PNG、端点、路口和地图边缘连续性进行验收；本条目不把 v2.36 artifact 冒充本轮结果。
+
+遗留事项：待 v2.37 云端截图确认 canonical 去重后的道路连续性、低对比层级和无回归。
+
 ### v2.36 / 补给线覆盖降噪
 
 日期：2026-08-09

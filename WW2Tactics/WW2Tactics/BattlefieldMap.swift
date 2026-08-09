@@ -12,6 +12,66 @@ extension EnvironmentValues {
     }
 }
 
+private struct RoadDisjointSet {
+    private var parent: [HexCoordinate: HexCoordinate]
+
+    init(elements: [HexCoordinate]) {
+        parent = Dictionary(uniqueKeysWithValues: elements.map { ($0, $0) })
+    }
+
+    mutating func join(_ left: HexCoordinate, _ right: HexCoordinate) -> Bool {
+        let leftRoot = root(of: left)
+        let rightRoot = root(of: right)
+        guard leftRoot != rightRoot else { return false }
+        parent[leftRoot] = rightRoot
+        return true
+    }
+
+    private mutating func root(of element: HexCoordinate) -> HexCoordinate {
+        guard let parentElement = parent[element], parentElement != element else {
+            return element
+        }
+        let rootElement = root(of: parentElement)
+        parent[element] = rootElement
+        return rootElement
+    }
+}
+
+private struct RoadConnectionNetwork {
+    let directionsByCoordinate: [HexCoordinate: [Int]]
+
+    init(tiles: [TerrainTile]) {
+        let roadCoordinates = Set(
+            tiles
+                .filter { $0.terrain == .road }
+                .map(\.coordinate)
+        )
+        let sortedCoordinates = roadCoordinates.sorted { left, right in
+            if left.q != right.q { return left.q < right.q }
+            return left.r < right.r
+        }
+        var directions = Dictionary(
+            uniqueKeysWithValues: sortedCoordinates.map { ($0, [Int]()) }
+        )
+        var components = RoadDisjointSet(elements: sortedCoordinates)
+
+        // Stable Kruskal pass: canonical directions identify each undirected
+        // edge once, while the paired reverse direction preserves both visual
+        // half-paths at the two tile endpoints.
+        for coordinate in sortedCoordinates {
+            for (direction, neighbor) in coordinate.neighbors.enumerated().prefix(3) {
+                guard roadCoordinates.contains(neighbor), components.join(coordinate, neighbor) else {
+                    continue
+                }
+                directions[coordinate, default: []].append(direction)
+                directions[neighbor, default: []].append((direction + 3) % 6)
+            }
+        }
+
+        directionsByCoordinate = directions.mapValues { $0.sorted() }
+    }
+}
+
 struct HexMapView: View {
     @EnvironmentObject private var game: GameState
     let scaleMultiplier: CGFloat
@@ -53,6 +113,7 @@ struct HexMapView: View {
         )
         let battlefieldSituationResponseMarker = game.battlefieldSituationResponseMapMarker
         let terrainByCoordinate = Dictionary(uniqueKeysWithValues: game.tiles.map { ($0.coordinate, $0.terrain) })
+        let roadConnectionDirectionsByCoordinate = RoadConnectionNetwork(tiles: game.tiles).directionsByCoordinate
         let contentWidth = CGFloat(game.scenario.mapColumns) * tileWidth * 0.78 + tileWidth
         let contentHeight = CGFloat(game.scenario.mapRows) * tileHeight * 0.78 + tileHeight
         let fillScale = max(0.86, (viewportHeight - 16) / contentHeight)
@@ -82,8 +143,13 @@ struct HexMapView: View {
                 let unit = game.unit(at: tile.coordinate)
                 let tileIsSelected = selected?.position == tile.coordinate
                 let tileIsFocused = game.focusedCoordinate == tile.coordinate
-                let terrainConnectionDirections = tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
-                    terrainByCoordinate[coordinate] == tile.terrain ? index : nil
+                let terrainConnectionDirections: [Int]
+                if tile.terrain == .road {
+                    terrainConnectionDirections = roadConnectionDirectionsByCoordinate[tile.coordinate] ?? []
+                } else {
+                    terrainConnectionDirections = tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
+                        terrainByCoordinate[coordinate] == tile.terrain ? index : nil
+                    }
                 }
                 let supplyLineConnectionDirections = supplyLine.contains(tile.coordinate)
                     ? tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
@@ -1290,7 +1356,7 @@ struct TerrainTexture: View {
                 case .river:
                     waterHighlight(in: size)
                 case .road:
-                    roadHighlight(in: size)
+                    EmptyView()
                 }
             }
         }
@@ -1565,19 +1631,34 @@ struct TerrainTexture: View {
         }
     }
 
-    private func roadHighlight(in size: CGSize) -> some View {
-        ZStack {
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: size.height * 0.52))
-                path.addLine(to: CGPoint(x: size.width, y: size.height * 0.48))
-            }
-            .stroke(Color.white.opacity(0.12), style: StrokeStyle(lineWidth: 0.8, dash: [5, 6]))
-        }
-    }
-
     private func connectionPath(in size: CGSize) -> Path {
         Path { path in
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            if connectionDirections.isEmpty, tile.terrain == .road {
+                // Keep an isolated road tile legible without rebuilding the
+                // removed per-tile horizontal road grid.
+                let direction = terrainSeed % 3 == 0 ? 0 : (terrainSeed % 3 == 1 ? 1 : 4)
+                let edge = endpoint(for: direction, in: size)
+                let dx = edge.x - center.x
+                let dy = edge.y - center.y
+                let distance = max(1, hypot(dx, dy))
+                let halfLength = min(size.width, size.height) * 0.12
+                let unitX = dx / distance
+                let unitY = dy / distance
+                path.move(
+                    to: CGPoint(
+                        x: center.x - unitX * halfLength,
+                        y: center.y - unitY * halfLength
+                    )
+                )
+                path.addLine(
+                    to: CGPoint(
+                        x: center.x + unitX * halfLength,
+                        y: center.y + unitY * halfLength
+                    )
+                )
+                return
+            }
             for direction in connectionDirections {
                 path.move(to: center)
                 path.addLine(to: endpoint(for: direction, in: size))
