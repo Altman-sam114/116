@@ -85,9 +85,15 @@ struct HexMapView: View {
                 let terrainConnectionDirections = tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
                     terrainByCoordinate[coordinate] == tile.terrain ? index : nil
                 }
+                let supplyLineConnectionDirections = supplyLine.contains(tile.coordinate)
+                    ? tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
+                        supplyLine.contains(coordinate) ? index : nil
+                    }
+                    : []
                 HexTileView(
                     tile: tile,
                     terrainConnectionDirections: terrainConnectionDirections,
+                    supplyLineConnectionDirections: supplyLineConnectionDirections,
                     unit: unit,
                     isSelected: tileIsSelected,
                     isFocused: tileIsFocused,
@@ -336,6 +342,7 @@ struct HexTileOverflowChip: View {
 struct HexTileView: View {
     let tile: TerrainTile
     let terrainConnectionDirections: [Int]
+    let supplyLineConnectionDirections: [Int]
     let unit: BattleUnit?
     let isSelected: Bool
     let isFocused: Bool
@@ -413,7 +420,7 @@ struct HexTileView: View {
             TerrainTexture(tile: tile, connectionDirections: terrainConnectionDirections)
 
             if isSupplyLine && !isAttackFocusMode {
-                SupplyLineMarker()
+                SupplyLineMarker(connectionDirections: supplyLineConnectionDirections)
             }
 
             if isMovementRoute && !isAttackFocusMode {
@@ -545,9 +552,9 @@ struct HexTileView: View {
         if isEnemyThreatIntentTarget { return .pink.opacity(0.92) }
         if isMovementRoute { return .cyan.opacity(0.88) }
         if isAttackCoverage { return .orange.opacity(0.40) }
-        if isSupplyLine { return .green.opacity(0.9) }
         if isThreatenedMoveTile { return .red.opacity(0.34) }
         if isEnemyControlZone { return .red.opacity(0.26) }
+        if isSupplyLine { return BattlefieldTheme.supplyLine.opacity(0.38) }
         if isFocused { return .white.opacity(0.9) }
         if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.9) }
         if !aiPhaseMapMarkers.isEmpty { return .indigo.opacity(0.86) }
@@ -575,9 +582,9 @@ struct HexTileView: View {
         if isEnemyThreatIntentTarget { return 2 }
         if isMovementRoute { return 2 }
         if isAttackCoverage { return 1 }
-        if isSupplyLine { return 2 }
         if isThreatenedMoveTile { return 1 }
         if isEnemyControlZone { return 1 }
+        if isSupplyLine { return 0.75 }
         if isFocused { return 2 }
         if tile.isObjective { return 2 }
         if !aiPhaseMapMarkers.isEmpty { return 2 }
@@ -1798,17 +1805,54 @@ struct ControlZoneMarker: View {
 }
 
 struct SupplyLineMarker: View {
+    let connectionDirections: [Int]
+
     var body: some View {
-        Capsule()
-            .fill(Color.green.opacity(0.22))
-            .frame(width: 56, height: 10)
-            .overlay(
-                Capsule()
-                    .stroke(Color.green.opacity(0.46), lineWidth: 1)
-            )
-            .rotationEffect(.degrees(-18))
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        GeometryReader { proxy in
+            let path = connectionPath(in: proxy.size)
+            ZStack {
+                path
+                    .stroke(
+                        Color.black.opacity(0.10),
+                        style: StrokeStyle(lineWidth: 3.2, lineCap: .round, lineJoin: .round)
+                    )
+                path
+                    .stroke(
+                        BattlefieldTheme.supplyLine.opacity(0.48),
+                        style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round)
+                    )
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func connectionPath(in size: CGSize) -> Path {
+        Path { path in
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            if connectionDirections.isEmpty {
+                path.move(to: CGPoint(x: size.width * 0.43, y: center.y))
+                path.addLine(to: CGPoint(x: size.width * 0.57, y: center.y))
+                return
+            }
+
+            for direction in connectionDirections {
+                path.move(to: center)
+                path.addLine(to: endpoint(for: direction, in: size))
+            }
+        }
+    }
+
+    private func endpoint(for direction: Int, in size: CGSize) -> CGPoint {
+        switch direction {
+        case 0: CGPoint(x: size.width, y: size.height * 0.5)
+        case 1: CGPoint(x: size.width * 0.75, y: 0)
+        case 2: CGPoint(x: size.width * 0.25, y: 0)
+        case 3: CGPoint(x: 0, y: size.height * 0.5)
+        case 4: CGPoint(x: size.width * 0.25, y: size.height)
+        default: CGPoint(x: size.width * 0.75, y: size.height)
+        }
     }
 }
 

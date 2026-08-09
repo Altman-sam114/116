@@ -21,6 +21,25 @@
 
 ## 历史记录
 
+### v2.36 / 补给线覆盖降噪
+
+日期：2026-08-09
+
+核心变更：
+
+- 补给路径仍由 `GameState.supplyLineTiles(for:)` 提供，地图仅从同一只读集合和 `HexCoordinate.neighbors` 派生相邻方向。
+- `SupplyLineMarker` 从每格绿色粗胶囊改为细窄、低对比的中心到边界笔触，相邻六角格可连续读作后勤通道；单格使用短中心笔触，不再形成绿色圆牌。
+- 补给线六角边框收为接近基础蚀刻网格的弱提示，selected、MOVE/ATK/POS、路线、火力、态势/复盘 marker 和单位模型保持更高层级；攻击焦点过滤、`SUP`/`CUT`、补给计数、输入、zIndex 与 VoiceOver 摘要不变。
+
+关键文件：`BattlefieldMap.swift`、`BattlefieldTheme.swift`、README、flow、flowchart、test、prompt README、v2.36 prompt 和本日志。
+
+验证结果：
+
+- 本地按人工要求未运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器、Playwright 或截图；仅执行 Git 状态、范围和 `git diff --check` 轻量检查。
+- 已提交并推送 `main` 后等待 GitHub Actions；本条目暂不填写 v2.36 run、attempt 或 artifact，必须由 Agent C 下载最新未加密结果包并实际查看 PNG 后补充。
+
+遗留事项：待 v2.36 云端 artifact 核对 manifest、规则 smoke、Xcode build-for-testing、截图门禁和补给线层级实看。
+
 ### v2.35 / 选中兵棋实体焦点
 
 日期：2026-07-28
@@ -38,9 +57,11 @@
 - v2.34 修复 commit `cec4ecc102ae3608d4810b3109e17d0b254366dd`、run `30322225981`、attempt `1`、artifact `ww2tactics-ci-v2.34-main-cec4ecc-run30322225981-attempt1` 已完成结构核对和 PNG 实看；digest 匹配，四项检查成功，JUnit 4/4，XCTest 执行 skipped、测试 bundle 已构建，2064x2752 PNG 中 HIT/RET 已完全分离且无关键回归。
 - 本轮本地只做 Git 级检查，不运行 Swift、Xcode、smoke、XCTest、模拟器或截图。
 
-遗留事项：待 v2.35 云端 artifact 确认暖金实体选中焦点。
+- v2.35 最新 commit `c0f15815bcd1129e9216506e2bce2db2902a8741` 的 run `30324158129`、attempt `1` 和 artifact `ww2tactics-ci-v2.35-main-c0f1581-run30324158129-attempt1` 已完成云端结构、规则、构建和截图验收。
+- PNG 已实际查看：M10 攻击方位于战果区且可直接定位，暖金实体底座、3pt 抬升、接地阴影和四角准框清晰；`HIT -21 / 64 -> 43`、`RET -7 / 64 -> 57`、“交火”、HUD 与 marker 均可读。
+- 本轮本地只做 Git 级检查，不运行 Swift、Xcode、smoke、XCTest、模拟器或截图。
 
-- 首个 v2.35 commit `72d48f7f8ee1ac33192a4e6afaeac1efb1eb9ed5` 的 run `30323099187` 配置检查全部成功，但 steady-state 截图在攻击后已自动选择另一支屏外单位，无法验收可见选中焦点；本版本追加只在 CI steady-state 下通过公开 `handleTap` 重新选择真实攻击方坐标，等待新 artifact 复验。
+遗留事项：补给线在 steady-state PNG 中仍以每格绿色粗胶囊和整格粗边重复表达，已由 v2.36 收敛为低对比连续通道。
 
 ### v2.34 / 紧凑交战战果铭牌
 

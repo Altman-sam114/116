@@ -449,6 +449,18 @@ flowchart LR
     Stable["tile frame / contentShape / 输入 / GameState"] --> Same["保持不变"]
 ```
 
+## v2.36 补给线覆盖降噪
+
+```mermaid
+flowchart LR
+    Supply["GameState.supplyLineTiles(for:) 只读路径集合"] --> Neighbors["HexMapView 从 HexCoordinate.neighbors 派生相邻方向"]
+    Neighbors --> Marker["SupplyLineMarker 细窄低对比中心-边界笔触"]
+    Supply --> Border["HexTileView 补给边框：基础蚀刻级弱提示"]
+    Priority["selected / MOVE / ATK / POS / 路线 / 火力 / 态势 marker"] --> Border
+    Attack[".attack 焦点过滤"] --> Hidden["不绘制补给覆盖"]
+    Stable["tile frame / contentShape / 输入 / zIndex / VoiceOver / SupplyState"] --> Same["保持不变"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
