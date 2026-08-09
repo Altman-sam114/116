@@ -46,11 +46,12 @@
 
 - 本地按人工要求未运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器、Playwright 或截图；仅执行 Git 状态、变更范围和 `git diff --check` 轻量检查。
 - 本轮基于已由 Agent C 验收的 v2.37 `origin/main` commit `fc4af213b77d01b41bfed5f295e0727eb8d1fb95`、workflow run `31294998218`、attempt `1`、artifact `ww2tactics-ci-v2.37-main-fc4af21-run31294998218-attempt1`（digest `sha256:41ef756d0eba2d6a45121f80995affe8b15150203ce6ebfe216b6aa8c5a92884`）拆分本轮目标；这些仅是实现前基线，不是 v2.38 验收结果。
-- v2.38 尚未提交、push 或生成新的 GitHub Actions run/artifact；待本轮提交到 `main` 后由 Agent C 下载最新结果包并核对 manifest、日志、构建、规则 smoke 与 PNG。
+- 功能实现 commit `41dbb185cc19e3b2622101a9fa443398e02949ba` 已推送到 `main`，对应 GitHub Actions workflow run `31296511173`、attempt `1`；Agent C 已下载并核对 artifact `ww2tactics-ci-v2.38-main-41dbb18-run31296511173-attempt1`（7,187,380 bytes，digest `sha256:c8e9e95e9120e8bcdcb0adfc102f7b82b0301cb03a20804cd6c9dc2a6b16a229`）。manifest 的 `branch`、`commitSha`、`runId`、`runAttempt` 与 `origin/main` 完全一致，static checks、RulesSmokeTest、Xcode `build-for-testing` 和 battlefield screenshot 均为 success；JUnit 为 4 tests / 0 failures / 0 errors / 0 skipped，XCTest execution 按 CI 策略 skipped。
+- artifact 中 PNG 为 `2064x2752`、`5,959,673` bytes（SHA-256 `84d0c92608edaed3f689e41812c539670e578fb301f0c584ceff38fac69f6a73`），Agent C 已实际查看：地图工作区、道路/补给线、单位模型、暖金选中焦点、HIT/RET、交战结论、HUD 与单位状态保持清晰；底缘呈单一深色半透明轨道，`AL / OBJ / AX` 三段短码、数量和横向列表可读，展开入口保持收起且未再重复渲染完整单位卡。
 
 遗留事项：
 
-- 等待 v2.38 最新 `origin/main` commit 对应的云端 artifact；只有 Agent C 实际下载、核对并查看截图后，才能判断三轨道视觉密度和展开态重复是否通过。
+- v2.38 功能与云端视觉验收已完成；后续迭代应继续以最新 artifact 为基线观察窄屏、Dynamic Type 和不同地图状态下的信息轨道密度。
 
 ### v2.37 / 道路方向去重
 
