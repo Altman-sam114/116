@@ -21,6 +21,36 @@
 
 ## 历史记录
 
+### v2.39 / 窄屏轨道与道路环路
+
+日期：2026-08-09
+
+核心变更：
+
+- `ObjectiveJumpStrip` 读取 Dynamic Type，在 `xxxLarge` 及以上切换为兵种 code、`OBJ` 等短可视标签；section 标题与项目在同一底部轨道内使用 16/48pt 大字号或 14/50pt 普通布局，视觉 Dynamic Type 在短模式封顶到 `.large`，避免固定项目被辅助字号撑高或裁切。
+- 友军、据点和敌军仍遍历完整事实数组并独立横向滚动，按钮宽度、焦点边框、阵营线和 `select`/`focus` action 不变；完整单位/据点名称、阵营、HP、行动、将领、补给和战术状态继续由 VoiceOver 读取。
+- 道路从纯生成树调整为 canonical 无向边主干加受控回边：每个含环组件保留一条确定性低密度回边，再投影为两端 paired half-path，避免重复 lattice，同时保留桥接边、端点和孤立道路笔触。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldChrome.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.39（窄屏轨道与道路环路）.md`
+
+验证依据与结果：
+
+- 本轮基于已由 Agent C 验收的 v2.38 `origin/main` commit `467c9aaa727933a3e9e4483d813f0d670b587d8d`、workflow run `31297090421`、attempt `1`、artifact `ww2tactics-ci-v2.38-main-467c9aa-run31297090421-attempt1`（digest `sha256:a660d3976d265706472f21adf503a55b4ee18f2dd782b3c3efbd4765c859614e`）实现本轮目标；这些是 v2.39 实现前基线，不是本轮验收结果。
+- 本地遵循人工要求，不运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器或截图；提交前仅执行 `git diff --check`、工作树/范围核对。v2.39 需由 GitHub Actions 和 Agent C 云端 artifact 完成重验证。
+
+遗留事项：
+
+- v2.39 尚未提交、推送或获得新的 workflow/artifact；需在 `main` 直推后由 Agent C 下载结果包，核对 manifest 的 commit、run、attempt 和 regular PNG，并从源码复核 compact、`xxxLarge`、完整数组、命中区与道路环路策略。
+
 ### v2.38 / 支援甲板信息轨道
 
 日期：2026-08-09

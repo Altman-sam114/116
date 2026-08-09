@@ -27,6 +27,10 @@ private struct RoadDisjointSet {
         return true
     }
 
+    mutating func component(of element: HexCoordinate) -> HexCoordinate {
+        root(of: element)
+    }
+
     private mutating func root(of element: HexCoordinate) -> HexCoordinate {
         guard let parentElement = parent[element], parentElement != element else {
             return element
@@ -38,6 +42,12 @@ private struct RoadDisjointSet {
 }
 
 private struct RoadConnectionNetwork {
+    private struct RoadEdge: Hashable {
+        let start: HexCoordinate
+        let end: HexCoordinate
+        let direction: Int
+    }
+
     let directionsByCoordinate: [HexCoordinate: [Int]]
 
     init(tiles: [TerrainTile]) {
@@ -50,25 +60,82 @@ private struct RoadConnectionNetwork {
             if left.q != right.q { return left.q < right.q }
             return left.r < right.r
         }
+        let candidateEdges = Self.candidateEdges(in: roadCoordinates, sortedCoordinates: sortedCoordinates)
+        let candidateDegrees = Self.candidateDegrees(for: candidateEdges)
         var directions = Dictionary(
             uniqueKeysWithValues: sortedCoordinates.map { ($0, [Int]()) }
         )
         var components = RoadDisjointSet(elements: sortedCoordinates)
+        var selectedEdges = Set<RoadEdge>()
 
-        // Stable Kruskal pass: canonical directions identify each undirected
-        // edge once, while the paired reverse direction preserves both visual
-        // half-paths at the two tile endpoints.
-        for coordinate in sortedCoordinates {
-            for (direction, neighbor) in coordinate.neighbors.enumerated().prefix(3) {
-                guard roadCoordinates.contains(neighbor), components.join(coordinate, neighbor) else {
-                    continue
-                }
-                directions[coordinate, default: []].append(direction)
-                directions[neighbor, default: []].append((direction + 3) % 6)
+        // The spanning forest keeps every bridge and endpoint while canonical
+        // directions enumerate each undirected road edge only once.
+        for edge in candidateEdges where components.join(edge.start, edge.end) {
+            selectedEdges.insert(edge)
+        }
+
+        // A pure forest makes every loop look like a broken tree. Add one
+        // deterministic, low-density back edge to each cyclic component so a
+        // real loop remains visible without recreating the old lattice.
+        var backEdgesByComponent = [HexCoordinate: [RoadEdge]]()
+        let treeEdges = selectedEdges
+        for edge in candidateEdges where !treeEdges.contains(edge) {
+            let component = components.component(of: edge.start)
+            backEdgesByComponent[component, default: []].append(edge)
+        }
+
+        for backEdges in backEdgesByComponent.values {
+            guard let edge = backEdges.min(by: { left, right in
+                let leftDegree = candidateDegrees[left.start, default: 0] + candidateDegrees[left.end, default: 0]
+                let rightDegree = candidateDegrees[right.start, default: 0] + candidateDegrees[right.end, default: 0]
+                if leftDegree != rightDegree { return leftDegree < rightDegree }
+                if left.start.q != right.start.q { return left.start.q < right.start.q }
+                if left.start.r != right.start.r { return left.start.r < right.start.r }
+                return left.direction < right.direction
+            }) else {
+                continue
             }
+            selectedEdges.insert(edge)
+        }
+
+        // Project the selected canonical edges to paired half-paths at both
+        // endpoints. Sorting makes the resulting direction arrays stable even
+        // though the selected edge set has no iteration order.
+        for edge in selectedEdges.sorted(by: Self.edgeSort) {
+            directions[edge.start, default: []].append(edge.direction)
+            directions[edge.end, default: []].append((edge.direction + 3) % 6)
         }
 
         directionsByCoordinate = directions.mapValues { $0.sorted() }
+    }
+
+    private static func candidateEdges(
+        in roadCoordinates: Set<HexCoordinate>,
+        sortedCoordinates: [HexCoordinate]
+    ) -> [RoadEdge] {
+        sortedCoordinates.flatMap { coordinate in
+            coordinate.neighbors.enumerated().prefix(3).compactMap { direction, neighbor in
+                guard roadCoordinates.contains(neighbor) else { return nil }
+                return RoadEdge(start: coordinate, end: neighbor, direction: direction)
+            }
+        }
+    }
+
+    private static func candidateDegrees(for edges: [RoadEdge]) -> [HexCoordinate: Int] {
+        var degrees = [HexCoordinate: Int]()
+        for edge in edges {
+            degrees[edge.start, default: 0] += 1
+            degrees[edge.end, default: 0] += 1
+        }
+        return degrees
+    }
+
+    private static func edgeSort(_ left: RoadEdge, _ right: RoadEdge) -> Bool {
+        if left.start.q != right.start.q { return left.start.q < right.start.q }
+        if left.start.r != right.start.r { return left.start.r < right.start.r }
+        if left.direction != right.direction { return left.direction < right.direction }
+        if left.end.q != right.end.q { return left.end.q < right.end.q }
+        return left.end.r < right.end.r
     }
 }
 

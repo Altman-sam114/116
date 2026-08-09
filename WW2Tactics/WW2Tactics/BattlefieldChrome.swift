@@ -821,6 +821,7 @@ struct FrontlineStrip: View {
 
 struct ObjectiveJumpStrip: View {
     @EnvironmentObject private var game: GameState
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let compact: Bool
 
     var body: some View {
@@ -838,10 +839,11 @@ struct ObjectiveJumpStrip: View {
                     code: "AL",
                     title: "友军编队",
                     count: friendlyUnits.count,
-                    color: Faction.allies.accentColor
+                    color: Faction.allies.accentColor,
+                    largeType: usesLargeTypeLayout
                 ) {
                     ForEach(friendlyUnits) { unit in
-                        UnitFocusButton(unit: unit, compact: compact)
+                        UnitFocusButton(unit: unit, compact: compact, largeType: usesLargeTypeLayout)
                     }
                 }
                 .frame(width: availableWidth * friendlySectionRatio)
@@ -851,10 +853,11 @@ struct ObjectiveJumpStrip: View {
                     code: "OBJ",
                     title: "战役据点",
                     count: objectives.count,
-                    color: BattlefieldTheme.brass
+                    color: BattlefieldTheme.brass,
+                    largeType: usesLargeTypeLayout
                 ) {
                     ForEach(objectives) { tile in
-                        ObjectiveJumpButton(tile: tile, compact: compact)
+                        ObjectiveJumpButton(tile: tile, compact: compact, largeType: usesLargeTypeLayout)
                     }
                 }
                 .frame(width: availableWidth * objectiveSectionRatio)
@@ -864,10 +867,11 @@ struct ObjectiveJumpStrip: View {
                     code: "AX",
                     title: "敌军编队",
                     count: enemyUnits.count,
-                    color: Faction.axis.accentColor
+                    color: Faction.axis.accentColor,
+                    largeType: usesLargeTypeLayout
                 ) {
                     ForEach(enemyUnits) { unit in
-                        UnitFocusButton(unit: unit, compact: compact)
+                        UnitFocusButton(unit: unit, compact: compact, largeType: usesLargeTypeLayout)
                     }
                 }
                 .frame(width: availableWidth * enemySectionRatio)
@@ -878,6 +882,10 @@ struct ObjectiveJumpStrip: View {
     private var friendlySectionRatio: CGFloat { compact ? 1.0 / 3.0 : 0.40 }
     private var objectiveSectionRatio: CGFloat { compact ? 1.0 / 3.0 : 0.26 }
     private var enemySectionRatio: CGFloat { compact ? 1.0 / 3.0 : 0.34 }
+
+    private var usesLargeTypeLayout: Bool {
+        dynamicTypeSize >= .xxxLarge
+    }
 
     private func objectiveSort(_ left: TerrainTile, _ right: TerrainTile) -> Bool {
         let leftOwnerRank = ownerRank(left.owner)
@@ -906,22 +914,28 @@ struct ObjectiveJumpSection<Content: View>: View {
     let title: String
     let count: Int
     let color: Color
+    let largeType: Bool
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: largeType ? 1 : 2) {
             HStack(spacing: 3) {
                 Image(systemName: icon)
                     .accessibilityHidden(true)
                 Text(code)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 Spacer(minLength: 2)
                 Text("\(count)")
                     .monospacedDigit()
             }
-            .font(.system(size: 9, weight: .black, design: .rounded))
+            .font(largeType ? .caption.weight(.black) : .system(size: 9, weight: .black, design: .rounded))
             .foregroundStyle(color)
-            .frame(height: 14)
+            .lineLimit(1)
+            .minimumScaleFactor(0.65)
+            .frame(height: largeType ? 16 : 14)
             .padding(.horizontal, 4)
+            .dynamicTypeSize(visualDynamicTypeRange)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(title)，共 \(count) 项")
 
@@ -931,7 +945,7 @@ struct ObjectiveJumpSection<Content: View>: View {
                 }
                 .padding(.horizontal, 3)
             }
-            .frame(height: 50)
+            .frame(height: largeType ? 48 : 50)
         }
         .overlay(alignment: .trailing) {
             Rectangle()
@@ -940,12 +954,17 @@ struct ObjectiveJumpSection<Content: View>: View {
                 .padding(.vertical, 3)
         }
     }
+
+    private var visualDynamicTypeRange: ClosedRange<DynamicTypeSize> {
+        largeType ? (.xSmall ... .large) : (.xSmall ... .accessibility5)
+    }
 }
 
 struct ObjectiveJumpButton: View {
     @EnvironmentObject private var game: GameState
     let tile: TerrainTile
     let compact: Bool
+    let largeType: Bool
 
     var body: some View {
         Button(action: focusObjective) {
@@ -964,18 +983,21 @@ struct ObjectiveJumpButton: View {
                         }
                 }
 
-                Text(tile.objectiveName ?? "据点")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                Text(largeType ? "OBJ" : (tile.objectiveName ?? "据点"))
+                    .font(largeType ? .caption.weight(.bold) : .system(size: 9, weight: .bold, design: .rounded))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                    .minimumScaleFactor(0.68)
 
                 Text("q\(tile.coordinate.q),r\(tile.coordinate.r)")
-                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .font(largeType ? .caption.weight(.black) : .system(size: 9, weight: .black, design: .rounded))
                     .foregroundStyle(.white.opacity(0.56))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
             }
             .foregroundStyle(ownerColor)
             .padding(.horizontal, 3)
-            .frame(width: itemWidth, height: 50)
+            .dynamicTypeSize(visualDynamicTypeRange)
+            .frame(width: itemWidth, height: itemHeight)
             .background(
                 Color.white.opacity(isFocused ? 0.14 : 0),
                 in: RoundedRectangle(cornerRadius: 4)
@@ -998,6 +1020,12 @@ struct ObjectiveJumpButton: View {
     }
 
     private var itemWidth: CGFloat { compact ? 72 : 84 }
+
+    private var itemHeight: CGFloat { largeType ? 48 : 50 }
+
+    private var visualDynamicTypeRange: ClosedRange<DynamicTypeSize> {
+        largeType ? (.xSmall ... .large) : (.xSmall ... .accessibility5)
+    }
 
     private var isFocused: Bool {
         game.focusedCoordinate == tile.coordinate
@@ -1028,6 +1056,7 @@ struct UnitFocusButton: View {
     @EnvironmentObject private var game: GameState
     let unit: BattleUnit
     let compact: Bool
+    let largeType: Bool
 
     var body: some View {
         Button(action: focusUnit) {
@@ -1046,12 +1075,12 @@ struct UnitFocusButton: View {
                     )
 
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(unit.name)
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                        Text(largeType ? unit.kind.code : unit.name)
+                            .font(largeType ? .caption.weight(.bold) : .system(size: 9, weight: .bold, design: .rounded))
                             .lineLimit(1)
-                            .minimumScaleFactor(0.72)
+                            .minimumScaleFactor(0.68)
                         Text("\(unit.hp)/\(unit.maxHP)")
-                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .font(largeType ? .caption.weight(.black) : .system(size: 9, weight: .black, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white.opacity(0.68))
                             .lineLimit(1)
@@ -1080,7 +1109,8 @@ struct UnitFocusButton: View {
             }
             .foregroundStyle(.white.opacity(0.82))
             .padding(.horizontal, 3)
-            .frame(width: itemWidth, height: 50)
+            .dynamicTypeSize(visualDynamicTypeRange)
+            .frame(width: itemWidth, height: itemHeight)
             .background(
                 Color.white.opacity(isFocused ? 0.14 : 0),
                 in: RoundedRectangle(cornerRadius: 4)
@@ -1103,6 +1133,12 @@ struct UnitFocusButton: View {
     }
 
     private var itemWidth: CGFloat { compact ? 72 : 84 }
+
+    private var itemHeight: CGFloat { largeType ? 48 : 50 }
+
+    private var visualDynamicTypeRange: ClosedRange<DynamicTypeSize> {
+        largeType ? (.xSmall ... .large) : (.xSmall ... .accessibility5)
+    }
 
     private var isActionComplete: Bool {
         unit.hasMoved && unit.hasAttacked

@@ -496,6 +496,30 @@ flowchart LR
     Stable["44pt / VoiceOver / Dynamic Type / Reduce Motion / 地图工作区"] --> Same["保持不变"]
 ```
 
+## v2.39 窄屏轨道与道路环路
+
+```mermaid
+flowchart LR
+    Type["dynamicTypeSize >= xxxLarge"] --> Short["短可视标签：兵种 code / OBJ"]
+    Type --> Cap["视觉 Dynamic Type 上限 large"]
+    Short --> Rail["ObjectiveJumpStrip AL / OBJ / AX"]
+    Cap --> Rail
+    Units["完整友军/敌军数组"] --> ALAX["独立 LazyHStack 横向滚动"]
+    Objectives["完整 objectiveTiles + objectiveSort"] --> OBJ["独立 OBJ 横向滚动"]
+    Rail --> ALAX
+    Rail --> OBJ
+    ALAX --> Actions["既有 select / focus action"]
+    OBJ --> Actions
+    Rail --> Hit["固定 48/50pt 项高 + >=44pt Button"]
+    Rail --> A11y["完整名称/阵营/状态/将领/补给 VoiceOver"]
+    RoadTiles[".road 邻接坐标"] --> Edges["canonical 无向边：方向 0/1/2 各一次"]
+    Edges --> Forest["Kruskal 主干：桥接边与端点"]
+    Forest --> Cycles["每个含回边组件保留一条确定性回边"]
+    Cycles --> Paired["两端 paired half-path"]
+    Paired --> RoadPaint["shadow / 主体 / 高光共用视觉路径"]
+    RoadPaint --> Stable["只读视觉生成；规则、成本、输入、zIndex 不变"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
