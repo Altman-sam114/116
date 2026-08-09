@@ -520,6 +520,25 @@ flowchart LR
     RoadPaint --> Stable["只读视觉生成；规则、成本、输入、zIndex 不变"]
 ```
 
+## v2.40 道路环路密度微调
+
+```mermaid
+flowchart LR
+    Tiles[".road 坐标 + neighbors"] --> Canonical["canonical 无向边：方向 0/1/2 各一次"]
+    Canonical --> Components["按组件统计 vertexCount / edgeCount"]
+    Components --> Rank["cycleRank = max(0, edgeCount - vertexCount + 1)"]
+    Rank --> Quota["backEdgeQuota：0 无环 / 1 有环"]
+    Canonical --> Kruskal["稳定 Kruskal 主干：桥接边与端点"]
+    Kruskal --> TreePath["主干 BFS：候选回边环路长度"]
+    TreePath --> Score["长环路优先；内部高阶节点/端点度数低优先；q/r/direction tie-break"]
+    Score --> BackEdge["每组件最多选一条回边"]
+    Kruskal --> Paired["两端 paired half-path"]
+    BackEdge --> Paired
+    Paired --> Paint["道路 shadow / 主体 / dashed highlight 共用 connectionPath"]
+    Paint --> Stable["只读表现层；不改规则、路线、输入、rail 或 zIndex"]
+    Rank --> Guard["禁止重复边、全六向线和 lattice"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

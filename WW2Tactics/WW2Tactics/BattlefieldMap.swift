@@ -48,6 +48,13 @@ private struct RoadConnectionNetwork {
         let direction: Int
     }
 
+    private struct LoopCandidate {
+        let edge: RoadEdge
+        let loopLength: Int
+        let branchPenalty: Int
+        let endpointDegreeSum: Int
+    }
+
     let directionsByCoordinate: [HexCoordinate: [Int]]
 
     init(tiles: [TerrainTile]) {
@@ -74,28 +81,76 @@ private struct RoadConnectionNetwork {
             selectedEdges.insert(edge)
         }
 
-        // A pure forest makes every loop look like a broken tree. Add one
-        // deterministic, low-density back edge to each cyclic component so a
-        // real loop remains visible without recreating the old lattice.
-        var backEdgesByComponent = [HexCoordinate: [RoadEdge]]()
-        let treeEdges = selectedEdges
-        for edge in candidateEdges where !treeEdges.contains(edge) {
-            let component = components.component(of: edge.start)
-            backEdgesByComponent[component, default: []].append(edge)
+        // Measure each connected component from the complete canonical graph.
+        // cycleRank is the number of independent edges left after a spanning
+        // tree; the visual quota is deliberately capped at one per component.
+        var verticesByComponent = [HexCoordinate: Set<HexCoordinate>]()
+        for coordinate in sortedCoordinates {
+            let component = components.component(of: coordinate)
+            verticesByComponent[component, default: []].insert(coordinate)
         }
 
-        for backEdges in backEdgesByComponent.values {
-            guard let edge = backEdges.min(by: { left, right in
-                let leftDegree = candidateDegrees[left.start, default: 0] + candidateDegrees[left.end, default: 0]
-                let rightDegree = candidateDegrees[right.start, default: 0] + candidateDegrees[right.end, default: 0]
-                if leftDegree != rightDegree { return leftDegree < rightDegree }
-                if left.start.q != right.start.q { return left.start.q < right.start.q }
-                if left.start.r != right.start.r { return left.start.r < right.start.r }
-                return left.direction < right.direction
-            }) else {
+        var edgesByComponent = [HexCoordinate: [RoadEdge]]()
+        for edge in candidateEdges {
+            let component = components.component(of: edge.start)
+            edgesByComponent[component, default: []].append(edge)
+        }
+
+        var treeNeighbors = [HexCoordinate: [HexCoordinate]]()
+        let treeEdges = selectedEdges
+        for edge in treeEdges {
+            treeNeighbors[edge.start, default: []].append(edge.end)
+            treeNeighbors[edge.end, default: []].append(edge.start)
+        }
+        treeNeighbors = treeNeighbors.mapValues { neighbors in
+            neighbors.sorted(by: Self.coordinateSort)
+        }
+
+        for component in verticesByComponent.keys.sorted(by: Self.coordinateSort) {
+            let vertexCount = verticesByComponent[component]?.count ?? 0
+            let edgeCount = edgesByComponent[component]?.count ?? 0
+            let cycleRank = max(0, edgeCount - vertexCount + 1)
+            let backEdgeQuota = cycleRank > 0 ? 1 : 0
+            guard backEdgeQuota > 0 else {
                 continue
             }
-            selectedEdges.insert(edge)
+
+            let nonTreeEdges = (edgesByComponent[component] ?? [])
+                .filter { !treeEdges.contains($0) }
+            let loopCandidates = nonTreeEdges
+                .compactMap { edge -> LoopCandidate? in
+                    guard let path = Self.treePath(
+                        from: edge.start,
+                        to: edge.end,
+                        neighbors: treeNeighbors
+                    ) else {
+                        return nil
+                    }
+
+                    let internalNodes = path.dropFirst().dropLast()
+                    let branchPenalty = internalNodes.reduce(into: 0) { result, node in
+                        if candidateDegrees[node, default: 0] > 2 {
+                            result += 1
+                        }
+                    }
+                    let endpointDegreeSum = candidateDegrees[edge.start, default: 0]
+                        + candidateDegrees[edge.end, default: 0]
+                    return LoopCandidate(
+                        edge: edge,
+                        loopLength: path.count,
+                        branchPenalty: branchPenalty,
+                        endpointDegreeSum: endpointDegreeSum
+                    )
+                }
+
+            if let selectedLoop = loopCandidates.min(by: Self.loopCandidateSort) {
+                selectedEdges.insert(selectedLoop.edge)
+            } else if let fallbackEdge = nonTreeEdges.min(by: Self.edgeSort) {
+                // A connected tree should always yield a path. Keep the
+                // quota invariant even if a future helper change cannot find
+                // one by falling back to the stable canonical edge order.
+                selectedEdges.insert(fallbackEdge)
+            }
         }
 
         // Project the selected canonical edges to paired half-paths at both
@@ -128,6 +183,57 @@ private struct RoadConnectionNetwork {
             degrees[edge.end, default: 0] += 1
         }
         return degrees
+    }
+
+    private static func coordinateSort(_ left: HexCoordinate, _ right: HexCoordinate) -> Bool {
+        if left.q != right.q { return left.q < right.q }
+        return left.r < right.r
+    }
+
+    private static func treePath(
+        from start: HexCoordinate,
+        to end: HexCoordinate,
+        neighbors: [HexCoordinate: [HexCoordinate]]
+    ) -> [HexCoordinate]? {
+        guard start != end else { return [start] }
+
+        var queue = [start]
+        var visited: Set<HexCoordinate> = [start]
+        var parent = [HexCoordinate: HexCoordinate]()
+        var index = 0
+
+        while index < queue.count {
+            let current = queue[index]
+            index += 1
+            if current == end { break }
+
+            for neighbor in neighbors[current, default: []] {
+                guard visited.insert(neighbor).inserted else { continue }
+                parent[neighbor] = current
+                queue.append(neighbor)
+            }
+        }
+
+        guard visited.contains(end) else { return nil }
+
+        var path = [end]
+        var current = end
+        while let previous = parent[current] {
+            path.append(previous)
+            current = previous
+        }
+        return current == start ? Array(path.reversed()) : nil
+    }
+
+    private static func loopCandidateSort(_ left: LoopCandidate, _ right: LoopCandidate) -> Bool {
+        // Prefer a longer, more traceable loop before considering endpoint
+        // degree. The remaining fields make ties independent of Set order.
+        if left.loopLength != right.loopLength { return left.loopLength > right.loopLength }
+        if left.branchPenalty != right.branchPenalty { return left.branchPenalty < right.branchPenalty }
+        if left.endpointDegreeSum != right.endpointDegreeSum {
+            return left.endpointDegreeSum < right.endpointDegreeSum
+        }
+        return edgeSort(left.edge, right.edge)
     }
 
     private static func edgeSort(_ left: RoadEdge, _ right: RoadEdge) -> Bool {

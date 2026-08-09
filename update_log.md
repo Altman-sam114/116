@@ -21,6 +21,35 @@
 
 ## 历史记录
 
+### v2.40 / 道路环路密度微调
+
+日期：2026-08-09
+
+核心变更：
+
+- `RoadConnectionNetwork` 继续从 `.road` 邻接构造 canonical 无向边，并先用稳定 Kruskal 保留主干、桥接边和端点；随后按每个连通组件的 `edgeCount - vertexCount + 1` 计算 `cycleRank`，将回边 quota 固定为无环 0、有环 1。
+- 回边候选在主干上做确定性 BFS，按环路长度优先、内部高阶节点数量、端点度数和 q/r/direction 稳定排序，优先较长、低分叉的环路，避免短三角回边主导高密度地图；selected canonical edges 仍只向两端投影 paired half-path。
+- `TerrainTexture` 的道路 shadow、主体和 dashed highlight、孤立道路短中心笔触、河流/补给线及 v2.39 AL/OBJ/AX rail 保持原链；不改 `GameState`、模型、路线成本、地图输入、tile frame、contentShape、zIndex 或 workflow。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.40（道路环路密度微调）.md`
+
+验证依据与结果：
+
+- 本轮基于已由 Agent C 验收的 v2.39 `origin/main` commit `daba43bee0a5f70e75674a34cad0c90ff58bf948`、workflow run `31299229972`、attempt `1`、artifact `ww2tactics-ci-v2.39-main-daba43b-run31299229972-attempt1`（digest `sha256:bea48ba4d543afc678573a7f06f677532512400226736a850c2732827209749c`）实现本轮目标；这些是 v2.40 实现前基线，不是本轮验收结果。
+- 本地遵循人工要求，不运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器或截图；提交前仅执行 `git diff --check`、工作树/范围核对。v2.40 需由 GitHub Actions 和 Agent C 云端 artifact 完成重验证。
+
+遗留事项：
+
+- v2.40 尚未提交、推送或获得新的 workflow/artifact；需在 `main` 直推后核对最新 regular PNG 的道路主干、长环路、分支、边界、孤立格和 AL/OBJ/AX 回归，并由源码/纯图审查确认 `cycleRank`/quota 不变量。
+
 ### v2.39 / 窄屏轨道与道路环路
 
 日期：2026-08-09
