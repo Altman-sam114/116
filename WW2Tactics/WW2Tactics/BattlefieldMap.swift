@@ -138,7 +138,7 @@ struct HexMapView: View {
                     )
             }
 
-            ForEach(game.tiles) { tile in
+            ForEach(game.tiles, id: \.id) { tile in
                 let point = position(for: tile.coordinate)
                 let unit = game.unit(at: tile.coordinate)
                 let tileIsSelected = selected?.position == tile.coordinate
