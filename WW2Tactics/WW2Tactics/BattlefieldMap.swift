@@ -118,6 +118,7 @@ struct HexMapView: View {
         let contentHeight = CGFloat(game.scenario.mapRows) * tileHeight * 0.78 + tileHeight
         let fillScale = max(0.86, (viewportHeight - 16) / contentHeight)
         let resolvedScale = fillScale * scaleMultiplier
+        let mapTiles: [TerrainTile] = Array(game.tiles)
 
         ZStack(alignment: .topLeading) {
             MapGridBackdrop(width: contentWidth, height: contentHeight)
@@ -138,19 +139,16 @@ struct HexMapView: View {
                     )
             }
 
-            ForEach(game.tiles, id: \.id) { tile in
+            ForEach(mapTiles, id: \.coordinate.id) { tile in
                 let point = position(for: tile.coordinate)
                 let unit = game.unit(at: tile.coordinate)
                 let tileIsSelected = selected?.position == tile.coordinate
                 let tileIsFocused = game.focusedCoordinate == tile.coordinate
-                let terrainConnectionDirections: [Int]
-                if tile.terrain == .road {
-                    terrainConnectionDirections = roadConnectionDirectionsByCoordinate[tile.coordinate] ?? []
-                } else {
-                    terrainConnectionDirections = tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
+                let terrainConnectionDirections: [Int] = tile.terrain == .road
+                    ? roadConnectionDirectionsByCoordinate[tile.coordinate] ?? []
+                    : tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
                         terrainByCoordinate[coordinate] == tile.terrain ? index : nil
                     }
-                }
                 let supplyLineConnectionDirections = supplyLine.contains(tile.coordinate)
                     ? tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
                         supplyLine.contains(coordinate) ? index : nil
