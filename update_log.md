@@ -51,7 +51,7 @@
 
 遗留事项：
 
-- 当前最新 `origin/main` 为 `v2.39: 补记云端验收` docs-only commit；需以该新 SHA 对应的 workflow/artifact 作为最终云端验收证据。现有 workflow 只生成 regular 截图，compact/Dynamic Type 仍依靠源码结构审查：短可视标签与 `.large` 上限、完整 VoiceOver/44pt 命中区、canonical 道路回边与规则/输入边界已核对。
+- v2.39 功能与云端视觉验收已完成；现有 workflow 只生成 regular 截图，compact/Dynamic Type 仍以源码结构审查为证：短可视标签与 `.large` 上限、完整 VoiceOver/44pt 命中区、canonical 道路回边与规则/输入边界均已核对。后续仅观察不同地图状态下的窄屏轨道密度与道路环路可读性。
 
 ### v2.38 / 支援甲板信息轨道
 
