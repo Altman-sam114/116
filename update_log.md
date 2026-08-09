@@ -45,10 +45,12 @@
 
 - 本轮基于已由 Agent C 验收的 v2.39 `origin/main` commit `daba43bee0a5f70e75674a34cad0c90ff58bf948`、workflow run `31299229972`、attempt `1`、artifact `ww2tactics-ci-v2.39-main-daba43b-run31299229972-attempt1`（digest `sha256:bea48ba4d543afc678573a7f06f677532512400226736a850c2732827209749c`）实现本轮目标；这些是 v2.40 实现前基线，不是本轮验收结果。
 - 本地遵循人工要求，不运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器或截图；提交前仅执行 `git diff --check`、工作树/范围核对。v2.40 需由 GitHub Actions 和 Agent C 云端 artifact 完成重验证。
+- 功能实现 commit `7284c41c64d0e0637ddb0faca80dd14bd934e77d` 已由 workflow run `31300583825`、attempt `1` 通过 static checks、RulesSmokeTest、Xcode `build-for-testing` 和 `selected-combat-impact-steady` regular 截图；artifact 为 `ww2tactics-ci-v2.40-main-7284c41-run31300583825-attempt1`，digest `sha256:7b6d442cec080684b7a879da67757ce4bb2a2abd2fd3fa9ac0e5cb89287e4778`。
+- 该结果包的 `junit.xml` 为 4 tests、0 failures/errors/skips；PNG 为 iPad Pro 13-inch (M5) `2064x2752`、`5961392` bytes、SHA-256 `1a3937d9dcb540351a183da433f26d438ef042b84a1e2ab3350c6703f6904dbb`，`WW2Tactics.xcresult/Info.plist` 可读且 `xcodebuild.log` 含 `** TEST BUILD SUCCEEDED **`。Agent C 已从 `/private/tmp/ww2tactics-c-review-31300583825/` 下载并实看：道路主干、分支、长环路、边界、孤立笔触和 AL/OBJ/AX、补给、单位、HIT/RET、交战结论、HUD 清晰，未见短三角回边主导或 lattice 回归。
 
 遗留事项：
 
-- v2.40 尚未提交、推送或获得新的 workflow/artifact；需在 `main` 直推后核对最新 regular PNG 的道路主干、长环路、分支、边界、孤立格和 AL/OBJ/AX 回归，并由源码/纯图审查确认 `cycleRank`/quota 不变量。
+- v2.40 功能与云端视觉验收已完成；现有 workflow 只生成 regular 截图，compact/Dynamic Type 和不同地图状态仍以源码结构审查与后续观察为证。当前已核对 `cycleRank == 0` 无回边、含环组件最多一条回边、主干/paired half-path/规则与输入边界不变；后续仅观察更多地图状态下的长环连续性。
 
 ### v2.39 / 窄屏轨道与道路环路
 
