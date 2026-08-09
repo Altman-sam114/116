@@ -478,6 +478,24 @@ flowchart LR
     Stable["视觉森林只读；TerrainKind / 路线成本 / 输入 / zIndex / VoiceOver"] --> Same["保持不变"]
 ```
 
+## v2.38 支援甲板信息轨道
+
+```mermaid
+flowchart LR
+    Friendly["game.mapFriendlyFocusUnits"] --> AL["AL：完整数组 / 横向滚动"]
+    Objectives["objectiveTiles + objectiveSort"] --> OBJ["OBJ：完整数组 / 横向滚动"]
+    Enemy["game.mapEnemyFocusUnits"] --> AX["AX：完整数组 / 横向滚动"]
+    AL --> Select["友军 item：game.select(unitID:)"]
+    OBJ --> FocusObjective["据点 item：game.focus(coordinate:)"]
+    AX --> FocusEnemy["敌军 item：game.focus(unitID:)"]
+    AL --> Rail["单一深色半透明底缘轨道"]
+    OBJ --> Rail
+    AX --> Rail
+    Rail --> Sections["短码 / 数量 / 细分隔；item 透明底 + 焦点边框/阵营色线"]
+    Support["BattlefieldSupportDeck 默认收起"] --> Summary["展开 ForceRibbon：AL/AX 数量 + READY 摘要，不重复单位卡"]
+    Stable["44pt / VoiceOver / Dynamic Type / Reduce Motion / 地图工作区"] --> Same["保持不变"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
@@ -731,7 +749,7 @@ flowchart TD
 
 ## 图例与编队条（v1.67）
 
-`MapLegendView` 与 `ForceRibbon` 使用统一指挥台背板、标题条与阵营标签；`UnitRibbonButton` 选中态使用阵营色强调。图例条目与编队数据来源不变。
+`MapLegendView` 与 `ForceRibbon` 使用统一指挥台视觉 token；v2.38 的 `ForceRibbon` 只显示盟军/轴心数量与 READY 摘要，完整单位定位由底部 AL/AX 轨道承担。图例条目与编队数据来源不变。
 
 ## 窄屏布局（v1.68）
 

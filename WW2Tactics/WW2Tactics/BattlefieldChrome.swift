@@ -719,7 +719,8 @@ struct ObjectiveJumpDock: View {
     var body: some View {
         ObjectiveJumpStrip(compact: compact)
             .frame(height: 66)
-            .padding(5)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
             .background(MapHudBackground())
     }
 }
@@ -932,10 +933,11 @@ struct ObjectiveJumpSection<Content: View>: View {
             }
             .frame(height: 50)
         }
-        .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 6))
-        .overlay {
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(color.opacity(0.28), lineWidth: 1)
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(color.opacity(0.24))
+                .frame(width: 1)
+                .padding(.vertical, 3)
         }
     }
 }
@@ -974,11 +976,19 @@ struct ObjectiveJumpButton: View {
             .foregroundStyle(ownerColor)
             .padding(.horizontal, 3)
             .frame(width: itemWidth, height: 50)
-            .background(Color.white.opacity(isFocused ? 0.14 : 0.07), in: RoundedRectangle(cornerRadius: 7))
-            .overlay(
-                RoundedRectangle(cornerRadius: 7)
-                    .stroke(isFocused ? Color.yellow : ownerColor.opacity(0.22), lineWidth: isFocused ? 2 : 1)
+            .background(
+                Color.white.opacity(isFocused ? 0.14 : 0),
+                in: RoundedRectangle(cornerRadius: 4)
             )
+            .overlay {
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.yellow.opacity(isFocused ? 1 : 0), lineWidth: isFocused ? 2 : 0)
+            }
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(ownerColor.opacity(isFocused ? 0.92 : 0.28))
+                    .frame(height: isFocused ? 2 : 1)
+            }
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
@@ -1071,11 +1081,19 @@ struct UnitFocusButton: View {
             .foregroundStyle(.white.opacity(0.82))
             .padding(.horizontal, 3)
             .frame(width: itemWidth, height: 50)
-            .background(Color.white.opacity(isFocused ? 0.14 : 0.07), in: RoundedRectangle(cornerRadius: 7))
-            .overlay(
-                RoundedRectangle(cornerRadius: 7)
-                    .stroke(isFocused ? Color.yellow : unit.faction.accentColor.opacity(0.22), lineWidth: isFocused ? 2 : 1)
+            .background(
+                Color.white.opacity(isFocused ? 0.14 : 0),
+                in: RoundedRectangle(cornerRadius: 4)
             )
+            .overlay {
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.yellow.opacity(isFocused ? 1 : 0), lineWidth: isFocused ? 2 : 0)
+            }
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(unit.faction.accentColor.opacity(isFocused ? 0.92 : 0.28))
+                    .frame(height: isFocused ? 2 : 1)
+            }
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)

@@ -765,72 +765,60 @@ struct ForceRibbon: View {
     @EnvironmentObject private var game: GameState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Label("编队", systemImage: "person.3.sequence.fill")
-                    .font(.caption2.weight(.black))
-                    .foregroundStyle(BattlefieldTheme.brass)
-                Text("盟军 \(game.units(for: .allies).count) · 轴心 \(game.units(for: .axis).count)")
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundStyle(BattlefieldTheme.mutedInk)
-                Spacer(minLength: 0)
-            }
+        HStack(spacing: 0) {
+            ForceRosterSummary(faction: .allies, units: game.units(for: .allies))
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForceRibbonFactionTag(title: "盟军", color: Faction.allies.accentColor)
+            Rectangle()
+                .fill(BattlefieldTheme.hairline)
+                .frame(width: 1, height: 28)
+                .padding(.horizontal, 10)
 
-                    ForEach(game.units(for: .allies)) { unit in
-                        UnitRibbonButton(
-                            unit: unit,
-                            isSelected: game.selectedUnitID == unit.id,
-                            isEnabled: unit.faction == game.activeFaction && game.winner == nil
-                        )
-                    }
-
-                    Rectangle()
-                        .fill(BattlefieldTheme.hairline)
-                        .frame(width: 1, height: 40)
-
-                    ForceRibbonFactionTag(title: "轴心", color: Faction.axis.accentColor)
-
-                    ForEach(game.units(for: .axis)) { unit in
-                        UnitRibbonButton(
-                            unit: unit,
-                            isSelected: game.focusedUnit?.id == unit.id,
-                            isEnabled: game.winner == nil
-                        )
-                    }
-                }
-                .padding(.vertical, 2)
-            }
+            ForceRosterSummary(faction: .axis, units: game.units(for: .axis))
         }
+        .frame(minHeight: 44)
         .padding(.horizontal, 8)
-        .padding(.vertical, 7)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(BattlefieldTheme.commandDeckDeep.opacity(0.58))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(BattlefieldTheme.brass.opacity(0.16), lineWidth: 1)
-                )
-        )
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(BattlefieldTheme.hairline)
+                .frame(height: 1)
+        }
     }
 }
 
-private struct ForceRibbonFactionTag: View {
-    let title: String
-    let color: Color
+private struct ForceRosterSummary: View {
+    let faction: Faction
+    let units: [BattleUnit]
 
     var body: some View {
-        Text(title)
-            .font(.system(size: 10, weight: .black, design: .rounded))
-            .foregroundStyle(.black.opacity(0.82))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .frame(minHeight: 36)
-            .background(color.opacity(0.88), in: Capsule())
-            .accessibilityHidden(true)
+        HStack(spacing: 6) {
+            Image(systemName: faction == .allies ? "shield.fill" : "scope")
+                .font(.caption.weight(.black))
+                .foregroundStyle(faction.accentColor)
+
+            Text(faction.shortTitle)
+                .font(.caption.weight(.black))
+                .foregroundStyle(faction.accentColor)
+
+            Text("\(units.count) 支")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(BattlefieldTheme.mutedInk)
+
+            Text("\(readyCount) READY")
+                .font(.caption2.weight(.black))
+                .foregroundStyle(readyCount > 0 ? BattlefieldTheme.signal : BattlefieldTheme.mutedInk)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+
+            Spacer(minLength: 4)
+        }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(faction.title)编队摘要")
+        .accessibilityValue("\(units.count) 支部队，\(readyCount) 支待命")
+    }
+
+    private var readyCount: Int {
+        units.filter { !$0.hasMoved || !$0.hasAttacked }.count
     }
 }
 
@@ -1131,73 +1119,6 @@ private struct DeploymentButton: View {
         .accessibilityLabel("部署\(kind.title)，消耗\(kind.commandCost)指令点")
     }
 }
-
-private struct UnitRibbonButton: View {
-    @EnvironmentObject private var game: GameState
-    let unit: BattleUnit
-    let isSelected: Bool
-    let isEnabled: Bool
-
-    var body: some View {
-        Button {
-            if unit.faction == game.activeFaction {
-                game.select(unitID: unit.id)
-            } else {
-                game.focus(unitID: unit.id)
-            }
-        } label: {
-            HStack(spacing: 7) {
-                UnitShapeBadge(
-                    kind: unit.kind,
-                    faction: unit.faction,
-                    hasCommander: unit.commander != nil,
-                    rank: unit.rank,
-                    supplyState: game.supplyState(for: unit),
-                    tacticalStatus: unit.tacticalStatus,
-                    isSpent: unit.hasMoved && unit.hasAttacked,
-                    width: 42,
-                    height: 25
-                )
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(unit.name)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.68)
-
-                    HStack(spacing: 5) {
-                        MiniHealthBar(ratio: unit.hpRatio)
-                            .frame(width: 42, height: 5)
-                        Text(unit.actionStateText)
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.6))
-                    }
-                }
-            }
-            .frame(width: 150, height: 46)
-            .padding(.horizontal, 8)
-            .background(
-                (isSelected ? unit.faction.accentColor.opacity(0.18) : BattlefieldTheme.fieldGlass.opacity(0.42)),
-                in: RoundedRectangle(cornerRadius: 8)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(
-                        isSelected ? Color.yellow : unit.faction.accentColor.opacity(0.28),
-                        lineWidth: isSelected ? 2 : 1
-                    )
-            )
-            .opacity(isEnabled || unit.faction != game.activeFaction ? 1 : 0.62)
-        }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-        .accessibilityLabel(unit.faction == game.activeFaction ? "选择\(unit.name)" : "定位\(unit.name)")
-    }
-}
-
-
-
 
 private struct InspectorSectionHeader: View {
     let title: String

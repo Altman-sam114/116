@@ -21,6 +21,37 @@
 
 ## 历史记录
 
+### v2.38 / 支援甲板信息轨道
+
+日期：2026-08-09
+
+核心变更：
+
+- 地图底缘 `ObjectiveJumpDock` 继续保留 `AL / OBJ / AX` 三段完整事实数组、独立横向滚动和既有选择/定位 action，但收敛为单一深色半透明外层轨道；section 改用短码、数量和细分隔，单位/据点项目改为透明底、焦点边框与阵营色底线，降低嵌套卡片墙的视觉重量。
+- 展开的 `ForceRibbon` 不再重复渲染完整盟军/轴心单位卡，改为只读双方数量与 READY 摘要；支援甲板默认收起，战术命令、增援、图例等独有入口保持可访问。
+- 本轮仅修改 SwiftUI 表现层和同步文档，不改 `GameState`、地图输入、规则、排序、数据数组、zIndex 或 CI 配置；44pt 命中区、VoiceOver、Dynamic Type、Reduce Motion、地图工作区和 `select`/`focus` action 保持原契约。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldChrome.swift`
+- `WW2Tactics/WW2Tactics/ContentView.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.38（支援甲板信息轨道）.md`
+
+验证依据与结果：
+
+- 本地按人工要求未运行 Swift、Xcode、typecheck、RulesSmokeTest、XCTest、模拟器、Playwright 或截图；仅执行 Git 状态、变更范围和 `git diff --check` 轻量检查。
+- 本轮基于已由 Agent C 验收的 v2.37 `origin/main` commit `fc4af213b77d01b41bfed5f295e0727eb8d1fb95`、workflow run `31294998218`、attempt `1`、artifact `ww2tactics-ci-v2.37-main-fc4af21-run31294998218-attempt1`（digest `sha256:41ef756d0eba2d6a45121f80995affe8b15150203ce6ebfe216b6aa8c5a92884`）拆分本轮目标；这些仅是实现前基线，不是 v2.38 验收结果。
+- v2.38 尚未提交、push 或生成新的 GitHub Actions run/artifact；待本轮提交到 `main` 后由 Agent C 下载最新结果包并核对 manifest、日志、构建、规则 smoke 与 PNG。
+
+遗留事项：
+
+- 等待 v2.38 最新 `origin/main` commit 对应的云端 artifact；只有 Agent C 实际下载、核对并查看截图后，才能判断三轨道视觉密度和展开态重复是否通过。
+
 ### v2.37 / 道路方向去重
 
 日期：2026-08-09
