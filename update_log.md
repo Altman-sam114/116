@@ -48,11 +48,12 @@
 
 - 本轮基于已由 Agent C 验收的 `origin/main` commit `236ce842dfb5a89b7ea1c8dde65ce7765f42cd40`、workflow run `31583326724`、attempt `1` 与 artifact `ww2tactics-ci-v2.42-main-236ce84-run31583326724-attempt1` 实现；该基线不是 v2.43 验收证据。
 - 人工要求全部交给 GitHub Actions：本地不运行 Swift、swiftc typecheck、RulesSmokeTest、XCTest、Xcode build、模拟器、截图或 Playwright；提交前仅运行 Git/文本轻量检查与提交范围核对。
-- v2.43 功能提交及精确 workflow/artifact 结果待 Agent C 对本轮 `origin/main` 最新 commit 下载结果包后补记；不得以旧 v2.42 PNG 或本地检查代替。
+- v2.43 功能提交为 `e1207041b9d9abd89839ab9d2b9d445c09514e1a`，对应 workflow run `31591284946`、attempt `1`；artifact 为 `ww2tactics-ci-v2.43-main-e120704-run31591284946-attempt1`，digest 为 `sha256:a2c6f7197cbbcdd2f1a386bb9c9421a5b73ac8a715f42a859d186944c407112c`。Agent C 已使用 `Altman-sam114` 下载到 `/private/tmp/ww2tactics-c-review-31591284946/`，`du -sh` 为 `9.4M`，并确认 `origin/main`、workflow head SHA、artifact manifest 的 branch、commit SHA、run id 与 run attempt 全部精确匹配。
+- Agent C 已核对 static checks、RulesSmokeTest、Xcode build-for-testing 与 `selected-combat-impact-steady` regular screenshot 均成功，JUnit 为 4/4；`WW2Tactics.xcresult`、主构建/规则/截图 logs 与 manifest 均存在且可读。regular PNG 为 `2064x2752`、`5,738,986` bytes，实看为非黑屏；XCTest 在 manifest 中标为 skipped，AppIntents metadata warning 为非致命 warning，不影响构建、截图或验收。
 
 遗留事项：
 
-- workflow 仍只生成 regular PNG；compact、窄宽度、xxxLarge Dynamic Type、不同焦点与 Reduce Motion 仅具源码审查证据，regular 截图不能作为其实际设备证据。
+- v2.43 已完成 Agent C 的精确云端 artifact 验收。workflow 仍只生成 regular PNG；compact、窄宽度、xxxLarge Dynamic Type、不同焦点、VoiceOver 与 Reduce Motion 仅具源码审查证据，regular 截图不能作为其实际设备证据。
 
 ### v2.42 / 战区账本材质统一
 
