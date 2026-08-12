@@ -74,6 +74,6 @@ Agent A 写给 Agent B 的提示词必须包含：
 
 ## 当前建议
 
-当前推进到 `v2.46（战区据点锚点）.md`：基于 v2.45 最终通过的 `3d8b4a818c9681ba0ff35441a29e8a5e027f1bdf`、run `31603566044`、attempt `1` 和 artifact `ww2tactics-ci-v2.45-main-3d8b4a8-run31603566044-attempt1`，只在 `BattlefieldMap.swift` 的据点纯表现边界内增强已有 `TerrainTile` 据点的地标主体、归属标识和名称牌局部层级，不改规则、模型、输入、rail、测试实现、project 或 workflow。当前 workflow 只生成 regular screenshot；Agent C 必须把 compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 局部裁切作为源码审查，不能臆造专用截图证据。
+当前推进到 `v2.47（白昼战场可读性）.md`：基于 v2.46 最终通过的 `2a47e5d83eacb586e27a9a12853c6cae7d9c0d59`、run `31618048955`、attempt `1` 和 artifact `ww2tactics-ci-v2.46-main-2a47e5d-run31618048955-attempt1`，仅在 `BattlefieldTheme.swift` 与 `BattlefieldMap.swift` 的地图底材/地貌纯表现边界内修正整体偏暗风险，建立白昼纸张、地貌、道路河流、据点、单位、marker、战果、HUD 和 `AL / OBJ / AX` rail 的相对明度层级，不改规则、模型、输入、rail 数据、测试实现、project 或 workflow。当前 workflow 只生成 regular screenshot；Agent C 必须把 compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 局部裁切作为源码审查，不能臆造专用截图证据。
 
-历史阶段 v2.0-v2.45 已完成地图优先构图、地貌、军械、轨道、材质与战果反馈等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.46 条目。
+历史阶段 v2.0-v2.46 已完成地图优先构图、地貌、军械、据点、轨道、材质与战果反馈等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.47 条目。

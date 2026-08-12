@@ -651,6 +651,25 @@ flowchart TD
     Rail["ObjectiveJumpDock\nfocus(coordinate:) 保持原链"] -.-> TileView
 ```
 
+## v2.47 白昼战场可读性
+
+```mermaid
+flowchart TD
+    Facts["既有 TerrainTile / TerrainKind / q-r seed\n无新增状态或缓存"] --> Tokens["BattlefieldTheme\n地图底材 / 接缝 / 局部明暗 token"]
+    Tokens --> Backdrop["MapGridBackdrop\n暖纸张白昼底材 / 软化边缘暗化"]
+    Facts --> Terrain["HexTileView + TerrainKind.mapGradient\n平原 / 森林 / 城市 / 山地 / 雪地 / 河流 / 道路差异"]
+    Terrain --> Texture["TerrainTexture\n局部高光 / 阴影 / 原道路河流 connection Path"]
+    Backdrop --> Ground["地图底材 < 普通地貌"]
+    Texture --> Ground
+    Ground --> Objective["既有据点建筑 / 旗标 / 名称牌\n道路河流连续可追踪"]
+    Objective --> Units["既有四类军械\n接地阴影 / 阵营材质 / HP行动轨道"]
+    Units --> Feedback["既有 selected / spent / marker\nHIT / RET / 战果结论"]
+    Feedback --> Chrome["既有 HUD / 通讯坞 / AL-OBJ-AX rail"]
+    Guard["只改地图纯表现颜色\n不改 GameState / 规则 / 输入 / 坐标 / frame / contentShape / zIndex\n装饰 allowsHitTesting(false) + accessibilityHidden(true)"] --> Backdrop
+    Guard --> Texture
+    Summary["HexTileView 单一 VoiceOver 摘要\nReduce Motion 使用同一静态明度"] -.-> Ground
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

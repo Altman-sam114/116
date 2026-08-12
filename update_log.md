@@ -21,6 +21,38 @@
 
 ## 历史记录
 
+### v2.47 / 白昼战场可读性
+
+日期：2026-08-13
+
+核心变更：
+
+- `BattlefieldTheme` 提高地图专用暖纸张底材的明度，降低 `mapParchmentWash`、边缘暗化、六角方向性黑面和普通地貌接缝的重量，并以静态 token 保持地图底材、地貌结构和高优先级战术反馈的明度阶梯。
+- `BattlefieldMap` 只在 `MapGridBackdrop`、`HexTileView` 地图底材和 `TerrainTexture` 局部明暗范围内调整纯表现；平原、森林、城市、山地、雪地、河流和道路继续保留各自色相、结构、连续连接和确定性 q/r 纹理。
+- 道路/河流、v2.46 据点建筑旗标与名称牌、v2.44 tank/artillery/infantry/recon 军械、HP/行动轨道、selected/spent、marker、v2.45 HIT/RET/结论、HUD 和 `AL / OBJ / AX` rail 均未改数据、布局、层级或输入链。
+- 未新增状态、缓存、timer、动态主题、图片、网络或依赖；纯地图装饰仍不命中且隐藏于无障碍树，`TerrainTile`、`GameState`、规则、坐标、frame、contentShape、zIndex、滚动缩放和 VoiceOver 摘要保持原链。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldTheme.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.47（白昼战场可读性）.md`
+
+验证结果：
+
+- 本轮权威基线为 `origin/main`、`HEAD` 和工作树同步指向的 `2a47e5d83eacb586e27a9a12853c6cae7d9c0d59`；该基线对应 v2.46 已由 Agent C 核对的 workflow run `31618048955`、attempt `1`、artifact `ww2tactics-ci-v2.46-main-2a47e5d-run31618048955-attempt1`、digest `sha256:e76d82fe15ecf13ca00ed0c329ea74103934046df96a8bc6a9ff43d93181cbe4`、下载目录 `/private/tmp/ww2tactics-c-review-31618048955/` 和 regular PNG `2064x2752`、`5714372` bytes；该旧包不作为 v2.47 证据。
+- 本条目初始实现记录写入时，v2.47 本轮提交尚未生成，workflow 尚未触发，artifact 尚未生成；不预填本轮 commit、run、attempt、artifact、digest 或云端通过结论。提交并 push 后，Agent C 只能核对本轮最新 SHA 对应的精确结果包。
+- 按人工约束，本地不运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图；本轮仅执行 Git/text 轻量检查。regular screenshot 是唯一计划的视觉实测，compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 仍只能源码审查。
+
+遗留事项：
+
+- 等待 Agent C 下载并核对 v2.47 最新 commit 对应的精确 workflow run、attempt、manifest、artifact 和 regular PNG；在精确 artifact 验收前，不宣称 v2.47 通过或启动下一轮。
+
 ### v2.46 / 战区据点锚点
 
 日期：2026-08-12

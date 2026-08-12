@@ -25,16 +25,19 @@ enum BattlefieldTheme {
     static let warLedgerInnerHighlight = Color.white.opacity(0.055)
     static let warLedgerShadow = Color.black.opacity(0.24)
 
-    // Map-only ground tokens. They stay beneath all tactical feedback so the
-    // battlefield reads as one quiet landscape instead of an editor canvas.
-    static let mapParchmentSoil = Color(red: 0.47, green: 0.45, blue: 0.32)
-    static let mapParchmentLight = Color(red: 0.61, green: 0.58, blue: 0.41)
-    static let mapParchmentShade = Color(red: 0.30, green: 0.33, blue: 0.25)
-    static let mapParchmentWash = Color(red: 0.72, green: 0.64, blue: 0.44).opacity(0.10)
-    static let mapTerrainSeam = Color.black.opacity(0.075)
-    static let mapTerrainSeamHighlight = Color.white.opacity(0.035)
-    static let mapForestContinuity = Color(red: 0.18, green: 0.30, blue: 0.17).opacity(0.16)
-    static let mapMountainContinuity = Color(red: 0.24, green: 0.23, blue: 0.20).opacity(0.16)
+    // Map-only ground tokens. The stepped values create a restrained daylight
+    // field while keeping all tactical feedback above the terrain layer.
+    static let mapParchmentSoil = Color(red: 0.56, green: 0.54, blue: 0.40)
+    static let mapParchmentLight = Color(red: 0.70, green: 0.67, blue: 0.50)
+    static let mapParchmentShade = Color(red: 0.43, green: 0.45, blue: 0.35)
+    static let mapParchmentWash = Color(red: 0.82, green: 0.72, blue: 0.50).opacity(0.08)
+    static let mapParchmentEdge = Color.black.opacity(0.055)
+    static let mapTileHighlight = Color.white.opacity(0.045)
+    static let mapTileShade = Color.black.opacity(0.025)
+    static let mapTerrainSeam = Color.black.opacity(0.055)
+    static let mapTerrainSeamHighlight = Color.white.opacity(0.055)
+    static let mapForestContinuity = Color(red: 0.18, green: 0.30, blue: 0.17).opacity(0.13)
+    static let mapMountainContinuity = Color(red: 0.24, green: 0.23, blue: 0.20).opacity(0.13)
 
     // Map-unit-only material tokens. They sit above the quiet terrain and
     // below existing selected/marker/combat feedback without changing shared

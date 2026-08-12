@@ -472,9 +472,9 @@ struct MapGridBackdrop: View {
 
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.14),
+                    BattlefieldTheme.mapParchmentEdge,
                     Color.black.opacity(0.0),
-                    Color.black.opacity(0.18)
+                    BattlefieldTheme.mapParchmentEdge.opacity(0.78)
                 ],
                 startPoint: .leading,
                 endPoint: .trailing
@@ -581,9 +581,9 @@ struct HexTileView: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(0.05),
+                                    BattlefieldTheme.mapTileHighlight,
                                     Color.clear,
-                                    Color.black.opacity(0.05)
+                                    BattlefieldTheme.mapTileShade
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -1776,7 +1776,7 @@ struct TerrainTexture: View {
                 let treeSize = 10 + CGFloat((terrainSeed + index * 5) % 7)
 
                 Ellipse()
-                    .fill(Color.black.opacity(0.24))
+                    .fill(Color.black.opacity(0.17))
                     .frame(width: treeSize * 0.95, height: treeSize * 0.34)
                     .position(x: x + 1.5, y: y + treeSize * 0.44)
 
@@ -1787,7 +1787,7 @@ struct TerrainTexture: View {
                             ? Color(red: 0.22, green: 0.38, blue: 0.20)
                             : Color(red: 0.30, green: 0.46, blue: 0.25)
                     )
-                    .shadow(color: Color.black.opacity(0.25), radius: 0.7, x: 1, y: 1.2)
+                    .shadow(color: Color.black.opacity(0.18), radius: 0.7, x: 1, y: 1.2)
                     .position(x: x, y: y)
             }
         }
@@ -1801,7 +1801,7 @@ struct TerrainTexture: View {
                 path.move(to: CGPoint(x: size.width * 0.46, y: 0))
                 path.addLine(to: CGPoint(x: size.width * 0.56, y: size.height))
             }
-            .stroke(Color(red: 0.45, green: 0.44, blue: 0.38).opacity(0.60), lineWidth: 5)
+            .stroke(Color(red: 0.45, green: 0.44, blue: 0.38).opacity(0.50), lineWidth: 5)
 
             Path { path in
                 path.move(to: CGPoint(x: 0, y: size.height * 0.62))
@@ -1809,7 +1809,7 @@ struct TerrainTexture: View {
                 path.move(to: CGPoint(x: size.width * 0.46, y: 0))
                 path.addLine(to: CGPoint(x: size.width * 0.56, y: size.height))
             }
-            .stroke(Color.white.opacity(0.20), lineWidth: 2)
+            .stroke(Color.white.opacity(0.24), lineWidth: 2)
 
             // GoG3-style building cluster: pale walls, warm tiled roofs.
             ForEach(0..<6, id: \.self) { index in
@@ -1819,7 +1819,7 @@ struct TerrainTexture: View {
                 let y = size.height * (0.16 + seededFraction(index: index, multiplier: 19, offset: 29) * 0.68)
 
                 RoundedRectangle(cornerRadius: 1.5)
-                    .fill(Color.black.opacity(0.30))
+                    .fill(Color.black.opacity(0.22))
                     .frame(width: blockWidth, height: blockHeight)
                     .position(x: x + 2, y: y + 2.5)
 
@@ -1869,7 +1869,7 @@ struct TerrainTexture: View {
                 path.addLine(to: CGPoint(x: size.width * 0.97, y: size.height * 0.82))
                 path.closeSubpath()
             }
-            .fill(Color(red: 0.42, green: 0.41, blue: 0.38))
+            .fill(Color(red: 0.48, green: 0.47, blue: 0.43))
 
             // Sunlit west faces.
             Path { path in
@@ -1882,7 +1882,7 @@ struct TerrainTexture: View {
                 path.addLine(to: CGPoint(x: size.width * (secondPeak + 0.10), y: size.height * 0.82))
                 path.closeSubpath()
             }
-            .fill(Color(red: 0.60, green: 0.59, blue: 0.55))
+            .fill(Color(red: 0.66, green: 0.65, blue: 0.60))
 
             // Snow caps on both peaks.
             Path { path in
@@ -1943,7 +1943,7 @@ struct TerrainTexture: View {
                                 .fill(Color.white.opacity(0.88))
                         }
                         .frame(width: treeHeight * 0.72, height: treeHeight)
-                        .shadow(color: Color.black.opacity(0.20), radius: 0.7, x: 0.8, y: 1)
+                        .shadow(color: Color.black.opacity(0.16), radius: 0.7, x: 0.8, y: 1)
                         .position(x: x, y: y)
                 }
             }
@@ -2009,11 +2009,11 @@ struct TerrainTexture: View {
     private var connectionShadowColor: Color {
         switch tile.terrain {
         case .river:
-            Color(red: 0.08, green: 0.19, blue: 0.29).opacity(0.20)
+            Color(red: 0.08, green: 0.19, blue: 0.29).opacity(0.17)
         case .road:
-            Color.black.opacity(0.06)
+            Color.black.opacity(0.045)
         case .forest, .city, .mountain, .snow, .plains:
-            Color.black.opacity(0.05)
+            Color.black.opacity(0.035)
         }
     }
 
@@ -3051,11 +3051,11 @@ extension TerrainKind {
         case .road:
             // Dirt-tan road band; slimmer + softer so clustered road hexes
             // read as winding paths instead of a heavy triangle lattice.
-            Color(red: 0.55, green: 0.46, blue: 0.30).opacity(0.68)
+            Color(red: 0.55, green: 0.46, blue: 0.30).opacity(0.64)
         case .forest:
-            Color(red: 0.30, green: 0.44, blue: 0.26).opacity(0.22)
+            Color(red: 0.30, green: 0.44, blue: 0.26).opacity(0.20)
         case .city:
-            Color.black.opacity(0.12)
+            Color.black.opacity(0.10)
         case .mountain:
             Color.white.opacity(0.08)
         case .snow:
@@ -3093,59 +3093,59 @@ extension TerrainKind {
     var mapColor: Color {
         switch self {
         case .plains:
-            Color(red: 0.60, green: 0.64, blue: 0.45)
+            Color(red: 0.66, green: 0.68, blue: 0.50)
         case .forest:
-            Color(red: 0.52, green: 0.59, blue: 0.41)
+            Color(red: 0.58, green: 0.65, blue: 0.46)
         case .city:
-            Color(red: 0.61, green: 0.62, blue: 0.51)
+            Color(red: 0.67, green: 0.67, blue: 0.57)
         case .mountain:
-            Color(red: 0.58, green: 0.58, blue: 0.48)
+            Color(red: 0.64, green: 0.64, blue: 0.55)
         case .snow:
-            Color(red: 0.87, green: 0.89, blue: 0.89)
+            Color(red: 0.90, green: 0.92, blue: 0.92)
         case .river:
             // Land-toned fill: the winding blue connection band carries the
             // water so rivers read as a channel, not a solid blue hex.
-            Color(red: 0.56, green: 0.62, blue: 0.50)
+            Color(red: 0.62, green: 0.68, blue: 0.56)
         case .road:
-            Color(red: 0.61, green: 0.62, blue: 0.44)
+            Color(red: 0.67, green: 0.68, blue: 0.50)
         }
     }
 
     private var mapHighlightColor: Color {
         switch self {
         case .plains:
-            Color(red: 0.64, green: 0.68, blue: 0.48)
+            Color(red: 0.70, green: 0.72, blue: 0.54)
         case .forest:
-            Color(red: 0.56, green: 0.63, blue: 0.44)
+            Color(red: 0.63, green: 0.70, blue: 0.50)
         case .city:
-            Color(red: 0.65, green: 0.66, blue: 0.55)
+            Color(red: 0.71, green: 0.72, blue: 0.62)
         case .mountain:
-            Color(red: 0.62, green: 0.62, blue: 0.52)
+            Color(red: 0.68, green: 0.68, blue: 0.59)
         case .snow:
-            Color(red: 0.91, green: 0.93, blue: 0.93)
+            Color(red: 0.94, green: 0.96, blue: 0.96)
         case .river:
-            Color(red: 0.60, green: 0.66, blue: 0.54)
+            Color(red: 0.67, green: 0.72, blue: 0.61)
         case .road:
-            Color(red: 0.65, green: 0.66, blue: 0.47)
+            Color(red: 0.71, green: 0.72, blue: 0.54)
         }
     }
 
     private var mapShadowColor: Color {
         switch self {
         case .plains:
-            Color(red: 0.56, green: 0.60, blue: 0.42)
+            Color(red: 0.61, green: 0.64, blue: 0.46)
         case .forest:
-            Color(red: 0.48, green: 0.55, blue: 0.38)
+            Color(red: 0.53, green: 0.60, blue: 0.42)
         case .city:
-            Color(red: 0.57, green: 0.58, blue: 0.47)
+            Color(red: 0.62, green: 0.63, blue: 0.52)
         case .mountain:
-            Color(red: 0.54, green: 0.54, blue: 0.44)
+            Color(red: 0.59, green: 0.60, blue: 0.50)
         case .snow:
-            Color(red: 0.83, green: 0.86, blue: 0.86)
+            Color(red: 0.87, green: 0.89, blue: 0.89)
         case .river:
-            Color(red: 0.52, green: 0.58, blue: 0.46)
+            Color(red: 0.58, green: 0.64, blue: 0.52)
         case .road:
-            Color(red: 0.57, green: 0.58, blue: 0.41)
+            Color(red: 0.62, green: 0.63, blue: 0.46)
         }
     }
 
