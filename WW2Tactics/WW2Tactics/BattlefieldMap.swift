@@ -1686,7 +1686,9 @@ struct TerrainTexture: View {
         return Group {
             terrainContinuityLayer(path)
 
-            if tile.terrain.showsMapConnections {
+            if tile.terrain == .river {
+                riverConnectionLayer(path)
+            } else if tile.terrain.showsMapConnections {
                 ZStack {
                     path
                         .stroke(
@@ -1721,6 +1723,40 @@ struct TerrainTexture: View {
                     }
                 }
             }
+        }
+    }
+
+    private func riverConnectionLayer(_ path: Path) -> some View {
+        ZStack {
+            path
+                .stroke(
+                    BattlefieldTheme.riverCorridorBank,
+                    style: StrokeStyle(
+                        lineWidth: riverCorridorBankWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+
+            path
+                .stroke(
+                    BattlefieldTheme.riverCorridorChannel,
+                    style: StrokeStyle(
+                        lineWidth: riverCorridorChannelWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+
+            path
+                .stroke(
+                    connectionHighlightColor,
+                    style: StrokeStyle(
+                        lineWidth: riverCorridorHighlightWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
         }
     }
 
@@ -1975,23 +2011,24 @@ struct TerrainTexture: View {
     }
 
     private func waterHighlight(in size: CGSize) -> some View {
-        ZStack {
-            // Central pool so an isolated river hex still reads as water even
-            // before the winding connection band joins its neighbours.
-            Ellipse()
-                .fill(Color(red: 0.30, green: 0.49, blue: 0.63).opacity(0.85))
-                .frame(width: size.width * 0.34, height: size.height * 0.30)
-                .position(x: size.width * 0.5, y: size.height * 0.5)
+        let angle = Double((terrainSeed % 19) - 9)
+        let centerX = size.width * (0.45 + seedFraction(multiplier: 7, offset: 3) * 0.10)
+        let centerY = size.height * (0.47 + seedFraction(multiplier: 11, offset: 17) * 0.10)
 
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: size.height * 0.46))
-                path.addCurve(
-                    to: CGPoint(x: size.width, y: size.height * 0.50),
-                    control1: CGPoint(x: size.width * 0.30, y: size.height * 0.24),
-                    control2: CGPoint(x: size.width * 0.68, y: size.height * 0.70)
-                )
+        return ZStack {
+            // Connected rivers use the shared path only. An isolated river
+            // keeps a small deterministic surface so it remains identifiable.
+            if connectionDirections.isEmpty {
+                Capsule()
+                    .fill(BattlefieldTheme.riverCorridorChannel.opacity(0.62))
+                    .overlay {
+                        Capsule()
+                            .stroke(connectionHighlightColor, lineWidth: riverCorridorHighlightWidth)
+                    }
+                    .frame(width: size.width * 0.26, height: size.height * 0.07)
+                    .rotationEffect(.degrees(angle))
+                    .position(x: centerX, y: centerY)
             }
-            .stroke(Color.white.opacity(0.24), lineWidth: 1.4)
         }
     }
 
@@ -2042,8 +2079,12 @@ struct TerrainTexture: View {
     }
 
     private var connectionHighlightColor: Color {
-        tile.terrain == .river ? Color.white.opacity(0.18) : Color.white.opacity(0.14)
+        tile.terrain == .river ? BattlefieldTheme.riverCorridorHighlight : Color.white.opacity(0.14)
     }
+
+    private var riverCorridorBankWidth: CGFloat { 8 }
+    private var riverCorridorChannelWidth: CGFloat { 5.8 }
+    private var riverCorridorHighlightWidth: CGFloat { 0.9 }
 
     private var connectionShadowWidth: CGFloat {
         switch tile.terrain {

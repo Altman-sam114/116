@@ -21,6 +21,36 @@
 
 ## 历史记录
 
+### v2.49 / 河道走廊降噪
+
+日期：2026-08-13
+
+核心变更：
+
+- `TerrainTexture` 仅在 river-only `connectionLayer` 和 `waterHighlight(in:)` 内收敛河流表现：复用既有 `connectionPath`、`connectionDirections` 和 tile-local clip，以低饱和 bank、窄主水槽和细高光替代重复的大蓝圆节/管线感；有连接的 river 不再绘制中心水池，孤立 river 保留确定性细长水面。
+- `BattlefieldTheme` 新增只供上述 river-only 绘制消费的 `riverCorridorBank`、`riverCorridorChannel`、`riverCorridorHighlight` token。道路 connection/network、v2.47 daylight、v2.48 平原/森林/城市/山地/雪地纹理、据点、军械、HP/行动轨道、marker、HIT/RET、战果、HUD、`AL / OBJ / AX` rail、地图几何、输入、规则和 VoiceOver 均保持不变；未新增状态、缓存、动画、图片、网络或第三方依赖。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldTheme.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.49（河道走廊降噪）.md`
+
+验证结果：
+
+- 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `847f4a71f32c225fa9bb54e5f4e5cc729e83f0c3`，远端为 `https://github.com/Altman-sam114/116.git`；A 的 v2.49 prompt 与 `md/prompt/README.md` 改动保留并纳入本轮范围。
+- 本地只执行 Git/text 轻量检查；按仅云端约束未运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图。提交并 push 后，完整构建、规则和 regular screenshot 由 GitHub Actions 与 Agent C artifact 验收；本轮 commit、workflow run/attempt、artifact、digest 和 PNG 事实尚未生成，不预填未知值。
+- compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 仍只能源码审查，不能由 regular PNG 冒充独立实测。
+
+遗留事项：
+
+- 等待本轮最新 `origin/main` SHA 对应的 GitHub Actions workflow 和 Agent C 精确 artifact 验收；不得使用 v2.48 旧包替代本轮证据。
+
 ### v2.48 / 地貌材质纹理收敛
 
 日期：2026-08-13

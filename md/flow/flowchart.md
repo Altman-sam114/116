@@ -693,6 +693,19 @@ flowchart TD
     Guard["静态纯表现；既有 tile bounds/Hexagon\nallowsHitTesting(false) + accessibilityHidden(true)\n地图几何、输入、规则、VoiceOver 不变"] --> Layer
 ```
 
+## v2.49 河道走廊降噪
+
+```mermaid
+flowchart LR
+  T["TerrainTile(.river) + existing connectionDirections"] --> P["unchanged connectionPath"]
+  P --> R["river-only bank + narrow channel + fine highlight"]
+  R --> W["connected corridor / isolated small surface"]
+  W --> L["existing objective, unit, marker, combat, HUD and AL-OBJ-AX layers"]
+  L --> A["unchanged tile input, VoiceOver, scroll and zoom"]
+```
+
+River 表现只从既有地格、q/r seed 和邻接方向确定性派生；有连接的 river 使用同一 `connectionPath` 的三层低饱和走廊，孤立 river 仅保留小型细长水面。道路网络与道路分支、v2.47 daylight、v2.48 五类非河流材质、地图几何、输入、规则和高优先级叠层均不变，装饰继续关闭命中并隐藏于无障碍树。
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

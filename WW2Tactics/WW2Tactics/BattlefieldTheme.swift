@@ -64,6 +64,12 @@ enum BattlefieldTheme {
     static let terrainSnowConifer = Color(red: 0.24, green: 0.36, blue: 0.28)
     static let terrainSnowCap = Color.white.opacity(0.84)
 
+    // River-only corridor tokens. They keep the existing connection path
+    // legible without making every junction read as a blue circular node.
+    static let riverCorridorBank = Color(red: 0.20, green: 0.32, blue: 0.35).opacity(0.22)
+    static let riverCorridorChannel = Color(red: 0.27, green: 0.46, blue: 0.53).opacity(0.72)
+    static let riverCorridorHighlight = Color.white.opacity(0.16)
+
     // Map-unit-only material tokens. They sit above the quiet terrain and
     // below existing selected/marker/combat feedback without changing shared
     // chrome or terrain surfaces.

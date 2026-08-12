@@ -74,6 +74,6 @@ Agent A 写给 Agent B 的提示词必须包含：
 
 ## 当前建议
 
-当前推进到 `v2.48（地貌材质纹理收敛）.md`：基于已由 Agent C 验收的 v2.47 `origin/main`/`HEAD` 基线 `dea1caece3235a9a872ec9d45a68363d3fa5cd3f`、workflow run `31625994572`、attempt `1` 和 artifact `ww2tactics-ci-v2.47-main-dea1cae-run31625994572-attempt1`，只在 `BattlefieldTheme.swift` 的局部材质 token 和 `BattlefieldMap.swift` 的 `TerrainTexture` 纯绘制区域内收敛平原、森林、城市、山地、雪地的重复纹理节奏，建立连续战区材质语汇。v2.47 白昼明度、道路/河流连接、据点、军械、战果、HUD、`AL / OBJ / AX` rail、规则、模型、输入、地图几何、测试实现、project 和 workflow 均冻结。当前 workflow 只生成 regular screenshot；Agent C 必须把 compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 局部裁切作为源码审查，不能臆造专用截图证据。
+当前推进到 `v2.49（河道走廊降噪）.md`：基于已由 Agent C 验收的 v2.48 文档闭环 `main`/`origin/main`/`HEAD` 基线 `847f4a71f32c225fa9bb54e5f4e5cc729e83f0c3`、workflow run `31634524325`、attempt `1`、artifact `ww2tactics-ci-v2.48-main-847f4a7-run31634524325-attempt1` 和 digest `sha256:0a2f081f4a3cd248b718d163749a9c0754d4779e72fe55653a486830f43653b3`，只在 `BattlefieldTheme.swift` 的 river-only token 与 `BattlefieldMap.swift` `TerrainTexture` 的 river-only connection/water 表现区域，把既有 river connection 收敛为连续、窄而低干扰的河道走廊，消除 regular 图片中的重复大蓝圆节/管线感。`connectionPath`、endpoint、`connectionDirections`、道路环路和道路绘制、v2.47 白昼明度、v2.48 五类非河流地貌材质、据点、军械、战果、HUD、`AL / OBJ / AX` rail、规则、模型、输入、地图几何、测试实现、project 和 workflow 均冻结。当前 workflow 只生成 regular screenshot；Agent C 必须把 compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 局部裁切作为源码审查，不能臆造专用截图证据。
 
-历史阶段 v2.0-v2.47 已完成地图优先构图、白昼底材、地貌连续性、军械、据点、轨道、材质与战果反馈等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.48 条目。
+历史阶段 v2.0-v2.48 已完成地图优先构图、白昼底材、地貌连续性、军械、据点、轨道、材质与战果反馈等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.49 条目。
