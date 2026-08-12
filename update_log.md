@@ -46,12 +46,13 @@
 
 - 本轮基于已由 Agent C 验收的 `origin/main` commit `3c46dbe956f49ccebd95bafaa384768a79c60043`、workflow run `31592215173`、attempt `1` 与 artifact `ww2tactics-ci-v2.43-main-3c46dbe-run31592215173-attempt1` 实现；该基线不是 v2.44 验收证据。
 - 人工要求全部交给 GitHub Actions：本地不运行 Swift、swiftc typecheck、RulesSmokeTest、XCTest、Xcode build、模拟器、截图或 Playwright；提交前仅运行 Git/文本轻量检查与提交范围核对。
-- v2.44 初始提交为 `f7b810c604b2464a26b9d8d905b1e461a4ce9c23`，对应 workflow run `31594065332`、attempt `1`；artifact 为 `ww2tactics-ci-v2.44-main-f7b810c-run31594065332-attempt1`，digest 为 `sha256:6ff8dbd0380365e195f108bad90b0af80f7b9855c51ceb7e35b3a9fd65ab914b`。Agent C 已下载至 `/private/tmp/ww2tactics-c-review-31594065332/` 并核对 static checks、RulesSmokeTest 成功；Xcode build-for-testing 因 `UnitMarkerShape` 新路径调用缺少私有 `point(x:y:in:)` helper 而失败，截图因此跳过，JUnit 有 2 项 failure，manifest 标记 XCTest 为 skipped。
-- Agent C 已退回最小修复：只在 `UnitMarkerShape` 补齐上述私有坐标 helper；修复提交必须重新 push `main` 并等待 Agent C 对新 commit 的精确 artifact 验收。
+- 初始失败证据：提交 `f7b810c604b2464a26b9d8d905b1e461a4ce9c23` 对应 workflow run `31594065332`、attempt `1`；artifact 为 `ww2tactics-ci-v2.44-main-f7b810c-run31594065332-attempt1`，digest 为 `sha256:6ff8dbd0380365e195f108bad90b0af80f7b9855c51ceb7e35b3a9fd65ab914b`。Agent C 已下载至 `/private/tmp/ww2tactics-c-review-31594065332/` 并核对 static checks、RulesSmokeTest 成功；Xcode build-for-testing 因 `UnitMarkerShape` 新路径调用缺少私有 `point(x:y:in:)` helper 而失败，截图因此跳过，JUnit 有 2 项 failure，manifest 标记 XCTest 为 skipped。该失败结果包不是成功验收证据。
+- 修复验收证据：提交 `e75e9189fd05e551fb68618798d2516b13fc1344` 补齐该私有 helper，对应 workflow run `31594588649`、attempt `1`；artifact 为 `ww2tactics-ci-v2.44-main-e75e918-run31594588649-attempt1`，digest 为 `sha256:424b6dcd9847b406fe7b6d01279dc377d5abbb478a1391603fb6e25c2c116f2f`。Agent C 以活动 GitHub 账号 `Altman-sam114` 下载至 `/private/tmp/ww2tactics-c-review-31594588649/`（约 `9.4M`）并核对 manifest 的 branch、commit SHA、run id 与 attempt 和 `origin/main`/workflow head SHA 精确一致。
+- 修复 run 的 static checks、RulesSmokeTest、Xcode build-for-testing 与 screenshot 均成功，JUnit 为 4/4、无 failure/error，`WW2Tactics.xcresult` 可读。regular battlefield PNG 为 `2064x2752`、`5,712,140` bytes，Agent C 已实际查看地图单位棋子截图；XCTest 在 manifest 中标为 skipped，AppIntents metadata warning 为非致命 warning。
 
 遗留事项：
 
-- v2.44 当前等待修复验收；旧失败 run 的截图已跳过，不能作为本轮视觉证据。后续 workflow 仍只生成 regular PNG；compact、窄宽度、xxxLarge Dynamic Type、多焦点、VoiceOver 与 Reduce Motion只能源码审查，不能把 regular 截图作为这些状态的实测证据。
+- v2.44 已由 Agent C 最终通过；旧失败 run 的截图已跳过，不能作为本轮视觉证据。下一轮可启动 v2.45。workflow 仍只生成 regular PNG；compact、窄宽度、xxxLarge Dynamic Type、多焦点、VoiceOver 与 Reduce Motion 仍为源码审查范围，不能把 regular 截图作为这些状态的实测证据。
 
 ### v2.43 / 连续地图地貌层级
 
