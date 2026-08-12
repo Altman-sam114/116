@@ -2,27 +2,32 @@ import SwiftUI
 
 struct TopCommandBar: View {
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             CommandTitle()
                 .layoutPriority(2)
+                .padding(.trailing, 8)
             CampaignPicker()
+                .overlay(alignment: .leading) {
+                    WarLedgerDivider()
+                }
+                .padding(.horizontal, 4)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 StatusStrip()
             }
+            .overlay(alignment: .leading) {
+                WarLedgerDivider()
+            }
+            .layoutPriority(1)
 
             EndTurnButton()
-        }
-        .padding(.horizontal, 12)
-        .background(
-            Rectangle()
-                .fill(BattlefieldTheme.commandDeckDeep.opacity(0.92))
-                .overlay(alignment: .bottom) {
-                    Rectangle()
-                        .fill(BattlefieldTheme.brass.opacity(0.24))
-                        .frame(height: 1)
+                .overlay(alignment: .leading) {
+                    WarLedgerDivider()
                 }
-        )
+                .padding(.leading, 4)
+        }
+        .padding(.horizontal, 10)
+        .background(WarLedgerSurface(cornerRadius: 0))
     }
 }
 
@@ -58,10 +63,8 @@ struct CommandTitle: View {
         HStack(spacing: 7) {
             Text("WW2")
                 .font(.system(size: 10, weight: .black, design: .rounded))
-                .foregroundStyle(.black.opacity(0.82))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(BattlefieldTheme.brass, in: Capsule())
+                .foregroundStyle(BattlefieldTheme.brass)
+                .kerning(0.7)
             Text(game.scenario.name)
                 .font(.subheadline.weight(.black))
                 .foregroundStyle(BattlefieldTheme.ink)
@@ -80,7 +83,7 @@ struct StatusStrip: View {
     @EnvironmentObject private var game: GameState
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 0) {
             StatusChip(icon: "flag.fill", value: "\(game.turn)", label: "当前回合")
             StatusChip(icon: "hourglass", value: "\(game.remainingTurns)", label: "剩余回合")
             StatusChip(
@@ -110,10 +113,10 @@ struct EndTurnButton: View {
                 .font(.body.weight(.black))
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
-                .background(BattlefieldTheme.alert, in: RoundedRectangle(cornerRadius: 8))
+                .background(BattlefieldTheme.alert.opacity(game.winner == nil ? 0.82 : 0.32), in: RoundedRectangle(cornerRadius: 5))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(.white.opacity(0.18), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(BattlefieldTheme.warLedgerEtching, lineWidth: 1)
                 }
         }
         .buttonStyle(.plain)
@@ -131,20 +134,27 @@ struct StatusChip: View {
 
     var body: some View {
         Label(value, systemImage: icon)
-            .font(.caption.bold())
+            .font(.system(size: 11, weight: .bold, design: .rounded))
             .foregroundStyle(BattlefieldTheme.ink)
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 6)
-            .frame(height: 30)
-            .background(BattlefieldTheme.fieldGlass.opacity(0.62), in: RoundedRectangle(cornerRadius: 6))
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(BattlefieldTheme.hairline, lineWidth: 1)
-            )
+            .padding(.horizontal, 8)
+            .frame(minHeight: 32)
+            .background(BattlefieldTheme.warLedgerField.opacity(0.18))
+            .overlay(alignment: .leading) { WarLedgerDivider() }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(label)
             .accessibilityValue(accessibilityValue ?? value)
+    }
+}
+
+private struct WarLedgerDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(BattlefieldTheme.warLedgerDivider)
+            .frame(width: 1)
+            .padding(.vertical, 7)
+            .accessibilityHidden(true)
     }
 }
 
@@ -769,13 +779,7 @@ struct MapHudMetric: View {
 
 struct MapHudBackground: View {
     var body: some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(BattlefieldTheme.commandDeckDeep.opacity(0.72))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(BattlefieldTheme.brass.opacity(0.16), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.30), radius: 12, x: 0, y: 6)
+        WarLedgerSurface(cornerRadius: 7, isMapOverlay: true)
     }
 }
 
@@ -1119,8 +1123,8 @@ private struct ObjectiveJumpRailOverflowCue: View {
             ZStack(alignment: edge == .leading ? .leading : .trailing) {
                 LinearGradient(
                     colors: edge == .leading
-                        ? [BattlefieldTheme.commandDeckDeep.opacity(0.82), .clear]
-                        : [.clear, BattlefieldTheme.commandDeckDeep.opacity(0.82)],
+                        ? [BattlefieldTheme.warLedgerMapOverlay.opacity(0.88), .clear]
+                        : [.clear, BattlefieldTheme.warLedgerMapOverlay.opacity(0.88)],
                     startPoint: edge == .leading ? .leading : .trailing,
                     endPoint: edge == .leading ? .trailing : .leading
                 )

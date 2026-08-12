@@ -562,6 +562,23 @@ flowchart LR
     Guard["72/84pt、48/50pt、>=44pt、完整 VoiceOver\nReduce Motion 无自动动画、地图输入/ScrollView 不变"] --> Stable["仅本地表现状态，不写 GameState"]
 ```
 
+## v2.42 战区账本材质统一
+
+```mermaid
+flowchart LR
+    Facts["GameState 既有事实"] --> Top["TopCommandBar\n标题 + 六项真实状态 + 结束回合"]
+    Facts --> HUD["MapCampaignHUD / MapActionHUD / MapIdleCommandDock"]
+    Facts --> Rail["ObjectiveJumpDock\n完整 AL / OBJ / AX"]
+    Tokens["War Ledger token / surface\n底材、蚀刻边、细分隔、低阴影、字号层级"] --> Top
+    Tokens --> HUD
+    Tokens --> Rail
+    Top --> Render["一条连续顶栏 + 单层地图覆盖账本"]
+    HUD --> Render
+    Rail --> Render
+    Guard["44pt、VoiceOver、66pt rail、72/84pt、48/50pt\ncompact / Dynamic Type / Reduce Motion；地图优先"] --> Render
+    Stable["CampaignPicker / endTurn / select / focus 不变\n不写 GameState、不改地图输入或规则"] --> Render
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

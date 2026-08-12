@@ -14,6 +14,42 @@ enum BattlefieldTheme {
     static let ink = Color.white.opacity(0.90)
     static let mutedInk = Color.white.opacity(0.62)
     static let hairline = Color.white.opacity(0.12)
+
+    // War Ledger is deliberately scoped to the command bar and map overlays.
+    // It shares the existing palette without changing the wider TacticalSurface language.
+    static let warLedgerBase = Color(red: 0.052, green: 0.060, blue: 0.050)
+    static let warLedgerMapOverlay = Color(red: 0.060, green: 0.070, blue: 0.058)
+    static let warLedgerField = Color(red: 0.145, green: 0.162, blue: 0.132)
+    static let warLedgerEtching = brass.opacity(0.22)
+    static let warLedgerDivider = Color.white.opacity(0.12)
+    static let warLedgerInnerHighlight = Color.white.opacity(0.055)
+    static let warLedgerShadow = Color.black.opacity(0.24)
+}
+
+struct WarLedgerSurface: View {
+    var cornerRadius: CGFloat = 7
+    var isMapOverlay = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .fill(isMapOverlay ? BattlefieldTheme.warLedgerMapOverlay.opacity(0.88) : BattlefieldTheme.warLedgerBase.opacity(0.96))
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(BattlefieldTheme.warLedgerInnerHighlight)
+                    .frame(height: 1)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(BattlefieldTheme.warLedgerEtching, lineWidth: 1)
+            }
+            .shadow(
+                color: BattlefieldTheme.warLedgerShadow,
+                radius: isMapOverlay ? 8 : 5,
+                x: 0,
+                y: isMapOverlay ? 4 : 2
+            )
+            .accessibilityHidden(true)
+    }
 }
 
 struct TacticalSurface: ViewModifier {

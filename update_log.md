@@ -21,6 +21,37 @@
 
 ## 历史记录
 
+### v2.42 / 战区账本材质统一
+
+日期：2026-08-12
+
+核心变更：
+
+- `BattlefieldTheme` 新增只供顶栏与地图覆盖层调用的 War Ledger token 及 `WarLedgerSurface`；它统一深色底材、蚀刻细边、静态内高光、细分隔和受控阴影，不改通用 `TacticalSurface`、地貌、单位或侧栏。
+- `TopCommandBar` 将 `CommandTitle`、`CampaignPicker`、完整六项真实 `StatusChip` 字段和 `EndTurnButton` 收为连续账本带；每个字段仍保留短可视值与完整 VoiceOver，战役选择、结束回合/winner 禁用与 44pt action 不变。
+- `MapHudBackground` 与 66pt `ObjectiveJumpDock` 复用地图覆盖账本底材；v2.41 的完整 AL/OBJ/AX 数组、edge fade/chevron、section-local stable id/focus scroll、72/84pt、48/50pt、44pt 与 Reduce Motion 保持，fade 改用同族底材衔接。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldChrome.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldTheme.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.42（战区账本材质统一）.md`
+
+验证依据与结果：
+
+- 本轮基于已由 Agent C 验收的 `origin/main` commit `d903c9fc8912860fb4e3c1c08e1aaeb3a7a4005b`、workflow run `31580545970`、attempt `1` 与 artifact `ww2tactics-ci-v2.41-main-d903c9f-run31580545970-attempt1` 实现；该基线不是 v2.42 验收证据。
+- 人工要求全部交给 GitHub Actions：本地不运行 Swift、swiftc typecheck、RulesSmokeTest、XCTest、Xcode build、模拟器、截图或 Playwright；提交前仅运行 Git/文本轻量检查与提交范围核对。
+- v2.42 功能提交及精确 workflow run、attempt、artifact、digest、manifest/日志/PNG 核对结果待 Agent C 下载本轮 artifact 后补齐；不得以 v2.41 结果替代。
+
+遗留事项：
+
+- 当前 workflow 仅生成 regular PNG；compact、窄宽度、xxxLarge Dynamic Type、不同焦点与 Reduce Motion 仍须由 Agent C 源码审查，regular 截图不能作为其实际设备证据。
+
 ### v2.41 / 轨道滚动提示
 
 日期：2026-08-12
