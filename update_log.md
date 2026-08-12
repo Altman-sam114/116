@@ -45,11 +45,13 @@
 
 - 本轮基于已由 Agent C 复核的 `origin/main` commit `14ba8ef01404f06b10ac2d665d9482af7e6ead7f`、workflow run `31301750449`、attempt `1` 和其 v2.40 artifact 实现；该基线不是 v2.41 的验收证据。
 - 人工要求全部交给 GitHub Actions：本地未运行 Swift、swiftc typecheck、RulesSmokeTest、XCTest、Xcode build、模拟器或截图；提交前只运行 Git/文本轻量检查与提交范围核对。
-- v2.41 的 commit、workflow run、attempt、artifact、manifest、JUnit、日志、PNG 和 Agent C 下载路径待 push 后由 Agent C 记录；regular 截图也不能证明 compact、xxxLarge 或多焦点状态，相关契约需以源码审查为准。
+- v2.41 修复最终 commit 为 `3d5687c9d0aa827139ec1eb5400f9a2ca44e3640`，对应 workflow run `31579557207`、attempt `1`；artifact 为 `ww2tactics-ci-v2.41-main-3d5687c-run31579557207-attempt1`，digest 为 `sha256:ce585264bd6a2c27d140746faebb0e2f46ecd4987e8d36064842251062895baf`。Agent C 以 `Altman-sam114` 下载到 `/private/tmp/ww2tactics-c-review-31579557207/`，并确认 artifact manifest 的 `branch=main`、commit SHA、run id 和 run attempt 与 `origin/main` 及 workflow 一致。
+- 该 run 的 static checks、RulesSmokeTest、Xcode `build-for-testing` 和 `selected-combat-impact-steady` regular screenshot 均成功；JUnit 为 4/4（4 tests、0 failures），`WW2Tactics.xcresult` 与主构建/规则/截图日志齐全。regular PNG 为 `2064x2752`、约 `5.7M`；Agent C 实看确认六角地图仍占主视觉，单一底缘 `AL / OBJ / AX` rail、道路、补给、单位、selected、HIT/RET、交战结论和 HUD 可读，无黑屏或明显视觉回归。结果包中的 AppIntents metadata warning 为非致命警告，不影响构建、截图或验收。
+- 本地仍未运行 Swift、swiftc typecheck、RulesSmokeTest、XCTest、Xcode build、模拟器或截图；regular PNG 不能证明 compact、窄屏、`xxxLarge` Dynamic Type 或多焦点状态，相关契约由 Agent C 源码审查确认。
 
 遗留事项：
 
-- 等待本轮 `origin/main` GitHub Actions 结果与 Agent C 精确 artifact 验收；验收时需确认三段 rail 的静态结构、地图优先和既有道路/补给/单位/战果 HUD 无回归。
+- v2.41 代码、文档与云端 artifact 验收已完成。下一轮风险是现有 workflow 仍只生成 regular PNG，compact/窄屏、`xxxLarge` Dynamic Type、不同焦点状态和真实设备上的 rail cue/fade 可见性仍主要依赖源码审查；后续迭代需继续保持三段完整数组、地图优先和既有规则/输入边界。
 
 ### v2.40 / 道路环路密度微调
 
