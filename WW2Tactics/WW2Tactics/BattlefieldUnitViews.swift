@@ -127,18 +127,16 @@ struct MapUnitPiece: View {
 
     var body: some View {
         ZStack {
-            // GoG3-style soft ground disc: one translucent faction-tinted
-            // ellipse with a thin solid rim — no heavy dashes or blur shadow.
-            Ellipse()
-                .fill(faction.accentColor.opacity(isSpent ? 0.16 : 0.30))
-                .overlay {
-                    Ellipse()
-                        .stroke(faction.accentColor.opacity(isSpent ? 0.40 : 0.70), lineWidth: 1.3)
-                }
-                .frame(width: width * 0.92, height: height * 0.46)
-                .offset(y: height * 0.20)
+            MapUnitGrounding(faction: faction, isSpent: isSpent)
+                .frame(width: width * 0.86, height: height * 0.36)
+                .offset(y: height * 0.21)
 
-            UnitModelView(kind: kind, faction: faction, isSpent: isSpent)
+            UnitModelView(
+                kind: kind,
+                faction: faction,
+                isSpent: isSpent,
+                presentation: .mapPiece
+            )
                 .frame(width: width - 4, height: height - 4)
                 .offset(y: -2)
 
@@ -156,7 +154,11 @@ struct MapUnitPiece: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 3)
                     .padding(.vertical, 1)
-                    .background(Color.red.opacity(0.94), in: Capsule())
+                    .background(Color.red.opacity(0.82), in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(BattlefieldTheme.mapUnitStatusBackdrop, lineWidth: 0.6)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
 
@@ -166,11 +168,62 @@ struct MapUnitPiece: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 3)
                     .padding(.vertical, 1)
-                    .background(tacticalStatus.mapColor.opacity(0.95), in: Capsule())
+                    .background(tacticalStatus.mapColor.opacity(0.82), in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(BattlefieldTheme.mapUnitStatusBackdrop, lineWidth: 0.6)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
         }
         .frame(width: width, height: height)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct MapUnitGrounding: View {
+    let faction: Faction
+    let isSpent: Bool
+
+    var body: some View {
+        GeometryReader { proxy in
+            let contactOpacity = isSpent ? 0.16 : 0.28
+            let baseOpacity = isSpent ? 0.20 : 0.36
+            let rimOpacity = isSpent ? 0.34 : 0.62
+
+            ZStack {
+                Ellipse()
+                    .fill(BattlefieldTheme.mapUnitContactShadow.opacity(contactOpacity / 0.28))
+                    .frame(width: proxy.size.width * 0.94, height: proxy.size.height * 0.38)
+                    .position(x: proxy.size.width * 0.50, y: proxy.size.height * 0.75)
+
+                RoundedRectangle(cornerRadius: proxy.size.height * 0.34)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                faction.accentColor.opacity(baseOpacity),
+                                BattlefieldTheme.mapUnitBaseInset.opacity(isSpent ? 0.46 : 0.72)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: proxy.size.height * 0.34)
+                            .stroke(faction.accentColor.opacity(rimOpacity), lineWidth: 0.9)
+                    }
+                    .overlay(alignment: .top) {
+                        RoundedRectangle(cornerRadius: proxy.size.height * 0.34)
+                            .stroke(BattlefieldTheme.mapUnitBaseHighlight.opacity(isSpent ? 0.35 : 0.72), lineWidth: 0.55)
+                            .mask(alignment: .top) {
+                                Rectangle().frame(height: proxy.size.height * 0.42)
+                            }
+                    }
+                    .frame(width: proxy.size.width * 0.82, height: proxy.size.height * 0.57)
+                    .position(x: proxy.size.width * 0.50, y: proxy.size.height * 0.57)
+            }
+        }
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 }
@@ -258,18 +311,21 @@ struct UnitModelView: View {
     let kind: UnitKind
     let faction: Faction
     let isSpent: Bool
+    var presentation: UnitModelPresentation = .compactBadge
 
     var body: some View {
         GeometryReader { proxy in
             let detailLineWidth = max(0.45, min(proxy.size.height * 0.035, 0.9))
-            let depthOffset = max(1.2, proxy.size.height * 0.055)
+            let depthOffset = max(1.0, proxy.size.height * (presentation == .mapPiece ? 0.060 : 0.050))
+            let modelShadowOpacity = isSpent ? 0.22 : 0.50
 
             ZStack {
-                Ellipse()
-                    .fill(Color.black.opacity(isSpent ? 0.24 : 0.38))
-                    .frame(width: proxy.size.width * 0.82, height: max(2, proxy.size.height * 0.22))
-                    .position(x: proxy.size.width * 0.48, y: proxy.size.height * 0.86)
-                    .blur(radius: 0.8)
+                if presentation == .compactBadge {
+                    Ellipse()
+                        .fill(BattlefieldTheme.mapUnitContactShadow.opacity(isSpent ? 0.60 : 1))
+                        .frame(width: proxy.size.width * 0.80, height: max(2, proxy.size.height * 0.20))
+                        .position(x: proxy.size.width * 0.48, y: proxy.size.height * 0.85)
+                }
 
                 ZStack {
                     UnitMarkerShape(kind: kind)
@@ -282,8 +338,8 @@ struct UnitModelView: View {
                             UnitMarkerShape(kind: kind)
                                 .fill(
                                     LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(isSpent ? 0.08 : 0.22),
+                                    colors: [
+                                            BattlefieldTheme.mapUnitTopHighlight.opacity(isSpent ? 0.36 : 1),
                                             .clear,
                                             Color.black.opacity(0.22)
                                         ],
@@ -315,11 +371,16 @@ struct UnitModelView: View {
                 .padding(.horizontal, 1)
                 .padding(.bottom, 4)
                 .offset(y: -2)
-                .shadow(color: .black.opacity(isSpent ? 0.30 : 0.54), radius: 1.6, x: 0, y: 1.8)
+                .shadow(color: BattlefieldTheme.mapUnitModelShadow.opacity(modelShadowOpacity / 0.42), radius: 1.3, x: 0, y: 1.4)
             }
         }
         .accessibilityHidden(true)
     }
+}
+
+enum UnitModelPresentation: Equatable {
+    case compactBadge
+    case mapPiece
 }
 
 struct UnitModelPlateShape: Shape {
@@ -680,74 +741,82 @@ struct UnitMarkerShape: Shape {
 
     private func infantryPath(in rect: CGRect) -> Path {
         var path = Path()
-        let head = rect.height * 0.18
+        let head = rect.height * 0.17
         for centerX in [0.30, 0.51, 0.70] {
-            path.addEllipse(in: CGRect(x: rect.minX + rect.width * centerX - head / 2, y: rect.minY, width: head, height: head))
+            path.addEllipse(in: CGRect(x: rect.minX + rect.width * centerX - head / 2, y: rect.minY + rect.height * 0.07, width: head, height: head * 0.78))
             path.addRoundedRect(
-                in: CGRect(x: rect.minX + rect.width * centerX - head * 0.38, y: rect.minY + head * 0.86, width: head * 0.76, height: rect.height * 0.54),
+                in: CGRect(x: rect.minX + rect.width * centerX - head * 0.42, y: rect.minY + rect.height * 0.28, width: head * 0.84, height: rect.height * 0.46),
                 cornerSize: CGSize(width: head * 0.28, height: head * 0.28)
             )
         }
-        path.addRect(CGRect(x: rect.minX + rect.width * 0.60, y: rect.minY + rect.height * 0.34, width: rect.width * 0.35, height: rect.height * 0.08))
+        path.move(to: point(x: 0.12, y: 0.72, in: rect))
+        path.addLine(to: point(x: 0.90, y: 0.34, in: rect))
+        path.addLine(to: point(x: 0.93, y: 0.40, in: rect))
+        path.addLine(to: point(x: 0.15, y: 0.78, in: rect))
+        path.closeSubpath()
         return path
     }
 
     private func tankPath(in rect: CGRect) -> Path {
-        let upperTrack = CGRect(x: rect.minX, y: rect.minY + rect.height * 0.18, width: rect.width * 0.78, height: rect.height * 0.24)
-        let lowerTrack = CGRect(x: rect.minX, y: rect.minY + rect.height * 0.60, width: rect.width * 0.78, height: rect.height * 0.24)
-        let body = CGRect(x: rect.minX + rect.width * 0.08, y: rect.minY + rect.height * 0.25, width: rect.width * 0.72, height: rect.height * 0.48)
+        let track = CGRect(x: rect.minX + rect.width * 0.06, y: rect.minY + rect.height * 0.62, width: rect.width * 0.76, height: rect.height * 0.22)
         let turret = CGRect(
-            x: rect.minX + rect.width * 0.30,
-            y: rect.minY + rect.height * 0.06,
-            width: rect.width * 0.36,
-            height: rect.height * 0.32
-        )
-        let barrel = CGRect(
-            x: rect.minX + rect.width * 0.62,
-            y: rect.minY + rect.height * 0.16,
-            width: rect.width * 0.32,
-            height: rect.height * 0.13
+            x: rect.minX + rect.width * 0.31,
+            y: rect.minY + rect.height * 0.12,
+            width: rect.width * 0.31,
+            height: rect.height * 0.28
         )
 
         var path = Path()
-        path.addRoundedRect(in: upperTrack, cornerSize: CGSize(width: rect.height * 0.10, height: rect.height * 0.10))
-        path.addRoundedRect(in: lowerTrack, cornerSize: CGSize(width: rect.height * 0.10, height: rect.height * 0.10))
-        path.addRoundedRect(
-            in: body,
-            cornerSize: CGSize(width: rect.height * 0.18, height: rect.height * 0.18)
-        )
+        path.addRoundedRect(in: track, cornerSize: CGSize(width: rect.height * 0.11, height: rect.height * 0.11))
+        path.move(to: point(x: 0.12, y: 0.60, in: rect))
+        path.addLine(to: point(x: 0.22, y: 0.36, in: rect))
+        path.addLine(to: point(x: 0.69, y: 0.36, in: rect))
+        path.addLine(to: point(x: 0.80, y: 0.60, in: rect))
+        path.closeSubpath()
         path.addRoundedRect(
             in: turret,
             cornerSize: CGSize(width: rect.height * 0.12, height: rect.height * 0.12)
         )
-        path.addRect(barrel)
+        path.addRoundedRect(
+            in: CGRect(x: rect.minX + rect.width * 0.59, y: rect.minY + rect.height * 0.20, width: rect.width * 0.34, height: rect.height * 0.10),
+            cornerSize: CGSize(width: rect.height * 0.04, height: rect.height * 0.04)
+        )
         return path
     }
 
     private func artilleryPath(in rect: CGRect) -> Path {
         var path = Path()
-        let wheel = rect.height * 0.34
+        let wheel = rect.height * 0.31
         path.addEllipse(in: CGRect(x: rect.minX + rect.width * 0.18, y: rect.maxY - wheel, width: wheel, height: wheel))
-        path.addEllipse(in: CGRect(x: rect.minX + rect.width * 0.56, y: rect.maxY - wheel, width: wheel, height: wheel))
-        path.addRoundedRect(in: CGRect(x: rect.minX + rect.width * 0.26, y: rect.minY + rect.height * 0.48, width: rect.width * 0.50, height: rect.height * 0.16), cornerSize: CGSize(width: 2, height: 2))
-        path.addRoundedRect(in: CGRect(x: rect.minX + rect.width * 0.40, y: rect.minY + rect.height * 0.12, width: rect.width * 0.54, height: rect.height * 0.12), cornerSize: CGSize(width: 2, height: 2))
-        path.addRect(CGRect(x: rect.minX + rect.width * 0.12, y: rect.minY + rect.height * 0.66, width: rect.width * 0.42, height: rect.height * 0.10))
+        path.addEllipse(in: CGRect(x: rect.minX + rect.width * 0.57, y: rect.maxY - wheel, width: wheel, height: wheel))
+        path.move(to: point(x: 0.29, y: 0.68, in: rect))
+        path.addLine(to: point(x: 0.45, y: 0.40, in: rect))
+        path.addLine(to: point(x: 0.67, y: 0.58, in: rect))
+        path.addLine(to: point(x: 0.75, y: 0.68, in: rect))
+        path.closeSubpath()
+        path.addRoundedRect(in: CGRect(x: rect.minX + rect.width * 0.34, y: rect.minY + rect.height * 0.34, width: rect.width * 0.25, height: rect.height * 0.25), cornerSize: CGSize(width: rect.height * 0.05, height: rect.height * 0.05))
+        path.move(to: point(x: 0.49, y: 0.42, in: rect))
+        path.addLine(to: point(x: 0.95, y: 0.10, in: rect))
+        path.addLine(to: point(x: 0.98, y: 0.17, in: rect))
+        path.addLine(to: point(x: 0.53, y: 0.48, in: rect))
+        path.closeSubpath()
         return path
     }
 
     private func reconPath(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: rect.minX + rect.width * 0.12, y: rect.minY + rect.height * 0.30))
-        path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.22, y: rect.minY + rect.height * 0.30))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-        path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.18, y: rect.maxY - rect.height * 0.22))
-        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.08, y: rect.maxY - rect.height * 0.22))
+        path.move(to: point(x: 0.10, y: 0.48, in: rect))
+        path.addLine(to: point(x: 0.24, y: 0.30, in: rect))
+        path.addLine(to: point(x: 0.65, y: 0.30, in: rect))
+        path.addLine(to: point(x: 0.84, y: 0.49, in: rect))
+        path.addLine(to: point(x: 0.77, y: 0.69, in: rect))
+        path.addLine(to: point(x: 0.16, y: 0.69, in: rect))
         path.closeSubpath()
         let wheel = rect.height * 0.25
-        path.addEllipse(in: CGRect(x: rect.minX + rect.width * 0.18, y: rect.maxY - wheel, width: wheel, height: wheel))
-        path.addEllipse(in: CGRect(x: rect.minX + rect.width * 0.62, y: rect.maxY - wheel, width: wheel, height: wheel))
-        path.addEllipse(in: CGRect(x: rect.midX - wheel * 0.45, y: rect.minY + rect.height * 0.12, width: wheel * 0.9, height: wheel * 0.9))
-        path.addRect(CGRect(x: rect.midX, y: rect.minY, width: rect.width * 0.04, height: rect.height * 0.24))
+        path.addEllipse(in: CGRect(x: rect.minX + rect.width * 0.19, y: rect.maxY - wheel, width: wheel, height: wheel))
+        path.addEllipse(in: CGRect(x: rect.minX + rect.width * 0.60, y: rect.maxY - wheel, width: wheel, height: wheel))
+        path.addRoundedRect(in: CGRect(x: rect.minX + rect.width * 0.38, y: rect.minY + rect.height * 0.16, width: rect.width * 0.24, height: rect.height * 0.22), cornerSize: CGSize(width: rect.height * 0.07, height: rect.height * 0.07))
+        path.addRect(CGRect(x: rect.minX + rect.width * 0.50, y: rect.minY + rect.height * 0.02, width: rect.width * 0.035, height: rect.height * 0.20))
         return path
     }
 }

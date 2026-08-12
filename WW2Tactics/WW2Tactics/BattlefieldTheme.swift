@@ -35,6 +35,16 @@ enum BattlefieldTheme {
     static let mapTerrainSeamHighlight = Color.white.opacity(0.035)
     static let mapForestContinuity = Color(red: 0.18, green: 0.30, blue: 0.17).opacity(0.16)
     static let mapMountainContinuity = Color(red: 0.24, green: 0.23, blue: 0.20).opacity(0.16)
+
+    // Map-unit-only material tokens. They sit above the quiet terrain and
+    // below existing selected/marker/combat feedback without changing shared
+    // chrome or terrain surfaces.
+    static let mapUnitContactShadow = Color.black.opacity(0.28)
+    static let mapUnitBaseInset = Color.black.opacity(0.24)
+    static let mapUnitBaseHighlight = Color.white.opacity(0.15)
+    static let mapUnitModelShadow = Color.black.opacity(0.42)
+    static let mapUnitTopHighlight = Color.white.opacity(0.18)
+    static let mapUnitStatusBackdrop = Color.black.opacity(0.38)
 }
 
 struct WarLedgerSurface: View {

@@ -21,6 +21,37 @@
 
 ## 历史记录
 
+### v2.44 / 军械棋子落地材质
+
+日期：2026-08-12
+
+核心变更：
+
+- `BattlefieldTheme` 新增只供地图单位使用的接地、底座、材质阴影、高光与状态背板 token；不改变 War Ledger、地图地貌、通用 surface、Chrome 或侧栏契约。
+- `MapUnitPiece` 在既有 width/44pt 画布内改为静态接地接触阴影、低调阵营底座/细 rim 与军械主体三层关系；军衔、CUT、战术状态、将领、HP/readiness、spent 条件与完整 `UnitCounter` VoiceOver 摘要仍读取既有事实。
+- `UnitModelView` 增加纯表现 presentation 区分地图棋子和紧凑 badge，并将 tank/artillery/infantry/recon 组织为暗色厚度、阵营漆面、装备面/结构线和有限顶缘高光；不改 `UnitKind`/`Faction`/`BattleUnit`、selected halo、marker、HIT/RET、地图输入、战果 overlay 或规则。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldUnitViews.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldTheme.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.44（军械棋子落地材质）.md`
+
+验证依据与结果：
+
+- 本轮基于已由 Agent C 验收的 `origin/main` commit `3c46dbe956f49ccebd95bafaa384768a79c60043`、workflow run `31592215173`、attempt `1` 与 artifact `ww2tactics-ci-v2.43-main-3c46dbe-run31592215173-attempt1` 实现；该基线不是 v2.44 验收证据。
+- 人工要求全部交给 GitHub Actions：本地不运行 Swift、swiftc typecheck、RulesSmokeTest、XCTest、Xcode build、模拟器、截图或 Playwright；提交前仅运行 Git/文本轻量检查与提交范围核对。
+- v2.44 初始实现待 Agent B 提交并推送 `main`，随后必须由 Agent C 下载该精确 commit 的 artifact，核对 manifest、日志、JUnit、xcresult 与 regular PNG；不得预填 SHA、run、artifact、digest 或通过结论。
+
+遗留事项：
+
+- 当前 workflow 只生成 regular PNG；compact、窄宽度、xxxLarge Dynamic Type、多焦点、VoiceOver 与 Reduce Motion 只能源码审查，不能把 regular 截图作为这些状态的实测证据。
+
 ### v2.43 / 连续地图地貌层级
 
 日期：2026-08-12

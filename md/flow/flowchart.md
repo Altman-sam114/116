@@ -593,6 +593,20 @@ flowchart LR
     Stable["不写 GameState、不改地图数据/road network/规则"] --> Tactical
 ```
 
+## v2.44 军械棋子落地材质
+
+```mermaid
+flowchart LR
+    Facts["BattleUnit + supply state\nUnitKind / Faction / hasMoved / hasAttacked"] --> Counter["UnitCounter\n既有完整 VoiceOver 摘要"]
+    Counter --> Piece["MapUnitPiece\n固定 width / 44pt 画布"]
+    Facts --> Ground["接地阴影 < 阵营底座 / 细 rim"]
+    Facts --> Model["UnitModelView\n厚度 → 漆面 → 装备面/结构线 → 顶缘高光"]
+    Ground --> Piece
+    Model --> Piece
+    Piece --> Existing["HP / ready / rank / commander / CUT / tactical status"]
+    Guard["selected halo、marker、HIT/RET、tile frame/id/contentShape/zIndex\n输入、GameState action 与战果 overlay 保持现有边界"] --> Existing
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
