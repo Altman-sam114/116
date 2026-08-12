@@ -51,11 +51,14 @@
 - 文档闭环提交为 `776512a2f0b22f21fdb918b288b686612c61c25a`；对应 workflow run `31612433652`、attempt `1`、结论 `success`。Agent C 使用活动 GitHub 账号 `Altman-sam114` 下载并核对 artifact `ww2tactics-ci-v2.46-main-776512a-run31612433652-attempt1`，digest 为 `sha256:94a7476f1867d27187e5a7072c292a339bbf774a4985315529ee03ae3c0f40d3`，下载目录为 `/private/tmp/ww2tactics-c-review-31612433652/`，目录约 `9.4M`。
 - 该最终包 manifest 的 branch、commit SHA、run id 和 attempt 与 `origin/main` 及 workflow head 精确一致；static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 均为 `success`，JUnit 为 `4/4` 且 failure/error 均为 `0`，`xcresult` 可读。regular PNG 为 `2064x2752`、`5714463` bytes，Agent C 已实际查看并确认非黑屏；据点建筑、旗标、`AL`/`NEU`/`AX`、地图、道路河流、军械、HUD、战果和 `AL / OBJ / AX` rail 均可读。暗画面风险保留；XCTest 为 `skipped`，AppIntents warning 为非致命告警。
 - compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和 4x 仍仅作源码审查，未由该 regular PNG 冒充实测证据。
+- 追加文档提交为 `e55e272f8413c09f6a144add47e03d746ab56dad`；对应 workflow run `31614091744`、attempt `1`、结论 `success`。Agent C 使用活动 GitHub 账号 `Altman-sam114` 下载并核对 artifact `ww2tactics-ci-v2.46-main-e55e272-run31614091744-attempt1`，digest 为 `sha256:1a5815d50c89cb749d16a6993acb6124a87ea81f79e1897d289c63b6b6b0799e`，下载目录为 `/private/tmp/ww2tactics-c-review-31614091744/`，目录约 `5.4M`。
+- 该 artifact manifest 的 branch、commit SHA、run id 和 attempt 与 `origin/main` 及 workflow head 精确一致；static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 均为 `success`，JUnit 为 `4/4` 且 failure/error 均为 `0`，`xcresult` 可读。regular PNG 为 `2064x2752`、`1551932` bytes，Agent C 已实际查看并确认非黑屏；据点、旗标、`AL`/`NEU`/`AX`、地图、道路河流、军械、HUD、战果和 `AL / OBJ / AX` rail 均可见。整体明显偏暗作为风险记录保留；XCTest 为 `skipped`，AppIntents warning 为非致命告警。
+- compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和 4x 仍仅作源码审查，未由该 regular PNG 冒充实测证据。
 - 按人工约束，本地不运行 Swift、swiftc、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图；只执行 Git/text 轻量检查。compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 局部裁切仍只能源码审查，不能由 regular PNG 冒充。
 
 遗留事项：
 
-- v2.46 已由 Agent C 最终通过，可启动 v2.47。最终验收事实保留功能代码提交 `5c285945d633cee0e8e7133c2b0aed0e903bd1ec` 和文档闭环提交 `776512a2f0b22f21fdb918b288b686612c61c25a` 及其各自精确 artifact；本次追加的 update_log 修复提交尚未由 Agent C 验收，不得将上述最终包作为本次新日志提交的验收证据。
+- v2.46 已由 Agent C 最终通过，可启动 v2.47。最终验收事实保留功能提交 `5c285945d633cee0e8e7133c2b0aed0e903bd1ec`、文档提交 `776512a2f0b22f21fdb918b288b686612c61c25a` 和追加文档提交 `e55e272f8413c09f6a144add47e03d746ab56dad` 及其各自精确 artifact；本次追加的 update_log 修复提交尚未由 Agent C 验收，不得将上述最终包作为本次新日志提交的验收证据。
 
 ### v2.45 / 战果反馈层级
 
