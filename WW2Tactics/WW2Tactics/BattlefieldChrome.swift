@@ -1037,11 +1037,11 @@ struct ObjectiveJumpSection<Content: View>: View {
     }
 
     private var canScrollLeading: Bool {
-        overflowWidth > Self.scrollEpsilon && scrollOffset > Self.scrollEpsilon
+        overflowWidth > scrollEpsilon && scrollOffset > scrollEpsilon
     }
 
     private var canScrollTrailing: Bool {
-        overflowWidth > Self.scrollEpsilon && scrollOffset < overflowWidth - Self.scrollEpsilon
+        overflowWidth > scrollEpsilon && scrollOffset < overflowWidth - scrollEpsilon
     }
 
     private var scrollAccessibilityHint: String {
@@ -1076,7 +1076,7 @@ struct ObjectiveJumpSection<Content: View>: View {
         }
     }
 
-    private static let scrollEpsilon: CGFloat = 0.75
+    private var scrollEpsilon: CGFloat { 0.75 }
 }
 
 private struct ObjectiveJumpRailViewportWidthKey: PreferenceKey {
