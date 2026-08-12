@@ -670,6 +670,29 @@ flowchart TD
     Summary["HexTileView 单一 VoiceOver 摘要\nReduce Motion 使用同一静态明度"] -.-> Ground
 ```
 
+## v2.48 地貌材质纹理收敛
+
+```mermaid
+flowchart TD
+    Facts["TerrainTile + 既有 q/r terrainSeed\n无新增状态或缓存"] --> Tokens["BattlefieldTheme\nv2.48 局部材质 token"]
+    Facts --> Texture["TerrainTexture 五类局部方法\n平原 / 森林 / 城市 / 山地 / 雪地"]
+    Tokens --> Texture
+    Texture --> Plains["平原：1-2 个低对比块面"]
+    Texture --> Forest["森林：树冠 + 接地影 + 2-3 棵树"]
+    Texture --> City["城市：既有街廓 + 3-4 个稀疏建筑"]
+    Texture --> Mountain["山地：主峰 + 单侧明面 + 可选支撑脊"]
+    Texture --> Snow["雪地：漂移曲线 + 低密度针叶树"]
+    Connections["既有 connectionDirections"] --> Existing["道路/河流 connection Path\n颜色、宽度、方向保持"]
+    Plains --> Layer["既有 tile 内地貌层"]
+    Forest --> Layer
+    City --> Layer
+    Mountain --> Layer
+    Snow --> Layer
+    Existing --> Layer
+    Layer --> Tactical["据点 / 单位 / 状态轨道 / marker\nHIT-RET / 战果 / HUD / AL-OBJ-AX rail"]
+    Guard["静态纯表现；既有 tile bounds/Hexagon\nallowsHitTesting(false) + accessibilityHidden(true)\n地图几何、输入、规则、VoiceOver 不变"] --> Layer
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

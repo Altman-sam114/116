@@ -1749,18 +1749,22 @@ struct TerrainTexture: View {
     }
 
     private func fieldLines(in size: CGSize) -> some View {
-        // Soft farmland patches only — hex-spanning furrow lines chained into
-        // map-length diagonals on the pale ground, so they were removed.
+        // Keep the field material to one dominant patch and an optional
+        // supporting patch so neighbouring plains read as a shared surface.
+        let patchCount = terrainSeed % 4 == 0 ? 1 : 2
+
         ZStack {
-            ForEach(0..<4, id: \.self) { index in
-                let patchWidth = size.width * (0.30 + seededFraction(index: index, multiplier: 17, offset: 5) * 0.18)
-                let patchHeight = size.height * (0.16 + seededFraction(index: index, multiplier: 29, offset: 13) * 0.12)
-                let x = size.width * (0.18 + seededFraction(index: index, multiplier: 37, offset: 23) * 0.64)
-                let y = size.height * (0.16 + seededFraction(index: index, multiplier: 43, offset: 31) * 0.68)
-                let angle = -16 + Double((terrainSeed + index * 19) % 24)
+            ForEach(0..<patchCount, id: \.self) { index in
+                let patchWidth = size.width * (index == 0 ? 0.42 : 0.28)
+                    + size.width * seededFraction(index: index, multiplier: 17, offset: 5) * 0.12
+                let patchHeight = size.height * (index == 0 ? 0.20 : 0.15)
+                    + size.height * seededFraction(index: index, multiplier: 29, offset: 13) * 0.07
+                let x = size.width * (0.24 + seededFraction(index: index, multiplier: 37, offset: 23) * 0.52)
+                let y = size.height * (0.22 + seededFraction(index: index, multiplier: 43, offset: 31) * 0.54)
+                let angle = -14 + Double((terrainSeed + index * 19) % 22)
 
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(index.isMultiple(of: 2) ? Color(red: 0.72, green: 0.66, blue: 0.38).opacity(0.14) : Color(red: 0.42, green: 0.48, blue: 0.30).opacity(0.15))
+                    .fill(index == 0 ? BattlefieldTheme.terrainFieldPrimary : BattlefieldTheme.terrainFieldSupport)
                     .frame(width: patchWidth, height: patchHeight)
                     .rotationEffect(.degrees(angle))
                     .position(x: x, y: y)
@@ -1769,31 +1773,44 @@ struct TerrainTexture: View {
     }
 
     private func forestClusters(in size: CGSize) -> some View {
+        let treeCount = terrainSeed % 3 == 0 ? 2 : 3
+
         ZStack {
-            ForEach(0..<7, id: \.self) { index in
-                let x = size.width * (0.14 + seededFraction(index: index, multiplier: 37, offset: 17) * 0.72)
-                let y = size.height * (0.16 + seededFraction(index: index, multiplier: 23, offset: 41) * 0.66)
-                let treeSize = 10 + CGFloat((terrainSeed + index * 5) % 7)
+            Ellipse()
+                .fill(BattlefieldTheme.terrainForestCanopy)
+                .frame(width: size.width * 0.72, height: size.height * 0.48)
+                .rotationEffect(.degrees(Double((terrainSeed % 17) - 8)))
+                .position(
+                    x: size.width * (0.43 + seedFraction(multiplier: 13, offset: 7) * 0.16),
+                    y: size.height * (0.46 + seedFraction(multiplier: 19, offset: 11) * 0.12)
+                )
+
+            ForEach(0..<treeCount, id: \.self) { index in
+                let x = size.width * (0.25 + seededFraction(index: index, multiplier: 37, offset: 17) * 0.48)
+                let y = size.height * (0.26 + seededFraction(index: index, multiplier: 23, offset: 41) * 0.42)
+                let treeSize = 13 + CGFloat((terrainSeed + index * 5) % 7)
 
                 Ellipse()
-                    .fill(Color.black.opacity(0.17))
-                    .frame(width: treeSize * 0.95, height: treeSize * 0.34)
+                    .fill(BattlefieldTheme.terrainForestShadow)
+                    .frame(width: treeSize * 0.92, height: treeSize * 0.30)
                     .position(x: x + 1.5, y: y + treeSize * 0.44)
 
                 Image(systemName: "tree.fill")
                     .font(.system(size: treeSize, weight: .bold))
                     .foregroundStyle(
-                        index.isMultiple(of: 2)
-                            ? Color(red: 0.22, green: 0.38, blue: 0.20)
-                            : Color(red: 0.30, green: 0.46, blue: 0.25)
+                        index == 0
+                            ? BattlefieldTheme.terrainForestTreeLight
+                            : BattlefieldTheme.terrainForestTree
                     )
-                    .shadow(color: Color.black.opacity(0.18), radius: 0.7, x: 1, y: 1.2)
+                    .shadow(color: BattlefieldTheme.terrainForestShadow, radius: 0.7, x: 1, y: 1.2)
                     .position(x: x, y: y)
             }
         }
     }
 
     private func cityBlocks(in size: CGSize) -> some View {
+        let buildingCount = terrainSeed % 4 == 0 ? 3 : 4
+
         ZStack {
             Path { path in
                 path.move(to: CGPoint(x: 0, y: size.height * 0.62))
@@ -1801,7 +1818,7 @@ struct TerrainTexture: View {
                 path.move(to: CGPoint(x: size.width * 0.46, y: 0))
                 path.addLine(to: CGPoint(x: size.width * 0.56, y: size.height))
             }
-            .stroke(Color(red: 0.45, green: 0.44, blue: 0.38).opacity(0.50), lineWidth: 5)
+            .stroke(BattlefieldTheme.terrainCityStreet, lineWidth: 5)
 
             Path { path in
                 path.move(to: CGPoint(x: 0, y: size.height * 0.62))
@@ -1809,39 +1826,40 @@ struct TerrainTexture: View {
                 path.move(to: CGPoint(x: size.width * 0.46, y: 0))
                 path.addLine(to: CGPoint(x: size.width * 0.56, y: size.height))
             }
-            .stroke(Color.white.opacity(0.24), lineWidth: 2)
+            .stroke(BattlefieldTheme.terrainCityStreetHighlight, lineWidth: 2)
 
-            // GoG3-style building cluster: pale walls, warm tiled roofs.
-            ForEach(0..<6, id: \.self) { index in
-                let blockWidth = 9 + CGFloat((terrainSeed + index * 3) % 7)
-                let blockHeight = 9 + CGFloat((terrainSeed + index * 7) % 7)
-                let x = size.width * (0.16 + seededFraction(index: index, multiplier: 31, offset: 7) * 0.68)
-                let y = size.height * (0.16 + seededFraction(index: index, multiplier: 19, offset: 29) * 0.68)
+            // Sparse blocks keep the street direction visible as the city
+            // material instead of repeating a full building grid per tile.
+            ForEach(0..<buildingCount, id: \.self) { index in
+                let blockWidth = 10 + CGFloat((terrainSeed + index * 3) % 7)
+                let blockHeight = 10 + CGFloat((terrainSeed + index * 7) % 7)
+                let x = size.width * (0.22 + seededFraction(index: index, multiplier: 31, offset: 7) * 0.58)
+                let y = size.height * (0.22 + seededFraction(index: index, multiplier: 19, offset: 29) * 0.56)
 
                 RoundedRectangle(cornerRadius: 1.5)
-                    .fill(Color.black.opacity(0.22))
+                    .fill(BattlefieldTheme.terrainCityShadow)
                     .frame(width: blockWidth, height: blockHeight)
                     .position(x: x + 2, y: y + 2.5)
 
                 RoundedRectangle(cornerRadius: 1.5)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(red: 0.93, green: 0.90, blue: 0.83), Color(red: 0.78, green: 0.74, blue: 0.66)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(BattlefieldTheme.terrainCityWall)
                     .overlay {
                         RoundedRectangle(cornerRadius: 1.5)
-                            .stroke(Color(red: 0.36, green: 0.33, blue: 0.28).opacity(0.55), lineWidth: 0.6)
+                            .stroke(BattlefieldTheme.terrainCityRim, lineWidth: 0.6)
+                    }
+                    .overlay(alignment: .bottom) {
+                        Rectangle()
+                            .fill(BattlefieldTheme.terrainCityWallShade)
+                            .frame(height: blockHeight * 0.28)
+                            .padding(.horizontal, 0.7)
+                            .padding(.bottom, 0.7)
                     }
                     .overlay(alignment: .top) {
-                        // Roof band.
                         RoundedRectangle(cornerRadius: 1)
                             .fill(
-                                index.isMultiple(of: 2)
-                                    ? Color(red: 0.70, green: 0.36, blue: 0.26)
-                                    : Color(red: 0.52, green: 0.44, blue: 0.38)
+                                index == 0
+                                    ? BattlefieldTheme.terrainCityRoofWarm
+                                    : BattlefieldTheme.terrainCityRoofCool
                             )
                             .frame(height: blockHeight * 0.42)
                             .padding(.horizontal, 0.6)
@@ -1854,48 +1872,53 @@ struct TerrainTexture: View {
     }
 
     private func mountainRidges(in size: CGSize) -> some View {
-        let firstPeak = 0.22 + seedFraction(multiplier: 11, offset: 3) * 0.16
-        let secondPeak = 0.58 + seedFraction(multiplier: 17, offset: 19) * 0.16
-        let firstHeight = 0.14 + seedFraction(multiplier: 23, offset: 13) * 0.14
-        let secondHeight = 0.10 + seedFraction(multiplier: 29, offset: 31) * 0.16
+        let peakX = 0.28 + seedFraction(multiplier: 11, offset: 3) * 0.22
+        let peakY = 0.14 + seedFraction(multiplier: 23, offset: 13) * 0.14
+        let hasSupportRidge = terrainSeed % 3 != 0
 
         return ZStack {
-            // Massif silhouette: rocky gray body rising from the hex floor.
+            Ellipse()
+                .fill(BattlefieldTheme.terrainMountainFoot)
+                .frame(width: size.width * 0.82, height: size.height * 0.18)
+                .position(x: size.width * 0.52, y: size.height * 0.78)
+
+            // One broad massif is the primary mountain material; an optional
+            // low ridge supplies deterministic variation without twin peaks
+            // on every tile.
             Path { path in
                 path.move(to: CGPoint(x: size.width * 0.02, y: size.height * 0.84))
-                path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
-                path.addLine(to: CGPoint(x: size.width * 0.49, y: size.height * 0.52))
-                path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
+                path.addLine(to: CGPoint(x: size.width * peakX, y: size.height * peakY))
+                path.addLine(to: CGPoint(x: size.width * 0.60, y: size.height * 0.50))
                 path.addLine(to: CGPoint(x: size.width * 0.97, y: size.height * 0.82))
                 path.closeSubpath()
             }
-            .fill(Color(red: 0.48, green: 0.47, blue: 0.43))
+            .fill(BattlefieldTheme.terrainMountainBody)
 
-            // Sunlit west faces.
             Path { path in
                 path.move(to: CGPoint(x: size.width * 0.02, y: size.height * 0.84))
-                path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
-                path.addLine(to: CGPoint(x: size.width * (firstPeak + 0.10), y: size.height * 0.84))
-                path.closeSubpath()
-                path.move(to: CGPoint(x: size.width * 0.49, y: size.height * 0.52))
-                path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
-                path.addLine(to: CGPoint(x: size.width * (secondPeak + 0.10), y: size.height * 0.82))
+                path.addLine(to: CGPoint(x: size.width * peakX, y: size.height * peakY))
+                path.addLine(to: CGPoint(x: size.width * (peakX + 0.12), y: size.height * 0.84))
                 path.closeSubpath()
             }
-            .fill(Color(red: 0.66, green: 0.65, blue: 0.60))
+            .fill(BattlefieldTheme.terrainMountainLight)
 
-            // Snow caps on both peaks.
             Path { path in
-                path.move(to: CGPoint(x: size.width * (firstPeak - 0.07), y: size.height * (firstHeight + 0.16)))
-                path.addLine(to: CGPoint(x: size.width * firstPeak, y: size.height * firstHeight))
-                path.addLine(to: CGPoint(x: size.width * (firstPeak + 0.07), y: size.height * (firstHeight + 0.16)))
-                path.closeSubpath()
-                path.move(to: CGPoint(x: size.width * (secondPeak - 0.07), y: size.height * (secondHeight + 0.15)))
-                path.addLine(to: CGPoint(x: size.width * secondPeak, y: size.height * secondHeight))
-                path.addLine(to: CGPoint(x: size.width * (secondPeak + 0.07), y: size.height * (secondHeight + 0.15)))
+                path.move(to: CGPoint(x: size.width * (peakX - 0.08), y: size.height * (peakY + 0.16)))
+                path.addLine(to: CGPoint(x: size.width * peakX, y: size.height * peakY))
+                path.addLine(to: CGPoint(x: size.width * (peakX + 0.08), y: size.height * (peakY + 0.16)))
                 path.closeSubpath()
             }
-            .fill(Color.white.opacity(0.92))
+            .fill(BattlefieldTheme.terrainMountainSnow)
+
+            if hasSupportRidge {
+                Path { path in
+                    path.move(to: CGPoint(x: size.width * 0.52, y: size.height * 0.78))
+                    path.addLine(to: CGPoint(x: size.width * 0.72, y: size.height * (0.38 + seedFraction(multiplier: 29, offset: 31) * 0.14)))
+                    path.addLine(to: CGPoint(x: size.width * 0.94, y: size.height * 0.80))
+                    path.closeSubpath()
+                }
+                .fill(BattlefieldTheme.terrainMountainBody.opacity(0.72))
+            }
         }
     }
 
@@ -1916,7 +1939,7 @@ struct TerrainTexture: View {
                 path.addLine(to: CGPoint(x: 0, y: size.height))
                 path.closeSubpath()
             }
-            .fill(Color.blue.opacity(0.04))
+            .fill(BattlefieldTheme.terrainSnowDrift)
 
             Path { path in
                 path.move(to: CGPoint(x: 0, y: size.height * startY))
@@ -1926,21 +1949,22 @@ struct TerrainTexture: View {
                     control2: CGPoint(x: size.width * 0.68, y: size.height * (endY + 0.24))
                 )
             }
-            .stroke(Color.white.opacity(0.30), lineWidth: 1.4)
+            .stroke(BattlefieldTheme.terrainSnowDriftHighlight, lineWidth: 1.4)
 
-            // GoG3-style snow-dusted conifers scattered on roughly half of
-            // the snowfield hexes.
-            if terrainSeed % 2 == 0 {
-                ForEach(0..<3, id: \.self) { index in
-                    let x = size.width * (0.22 + seededFraction(index: index, multiplier: 41, offset: 11) * 0.56)
-                    let y = size.height * (0.30 + seededFraction(index: index, multiplier: 27, offset: 47) * 0.44)
-                    let treeHeight = 10 + CGFloat((terrainSeed + index * 7) % 5)
+            // Leave most of the snowfield open; only some tiles carry one or
+            // two conifers as a low-density support shape.
+            if terrainSeed % 3 == 0 {
+                let coniferCount = terrainSeed % 5 == 0 ? 1 : 2
+                ForEach(0..<coniferCount, id: \.self) { index in
+                    let x = size.width * (0.28 + seededFraction(index: index, multiplier: 41, offset: 11) * 0.46)
+                    let y = size.height * (0.30 + seededFraction(index: index, multiplier: 27, offset: 47) * 0.38)
+                    let treeHeight = 11 + CGFloat((terrainSeed + index * 7) % 5)
 
                     SnowConiferShape()
-                        .fill(Color(red: 0.24, green: 0.36, blue: 0.28))
+                        .fill(BattlefieldTheme.terrainSnowConifer)
                         .overlay {
                             SnowConiferCapShape()
-                                .fill(Color.white.opacity(0.88))
+                                .fill(BattlefieldTheme.terrainSnowCap)
                         }
                         .frame(width: treeHeight * 0.72, height: treeHeight)
                         .shadow(color: Color.black.opacity(0.16), radius: 0.7, x: 0.8, y: 1)

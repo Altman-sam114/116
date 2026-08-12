@@ -21,6 +21,37 @@
 
 ## 历史记录
 
+### v2.48 / 地貌材质纹理收敛
+
+日期：2026-08-13
+
+核心变更：
+
+- `TerrainTexture` 只在既有 tile bounds 内收敛五类非道路/非河流局部纹理：平原改为 1-2 个低对比块面，森林改为共享树冠、接地阴影和 2-3 棵确定性成簇树，城市保留既有街廓并降为 3-4 个稀疏建筑，山地改为单一主峰、单侧明面、雪顶和可选低支撑脊，雪地保留漂移曲线并低密度放置 1-2 棵针叶树。
+- `BattlefieldTheme` 增加只供上述五个 `TerrainTexture` 方法消费的局部材质 token；位置、数量和变体继续由既有 q/r `terrainSeed` 确定性派生，v2.47 白昼 token、道路/河流 connection Path、据点、四类军械、HP/行动轨道、marker、HIT/RET、战果、HUD、`AL / OBJ / AX` rail、地图几何、输入和规则保持不变。
+- 所有修改继续是静态纯表现，未新增状态、缓存、timer、动画、图片、网络、第三方依赖或无障碍节点；`TerrainTexture` 外层已有 `.allowsHitTesting(false)` 与 `.accessibilityHidden(true)`，地图和高优先级叠层保持原链。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldTheme.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.48（地貌材质纹理收敛）.md`
+
+验证结果：
+
+- 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `dea1caece3235a9a872ec9d45a68363d3fa5cd3f`；A 的 v2.48 prompt 与 `md/prompt/README.md` 改动保留并纳入本轮范围。
+- 本轮仅执行 Git/text 轻量检查；按云端约束未运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图。完整构建、规则和 regular screenshot 交由本轮 push 后的 GitHub Actions 与 Agent C artifact 验收。
+- 本条目在提交前记录实现范围；本轮实现 commit、workflow run/attempt、artifact、digest 和 PNG 事实尚未生成，不预填未知值。Agent C 只能核对本轮最新 `origin/main` SHA 对应的精确 artifact；compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 仍只能源码审查。
+
+遗留事项：
+
+- v2.48 已完成工作树实现，提交并 push 后等待 Agent C 对本轮最新 SHA 的 workflow manifest、规则 smoke、Xcode build-for-testing、JUnit、xcresult 和 regular PNG 进行精确验收；不得用 v2.47 旧包替代本轮证据。
+
 ### v2.47 / 白昼战场可读性
 
 日期：2026-08-13

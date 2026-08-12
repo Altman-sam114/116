@@ -39,6 +39,31 @@ enum BattlefieldTheme {
     static let mapForestContinuity = Color(red: 0.18, green: 0.30, blue: 0.17).opacity(0.13)
     static let mapMountainContinuity = Color(red: 0.24, green: 0.23, blue: 0.20).opacity(0.13)
 
+    // Local terrain-material tokens. They sit above the daylight ground and
+    // remain below objectives, units, markers, combat feedback and chrome.
+    static let terrainFieldPrimary = Color(red: 0.72, green: 0.66, blue: 0.38).opacity(0.14)
+    static let terrainFieldSupport = Color(red: 0.42, green: 0.48, blue: 0.30).opacity(0.13)
+    static let terrainForestCanopy = Color(red: 0.18, green: 0.34, blue: 0.19).opacity(0.16)
+    static let terrainForestShadow = Color.black.opacity(0.14)
+    static let terrainForestTree = Color(red: 0.22, green: 0.38, blue: 0.20)
+    static let terrainForestTreeLight = Color(red: 0.30, green: 0.46, blue: 0.25)
+    static let terrainCityStreet = Color(red: 0.45, green: 0.44, blue: 0.38).opacity(0.46)
+    static let terrainCityStreetHighlight = Color.white.opacity(0.21)
+    static let terrainCityShadow = Color.black.opacity(0.20)
+    static let terrainCityWall = Color(red: 0.93, green: 0.90, blue: 0.83)
+    static let terrainCityWallShade = Color(red: 0.78, green: 0.74, blue: 0.66)
+    static let terrainCityRim = Color(red: 0.36, green: 0.33, blue: 0.28).opacity(0.52)
+    static let terrainCityRoofWarm = Color(red: 0.70, green: 0.36, blue: 0.26)
+    static let terrainCityRoofCool = Color(red: 0.52, green: 0.44, blue: 0.38)
+    static let terrainMountainFoot = Color.black.opacity(0.10)
+    static let terrainMountainBody = Color(red: 0.48, green: 0.47, blue: 0.43)
+    static let terrainMountainLight = Color(red: 0.66, green: 0.65, blue: 0.60)
+    static let terrainMountainSnow = Color.white.opacity(0.90)
+    static let terrainSnowDrift = Color.blue.opacity(0.035)
+    static let terrainSnowDriftHighlight = Color.white.opacity(0.26)
+    static let terrainSnowConifer = Color(red: 0.24, green: 0.36, blue: 0.28)
+    static let terrainSnowCap = Color.white.opacity(0.84)
+
     // Map-unit-only material tokens. They sit above the quiet terrain and
     // below existing selected/marker/combat feedback without changing shared
     // chrome or terrain surfaces.
