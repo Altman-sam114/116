@@ -277,7 +277,7 @@ struct MapCommandCenter: View {
 
                 ZStack {
                     ScrollViewReader { proxy in
-                        ScrollView([.horizontal, .vertical], showsIndicators: true) {
+                        ScrollView([.horizontal, .vertical], showsIndicators: false) {
                             HexMapView(
                                 scaleMultiplier: mapScaleMode.scaleMultiplier,
                                 viewportHeight: mapProxy.size.height

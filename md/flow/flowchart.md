@@ -579,6 +579,20 @@ flowchart LR
     Stable["CampaignPicker / endTurn / select / focus 不变\n不写 GameState、不改地图输入或规则"] --> Render
 ```
 
+## v2.43 连续地图地貌层级
+
+```mermaid
+flowchart LR
+    Tiles["TerrainTile + 既有 q/r seed"] --> Ground["MapGridBackdrop\n低频泥土/纸张底"]
+    Directions["既有同类邻接 / RoadConnectionNetwork directions"] --> Texture["TerrainTexture\n道路/河流原 path + 森林/山体低频连续阴影"]
+    Ground --> Tile["HexTileView\n背景级静态接缝"]
+    Texture --> Tile
+    Tile --> Tactical["单位 / 据点 / selected / 路线 / 补给 / marker / HIT-RET"]
+    Guard["无 q/r 视觉标签；装饰无命中/无障碍隐藏\ntile frame/id/contentShape/zIndex 与输入不变"] --> Tile
+    Scroll["MapCommandCenter 双轴 ScrollView\nshowsIndicators: false；reader/缩放/focus 不变"] --> Tactical
+    Stable["不写 GameState、不改地图数据/road network/规则"] --> Tactical
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

@@ -296,22 +296,6 @@ struct HexMapView: View {
         ZStack(alignment: .topLeading) {
             MapGridBackdrop(width: contentWidth, height: contentHeight)
 
-            ForEach(0..<game.scenario.mapColumns, id: \.self) { q in
-                CoordinateLabel(text: "\(q)")
-                    .position(
-                        x: position(for: HexCoordinate(q: q, r: 0)).x,
-                        y: 12
-                    )
-            }
-
-            ForEach(0..<game.scenario.mapRows, id: \.self) { r in
-                CoordinateLabel(text: "\(r)")
-                    .position(
-                        x: max(12, position(for: HexCoordinate(q: 0, r: r)).x - tileWidth * 0.46),
-                        y: position(for: HexCoordinate(q: 0, r: r)).y
-                    )
-            }
-
             ForEach(mapTiles, id: \.coordinate.id) { tile in
                 let point = position(for: tile.coordinate)
                 let unit = game.unit(at: tile.coordinate)
@@ -450,9 +434,9 @@ struct MapGridBackdrop: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color(red: 0.56, green: 0.60, blue: 0.43),
-                            Color(red: 0.52, green: 0.57, blue: 0.41),
-                            Color(red: 0.47, green: 0.52, blue: 0.38)
+                            BattlefieldTheme.mapParchmentLight,
+                            BattlefieldTheme.mapParchmentSoil,
+                            BattlefieldTheme.mapParchmentShade
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -460,39 +444,37 @@ struct MapGridBackdrop: View {
                 )
 
             Path { path in
-                let spacing: CGFloat = 48
-                var x: CGFloat = 0
-                while x <= width {
-                    path.move(to: CGPoint(x: x, y: 0))
-                    path.addLine(to: CGPoint(x: x, y: height))
-                    x += spacing
-                }
-
-                var y: CGFloat = 0
-                while y <= height {
-                    path.move(to: CGPoint(x: 0, y: y))
-                    path.addLine(to: CGPoint(x: width, y: y))
-                    y += spacing
-                }
+                path.move(to: CGPoint(x: -width * 0.08, y: height * 0.24))
+                path.addCurve(
+                    to: CGPoint(x: width * 1.08, y: height * 0.43),
+                    control1: CGPoint(x: width * 0.25, y: height * 0.06),
+                    control2: CGPoint(x: width * 0.72, y: height * 0.66)
+                )
+                path.addLine(to: CGPoint(x: width * 1.08, y: height * 0.70))
+                path.addCurve(
+                    to: CGPoint(x: -width * 0.08, y: height * 0.52),
+                    control1: CGPoint(x: width * 0.68, y: height * 0.90),
+                    control2: CGPoint(x: width * 0.20, y: height * 0.30)
+                )
+                path.closeSubpath()
             }
-            .stroke(Color.black.opacity(0.045), lineWidth: 1)
+            .fill(BattlefieldTheme.mapParchmentWash)
 
             Path { path in
-                var x: CGFloat = 18
-                while x < width {
-                    let y = (x * 1.73).truncatingRemainder(dividingBy: max(height, 1))
-                    path.move(to: CGPoint(x: x, y: y))
-                    path.addLine(to: CGPoint(x: min(width, x + 16), y: min(height, y + 5)))
-                    x += 37
-                }
+                path.move(to: CGPoint(x: width * 0.08, y: -height * 0.04))
+                path.addCurve(
+                    to: CGPoint(x: width * 0.96, y: height * 1.04),
+                    control1: CGPoint(x: width * 0.34, y: height * 0.31),
+                    control2: CGPoint(x: width * 0.70, y: height * 0.76)
+                )
             }
-            .stroke(Color.white.opacity(0.045), lineWidth: 0.7)
+            .stroke(BattlefieldTheme.mapParchmentLight.opacity(0.12), lineWidth: max(width, height) * 0.045)
 
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.10),
+                    Color.black.opacity(0.14),
                     Color.black.opacity(0.0),
-                    Color.black.opacity(0.16)
+                    Color.black.opacity(0.18)
                 ],
                 startPoint: .leading,
                 endPoint: .trailing
@@ -501,20 +483,6 @@ struct MapGridBackdrop: View {
         .frame(width: width, height: height)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
-    }
-}
-
-struct CoordinateLabel: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 9, weight: .black, design: .rounded))
-            .foregroundStyle(.white.opacity(0.72))
-            .frame(width: 22, height: 16)
-            .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 4))
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
     }
 }
 
@@ -623,9 +591,14 @@ struct HexTileView: View {
                         )
                 )
                 .overlay(
-                    // GoG3-style etched hex grid: a light hairline on every tile.
+                    // Static seams only preserve terrain legibility; tactical
+                    // borders below retain their existing higher priority.
                     Hexagon()
-                        .stroke(Color.white.opacity(tile.isObjective ? 0.34 : 0.26), lineWidth: 0.7)
+                        .stroke(BattlefieldTheme.mapTerrainSeam, lineWidth: 0.45)
+                )
+                .overlay(
+                    Hexagon()
+                        .stroke(BattlefieldTheme.mapTerrainSeamHighlight, lineWidth: 0.35)
                 )
                 .overlay(
                     Hexagon()
@@ -1540,6 +1513,8 @@ struct TerrainTexture: View {
         let path = connectionPath(in: size)
 
         return Group {
+            terrainContinuityLayer(path)
+
             if tile.terrain.showsMapConnections {
                 ZStack {
                     path
@@ -1569,13 +1544,36 @@ struct TerrainTexture: View {
                                 style: StrokeStyle(
                                     lineWidth: tile.terrain == .river ? 1.3 : 0.7,
                                     lineCap: .round,
-                                    lineJoin: .round,
-                                    dash: tile.terrain == .road ? [5, 6] : []
+                                    lineJoin: .round
                                 )
                             )
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func terrainContinuityLayer(_ path: Path) -> some View {
+        switch tile.terrain {
+        case .forest:
+            // A quiet canopy shadow reaches the existing neighbouring edges
+            // before individual trees are painted above it.
+            path
+                .stroke(
+                    BattlefieldTheme.mapForestContinuity,
+                    style: StrokeStyle(lineWidth: 17, lineCap: .round, lineJoin: .round)
+                )
+        case .mountain:
+            // Existing same-terrain directions extend the massif's foot, not
+            // a new route or marker system.
+            path
+                .stroke(
+                    BattlefieldTheme.mapMountainContinuity,
+                    style: StrokeStyle(lineWidth: 23, lineCap: .round, lineJoin: .round)
+                )
+        case .plains, .city, .snow, .river, .road:
+            EmptyView()
         }
     }
 

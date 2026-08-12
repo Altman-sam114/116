@@ -21,6 +21,39 @@
 
 ## 历史记录
 
+### v2.43 / 连续地图地貌层级
+
+日期：2026-08-12
+
+核心变更：
+
+- `BattlefieldTheme` 增加仅供地图静态底层使用的泥土/纸张、背景级接缝与森林/山体连续阴影 token，不改变 War Ledger、通用 surface、单位或侧栏样式。
+- `BattlefieldMap` 以低频、确定性的泥土/纸张 Path 替换 `MapGridBackdrop` 的规则方格与斜刻线，移除默认边缘 q/r 视觉标签，并将普通地格白色蚀刻边降为背景级静态接缝；tile 坐标仍由既有完整 VoiceOver 摘要、id 与焦点链保留。
+- `TerrainTexture` 继续使用既有道路 canonical 方向和河流/同类邻接 path：道路高光改为连续走廊，森林树冠阴影和山脚阴影只沿已传入方向低对比延展，不改地图数据、路径、成本、补给或规则。
+- `MapCommandCenter` 的唯一地图双轴 `ScrollView` 只将 `showsIndicators` 设为 `false`；滚动、缩放、`ScrollViewReader` 焦点居中、鼠标/触控、tile frame/position/id/contentShape/zIndex、`HexInputReader`、状态边框、marker、单位、HIT/RET 与 VoiceOver 保持原链。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldTheme.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldChrome.swift`（仅地图 `showsIndicators` 单行）
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.43（连续地图地貌层级）.md`
+
+验证依据与结果：
+
+- 本轮基于已由 Agent C 验收的 `origin/main` commit `236ce842dfb5a89b7ea1c8dde65ce7765f42cd40`、workflow run `31583326724`、attempt `1` 与 artifact `ww2tactics-ci-v2.42-main-236ce84-run31583326724-attempt1` 实现；该基线不是 v2.43 验收证据。
+- 人工要求全部交给 GitHub Actions：本地不运行 Swift、swiftc typecheck、RulesSmokeTest、XCTest、Xcode build、模拟器、截图或 Playwright；提交前仅运行 Git/文本轻量检查与提交范围核对。
+- v2.43 功能提交及精确 workflow/artifact 结果待 Agent C 对本轮 `origin/main` 最新 commit 下载结果包后补记；不得以旧 v2.42 PNG 或本地检查代替。
+
+遗留事项：
+
+- workflow 仍只生成 regular PNG；compact、窄宽度、xxxLarge Dynamic Type、不同焦点与 Reduce Motion 仅具源码审查证据，regular 截图不能作为其实际设备证据。
+
 ### v2.42 / 战区账本材质统一
 
 日期：2026-08-12
