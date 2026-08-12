@@ -1753,7 +1753,7 @@ struct TerrainTexture: View {
         // supporting patch so neighbouring plains read as a shared surface.
         let patchCount = terrainSeed % 4 == 0 ? 1 : 2
 
-        ZStack {
+        return ZStack {
             ForEach(0..<patchCount, id: \.self) { index in
                 let patchWidth = size.width * (index == 0 ? 0.42 : 0.28)
                     + size.width * seededFraction(index: index, multiplier: 17, offset: 5) * 0.12
@@ -1775,7 +1775,7 @@ struct TerrainTexture: View {
     private func forestClusters(in size: CGSize) -> some View {
         let treeCount = terrainSeed % 3 == 0 ? 2 : 3
 
-        ZStack {
+        return ZStack {
             Ellipse()
                 .fill(BattlefieldTheme.terrainForestCanopy)
                 .frame(width: size.width * 0.72, height: size.height * 0.48)
@@ -1811,7 +1811,7 @@ struct TerrainTexture: View {
     private func cityBlocks(in size: CGSize) -> some View {
         let buildingCount = terrainSeed % 4 == 0 ? 3 : 4
 
-        ZStack {
+        return ZStack {
             Path { path in
                 path.move(to: CGPoint(x: 0, y: size.height * 0.62))
                 path.addLine(to: CGPoint(x: size.width, y: size.height * 0.38))
