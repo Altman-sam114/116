@@ -45,11 +45,14 @@
 
 - 本轮基于 v2.45 最终通过的 `origin/main` 与工作树共同指向的基线 commit `3d8b4a818c9681ba0ff35441a29e8a5e027f1bdf`；Agent A 有意留下的 `md/prompt/README.md` 修改和 v2.46 prompt 新文件均保留并纳入本轮范围。
 - 本条目初始实现记录写入时，本轮 v2.46 提交尚未生成、workflow 尚未触发、artifact 尚未生成；不预填 artifact 名称、digest 或云端通过结论。提交后须由 Agent C 只核对本轮最新 SHA 对应的精确结果包。
+- v2.46 功能实现提交为 `5c285945d633cee0e8e7133c2b0aed0e903bd1ec`；对应 workflow run `31609622588`、attempt `1`、结论 `success`。Agent C 使用活动 GitHub 账号 `Altman-sam114` 下载并核对 artifact `ww2tactics-ci-v2.46-main-5c28594-run31609622588-attempt1`，digest 为 `sha256:f817c0a9eeeedda7bf980be384b1370980a13bb36a9686676d8148cd4faafeb9`，下载目录为 `/private/tmp/ww2tactics-c-review-31609622588/`；外层约 `24M`，展开目录约 `5.6M`。
+- artifact manifest 的 branch、commit SHA、run id 和 attempt 与 `origin/main` 及 workflow head 精确一致；static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 均为 `success`，JUnit 为 `4/4` 且 failure/error 均为 `0`，`xcresult` 可读。regular PNG 为 `2064x2752`、`1764927` bytes，Agent C 已实际查看并确认非黑屏；普通城市、据点建筑/旗标、`AL`/`NEU`/`AX`、道路河流、军械、HUD、战果和 `AL / OBJ / AX` rail 均可读。画面偏暗作为风险记录保留；XCTest 为 `skipped`，AppIntents warning 为非致命告警。
+- compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和 4x 仍只有源码审查范围，未由本轮 regular PNG 冒充实测证据。
 - 按人工约束，本地不运行 Swift、swiftc、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图；只执行 Git/text 轻量检查。compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 局部裁切仍只能源码审查，不能由 regular PNG 冒充。
 
 遗留事项：
 
-- 等待本轮 `main` push 触发 GitHub Actions，并由 Agent C 下载、核对最新 commit/run/attempt/artifact；在该验收完成前不宣称 v2.46 通过。
+- v2.46 已由 Agent C 最终通过，可启动下一轮。上述通过结论只对应功能代码提交 `5c285945d633cee0e8e7133c2b0aed0e903bd1ec` 的精确 artifact；本次 update_log 文档闭环修复提交仍须触发新的 workflow/artifact，不能把该代码包当作新文档提交的验收证据。
 
 ### v2.45 / 战果反馈层级
 
