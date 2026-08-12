@@ -21,6 +21,36 @@
 
 ## 历史记录
 
+### v2.45 / 战果反馈层级
+
+日期：2026-08-12
+
+核心变更：
+
+- `CombatResolutionOverlay` 继续以 `CombatResultSummary` 为唯一事实源，将结论放在战果层一级阅读位，明确区分防守方击毁、攻击方反击击毁、交火、压制和无反击；每种结论同时使用文字与 SF Symbol 编码。
+- `CombatDamagePlate` 保留 v2.34 单行 HIT/RET、伤害和对应一方 HP 起止值；`CombatResolutionLayout` 只从执行时 attacker/defender 点位、局部 bounds 和既有 axis 派生端点外移、法向和短距间距，使结论、HIT、真实 RET 不覆盖军械模型、HP/行动轨道或地图边缘 rail。
+- 保留既有 `CombatResolutionPhase`、`.task(id: summary.id)` 取消链、约 2.4 秒 resolved 停留/淡出、steady-state、Reduce Motion、地图输入穿透和单一 VoiceOver 摘要；未改规则、模型、地图坐标、输入或其他 UI 模块。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.45（战果反馈层级）.md`
+
+验证结果：
+
+- 本轮基于 `origin/main` 与工作树共同指向的基线 commit `9113b9bcee388b2808146fe4d08ad46ee90b2681`；Agent A 有意留下的 `md/prompt/README.md` 修改和 v2.45 prompt 新文件均保留并纳入本轮范围。
+- 本条目初始实现记录写入时，本轮提交尚未生成、workflow 尚未触发、artifact 尚未生成；不预填 artifact 名称、digest 或云端通过结论。提交后须由 Agent C 只核对本轮最新 SHA 对应的精确结果包。
+- 按人工约束，本地不运行 Swift、swiftc、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图；只执行 Git/text 轻量检查。compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 局部裁切仍需云端源码审查，不能由 regular PNG 冒充。
+
+遗留事项：
+
+- 等待本轮 `main` push 触发 GitHub Actions，并由 Agent C 下载、核对最新 commit/run/attempt/artifact；在该验收完成前不宣称 v2.45 通过。
+
 ### v2.44 / 军械棋子落地材质
 
 日期：2026-08-12

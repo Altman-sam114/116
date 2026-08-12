@@ -1119,78 +1119,83 @@ struct CombatResolutionOverlay: View {
     @State private var phase: CombatResolutionPhase = .impact
 
     var body: some View {
-        let points = trimmedPoints
-        let midpoint = CGPoint(
-            x: (attackerPoint.x + defenderPoint.x) / 2,
-            y: (attackerPoint.y + defenderPoint.y) / 2
-        )
-
-        ZStack {
-            Path { path in
-                path.move(to: points.start)
-                path.addLine(to: points.end)
-            }
-            .stroke(Color.black.opacity(0.82), style: StrokeStyle(lineWidth: 6, lineCap: .round))
-
-            Path { path in
-                path.move(to: points.start)
-                path.addLine(to: points.end)
-            }
-            .stroke(
-                resultColor.opacity(0.96),
-                style: StrokeStyle(lineWidth: activePhase == .impact ? 3.2 : 2.5, lineCap: .round, dash: [5, 3])
+        GeometryReader { proxy in
+            let layout = CombatResolutionLayout(
+                attackerPoint: attackerPoint,
+                defenderPoint: defenderPoint,
+                bounds: proxy.size
             )
+            let conclusion = combatConclusion
 
-            CombatImpactMarker(
-                color: resultColor,
-                isImpactPhase: activePhase == .impact,
-                reduceMotion: reduceMotion || isSteadyState
-            )
-            .frame(width: 62, height: 62)
-            .position(defenderPoint)
+            ZStack {
+                Path { path in
+                    path.move(to: layout.trimmedStart)
+                    path.addLine(to: layout.trimmedEnd)
+                }
+                .stroke(Color.black.opacity(0.74), style: StrokeStyle(lineWidth: 5, lineCap: .round))
 
-            CombatDamagePlate(
-                systemImage: "burst.fill",
-                title: "HIT -\(summary.damage)",
-                hpText: "\(summary.defender.startingHP) -> \(summary.defender.endingHP)",
-                color: summary.didDestroyDefender ? .red : .orange
-            )
-            .position(damagePlatePoint(for: defenderPoint, opposite: attackerPoint))
-            .opacity(showsPrimaryDamage ? 1 : 0)
-            .scaleEffect(plateScale(isVisible: showsPrimaryDamage))
-            .offset(y: plateOffset(isVisible: showsPrimaryDamage))
+                Path { path in
+                    path.move(to: layout.trimmedStart)
+                    path.addLine(to: layout.trimmedEnd)
+                }
+                .stroke(
+                    conclusion.color.opacity(activePhase == .impact ? 0.84 : 0.66),
+                    style: StrokeStyle(
+                        lineWidth: activePhase == .impact ? 2.8 : 2.1,
+                        lineCap: .round,
+                        dash: [5, 4]
+                    )
+                )
 
-            if summary.hasCounterAttack {
+                CombatImpactMarker(
+                    color: conclusion.color,
+                    isImpactPhase: activePhase == .impact,
+                    reduceMotion: reduceMotion || isSteadyState
+                )
+                .frame(width: 58, height: 58)
+                .position(defenderPoint)
+
                 CombatDamagePlate(
-                    systemImage: "arrow.uturn.backward",
-                    title: "RET -\(summary.counterDamage)",
-                    hpText: "\(summary.attacker.startingHP) -> \(summary.attacker.endingHP)",
-                    color: .red
+                    systemImage: "burst.fill",
+                    title: "HIT -\(summary.damage)",
+                    hpText: "\(summary.defender.startingHP) -> \(summary.defender.endingHP)",
+                    color: summary.didDestroyDefender ? BattlefieldTheme.alert : BattlefieldTheme.brass
                 )
-                .position(damagePlatePoint(for: attackerPoint, opposite: defenderPoint))
-                .opacity(showsCounterDamage ? 1 : 0)
-                .scaleEffect(plateScale(isVisible: showsCounterDamage))
-                .offset(y: plateOffset(isVisible: showsCounterDamage))
-            }
+                .position(layout.hitPlatePoint)
+                .opacity(showsPrimaryDamage ? 1 : 0)
+                .scaleEffect(plateScale(isVisible: showsPrimaryDamage))
+                .offset(y: plateOffset(isVisible: showsPrimaryDamage))
 
-            Label(resultTitle, systemImage: resultIcon)
-                .font(.system(size: outcomeFontSize, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(Color.black.opacity(0.76), in: Capsule())
-                .overlay(
-                    Capsule()
-                        .stroke(resultColor.opacity(0.92), lineWidth: 1.5)
+                if summary.hasCounterAttack {
+                    CombatDamagePlate(
+                        systemImage: "arrow.uturn.backward.circle.fill",
+                        title: "RET -\(summary.counterDamage)",
+                        hpText: "\(summary.attacker.startingHP) -> \(summary.attacker.endingHP)",
+                        color: summary.didDestroyAttacker ? BattlefieldTheme.alert : .orange
+                    )
+                    .position(layout.retPlatePoint)
+                    .opacity(showsCounterDamage ? 1 : 0)
+                    .scaleEffect(plateScale(isVisible: showsCounterDamage))
+                    .offset(y: plateOffset(isVisible: showsCounterDamage))
+                }
+
+                CombatResolutionConclusionView(
+                    title: conclusion.title,
+                    systemImage: conclusion.systemImage,
+                    qualifier: conclusion.qualifier,
+                    qualifierSystemImage: conclusion.qualifierSystemImage,
+                    color: conclusion.color,
+                    fontSize: outcomeFontSize
                 )
-                .position(x: midpoint.x, y: midpoint.y + 36)
+                .position(layout.conclusionPoint)
                 .opacity(showsResolution ? 1 : 0)
                 .scaleEffect(plateScale(isVisible: showsResolution))
                 .offset(y: plateOffset(isVisible: showsResolution))
-                .accessibilityHidden(true)
+            }
         }
         .opacity(overlayOpacity)
         .animation(presentationAnimation, value: phase)
+        .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
         .accessibilityHidden(activePhase == .hidden)
@@ -1281,52 +1286,198 @@ struct CombatResolutionOverlay: View {
         }
     }
 
-    private var resultTitle: String {
-        if summary.didDestroyDefender { return "击毁" }
-        if summary.hasCounterAttack { return "交火" }
-        return "压制"
-    }
-
-    private var resultIcon: String {
-        if summary.didDestroyDefender { return "burst.fill" }
-        if summary.hasCounterAttack { return "scope" }
-        return "shield.lefthalf.filled"
-    }
-
-    private var resultColor: Color {
-        if summary.didDestroyDefender { return .red }
-        if summary.hasCounterAttack { return .orange }
-        return .yellow
+    private var combatConclusion: CombatResolutionConclusion {
+        CombatResolutionConclusion(summary: summary)
     }
 
     private var accessibilitySummary: String {
+        let conclusion = combatConclusion
+        let qualifierText = conclusion.qualifier.map { "，\($0)" } ?? ""
         let counterText = summary.hasCounterAttack
-            ? "，反击造成 \(summary.counterDamage) 伤害，攻击方耐久从 \(summary.attacker.startingHP) 降至 \(summary.attacker.endingHP)"
-            : "，没有反击"
-        return "\(resultTitle)。\(summary.attacker.name) 对 \(summary.defender.name) 造成 \(summary.damage) 伤害，防守方耐久从 \(summary.defender.startingHP) 降至 \(summary.defender.endingHP)\(counterText)。"
+            ? "，真实 RET -\(summary.counterDamage)，攻击方 HP 从 \(summary.attacker.startingHP) 降至 \(summary.attacker.endingHP)"
+            : "，无反击（没有 RET）"
+        let attackerDestroyedText = summary.didDestroyAttacker ? "，攻击方被反击击毁" : ""
+        return "\(conclusion.title)\(qualifierText)。\(summary.attacker.name) 发起 HIT -\(summary.damage)，防守方 HP 从 \(summary.defender.startingHP) 降至 \(summary.defender.endingHP)\(counterText)\(attackerDestroyedText)。"
     }
+}
 
-    private var trimmedPoints: (start: CGPoint, end: CGPoint) {
+private struct CombatResolutionConclusion {
+    let title: String
+    let systemImage: String
+    let qualifier: String?
+    let qualifierSystemImage: String?
+    let color: Color
+
+    init(summary: CombatResultSummary) {
+        if summary.didDestroyDefender && summary.didDestroyAttacker {
+            title = "双方击毁"
+            systemImage = "burst.fill"
+            qualifier = "反击击毁"
+            qualifierSystemImage = "arrow.uturn.backward.circle.fill"
+            color = BattlefieldTheme.alert
+        } else if summary.didDestroyDefender {
+            title = "击毁防守方"
+            systemImage = "target"
+            qualifier = nil
+            qualifierSystemImage = nil
+            color = BattlefieldTheme.alert
+        } else if summary.didDestroyAttacker {
+            title = "反击击毁"
+            systemImage = "arrow.uturn.backward.circle.fill"
+            qualifier = nil
+            qualifierSystemImage = nil
+            color = BattlefieldTheme.alert
+        } else if summary.hasCounterAttack {
+            title = "交火"
+            systemImage = "arrow.left.arrow.right"
+            qualifier = nil
+            qualifierSystemImage = nil
+            color = .orange
+        } else {
+            title = "压制"
+            systemImage = "shield.lefthalf.filled"
+            qualifier = "无反击"
+            qualifierSystemImage = "shield.slash.fill"
+            color = BattlefieldTheme.brass
+        }
+    }
+}
+
+private struct CombatResolutionConclusionView: View {
+    let title: String
+    let systemImage: String
+    let qualifier: String?
+    let qualifierSystemImage: String?
+    let color: Color
+    let fontSize: CGFloat
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .font(.system(size: fontSize, weight: .black))
+                .foregroundStyle(color)
+
+            Text(title)
+                .font(.system(size: fontSize, weight: .black, design: .rounded))
+
+            if let qualifier, let qualifierSystemImage {
+                Rectangle()
+                    .fill(Color.white.opacity(0.22))
+                    .frame(width: 1, height: 11)
+
+                Image(systemName: qualifierSystemImage)
+                    .font(.system(size: max(7, fontSize - 1), weight: .bold))
+                    .foregroundStyle(color.opacity(0.76))
+
+                Text(qualifier)
+                    .font(.system(size: max(7, fontSize - 1), weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.78))
+            }
+        }
+        .foregroundStyle(.white)
+        .lineLimit(1)
+        .allowsTightening(true)
+        .minimumScaleFactor(0.72)
+        .frame(minWidth: 82, maxWidth: 198)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(
+            BattlefieldTheme.commandDeckDeep.opacity(0.88),
+            in: RoundedRectangle(cornerRadius: 5)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(color.opacity(0.78), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.22), radius: 1, y: 1)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct CombatResolutionLayout {
+    let trimmedStart: CGPoint
+    let trimmedEnd: CGPoint
+    let hitPlatePoint: CGPoint
+    let retPlatePoint: CGPoint
+    let conclusionPoint: CGPoint
+
+    init(attackerPoint: CGPoint, defenderPoint: CGPoint, bounds: CGSize) {
         let dx = defenderPoint.x - attackerPoint.x
         let dy = defenderPoint.y - attackerPoint.y
-        let distance = max(1, hypot(dx, dy))
-        let inset = min(25, distance * 0.30)
-        let unitX = dx / distance
-        let unitY = dy / distance
-        return (
-            CGPoint(x: attackerPoint.x + unitX * inset, y: attackerPoint.y + unitY * inset),
-            CGPoint(x: defenderPoint.x - unitX * inset, y: defenderPoint.y - unitY * inset)
+        let rawDistance = hypot(dx, dy)
+        let unitX = rawDistance > 0.001 ? dx / rawDistance : 1
+        let unitY = rawDistance > 0.001 ? dy / rawDistance : 0
+        let midpoint = CGPoint(
+            x: (attackerPoint.x + defenderPoint.x) / 2,
+            y: (attackerPoint.y + defenderPoint.y) / 2
+        )
+        var normal = CGPoint(x: -unitY, y: unitX)
+        let towardCenter = CGPoint(
+            x: bounds.width / 2 - midpoint.x,
+            y: bounds.height / 2 - midpoint.y
+        )
+        let shouldPointDown = bounds.height > 0 && midpoint.y < bounds.height * 0.24
+
+        if shouldPointDown {
+            if normal.y < 0 || (abs(normal.y) < 0.08 && normal.x * towardCenter.x < 0) {
+                normal = CGPoint(x: -normal.x, y: -normal.y)
+            }
+        } else if normal.y > 0 || (abs(normal.y) < 0.08 && normal.x * towardCenter.x < 0) {
+            normal = CGPoint(x: -normal.x, y: -normal.y)
+        }
+
+        let inset = min(25, rawDistance * 0.30)
+        let closeEngagement = rawDistance < 132
+        let outwardOffset: CGFloat = closeEngagement ? 28 : 22
+        let plateNormalOffset: CGFloat = closeEngagement ? 30 : 24
+        let conclusionNormalOffset: CGFloat = closeEngagement ? 70 : 54
+
+        trimmedStart = CGPoint(
+            x: attackerPoint.x + unitX * inset,
+            y: attackerPoint.y + unitY * inset
+        )
+        trimmedEnd = CGPoint(
+            x: defenderPoint.x - unitX * inset,
+            y: defenderPoint.y - unitY * inset
+        )
+        hitPlatePoint = Self.offset(
+            from: defenderPoint,
+            axisX: unitX,
+            axisY: unitY,
+            axisDistance: outwardOffset,
+            normal: normal,
+            normalDistance: plateNormalOffset
+        )
+        retPlatePoint = Self.offset(
+            from: attackerPoint,
+            axisX: -unitX,
+            axisY: -unitY,
+            axisDistance: outwardOffset,
+            normal: normal,
+            normalDistance: plateNormalOffset
+        )
+        conclusionPoint = Self.offset(
+            from: midpoint,
+            axisX: 0,
+            axisY: 0,
+            axisDistance: 0,
+            normal: normal,
+            normalDistance: conclusionNormalOffset
         )
     }
 
-    private func damagePlatePoint(for point: CGPoint, opposite: CGPoint) -> CGPoint {
-        let dx = point.x - opposite.x
-        let dy = point.y - opposite.y
-        let distance = max(1, hypot(dx, dy))
-        let outwardOffset: CGFloat = 18
-        return CGPoint(
-            x: point.x + dx / distance * outwardOffset,
-            y: point.y - 38 + dy / distance * outwardOffset
+    private static func offset(
+        from point: CGPoint,
+        axisX: CGFloat,
+        axisY: CGFloat,
+        axisDistance: CGFloat,
+        normal: CGPoint,
+        normalDistance: CGFloat
+    ) -> CGPoint {
+        CGPoint(
+            x: point.x + axisX * axisDistance + normal.x * normalDistance,
+            y: point.y + axisY * axisDistance + normal.y * normalDistance
         )
     }
 }
@@ -1402,6 +1553,9 @@ struct CombatDamagePlate: View {
 
             Text(title)
                 .font(.system(size: titleFontSize, weight: .black, design: .rounded))
+                .allowsTightening(true)
+                .lineLimit(1)
+                .minimumScaleFactor(0.70)
 
             Rectangle()
                 .fill(Color.white.opacity(0.24))
@@ -1410,17 +1564,20 @@ struct CombatDamagePlate: View {
             Text(hpText)
                 .font(.system(size: hpFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
+                .allowsTightening(true)
+                .lineLimit(1)
+                .minimumScaleFactor(0.70)
         }
         .foregroundStyle(.white)
         .lineLimit(1)
-        .fixedSize(horizontal: true, vertical: false)
+        .frame(minWidth: 118, maxWidth: 184)
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
         .background(
             LinearGradient(
                 colors: [
-                    Color(red: 0.18, green: 0.19, blue: 0.18).opacity(0.94),
-                    Color.black.opacity(0.80)
+                    BattlefieldTheme.fieldGlass.opacity(0.86),
+                    BattlefieldTheme.commandDeckDeep.opacity(0.94)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -1429,9 +1586,10 @@ struct CombatDamagePlate: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(color.opacity(0.82), lineWidth: 1)
+                .stroke(color.opacity(0.76), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.34), radius: 2, y: 1)
+        .shadow(color: .black.opacity(0.26), radius: 1.5, y: 1)
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 }

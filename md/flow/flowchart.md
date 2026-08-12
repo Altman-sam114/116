@@ -607,6 +607,30 @@ flowchart LR
     Guard["selected halo、marker、HIT/RET、tile frame/id/contentShape/zIndex\n输入、GameState action 与战果 overlay 保持现有边界"] --> Existing
 ```
 
+## v2.45 战果反馈层级
+
+```mermaid
+flowchart TD
+    Summary["CombatResultSummary\n唯一真实战果事实"] --> Conclusion["结论：击毁 / 反击击毁 / 交火 / 压制"]
+    Summary --> HIT["HIT 主牌\n主伤害 + 防守方 HP 起止"]
+    Summary --> Counter{"counterDamage > 0？"}
+    Counter -->|是| RET["RET 次牌\n真实反击 + 攻击方 HP 起止"]
+    Counter -->|否| NoRET["结论限定：无反击\n文字 + shield.slash.fill"]
+    Summary --> Flags["didDestroyDefender / didDestroyAttacker\n只读击毁结论 flags"]
+    Flags --> Conclusion
+    Points["执行时 attacker/defender coordinate\n既有 position(for:) 输出点位"] --> Layout["CombatResolutionLayout\n局部 axis + 法向 + 短距间距"]
+    Bounds["overlay 局部 bounds\n相对方向避开边缘与底缘 rail"] --> Layout
+    Layout --> Conclusion
+    Layout --> HIT
+    Layout --> RET
+    Conclusion --> Overlay["CombatResolutionOverlay\n结论 → HIT → RET 视觉阅读层级"]
+    HIT --> Overlay
+    RET --> Overlay
+    Overlay --> Phase["既有 phase / .task(id:) / 2.4s dismiss\nsteady-state / Reduce Motion 不变"]
+    Overlay --> Decor["装饰 accessibilityHidden\n父层单一 VoiceOver 摘要 + allowsHitTesting(false)"]
+    Guard["不改 GameState / 模型 / 输入 / 地图坐标\n不覆盖单位、HP/行动轨道、HUD、通讯坞、AL/OBJ/AX rail"] --> Overlay
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
