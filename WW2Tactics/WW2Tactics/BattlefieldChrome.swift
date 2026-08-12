@@ -840,10 +840,13 @@ struct ObjectiveJumpStrip: View {
                     title: "友军编队",
                     count: friendlyUnits.count,
                     color: Faction.allies.accentColor,
-                    largeType: usesLargeTypeLayout
+                    largeType: usesLargeTypeLayout,
+                    itemIDs: friendlyUnits.map { $0.id.uuidString },
+                    focusedItemID: game.focusedUnit?.id.uuidString
                 ) {
                     ForEach(friendlyUnits) { unit in
                         UnitFocusButton(unit: unit, compact: compact, largeType: usesLargeTypeLayout)
+                            .id(unit.id.uuidString)
                     }
                 }
                 .frame(width: availableWidth * friendlySectionRatio)
@@ -854,10 +857,13 @@ struct ObjectiveJumpStrip: View {
                     title: "战役据点",
                     count: objectives.count,
                     color: BattlefieldTheme.brass,
-                    largeType: usesLargeTypeLayout
+                    largeType: usesLargeTypeLayout,
+                    itemIDs: objectives.map { $0.coordinate.id },
+                    focusedItemID: game.focusedCoordinate?.id
                 ) {
                     ForEach(objectives) { tile in
                         ObjectiveJumpButton(tile: tile, compact: compact, largeType: usesLargeTypeLayout)
+                            .id(tile.coordinate.id)
                     }
                 }
                 .frame(width: availableWidth * objectiveSectionRatio)
@@ -868,10 +874,13 @@ struct ObjectiveJumpStrip: View {
                     title: "敌军编队",
                     count: enemyUnits.count,
                     color: Faction.axis.accentColor,
-                    largeType: usesLargeTypeLayout
+                    largeType: usesLargeTypeLayout,
+                    itemIDs: enemyUnits.map { $0.id.uuidString },
+                    focusedItemID: game.focusedUnit?.id.uuidString
                 ) {
                     ForEach(enemyUnits) { unit in
                         UnitFocusButton(unit: unit, compact: compact, largeType: usesLargeTypeLayout)
+                            .id(unit.id.uuidString)
                     }
                 }
                 .frame(width: availableWidth * enemySectionRatio)
@@ -909,13 +918,21 @@ struct ObjectiveJumpStrip: View {
 }
 
 struct ObjectiveJumpSection<Content: View>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let icon: String
     let code: String
     let title: String
     let count: Int
     let color: Color
     let largeType: Bool
+    let itemIDs: [String]
+    let focusedItemID: String?
     @ViewBuilder let content: Content
+
+    @State private var viewportWidth: CGFloat = 0
+    @State private var contentWidth: CGFloat = 0
+    @State private var contentMinX: CGFloat = 0
+    @State private var lastAutoScrolledItemID: String?
 
     var body: some View {
         VStack(spacing: largeType ? 1 : 2) {
@@ -938,12 +955,60 @@ struct ObjectiveJumpSection<Content: View>: View {
             .dynamicTypeSize(visualDynamicTypeRange)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(title)，共 \(count) 项")
+            .accessibilityHint(scrollAccessibilityHint)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 4) {
-                    content
+            ScrollViewReader { scrollProxy in
+                ZStack {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 4) {
+                            content
+                        }
+                        .padding(.horizontal, 3)
+                        .background {
+                            GeometryReader { metrics in
+                                Color.clear.preference(
+                                    key: ObjectiveJumpRailContentMetricsKey.self,
+                                    value: ObjectiveJumpRailContentMetrics(
+                                        width: metrics.size.width,
+                                        minX: metrics.frame(in: .named(scrollCoordinateSpace)).minX
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    .coordinateSpace(name: scrollCoordinateSpace)
+                    .background {
+                        GeometryReader { metrics in
+                            Color.clear.preference(
+                                key: ObjectiveJumpRailViewportWidthKey.self,
+                                value: metrics.size.width
+                            )
+                        }
+                    }
+                    .onPreferenceChange(ObjectiveJumpRailViewportWidthKey.self) { width in
+                        viewportWidth = width
+                    }
+                    .onPreferenceChange(ObjectiveJumpRailContentMetricsKey.self) { metrics in
+                        contentWidth = metrics.width
+                        contentMinX = metrics.minX
+                    }
+                    .onAppear {
+                        scrollToFocusedItem(with: scrollProxy, animated: false)
+                    }
+                    .onChange(of: focusedItemID) { _, _ in
+                        scrollToFocusedItem(with: scrollProxy, animated: true)
+                    }
+                    .onChange(of: itemIDs) { _, _ in
+                        lastAutoScrolledItemID = nil
+                        scrollToFocusedItem(with: scrollProxy, animated: false)
+                    }
+
+                    ObjectiveJumpRailOverflowCue(
+                        showLeading: canScrollLeading,
+                        showTrailing: canScrollTrailing
+                    )
+                    .allowsHitTesting(false)
                 }
-                .padding(.horizontal, 3)
             }
             .frame(height: largeType ? 48 : 50)
         }
@@ -957,6 +1022,116 @@ struct ObjectiveJumpSection<Content: View>: View {
 
     private var visualDynamicTypeRange: ClosedRange<DynamicTypeSize> {
         largeType ? (.xSmall ... .large) : (.xSmall ... .accessibility5)
+    }
+
+    private var scrollCoordinateSpace: String {
+        "objective-jump-rail-\(code)"
+    }
+
+    private var overflowWidth: CGFloat {
+        max(0, contentWidth - viewportWidth)
+    }
+
+    private var scrollOffset: CGFloat {
+        min(overflowWidth, max(0, -contentMinX))
+    }
+
+    private var canScrollLeading: Bool {
+        overflowWidth > Self.scrollEpsilon && scrollOffset > Self.scrollEpsilon
+    }
+
+    private var canScrollTrailing: Bool {
+        overflowWidth > Self.scrollEpsilon && scrollOffset < overflowWidth - Self.scrollEpsilon
+    }
+
+    private var scrollAccessibilityHint: String {
+        switch (canScrollLeading, canScrollTrailing) {
+        case (true, true):
+            "可向左或向右滑动查看更多项目"
+        case (true, false):
+            "可向左滑动查看更多项目"
+        case (false, true):
+            "可向右滑动查看更多项目"
+        case (false, false):
+            ""
+        }
+    }
+
+    private func scrollToFocusedItem(with proxy: ScrollViewProxy, animated: Bool) {
+        guard let focusedItemID, itemIDs.contains(focusedItemID) else {
+            lastAutoScrolledItemID = nil
+            return
+        }
+        guard lastAutoScrolledItemID != focusedItemID else { return }
+
+        lastAutoScrolledItemID = focusedItemID
+        let scroll = {
+            proxy.scrollTo(focusedItemID, anchor: .center)
+        }
+
+        if animated && !reduceMotion {
+            withAnimation(.easeOut(duration: 0.18), scroll)
+        } else {
+            scroll()
+        }
+    }
+
+    private static let scrollEpsilon: CGFloat = 0.75
+}
+
+private struct ObjectiveJumpRailViewportWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct ObjectiveJumpRailContentMetrics: Equatable {
+    let width: CGFloat
+    let minX: CGFloat
+}
+
+private struct ObjectiveJumpRailContentMetricsKey: PreferenceKey {
+    static var defaultValue = ObjectiveJumpRailContentMetrics(width: 0, minX: 0)
+
+    static func reduce(value: inout ObjectiveJumpRailContentMetrics, nextValue: () -> ObjectiveJumpRailContentMetrics) {
+        value = nextValue()
+    }
+}
+
+private struct ObjectiveJumpRailOverflowCue: View {
+    let showLeading: Bool
+    let showTrailing: Bool
+
+    var body: some View {
+        HStack(spacing: 0) {
+            cue(edge: .leading, isVisible: showLeading)
+            Spacer(minLength: 0)
+            cue(edge: .trailing, isVisible: showTrailing)
+        }
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func cue(edge: HorizontalEdge, isVisible: Bool) -> some View {
+        if isVisible {
+            ZStack(alignment: edge == .leading ? .leading : .trailing) {
+                LinearGradient(
+                    colors: edge == .leading
+                        ? [BattlefieldTheme.commandDeckDeep.opacity(0.82), .clear]
+                        : [.clear, BattlefieldTheme.commandDeckDeep.opacity(0.82)],
+                    startPoint: edge == .leading ? .leading : .trailing,
+                    endPoint: edge == .leading ? .trailing : .leading
+                )
+
+                Image(systemName: edge == .leading ? "chevron.left" : "chevron.right")
+                    .font(.system(size: 7, weight: .black))
+                    .foregroundStyle(BattlefieldTheme.mutedInk.opacity(0.62))
+                    .padding(.horizontal, 3)
+            }
+            .frame(width: 15)
+        }
     }
 }
 

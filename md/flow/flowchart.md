@@ -539,6 +539,29 @@ flowchart LR
     Rank --> Guard["禁止重复边、全六向线和 lattice"]
 ```
 
+## v2.41 轨道滚动提示
+
+```mermaid
+flowchart LR
+    Friendly["game.mapFriendlyFocusUnits：完整数组"] --> AL["AL 独立 ScrollView / LazyHStack"]
+    Objectives["objectiveTiles + objectiveSort：完整数组"] --> OBJ["OBJ 独立 ScrollView / LazyHStack"]
+    Enemy["game.mapEnemyFocusUnits：完整数组"] --> AX["AX 独立 ScrollView / LazyHStack"]
+    AL --> Metrics["section-local viewport / content width / minX"]
+    OBJ --> Metrics
+    AX --> Metrics
+    Metrics --> Overflow{"真实 overflow？"}
+    Overflow -->|否| NoCue["无 fade / cue"]
+    Overflow -->|是| Offset["epsilon 判定 leading / trailing hidden content"]
+    Offset --> Cue["低对比 edge fade + chevron\nallowsHitTesting(false)"]
+    Focus["focusedUnit / focusedCoordinate"] --> IDs["UUID / coordinate 稳定 item id"]
+    IDs --> LocalReader["对应 section ScrollViewReader\nscrollTo(anchor: center)"]
+    LocalReader --> Visible["只让对应 item 可见"]
+    AL --> Select["既有 select(unitID:)"]
+    OBJ --> FocusAction["既有 focus(coordinate:)"]
+    AX --> FocusAction2["既有 focus(unitID:)"]
+    Guard["72/84pt、48/50pt、>=44pt、完整 VoiceOver\nReduce Motion 无自动动画、地图输入/ScrollView 不变"] --> Stable["仅本地表现状态，不写 GameState"]
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

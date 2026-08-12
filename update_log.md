@@ -21,6 +21,36 @@
 
 ## 历史记录
 
+### v2.41 / 轨道滚动提示
+
+日期：2026-08-12
+
+核心变更：
+
+- `ObjectiveJumpStrip` 继续从完整的友军、既有排序的据点、敌军数组构造 `AL / OBJ / AX` 三段；每个 item 额外使用单位 UUID 或据点坐标作为 section-local 稳定滚动 id，不改变数组、排序、友军 `select(unitID:)`、敌军 `focus(unitID:)` 或据点 `focus(coordinate:)`。
+- `ObjectiveJumpSection` 在表现层本地测量自己的 viewport、完整内容宽度与横向 minX，以 epsilon 派生真实 overflow 和当前 leading/trailing 隐藏内容。只有对应方向仍有项目时才显示低对比深色 edge fade 与 chevron；提示层关闭 hit testing，滚动和 Button 命中不受影响。
+- 既有 `focusedUnit` 或 `focusedCoordinate` 变化仅会让包含稳定 id 的那一段 `ScrollViewReader` 滚到中间；失效焦点或空数组不滚动。普通模式使用短促滚动动画，Reduce Motion 直接定位且保留静态 cue/fade；72/84pt 宽、48/50pt 高、44pt 命中区、短可视大字号与完整 VoiceOver 不变。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldChrome.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.41（轨道滚动提示）.md`
+
+验证依据与结果：
+
+- 本轮基于已由 Agent C 复核的 `origin/main` commit `14ba8ef01404f06b10ac2d665d9482af7e6ead7f`、workflow run `31301750449`、attempt `1` 和其 v2.40 artifact 实现；该基线不是 v2.41 的验收证据。
+- 人工要求全部交给 GitHub Actions：本地未运行 Swift、swiftc typecheck、RulesSmokeTest、XCTest、Xcode build、模拟器或截图；提交前只运行 Git/文本轻量检查与提交范围核对。
+- v2.41 的 commit、workflow run、attempt、artifact、manifest、JUnit、日志、PNG 和 Agent C 下载路径待 push 后由 Agent C 记录；regular 截图也不能证明 compact、xxxLarge 或多焦点状态，相关契约需以源码审查为准。
+
+遗留事项：
+
+- 等待本轮 `origin/main` GitHub Actions 结果与 Agent C 精确 artifact 验收；验收时需确认三段 rail 的静态结构、地图优先和既有道路/补给/单位/战果 HUD 无回归。
+
 ### v2.40 / 道路环路密度微调
 
 日期：2026-08-09
