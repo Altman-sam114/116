@@ -46,11 +46,12 @@
 
 - 本轮基于已由 Agent C 验收的 `origin/main` commit `3c46dbe956f49ccebd95bafaa384768a79c60043`、workflow run `31592215173`、attempt `1` 与 artifact `ww2tactics-ci-v2.43-main-3c46dbe-run31592215173-attempt1` 实现；该基线不是 v2.44 验收证据。
 - 人工要求全部交给 GitHub Actions：本地不运行 Swift、swiftc typecheck、RulesSmokeTest、XCTest、Xcode build、模拟器、截图或 Playwright；提交前仅运行 Git/文本轻量检查与提交范围核对。
-- v2.44 初始实现待 Agent B 提交并推送 `main`，随后必须由 Agent C 下载该精确 commit 的 artifact，核对 manifest、日志、JUnit、xcresult 与 regular PNG；不得预填 SHA、run、artifact、digest 或通过结论。
+- v2.44 初始提交为 `f7b810c604b2464a26b9d8d905b1e461a4ce9c23`，对应 workflow run `31594065332`、attempt `1`；artifact 为 `ww2tactics-ci-v2.44-main-f7b810c-run31594065332-attempt1`，digest 为 `sha256:6ff8dbd0380365e195f108bad90b0af80f7b9855c51ceb7e35b3a9fd65ab914b`。Agent C 已下载至 `/private/tmp/ww2tactics-c-review-31594065332/` 并核对 static checks、RulesSmokeTest 成功；Xcode build-for-testing 因 `UnitMarkerShape` 新路径调用缺少私有 `point(x:y:in:)` helper 而失败，截图因此跳过，JUnit 有 2 项 failure，manifest 标记 XCTest 为 skipped。
+- Agent C 已退回最小修复：只在 `UnitMarkerShape` 补齐上述私有坐标 helper；修复提交必须重新 push `main` 并等待 Agent C 对新 commit 的精确 artifact 验收。
 
 遗留事项：
 
-- 当前 workflow 只生成 regular PNG；compact、窄宽度、xxxLarge Dynamic Type、多焦点、VoiceOver 与 Reduce Motion 只能源码审查，不能把 regular 截图作为这些状态的实测证据。
+- v2.44 当前等待修复验收；旧失败 run 的截图已跳过，不能作为本轮视觉证据。后续 workflow 仍只生成 regular PNG；compact、窄宽度、xxxLarge Dynamic Type、多焦点、VoiceOver 与 Reduce Motion只能源码审查，不能把 regular 截图作为这些状态的实测证据。
 
 ### v2.43 / 连续地图地貌层级
 

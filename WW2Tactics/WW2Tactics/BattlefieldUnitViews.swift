@@ -819,6 +819,10 @@ struct UnitMarkerShape: Shape {
         path.addRect(CGRect(x: rect.minX + rect.width * 0.50, y: rect.minY + rect.height * 0.02, width: rect.width * 0.035, height: rect.height * 0.20))
         return path
     }
+
+    private func point(x: CGFloat, y: CGFloat, in rect: CGRect) -> CGPoint {
+        CGPoint(x: rect.minX + rect.width * x, y: rect.minY + rect.height * y)
+    }
 }
 
 extension UnitTacticalStatus {
