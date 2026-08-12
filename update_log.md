@@ -47,11 +47,13 @@
 - v2.45 实现提交为 `8372fe61e58f3e2afce7ff9be9e1abd3616ddedd`；首个验证 workflow run 为 `31598853832`、attempt `1`、结论 `success`。Agent C 下载并核对 artifact `ww2tactics-ci-v2.45-main-8372fe6-run31598853832-attempt1`，digest 为 `sha256:ad51007803c3fcea582a74764d5487ed0d9d6c3089abc43f9789a0acec559100`，下载目录为 `/private/tmp/ww2tactics-c-review-31598853832/`，目录大小约 `9.4M`。
 - Agent C 使用活动 GitHub 账号 `Altman-sam114` 验收；artifact manifest 的 `branch`、commit SHA、run id 和 attempt 与 `origin/main` 及 workflow head 完全一致。static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 均为 `success`；JUnit 为 `4/4`，failure/error 均为 `0`；`xcresult` 可读。
 - regular PNG 为 `2064x2752`、`5691888` bytes，Agent C 已实际查看且确认非黑屏；战果反馈层级、六角地图与军械棋子上下文无明显回归。manifest 记录 XCTest 为 `skipped`；AppIntents warning 为非致命告警。
+- 最终文档闭环提交为 `9613748ef996420ba2555a3a7da69160ee434343`；对应 workflow run 为 `31601288395`、attempt `1`、结论 `success`。Agent C 下载并核对 artifact `ww2tactics-ci-v2.45-main-9613748-run31601288395-attempt1`，digest 为 `sha256:1b1cf065af80889405019ae81bac354c5d726eb5b8fbbd615f5d1375585545cd`，下载目录为 `/private/tmp/ww2tactics-c-review-31601288395/`；展开目录约 `9.4M`，外层 zip 约 `26M`。
+- 该最终包由活动 GitHub 账号 `Altman-sam114` 验收；manifest 的 `branch`、commit SHA、run id 和 attempt 与 `origin/main` 及 workflow head 精确一致。static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 均为 `success`；JUnit 为 `4/4`，failure/error 均为 `0`；`xcresult` 可读。regular PNG 为 `2064x2752`、`5691888` bytes，Agent C 已实际查看且确认非黑屏；“交火”、`HIT -21 / 64 -> 43`、`RET -7 / 64 -> 57` 与地图上下文均可读。XCTest 为 `skipped`；AppIntents warning 为非致命告警。
 - 按人工约束，本地不运行 Swift、swiftc、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图；只执行 Git/text 轻量检查。compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 局部裁切仍仅作源码审查，不能由 regular PNG 冒充。
 
 遗留事项：
 
-- v2.45 已由 Agent C 完成功能验收，但本次文档补记还会产生新的 commit、workflow 和 artifact，最终文档闭环待 Agent C 核对最新文档 SHA；在此之前不宣称新文档 commit 已验收。
+- v2.45 已完成 Agent C 最终通过，可启动下一轮。
 - 本轮 v2.45 没有失败包；既有失败包和历史事实均保留在原对应条目，未删除或将旧包当作本轮成功证据。
 
 ### v2.44 / 军械棋子落地材质
