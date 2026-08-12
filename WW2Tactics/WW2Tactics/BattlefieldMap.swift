@@ -700,9 +700,18 @@ struct HexTileView: View {
             }
 
             VStack(spacing: 3) {
-                HStack {
+                HStack(alignment: .top, spacing: 3) {
                     if tile.isObjective {
                         ObjectiveFlagMarker(owner: tile.owner)
+                        if let objectiveName = tile.objectiveName, unit != nil {
+                            ObjectiveNamePlate(
+                                name: objectiveName,
+                                owner: tile.owner,
+                                compact: true
+                            )
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 1)
+                        }
                     } else if isFocused && unit == nil {
                         TerrainCodeBadge(code: tile.terrain.code)
                     }
@@ -1660,6 +1669,10 @@ struct TerrainTexture: View {
                 case .road:
                     EmptyView()
                 }
+
+                if tile.isObjective {
+                    ObjectiveLandmark(tile: tile, size: size)
+                }
             }
         }
         .clipShape(Hexagon())
@@ -2040,7 +2053,111 @@ struct TerrainTexture: View {
     }
 }
 
+private struct ObjectiveLandmark: View {
+    let tile: TerrainTile
+    let size: CGSize
+
+    var body: some View {
+        let isUrban = tile.terrain == .city
+        let center = CGPoint(
+            x: size.width * (isUrban ? 0.50 : 0.56),
+            y: size.height * (isUrban ? 0.49 : 0.51)
+        )
+        let landmarkWidth = size.width * (isUrban ? 0.34 : 0.29)
+        let landmarkHeight = size.height * (isUrban ? 0.28 : 0.26)
+
+        ZStack {
+            Ellipse()
+                .fill(Color.black.opacity(isUrban ? 0.20 : 0.16))
+                .frame(width: landmarkWidth * 0.92, height: landmarkHeight * 0.28)
+                .position(x: center.x + size.width * 0.025, y: center.y + landmarkHeight * 0.38)
+
+            ObjectiveLandmarkShape(isUrban: isUrban)
+                .fill(
+                    LinearGradient(
+                        colors: isUrban
+                            ? [Color(red: 0.83, green: 0.79, blue: 0.67), Color(red: 0.54, green: 0.50, blue: 0.39)]
+                            : [Color(red: 0.63, green: 0.59, blue: 0.45), Color(red: 0.37, green: 0.35, blue: 0.28)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay {
+                    ObjectiveLandmarkShape(isUrban: isUrban)
+                        .stroke(Color.black.opacity(0.46), lineWidth: 0.7)
+                }
+                .overlay {
+                    ObjectiveLandmarkDetailShape(isUrban: isUrban)
+                        .stroke(Color.white.opacity(0.36), lineWidth: 0.65)
+                }
+                .frame(width: landmarkWidth, height: landmarkHeight)
+                .position(center)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct ObjectiveLandmarkShape: Shape {
+    let isUrban: Bool
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let body = rect.insetBy(dx: rect.width * 0.16, dy: rect.height * 0.18)
+        let roofY = rect.minY + rect.height * 0.28
+
+        if isUrban {
+            path.addRoundedRect(in: body, cornerSize: CGSize(width: 1.5, height: 1.5))
+            path.move(to: CGPoint(x: rect.minX + rect.width * 0.08, y: roofY))
+            path.addLine(to: CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.04))
+            path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.08, y: roofY))
+            path.closeSubpath()
+        } else {
+            path.move(to: CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.03))
+            path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.14, y: rect.minY + rect.height * 0.36))
+            path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.14, y: rect.maxY - rect.height * 0.12))
+            path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.14, y: rect.maxY - rect.height * 0.12))
+            path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.14, y: rect.minY + rect.height * 0.36))
+            path.closeSubpath()
+        }
+
+        return path
+    }
+}
+
+private struct ObjectiveLandmarkDetailShape: Shape {
+    let isUrban: Bool
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let doorWidth = rect.width * (isUrban ? 0.14 : 0.18)
+        let doorHeight = rect.height * 0.34
+        let doorRect = CGRect(
+            x: rect.midX - doorWidth / 2,
+            y: rect.maxY - doorHeight - rect.height * 0.10,
+            width: doorWidth,
+            height: doorHeight
+        )
+        path.addRoundedRect(in: doorRect, cornerSize: CGSize(width: 0.8, height: 0.8))
+
+        if isUrban {
+            let windowY = rect.minY + rect.height * 0.48
+            path.move(to: CGPoint(x: rect.minX + rect.width * 0.28, y: windowY))
+            path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.40, y: windowY))
+            path.move(to: CGPoint(x: rect.maxX - rect.width * 0.40, y: windowY))
+            path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.28, y: windowY))
+        } else {
+            path.move(to: CGPoint(x: rect.minX + rect.width * 0.22, y: rect.midY))
+            path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.22, y: rect.midY))
+        }
+
+        return path
+    }
+}
+
 struct ObjectiveFlagMarker: View {
+    @ScaledMetric(relativeTo: .caption) private var ownerFontSize: CGFloat = 5.5
+
     let owner: Faction?
 
     var body: some View {
@@ -2072,9 +2189,12 @@ struct ObjectiveFlagMarker: View {
                 .offset(x: 2.6, y: 1)
 
             Text(owner?.shortTitle ?? "NEU")
-                .font(.system(size: 5.5, weight: .black, design: .rounded))
+                .font(.system(size: ownerFontSize, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.6), radius: 0.5)
+                .lineLimit(1)
+                .allowsTightening(true)
+                .minimumScaleFactor(0.52)
                 .offset(x: 4.6, y: 3)
         }
         .frame(width: 18, height: 22, alignment: .topLeading)
@@ -2162,18 +2282,22 @@ struct TerrainCodeBadge: View {
 }
 
 struct ObjectiveNamePlate: View {
+    @ScaledMetric(relativeTo: .caption) private var nameFontSize: CGFloat = 8
+
     let name: String
     let owner: Faction?
+    var compact = false
 
     var body: some View {
         // Parchment nameplate under objective settlements, GoG3 city-label style.
         Text(name)
-            .font(.system(size: 8, weight: .black, design: .rounded))
+            .font(.system(size: nameFontSize, weight: .black, design: .rounded))
             .foregroundStyle(Color(red: 0.24, green: 0.20, blue: 0.13))
             .lineLimit(1)
-            .minimumScaleFactor(0.55)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2.5)
+            .allowsTightening(true)
+            .minimumScaleFactor(compact ? 0.46 : 0.52)
+            .padding(.horizontal, compact ? 3 : 5)
+            .padding(.vertical, compact ? 1.5 : 2.5)
             .frame(maxWidth: .infinity)
             .background(
                 LinearGradient(
@@ -2190,7 +2314,7 @@ struct ObjectiveNamePlate: View {
                 RoundedRectangle(cornerRadius: 4)
                     .stroke((owner?.accentColor ?? BattlefieldTheme.brass).opacity(0.78), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.28), radius: 2, x: 0, y: 1)
+            .shadow(color: .black.opacity(compact ? 0.20 : 0.28), radius: compact ? 1 : 2, x: 0, y: 1)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }

@@ -21,6 +21,36 @@
 
 ## 历史记录
 
+### v2.46 / 战区据点锚点
+
+日期：2026-08-12
+
+核心变更：
+
+- `TerrainTexture` 在既有 tile 局部 bounds 内为 `tile.isObjective` 增加确定性小型战区地标：城市据点增强建筑体块，非城市据点使用轻量前哨轮廓，并补充低对比接地阴影与结构线。
+- `HexTileView` 保留既有据点旗杆/`AL`/`AX`/`NEU` 事实和无单位名称牌；带单位据点在旗杆侧补充紧凑局部名称牌，名称使用 `@ScaledMetric`、单行收缩和无障碍隐藏，不改变单位模型、HP/行动轨道、selected、marker 或地图输入。
+- 所有新增地标、形状、阴影和名称牌均为纯表现，不写回 `TerrainTile`、`GameState` 或规则状态；未修改 v2.45 战果 overlay、地图坐标、frame、contentShape、zIndex、滚动缩放、HUD 或 `AL / OBJ / AX` rail。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.46（战区据点锚点）.md`
+
+验证结果：
+
+- 本轮基于 v2.45 最终通过的 `origin/main` 与工作树共同指向的基线 commit `3d8b4a818c9681ba0ff35441a29e8a5e027f1bdf`；Agent A 有意留下的 `md/prompt/README.md` 修改和 v2.46 prompt 新文件均保留并纳入本轮范围。
+- 本条目初始实现记录写入时，本轮 v2.46 提交尚未生成、workflow 尚未触发、artifact 尚未生成；不预填 artifact 名称、digest 或云端通过结论。提交后须由 Agent C 只核对本轮最新 SHA 对应的精确结果包。
+- 按人工约束，本地不运行 Swift、swiftc、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图；只执行 Git/text 轻量检查。compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 局部裁切仍只能源码审查，不能由 regular PNG 冒充。
+
+遗留事项：
+
+- 等待本轮 `main` push 触发 GitHub Actions，并由 Agent C 下载、核对最新 commit/run/attempt/artifact；在该验收完成前不宣称 v2.46 通过。
+
 ### v2.45 / 战果反馈层级
 
 日期：2026-08-12

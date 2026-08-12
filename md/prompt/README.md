@@ -74,4 +74,6 @@ Agent A 写给 Agent B 的提示词必须包含：
 
 ## 当前建议
 
-当前已进入 `v2（六角格战争界面）`。v2.0-v2.23 已完成表现层拆分、云端截图链、地图优先布局、自然地貌、立体军械、选中/攻击/战果反馈与紧凑 chrome；Claude 后续直接实现的 v2.24-v2.33 已继续完成白昼战场、河路降噪、单位底座与状态收敛、威胁/射程去重、将领画像牌、山体/道路/旗帜/据点/农田/雪原和坦克细节，但未补写逐轮版本 prompt。v2.34 起恢复强制版本化提示词和 A -> B -> C 云端闭环，并已把双行 HIT/RET 收为分离的单行金属铭牌。v2.35 统一暖金/象牙选中实体底座、辅助边、四角框、棋子抬升和接地阴影，v2.36 收敛补给线为低对比连续通道，v2.37 完成道路方向去重并通过最终云端验收，v2.38 完成支援甲板单一背板与 ForceRibbon 摘要并通过最终云端验收，v2.39 完成窄屏/大字号 rail 与道路受控回边并通过最终云端验收，v2.40 完成道路环路密度微调并通过最终云端验收，v2.41 完成 rail 的真实溢出 cue/fade 和 section-local 焦点可见性并通过最终云端验收，v2.42 完成 War Ledger 顶栏/HUD/rail 材质统一并通过最终云端验收，v2.43 完成连续地图地貌层级并通过最终云端验收；v2.44 已完成 `BattlefieldUnitViews.swift` 军械棋子落地材质与云端闭环。当前新增 `v2.45（战果反馈层级）.md`，只允许在 `BattlefieldMap.swift` 的既有 `CombatResolutionOverlay`/`CombatDamagePlate` 表现边界内升级结论、HIT/RET 主次层级和交战几何，不改规则、模型、输入、测试实现、project 或 workflow。当前 workflow 只生成 regular screenshot，Agent C 必须把 compact/窄宽度/xxxLarge Dynamic Type/多焦点/VoiceOver/Reduce Motion 和没有独立输出的 4x 局部裁切作为回归源码审查，不能臆造专用截图。
+当前推进到 `v2.46（战区据点锚点）.md`：基于 v2.45 最终通过的 `3d8b4a818c9681ba0ff35441a29e8a5e027f1bdf`、run `31603566044`、attempt `1` 和 artifact `ww2tactics-ci-v2.45-main-3d8b4a8-run31603566044-attempt1`，只在 `BattlefieldMap.swift` 的据点纯表现边界内增强已有 `TerrainTile` 据点的地标主体、归属标识和名称牌局部层级，不改规则、模型、输入、rail、测试实现、project 或 workflow。当前 workflow 只生成 regular screenshot；Agent C 必须把 compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 局部裁切作为源码审查，不能臆造专用截图证据。
+
+历史阶段 v2.0-v2.45 已完成地图优先构图、地貌、军械、轨道、材质与战果反馈等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.46 条目。

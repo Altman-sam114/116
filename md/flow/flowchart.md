@@ -631,6 +631,26 @@ flowchart TD
     Guard["不改 GameState / 模型 / 输入 / 地图坐标\n不覆盖单位、HP/行动轨道、HUD、通讯坞、AL/OBJ/AX rail"] --> Overlay
 ```
 
+## v2.46 战区据点锚点
+
+```mermaid
+flowchart TD
+    Tile["TerrainTile\ncoordinate / terrain / objectiveName / owner"] --> Objective{"isObjective?"}
+    Objective -->|否| Terrain["普通 TerrainTexture\n城市 / 森林 / 平原 / 道路 / 河流"]
+    Objective -->|是| Landmark["ObjectiveLandmark\n城市建筑或非城市轻量前哨\n接地阴影 + 局部几何"]
+    Objective --> Flag["ObjectiveFlagMarker\nAL / AX / NEU 文字与旗面"]
+    Objective --> Name["ObjectiveNamePlate\n短名称 / Dynamic Type 收缩"]
+    Terrain --> TileView["HexTileView 内部组合"]
+    Landmark --> TileView
+    Flag --> TileView
+    Name --> TileView
+    Unit["既有 UnitCounter\n军械模型 + HP / 行动轨道"] --> TileView
+    Marker["既有焦点 / 路线 / 补给 / 态势 marker"] --> TileView
+    TileView --> Accessibility["单一 tile VoiceOver 摘要\n既有 HexInputReader / contentShape"]
+    Guard["装饰 allowsHitTesting(false) + accessibilityHidden(true)\n不改坐标 / frame / zIndex / rail / 输入 / GameState"] --> TileView
+    Rail["ObjectiveJumpDock\nfocus(coordinate:) 保持原链"] -.-> TileView
+```
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
