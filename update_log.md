@@ -44,12 +44,16 @@
 验证结果：
 
 - 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `847f4a71f32c225fa9bb54e5f4e5cc729e83f0c3`，远端为 `https://github.com/Altman-sam114/116.git`；A 的 v2.49 prompt 与 `md/prompt/README.md` 改动保留并纳入本轮范围。
-- 本地只执行 Git/text 轻量检查；按仅云端约束未运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图。提交并 push 后，完整构建、规则和 regular screenshot 由 GitHub Actions 与 Agent C artifact 验收；本轮 commit、workflow run/attempt、artifact、digest 和 PNG 事实尚未生成，不预填未知值。
+- 初始实现记录写入时，本地只执行 Git/text 轻量检查；按仅云端约束未运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图。当时提交并 push 后的完整构建、规则和 regular screenshot 由 GitHub Actions 与 Agent C artifact 验收，未知的本轮 commit、workflow run/attempt、artifact、digest 和 PNG 事实未被预填；后续真实结果见本条目下方。
 - compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 仍只能源码审查，不能由 regular PNG 冒充独立实测。
+- v2.49 功能实现提交为 `1416dc87615a3347b970a8e3a2b490717d68390d`；对应 GitHub Actions workflow run `31639593427`、attempt `1`、status `success`。Agent C 使用活动账号 `Altman-sam114` 下载并核对 artifact `ww2tactics-ci-v2.49-main-1416dc8-run31639593427-attempt1`，digest 为 `sha256:79e13d131d61c27e9097c7a29b7ce3edf35c212e6b142f9e4b807de7c94508f9`，下载目录为 `/private/tmp/ww2tactics-c-review-31639593427/`。
+- 该 artifact 的 manifest branch、commit SHA、run id 和 attempt 与 `main`、`1416dc87615a3347b970a8e3a2b490717d68390d`、`31639593427`、`1` 精确一致；static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 均成功，JUnit 为 `4/4` 且 failure/error 均为 `0`，`xcresult` 可读。XCTest 明确为 `skipped`，AppIntents warning 为非致命告警。
+- regular PNG 为 `2064x2752`、`5,607,304` bytes，Agent C 已实际查看并确认非黑屏；河流收敛为窄、连续、低饱和走廊，重复大圆节与中心 pool 消失，道路、五类地貌、据点、单位、行动轨道、marker、HIT/RET、战果、HUD 和 `AL / OBJ / AX` rail 均无明显回归。compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和 4x 仍只有源码审查证据，不能由该 regular PNG 冒充独立实测。
 
 遗留事项：
 
-- 等待本轮最新 `origin/main` SHA 对应的 GitHub Actions workflow 和 Agent C 精确 artifact 验收；不得使用 v2.48 旧包替代本轮证据。
+- v2.49 功能已由 Agent C 针对 `1416dc87615a3347b970a8e3a2b490717d68390d` 的精确 workflow、manifest、artifact 和 regular PNG 最终通过，可启动下一轮；不得使用 v2.48 旧包替代本轮证据。
+- 本次日志补录提交不由上述旧 `1416dc8` 功能 artifact 自引用验收；该包只证明 `1416dc8` 功能提交。后续若要求文档闭环，Agent C 必须重新核对本次日志提交对应的最新 workflow/artifact，不能预填未来文档 SHA、run、artifact 或 digest，也不能删除本轮功能验收事实。
 
 ### v2.48 / 地貌材质纹理收敛
 
