@@ -48,10 +48,14 @@
 - 本轮权威基线为 `origin/main`、`HEAD` 和工作树同步指向的 `2a47e5d83eacb586e27a9a12853c6cae7d9c0d59`；该基线对应 v2.46 已由 Agent C 核对的 workflow run `31618048955`、attempt `1`、artifact `ww2tactics-ci-v2.46-main-2a47e5d-run31618048955-attempt1`、digest `sha256:e76d82fe15ecf13ca00ed0c329ea74103934046df96a8bc6a9ff43d93181cbe4`、下载目录 `/private/tmp/ww2tactics-c-review-31618048955/` 和 regular PNG `2064x2752`、`5714372` bytes；该旧包不作为 v2.47 证据。
 - 本条目初始实现记录写入时，v2.47 本轮提交尚未生成，workflow 尚未触发，artifact 尚未生成；不预填本轮 commit、run、attempt、artifact、digest 或云端通过结论。提交并 push 后，Agent C 只能核对本轮最新 SHA 对应的精确结果包。
 - 按人工约束，本地不运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图；本轮仅执行 Git/text 轻量检查。regular screenshot 是唯一计划的视觉实测，compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 仍只能源码审查。
+- v2.47 实现提交为 `9e63183ad2828c4919650e7db9139dcd3960fb23`；对应 GitHub Actions workflow run `31624294203`、attempt `1`、status `success`。Agent C 使用活动账号 `Altman-sam114` 下载并核对 artifact `ww2tactics-ci-v2.47-main-9e63183-run31624294203-attempt1`，digest 为 `sha256:7efd4dffff1e0a567505ba043ff3f7be87190f59689615bc2f01cbe5553fdf9f`，下载目录为 `/private/tmp/ww2tactics-c-review-31624294203/`。
+- 该 artifact 的 manifest branch/SHA/run/attempt 与 `main`、`9e63183ad2828c4919650e7db9139dcd3960fb23`、`31624294203`、`1` 精确一致；static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 均成功，JUnit 为 `4/4` 且无 failure/error，`xcresult` 可读。XCTest 按 manifest 明确 `skipped`，AppIntents warning 为非阻断告警。
+- regular PNG 为 `2064x2752`、`5,689,125` bytes，Agent C 已实际查看并确认非黑屏；白昼地图底材、平原/森林/城市/山地/雪地等地貌、道路河流连续性、据点建筑/旗标/名称、四类军械及接地关系、HP/行动轨道、marker、HIT/RET/战果、HUD 和 `AL / OBJ / AX` rail 均可读，未见本轮明度调整造成的明显回归。
+- compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和 4x 仍只有源码审查范围，不能由该 regular PNG 冒充独立实测证据。
 
 遗留事项：
 
-- 等待 Agent C 下载并核对 v2.47 最新 commit 对应的精确 workflow run、attempt、manifest、artifact 和 regular PNG；在精确 artifact 验收前，不宣称 v2.47 通过或启动下一轮。
+- v2.47 已完成云端验收，Agent C 已核对上述 `9e63183` 对应的精确 workflow run、manifest、artifact 和 regular PNG，可启动下一轮。本次日志补录提交只是承载已验证 `9e63183` artifact 事实的文档提交，不由该旧 artifact 自身验收；如需本轮文档闭环，后续 Agent C 必须重新核对该新文档提交对应的新 workflow/artifact，不能使用旧包替代，也不要求日志自我引用。
 
 ### v2.46 / 战区据点锚点
 
