@@ -47,10 +47,14 @@
 - 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `dea1caece3235a9a872ec9d45a68363d3fa5cd3f`；A 的 v2.48 prompt 与 `md/prompt/README.md` 改动保留并纳入本轮范围。
 - 本轮仅执行 Git/text 轻量检查；按云端约束未运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图。完整构建、规则和 regular screenshot 交由本轮 push 后的 GitHub Actions 与 Agent C artifact 验收。
 - 本条目在提交前记录实现范围；本轮实现 commit、workflow run/attempt、artifact、digest 和 PNG 事实尚未生成，不预填未知值。Agent C 只能核对本轮最新 `origin/main` SHA 对应的精确 artifact；compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 仍只能源码审查。
+- 首次实现提交为 `506677cb6d42baa7d728a9c760c408478a998ea9`；对应 workflow run `31631910883`、attempt `1`、artifact `ww2tactics-ci-v2.48-main-506677c-run31631910883-attempt1`。该初始包的 static checks、RulesSmokeTest 已成功，但 `xcodebuild build-for-testing` 因 `fieldLines(in:)`、`forestClusters(in:)`、`cityBlocks(in:)` 的局部语句后缺少显式 `return` 而失败，截图因此跳过；这是保留的初始失败证据，不能当作成功验收。
+- 修复提交为 `f231703935f8c5a43d544673cb1c8a6788b6599e`；对应 workflow run `31632829255`、attempt `1`、status `success`。Agent C 使用活动账号 `Altman-sam114` 下载并核对 artifact `ww2tactics-ci-v2.48-main-f231703-run31632829255-attempt1`，digest 为 `sha256:4a4cad59b3352ad69190c69c460c73164609042b75515b1db0088498cfb1dc3d`，下载目录为 `/private/tmp/ww2tactics-c-review-31632829255/`。
+- 修复包 manifest 的 branch、commit SHA、run id 和 attempt 与 `main`、`f231703935f8c5a43d544673cb1c8a6788b6599e`、`31632829255`、`1` 精确一致；static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 均成功，JUnit 为 `4/4` 且 failure/error 均为 `0`，`xcresult` 可读。XCTest 明确为 `skipped`，AppIntents warning 为非致命告警。
+- regular PNG 为 `2064x2752`、`5,594,569` bytes，Agent C 已实际查看并确认非黑屏；地貌纹理收敛、白昼底材、道路/河流连续性、单位、据点、战果、HUD 和 `AL / OBJ / AX` rail 均通过视觉核对。compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和 4x 仍只有源码审查证据，不能由 regular PNG 冒充独立实测。
 
 遗留事项：
 
-- v2.48 已完成工作树实现，提交并 push 后等待 Agent C 对本轮最新 SHA 的 workflow manifest、规则 smoke、Xcode build-for-testing、JUnit、xcresult 和 regular PNG 进行精确验收；不得用 v2.47 旧包替代本轮证据。
+- v2.48 功能已由 Agent C 针对 `f231703935f8c5a43d544673cb1c8a6788b6599e` 的精确 workflow、manifest、artifact 和 regular PNG 最终通过，可启动下一轮；初始 `506677c` 失败证据保留，不能用旧失败包替代成功包。本次仅修改日志的文档闭环提交不由上述旧 `f2317039` artifact 验收，后续由独立 workflow/artifact 核对最新日志 SHA；不得让日志自我引用，也不得删除旧失败事实。
 
 ### v2.47 / 白昼战场可读性
 
