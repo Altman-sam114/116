@@ -706,6 +706,25 @@ flowchart LR
 
 River 表现只从既有地格、q/r seed 和邻接方向确定性派生；有连接的 river 使用同一 `connectionPath` 的三层低饱和走廊，孤立 river 仅保留小型细长水面。道路网络与道路分支、v2.47 daylight、v2.48 五类非河流材质、地图几何、输入、规则和高优先级叠层均不变，装饰继续关闭命中并隐藏于无障碍树。
 
+## v2.50 六角格蚀刻边界层次
+
+```mermaid
+flowchart LR
+  T["TerrainTile + HexCoordinate.neighbors"] --> A["HexMapView 只读邻接分类"]
+  A --> S["同类共享边：最弱蚀刻"]
+  A --> C["地形切换边：克制强调"]
+  A --> E["地图外缘：清楚轮廓"]
+  K["BattlefieldTheme 静态边界 token"] --> B["HexTileView tile-local 边段层"]
+  S --> B
+  C --> B
+  E --> B
+  B --> G["TerrainTexture / 道路河流 / 据点"]
+  G --> H["单位 / HP行动轨道 / selected / marker / HIT-RET / HUD / rail"]
+  I["frame / contentShape / zIndex / input / scroll-zoom / GameState 不变"] -.-> B
+```
+
+蚀刻层仅从既有地格和邻接事实确定性派生，固定在地貌与战术反馈之下；同类地貌共享面弱化，地形切换和地图外缘保留分级轮廓。边段限制在 `Hexagon` clip 内，关闭命中并隐藏于无障碍树，不写回模型或规则。
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

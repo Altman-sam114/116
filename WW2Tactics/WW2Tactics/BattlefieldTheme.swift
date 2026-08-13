@@ -34,8 +34,12 @@ enum BattlefieldTheme {
     static let mapParchmentEdge = Color.black.opacity(0.055)
     static let mapTileHighlight = Color.white.opacity(0.045)
     static let mapTileShade = Color.black.opacity(0.025)
-    static let mapTerrainSeam = Color.black.opacity(0.055)
-    static let mapTerrainSeamHighlight = Color.white.opacity(0.055)
+    static let mapEtchedSharedBoundary = Color.black.opacity(0.018)
+    static let mapEtchedTerrainBoundary = Color(red: 0.25, green: 0.23, blue: 0.16).opacity(0.11)
+    static let mapEtchedOuterBoundary = Color.black.opacity(0.16)
+    static let mapEtchedSharedBoundaryWidth: CGFloat = 0.24
+    static let mapEtchedTerrainBoundaryWidth: CGFloat = 0.62
+    static let mapEtchedOuterBoundaryWidth: CGFloat = 0.88
     static let mapForestContinuity = Color(red: 0.18, green: 0.30, blue: 0.17).opacity(0.13)
     static let mapMountainContinuity = Color(red: 0.24, green: 0.23, blue: 0.20).opacity(0.13)
 

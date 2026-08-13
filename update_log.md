@@ -21,6 +21,37 @@
 
 ## 历史记录
 
+### v2.50 / 六角格蚀刻边界层次
+
+日期：2026-08-13
+
+核心变更：
+
+- `HexMapView` 从既有 `TerrainTile` 字典和 `HexCoordinate.neighbors` 只读派生同类地貌共享边、地形切换边与地图外缘；`HexTileView` 以 tile-local 边段替换原本每格同权重的双层整六角 seam，同类边最弱、地形切换边略强、地图外缘最清楚。
+- `BattlefieldTheme` 新增仅供上述边界层使用的三档静态颜色和线宽 token；边段限制在 `Hexagon` clip 内、关闭命中并隐藏于无障碍树。原有 selected/focused/命令/路线/补给/目标/威胁/态势边框分支及优先级保持不变。
+- `TerrainTexture`、v2.49 river corridor、道路 connection/network/环路、五类地貌纹理、据点、军械、HP/行动轨道、HIT/RET、HUD、`AL / OBJ / AX` rail、地图几何、输入、规则、模型、测试、project 和 workflow 均未修改；未新增状态、缓存、动画、资源或依赖。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldTheme.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.50（六角格蚀刻边界层次）.md`
+
+验证结果：
+
+- 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `a6ccfd9f95765a9b7d9e54a0e80234a384b1183a`，远端为 `https://github.com/Altman-sam114/116.git`；Agent A 留在工作树的 v2.50 prompt 与 `md/prompt/README.md` 修改均保留并纳入本轮范围。
+- 本轮本地仅执行允许的 Git/text 轻量检查；按人工约束不运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图。完整 static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 交由本轮 push 后的 GitHub Actions。
+- 本条目在提交前只记录真实实现与等待云端验收状态；本轮 commit、workflow run/attempt、artifact、digest 和 PNG 事实尚未生成，不预填未知值。compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和无独立输出的 4x 仅作源码审查。
+
+遗留事项：
+
+- 等待本轮最新 `origin/main` SHA 对应的 GitHub Actions 与 Agent C 精确 artifact 验收；Agent C 必须实际查看 regular PNG，确认六角结构可辨但不成硬网格，并核对 v2.49 河道、道路、地貌、据点、单位、marker、战果、HUD 和 rail 无明显回归。
+
 ### v2.49 / 河道走廊降噪
 
 日期：2026-08-13

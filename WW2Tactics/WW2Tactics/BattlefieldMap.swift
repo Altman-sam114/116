@@ -301,6 +301,10 @@ struct HexMapView: View {
                 let unit = game.unit(at: tile.coordinate)
                 let tileIsSelected = selected?.position == tile.coordinate
                 let tileIsFocused = game.focusedCoordinate == tile.coordinate
+                let boundaryAdjacency = HexBoundaryAdjacency(
+                    tile: tile,
+                    terrainByCoordinate: terrainByCoordinate
+                )
                 let terrainConnectionDirections: [Int] = tile.terrain == .road
                     ? roadConnectionDirectionsByCoordinate[tile.coordinate] ?? []
                     : tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
@@ -313,6 +317,9 @@ struct HexMapView: View {
                     : []
                 HexTileView(
                     tile: tile,
+                    sharedTerrainBoundaryDirections: boundaryAdjacency.sharedTerrainDirections,
+                    terrainTransitionBoundaryDirections: boundaryAdjacency.terrainTransitionDirections,
+                    mapEdgeBoundaryDirections: boundaryAdjacency.mapEdgeDirections,
                     terrainConnectionDirections: terrainConnectionDirections,
                     supplyLineConnectionDirections: supplyLineConnectionDirections,
                     unit: unit,
@@ -421,6 +428,35 @@ struct HexMapView: View {
         guard let preview = game.focusedCommandPreview else { return false }
         if case .attack = preview { return true }
         return false
+    }
+}
+
+private struct HexBoundaryAdjacency {
+    let sharedTerrainDirections: [Int]
+    let terrainTransitionDirections: [Int]
+    let mapEdgeDirections: [Int]
+
+    init(tile: TerrainTile, terrainByCoordinate: [HexCoordinate: TerrainKind]) {
+        var sharedTerrainDirections = [Int]()
+        var terrainTransitionDirections = [Int]()
+        var mapEdgeDirections = [Int]()
+
+        for (direction, coordinate) in tile.coordinate.neighbors.enumerated() {
+            guard let neighboringTerrain = terrainByCoordinate[coordinate] else {
+                mapEdgeDirections.append(direction)
+                continue
+            }
+
+            if neighboringTerrain == tile.terrain {
+                sharedTerrainDirections.append(direction)
+            } else {
+                terrainTransitionDirections.append(direction)
+            }
+        }
+
+        self.sharedTerrainDirections = sharedTerrainDirections
+        self.terrainTransitionDirections = terrainTransitionDirections
+        self.mapEdgeDirections = mapEdgeDirections
     }
 }
 
@@ -546,6 +582,9 @@ struct HexTileOverflowChip: View {
 
 struct HexTileView: View {
     let tile: TerrainTile
+    let sharedTerrainBoundaryDirections: [Int]
+    let terrainTransitionBoundaryDirections: [Int]
+    let mapEdgeBoundaryDirections: [Int]
     let terrainConnectionDirections: [Int]
     let supplyLineConnectionDirections: [Int]
     let unit: BattleUnit?
@@ -591,14 +630,11 @@ struct HexTileView: View {
                         )
                 )
                 .overlay(
-                    // Static seams only preserve terrain legibility; tactical
-                    // borders below retain their existing higher priority.
-                    Hexagon()
-                        .stroke(BattlefieldTheme.mapTerrainSeam, lineWidth: 0.45)
-                )
-                .overlay(
-                    Hexagon()
-                        .stroke(BattlefieldTheme.mapTerrainSeamHighlight, lineWidth: 0.35)
+                    HexEtchedBoundaryLayer(
+                        sharedTerrainDirections: sharedTerrainBoundaryDirections,
+                        terrainTransitionDirections: terrainTransitionBoundaryDirections,
+                        mapEdgeDirections: mapEdgeBoundaryDirections
+                    )
                 )
                 .overlay(
                     Hexagon()
@@ -753,7 +789,7 @@ struct HexTileView: View {
             if isSelected { return BattlefieldTheme.selectedPiece }
             if isFocused && actionHint.isAttack { return .red }
             if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.72) }
-            return .white.opacity(0.045)
+            return .clear
         }
         if isSelected { return BattlefieldTheme.selectedPiece }
         if actionHint.isAttack { return .red }
@@ -777,7 +813,7 @@ struct HexTileView: View {
         if isFocused { return .white.opacity(0.9) }
         if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.9) }
         if !aiPhaseMapMarkers.isEmpty { return .indigo.opacity(0.86) }
-        return .white.opacity(0.045)
+        return .clear
     }
 
     private var borderWidth: CGFloat {
@@ -2996,6 +3032,65 @@ struct Hexagon: Shape {
         }
         path.closeSubpath()
         return path
+    }
+}
+
+private struct HexBoundarySegments: Shape {
+    let directions: [Int]
+
+    func path(in rect: CGRect) -> Path {
+        let vertices = [
+            CGPoint(x: rect.maxX, y: rect.midY),
+            CGPoint(x: rect.minX + rect.width * 0.75, y: rect.minY),
+            CGPoint(x: rect.minX + rect.width * 0.25, y: rect.minY),
+            CGPoint(x: rect.minX, y: rect.midY),
+            CGPoint(x: rect.minX + rect.width * 0.25, y: rect.maxY),
+            CGPoint(x: rect.minX + rect.width * 0.75, y: rect.maxY)
+        ]
+
+        return Path { path in
+            for direction in directions where vertices.indices.contains(direction) {
+                let vertex = vertices[direction]
+                let previous = vertices[(direction + vertices.count - 1) % vertices.count]
+                let next = vertices[(direction + 1) % vertices.count]
+                path.move(to: midpoint(previous, vertex))
+                path.addLine(to: vertex)
+                path.addLine(to: midpoint(vertex, next))
+            }
+        }
+    }
+
+    private func midpoint(_ start: CGPoint, _ end: CGPoint) -> CGPoint {
+        CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
+    }
+}
+
+private struct HexEtchedBoundaryLayer: View {
+    let sharedTerrainDirections: [Int]
+    let terrainTransitionDirections: [Int]
+    let mapEdgeDirections: [Int]
+
+    var body: some View {
+        ZStack {
+            HexBoundarySegments(directions: sharedTerrainDirections)
+                .stroke(
+                    BattlefieldTheme.mapEtchedSharedBoundary,
+                    lineWidth: BattlefieldTheme.mapEtchedSharedBoundaryWidth
+                )
+            HexBoundarySegments(directions: terrainTransitionDirections)
+                .stroke(
+                    BattlefieldTheme.mapEtchedTerrainBoundary,
+                    lineWidth: BattlefieldTheme.mapEtchedTerrainBoundaryWidth
+                )
+            HexBoundarySegments(directions: mapEdgeDirections)
+                .stroke(
+                    BattlefieldTheme.mapEtchedOuterBoundary,
+                    lineWidth: BattlefieldTheme.mapEtchedOuterBoundaryWidth
+                )
+        }
+        .clipShape(Hexagon())
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
