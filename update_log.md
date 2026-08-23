@@ -21,6 +21,38 @@
 
 ## 历史记录
 
+### v2.54 / 据点静态整格轮廓局部化
+
+日期：2026-08-23
+
+核心变更：
+
+- `BattlefieldMap.swift` 仅将 owner stroke opacity 从 `tile.isObjective ? 0.38 : 0.10` 统一为 `0.10`，并删除 attack-focus/normal 两套 `borderColor` 与 `borderWidth` 中共四个 `tile.isObjective` 静态 fallback。
+- 普通静态据点不再重复消费通用状态整格边框，局部 `ObjectiveLandmark`、旗牌、`AL`/`AX`/`NEU`、名称牌和 owner fill 继续承接据点身份；selected、focused、ATK/MOVE/POS、route、coverage、capture/guided、反制、压力、态势、AI 和战果等既有高优先级反馈保持原链。
+- `GameState`、模型、规则、测试、project、workflow、地图 geometry/input/VoiceOver、`HexEtchedBoundaryLayer`、地貌、道路河流、单位、HIT/RET、HUD 和 `AL / OBJ / AX` rail 均未修改；未新增替代边、marker、token、helper、map-level pass、状态、缓存、动画、资源或依赖。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.54（据点静态整格轮廓局部化）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮开始前依次完成 `git fetch origin`、`git switch main`、`git pull --ff-only origin main` 和 `git status --short --branch`；`main`、`HEAD`、`origin/main` 基线为 `b6bd2a4349c5ea4c427d5fc181035c5366d89385`，Agent A 的 prompt 文档改动已保留。远端为 `origin/main`，活动 GitHub 账号为 `Altman-sam114`。
+- 本地仅按 v2.54 prompt 运行 Git/text 白名单：`git diff --check` 无输出且退出码为 0；`git diff --name-only`、`git status --short --branch`、BattlefieldMap 精确 diff 和指定 `rg` 符号检查用于核对范围、空白、五处 Swift 事实和冻结链。
+- 未运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、`xcodebuild`、模拟器、Playwright、SwiftUI preview、预览或截图；上述 Git/text 检查不是编译、规则、可访问性或视觉通过证据。
+- 本轮云端 workflow、run/attempt、artifact、manifest、日志、`.xcresult` 和 PNG 事实待 push 后由 Agent C 针对最新 `origin/main` 精确核对；本条目不预填未知 CI 证据，也不替代 Agent C 验收。
+
+遗留事项：
+
+- v2.54 需由 Agent B 在 `main` 以 `v2.54: 局部化据点静态轮廓` 提交并直接 push `origin/main`；随后由 Agent C 使用最新 workflow artifact 核对 regular 截图和源码边界。regular 之外的 attack-focus fallback、latest capture、guided、AI、实时命令、compact、Dynamic Type、VoiceOver、Reduce Motion 和 4x 仍只能按 prompt 进行源码审查。
+
 ### v2.53 / 控制区威胁补给边框去重
 
 日期：2026-08-23

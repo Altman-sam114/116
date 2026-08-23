@@ -775,6 +775,28 @@ flowchart LR
 
 本轮只从 `HexTileView.borderColor` 与 `borderWidth` 删除 threat、enemy control zone、supply line 三组低优先级整格边框分支；事实集合、红色水洗、连续补给通道、橙色射程边、通用 stroke 和高优先级状态保持原链。
 
+## v2.54 据点静态整格轮廓局部化
+
+```mermaid
+flowchart LR
+  Facts["TerrainTile.isObjective / objectiveName / owner"] --> Local["ObjectiveLandmark / 旗牌 / AL-AX-NEU / 名称牌\n局部据点身份保持"]
+  Facts --> Fill["owner fill：据点 0.10 / 普通格 0.035"]
+  Facts --> Stroke["owner stroke：统一 0.10 / 0.8pt"]
+  Status["既有状态事实"] --> Border["HexTileView borderColor / borderWidth priority chain"]
+  Objective["静态 tile.isObjective fallback"] -. "删除 normal / attack-focus 特殊消费" .-> Border
+  Border --> Fallback["无其他状态：.clear / 0.45"]
+  Status --> High["selected / focused / ATK-MOVE-POS / route / capture / guided / situation / AI 等既有高优先级边"]
+  Boundary["HexEtchedBoundaryLayer"] --> Terrain["地貌共享边 / 地形切换边 / 地图外缘\n不强化、不升级为 objective 整格边"]
+  Local --> Tile["HexTileView：静态据点局部化"]
+  Fill --> Tile
+  Stroke --> Tile
+  High --> Tile
+  Border --> Tile
+  Guard["geometry / contentShape / zIndex / input / VoiceOver / GameState / rules 不变"] -.-> Tile
+```
+
+据点静态身份由局部地标、旗牌、名称牌和低强度 owner fill 承接；交互与结果状态继续消费原有通用状态边，蚀刻边界层保持独立静态地貌结构。
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

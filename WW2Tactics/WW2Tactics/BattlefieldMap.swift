@@ -646,7 +646,7 @@ struct HexTileView: View {
                     .fill(owner.accentColor.opacity(tile.isObjective ? 0.10 : 0.035))
                     .overlay(
                         Hexagon()
-                            .stroke(owner.accentColor.opacity(tile.isObjective ? 0.38 : 0.10), lineWidth: 0.8)
+                            .stroke(owner.accentColor.opacity(0.10), lineWidth: 0.8)
                     )
             }
 
@@ -788,7 +788,6 @@ struct HexTileView: View {
         if isAttackFocusMode {
             if isSelected { return BattlefieldTheme.selectedPiece }
             if isFocused && actionHint.isAttack { return .red }
-            if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.72) }
             return .clear
         }
         if isSelected { return BattlefieldTheme.selectedPiece }
@@ -808,7 +807,6 @@ struct HexTileView: View {
         if isMovementRoute { return .cyan.opacity(0.88) }
         if isAttackCoverage { return .orange.opacity(0.40) }
         if isFocused { return .white.opacity(0.9) }
-        if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.9) }
         if !aiPhaseMapMarkers.isEmpty { return .indigo.opacity(0.86) }
         return .clear
     }
@@ -817,7 +815,6 @@ struct HexTileView: View {
         if isAttackFocusMode {
             if isSelected { return 1.5 }
             if isFocused && actionHint.isAttack { return 3 }
-            if tile.isObjective { return 1.5 }
             return 0.45
         }
         if isSelected { return 1.5 }
@@ -835,7 +832,6 @@ struct HexTileView: View {
         if isMovementRoute { return 2 }
         if isAttackCoverage { return 1 }
         if isFocused { return 2 }
-        if tile.isObjective { return 2 }
         if !aiPhaseMapMarkers.isEmpty { return 2 }
         return 0.45
     }
