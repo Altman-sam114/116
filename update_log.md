@@ -46,11 +46,15 @@
 
 - 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `a6ccfd9f95765a9b7d9e54a0e80234a384b1183a`，远端为 `https://github.com/Altman-sam114/116.git`；Agent A 留在工作树的 v2.50 prompt 与 `md/prompt/README.md` 修改均保留并纳入本轮范围。
 - 本轮本地仅执行允许的 Git/text 轻量检查；按人工约束不运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图。完整 static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 交由本轮 push 后的 GitHub Actions。
-- 本条目在提交前只记录真实实现与等待云端验收状态；本轮 commit、workflow run/attempt、artifact、digest 和 PNG 事实尚未生成，不预填未知值。compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和无独立输出的 4x 仅作源码审查。
+- 本条目初始实现记录写入时只记录真实实现与等待云端验收状态；当时本轮 commit、workflow run/attempt、artifact、digest 和 PNG 事实尚未生成，未预填未知值；后续真实结果见下方。
+- v2.50 功能实现提交为 `b572f341939a765a8f9df1f2236cbebffae10006`；对应 GitHub Actions workflow run `31660457357`、attempt `1`、结论 `success`。Agent C 已下载并核对 artifact `ww2tactics-ci-v2.50-main-b572f34-run31660457357-attempt1`，artifact id 为 `9166157699`，digest 为 `sha256:d25a5ccb87144c472da4c502255dfeb59e064ab44f8fb94a23ea90fd8391884c`，API size 为 `6,830,082` bytes，下载目录为 `/private/tmp/ww2tactics-c-review-31660457357/`。
+- 该 artifact 的 manifest branch、commit SHA、run id 和 attempt 与 `main`、`b572f341939a765a8f9df1f2236cbebffae10006`、`31660457357`、`1` 精确一致；static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 均为 `success`，JUnit 为 `4/4` 且 failure/error 均为 `0`，`xcresult` 可读。XCTest 的 `testOutcome=skipped`，AppIntents warning 为非致命告警。
+- regular PNG 为 `2064x2752`、`5,604,774` bytes、8-bit RGBA，Agent C 已实际查看并确认非黑屏；普通同类地形边已弱化，地形切换边与地图外缘保持克制，六角结构可辨但未形成硬网格；道路、河流、地貌、据点、单位、HP/行动轨道、marker、HIT/RET、HUD 和 `AL / OBJ / AX` rail 均无明显回归。compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和 4x 仍只有源码审查证据，不能由该 regular PNG 冒充独立实测。
 
 遗留事项：
 
-- 等待本轮最新 `origin/main` SHA 对应的 GitHub Actions 与 Agent C 精确 artifact 验收；Agent C 必须实际查看 regular PNG，确认六角结构可辨但不成硬网格，并核对 v2.49 河道、道路、地貌、据点、单位、marker、战果、HUD 和 rail 无明显回归。
+- v2.50 功能提交已由 Agent C 针对 `b572f341939a765a8f9df1f2236cbebffae10006` 的精确 workflow、manifest、artifact 和 regular PNG 验收通过，可进行文档闭环。
+- 本次 `update_log.md` 补录提交不能由上述旧 `b572f34` 功能 artifact 自引用验收；该包只证明 `b572f34` 功能提交。后续 Agent C 必须核对本次新日志提交对应的 exact workflow/artifact，不预填未来文档 SHA、run、artifact 或 digest。
 
 ### v2.49 / 河道走廊降噪
 
