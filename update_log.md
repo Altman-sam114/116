@@ -46,11 +46,15 @@
 - 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `27e21351187fffaf04aaa2e7362f840168a4f45b`；开始前依次完成 `git fetch origin`、`git switch main`、`git pull --ff-only origin main` 与 `git status --short --branch`，并保留 Agent A 的 `md/prompt/README.md` 修改和新增 v2.53 prompt，未发现其他来源不明改动。
 - 本地按 prompt 白名单运行 `git diff --check`，无输出且退出码为 0；`git diff --name-only` 仅列出 7 个已跟踪的本轮文件，`git status --short --branch` 另确认 Agent A 新 prompt；精准 `rg` 确认通用 stroke、red wash、连续 `SupplyLineMarker`、orange attack coverage、后续边框分支、geometry/input/VoiceOver 符号仍在，六个待删分支已不再出现在两个 computed property。
 - 人工与 v2.53 prompt 明确禁止本地 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright、预览和截图；上述 Git/text 检查只证明空白、范围与符号文本事实，不是编译、规则、可访问性或视觉通过证据。
-- 本条在提交前记录真实实现；v2.53 commit、workflow run/attempt、artifact 名称/id/digest、下载目录和 PNG 视觉结论尚未生成，未预填未知值。完整 static、RulesSmokeTest、Xcode build-for-testing 与 regular screenshot 必须由本轮 push 后 GitHub Actions 和 Agent C 精确 artifact 验收。
+- v2.53 功能提交为 `e3b25ab13d9543815b7d9e4e58d125058d51de4e`；对应 GitHub Actions workflow run `32638394110`、attempt `1` 已 `completed/success`。
+- 精确结果包为 `ww2tactics-ci-v2.53-main-e3b25ab-run32638394110-attempt1`，artifact id `9493007679`，digest `sha256:7f58a8b3faaa9967f1928a37f1c8b2a46dffa81b817d8b77ae62f01dab26fc17`，API size `6,814,563 bytes`；Agent C 已下载并核对目录 `/private/tmp/ww2tactics-c-review-32638394110/`。
+- `ci-artifact-manifest.json` 的 `version=v2.53`、`branch=main`、`commitSha=e3b25ab13d9543815b7d9e4e58d125058d51de4e`、run `32638394110` 与 attempt `1` 精确匹配；static project 为 `OK`，Rules smoke passed，Xcode 26.6 build-for-testing 为 `TEST BUILD SUCCEEDED`，`WW2Tactics.xcresult` 可读。JUnit 记录 4 stages、0 failures、0 errors；XCTest 实际执行仍为 skipped，未冒充测试已执行。
+- Agent C 实际查看的 regular PNG 为 `2064×2752`、`5,589,062 bytes`、8-bit RGBA、non-interlaced，SHA-256 为 `3bfd75abb47a01931709e589d625ec5da00e863a9b8c8b48150d89121556c344`。大面积红色 ZOC 与绿色 supply 整格边明显减少，既有 red wash 和连续补给线保留，未发现其他明显视觉回归。
+- 云端日志仍有两条非致命 AppIntents metadata warning，以及 Actions Node、punycode、`url.parse` 维护提醒；均未阻止本轮 static、smoke、build、artifact 或截图通过。
 
 遗留事项：
 
-- Agent C 必须只下载最新 v2.53 `origin/main` SHA 对应的结果包，核对 manifest/run/attempt、日志、JUnit、`.xcresult` 并实际查看 regular PNG；不得复用 v2.52 artifact。
+- v2.53 功能提交已由 Agent C 针对精确 SHA、run、attempt、artifact、manifest、日志、`.xcresult` 与 regular PNG 验收通过。本次仅补录该功能证据；文档闭环提交的新 SHA、workflow run/attempt 和 artifact 尚未生成，未预填未知值，push 后仍须由 Agent C 对最新文档 SHA 复验，不得用功能 artifact 自引用验收。
 - regular `selected-combat-impact-steady` 可直接验证 enemy ZOC/supply 整格边减少，但不激活 threatened；threatened、route、实时 ATK/POS、CUT、compact、窄宽度、`.xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和无独立输出的 4x 只能源码审查，不能由 regular PNG 冒充独立实测。
 
 ### v2.52 / 平原雪地跨格连续晕染

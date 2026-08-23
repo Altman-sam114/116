@@ -74,10 +74,10 @@ Agent A 写给 Agent B 的提示词必须包含：
 
 ## 当前建议
 
-当前推进到 `v2.53（控制区威胁补给边框去重）.md` 的实现完成、等待云端验收阶段。Agent A 建档时权威 `main`、`origin/main`、`HEAD` 均为 `27e21351187fffaf04aaa2e7362f840168a4f45b`；Agent B 保留该 prompt 与本索引的合法未提交改动，并按限定范围完成实现与文档同步。本记录不预填尚未知的 v2.53 commit、workflow run、attempt 或 artifact。
+当前推进到 `v2.53（控制区威胁补给边框去重）.md` 的功能提交已验收通过、文档闭环提交待最新 run 复验阶段。功能提交 `e3b25ab13d9543815b7d9e4e58d125058d51de4e` 对应 workflow run `32638394110`、attempt `1`、`completed/success`；artifact 为 `ww2tactics-ci-v2.53-main-e3b25ab-run32638394110-attempt1`，artifact id `9493007679`，digest `sha256:7f58a8b3faaa9967f1928a37f1c8b2a46dffa81b817d8b77ae62f01dab26fc17`，API size `6,814,563 bytes`。Agent C 已下载到 `/private/tmp/ww2tactics-c-review-32638394110/` 并精确核对；本次文档闭环提交自己的 SHA、run、attempt 和 artifact 尚未生成，不预填或自引用。
 
 v2.52 已完成完整云端闭环：功能提交 `69dfd3f1e2530927ef9ec1c5fa59a066137bade2` 对应 workflow run `32633020222`、attempt `1` 和 artifact `ww2tactics-ci-v2.52-main-69dfd3f-run32633020222-attempt1`；最终文档闭环 SHA `27e21351187fffaf04aaa2e7362f840168a4f45b` 对应 workflow run `32633841924`、attempt `1`、artifact `ww2tactics-ci-v2.52-main-27e2135-run32633841924-attempt1`、artifact id `9491881137`、digest `sha256:ac9a381743dda8eff0d299806e3467b81f82a70e907ef205160fbefdf23a4c47`。最终结果包已由 Agent C 下载到 `/private/tmp/ww2tactics-c-review-32633841924/` 并精确核对，旧的“等待文档提交、push 和验收”状态已关闭。
 
-v2.53 已在 `BattlefieldMap.swift` 的 `HexTileView.borderColor` 与 `borderWidth` 删除普通态 `isThreatenedMoveTile`、`isEnemyControlZone`、`isSupplyLine` 三组重复整格边框分支，共六行；threat/ZOC 红 wash、连续 `SupplyLineMarker`、`isAttackCoverage` 橙色 `0.40`/`1pt` 唯一射程边框、通用 stroke 和所有高优先级状态保持不变。该实现尚待最新 `origin/main` GitHub Actions 与 Agent C 精确 artifact 验收，当前不得宣称 v2.53 通过。
+v2.53 已在 `BattlefieldMap.swift` 的 `HexTileView.borderColor` 与 `borderWidth` 删除普通态 `isThreatenedMoveTile`、`isEnemyControlZone`、`isSupplyLine` 三组重复整格边框分支，共六行；threat/ZOC 红 wash、连续 `SupplyLineMarker`、`isAttackCoverage` 橙色 `0.40`/`1pt` 唯一射程边框、通用 stroke 和所有高优先级状态保持不变。功能 artifact 的 manifest、static、Rules smoke、Xcode 26.6 build-for-testing、JUnit、`.xcresult` 和 regular PNG 已由 Agent C 核对；PNG 为 `2064×2752`、`5,589,062 bytes`、8-bit RGBA、non-interlaced，SHA-256 为 `3bfd75abb47a01931709e589d625ec5da00e863a9b8c8b48150d89121556c344`，红 ZOC/绿 supply 整格边减少且 red wash/连续补给线保留。XCTest 执行仍 skipped；两条 AppIntents warning 与 Node/punycode/`url.parse` 提醒为非致命维护信息。
 
 历史阶段 v2.0-v2.52 已完成地图优先构图、白昼底材、地貌连续性、军械、据点、轨道、材质、河道、蚀刻边界、道路路基、战果反馈与平原雪地连续晕染等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.53 条目。
