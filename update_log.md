@@ -46,12 +46,16 @@
 
 - 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `48ddf198fc4682ef4c7626bd50e4870dcf2504bf`，远端为 `https://github.com/Altman-sam114/116.git`；Agent A 留在工作树的 v2.52 prompt 与 `md/prompt/README.md` 合法未提交改动均已保留并纳入本轮范围。
 - 本地按人工约束只运行 prompt 白名单内的 Git/text 轻量检查：`git diff --check`、`git diff --name-only`、`git status --short --branch` 和指定范围 `rg`；未运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright、预览或截图。上述 Git/text 命令只证明空白、范围和符号事实，不是编译、规则或视觉通过证据。
-- 本条目写入时，v2.52 commit、workflow run/attempt、artifact 名称/id/digest、下载目录和 PNG 事实尚未生成，未预填未知值；push 后必须由 Agent C 只下载并核对 v2.52 最新 SHA 的精确结果包和 regular PNG。
+- v2.52 功能提交 `69dfd3f1e2530927ef9ec1c5fa59a066137bade2` 已由 Agent C 验收通过；GitHub Actions workflow run `32633020222`、attempt `1` 为 `completed/success`。
+- 精确结果包为 `ww2tactics-ci-v2.52-main-69dfd3f-run32633020222-attempt1`，artifact id `9491643476`，digest `sha256:8b99bf52a59b31995c391eee2161559b11892e5142f3e02d9e25a37821b441ea`，API size `6,837,531 bytes`；Agent C 下载并核对目录为 `/private/tmp/ww2tactics-c-review-32633020222/`。
+- `ci-artifact-manifest.json` 的 `version=v2.52`、`branch=main`、`commitSha=69dfd3f1e2530927ef9ec1c5fa59a066137bade2`、run `32633020222` 与 attempt `1` 均精确匹配；JUnit 为 4 tests / 0 failures / 0 errors / 0 skipped，static plist 为 OK，Rules smoke passed，Xcode build-for-testing 为 `TEST BUILD SUCCEEDED`，screenshot 为 success。
+- XCTest 执行按现有 CI 策略 skipped，但 test bundle 已成功 build-for-testing；日志只有两条非致命 AppIntents warning，并有 Actions Node.js 20 提醒。
+- Agent C 实际核对的 regular PNG 为 `2064×2752`、`5,612,377 bytes`、8-bit RGBA，SHA-256 记录为 `512a2474…5099`；regular 视觉验收通过。本次仅文档闭环提交，其新 commit、workflow run/attempt 与 artifact 尚未生成，不预填未知值，仍须对最新 run 复验。
 
 遗留事项：
 
-- 现有 workflow 只生成 regular `selected-combat-impact-steady` PNG；compact、窄宽度、`.xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 只能源码审查，不能由 regular PNG 冒充独立实测。
-- v2.52 仍等待本轮提交、GitHub Actions 重验证与 Agent C exact artifact/PNG 验收；在该闭环完成前不得宣称版本通过。
+- 现有 workflow 只生成 regular `selected-combat-impact-steady` PNG；compact、窄宽度、`.xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 仍仅完成源码审查，不能由 regular PNG 冒充独立实测。
+- v2.52 功能提交已完成精确 artifact 与 regular PNG 验收；本次文档闭环提交仍待 GitHub Actions 生成最新结果包并由 Agent C 复验，在此之前不得把旧功能 artifact 冒充文档提交的云端证据。
 
 ### v2.51 / 道路路基材质降噪
 

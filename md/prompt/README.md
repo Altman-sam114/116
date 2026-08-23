@@ -74,10 +74,10 @@ Agent A 写给 Agent B 的提示词必须包含：
 
 ## 当前建议
 
-当前推进到 `v2.52（平原雪地跨格连续晕染）.md`。权威 `main`、`origin/main`、`HEAD` 基线为 `48ddf198fc4682ef4c7626bd50e4870dcf2504bf`。
+当前推进到 `v2.52（平原雪地跨格连续晕染）.md`。本次文档闭环开始时，权威 `main`、`origin/main`、`HEAD` 基线为已通过功能验收的 `69dfd3f1e2530927ef9ec1c5fa59a066137bade2`。
 
 v2.51 已完成完整云端闭环：功能提交 `e3c449b9b9a6b36c0c8482c7ae131939cb6237da` 对应 workflow run `32628944413`、attempt `1` 和 artifact `ww2tactics-ci-v2.51-main-e3c449b-run32628944413-attempt1`；文档提交 `48ddf198fc4682ef4c7626bd50e4870dcf2504bf` 对应 workflow run `32630060664`、attempt `1` 和 artifact `ww2tactics-ci-v2.51-main-48ddf19-run32630060664-attempt1`。两份结果包均已由 Agent C 下载并精确核对，旧的“等待提交、push 和验收”状态已关闭。
 
-v2.52 已完成本地实现并等待提交、push 和云端精确验收：`TerrainTexture.terrainContinuityLayer(_:)` 为 `.plains` 与 `.snow` 各复用同一个既有 path 绘制一次极弱、宽幅、round 的静态 continuity stroke，`BattlefieldTheme.swift` 新增两个仅供这两个分支消费的 map-only token。`fieldLines`、`snowDrifts`/针叶树、`HexEtchedBoundaryLayer`、道路/河流、模型、`GameState`、规则、输入、geometry、`ContentView`、测试实现、project 和 workflow 全部冻结。本轮 commit、run、attempt 和 artifact 尚未生成，不预填未知值；regular PNG 只能证明 regular，compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 只能源码审查。
+v2.52 功能提交 `69dfd3f1e2530927ef9ec1c5fa59a066137bade2` 已由 Agent C 精确验收通过，对应 workflow run `32633020222`、attempt `1` 和 artifact `ww2tactics-ci-v2.52-main-69dfd3f-run32633020222-attempt1`。实现只在 `TerrainTexture.terrainContinuityLayer(_:)` 为 `.plains` 与 `.snow` 各复用同一个既有 path 绘制一次极弱、宽幅、round 的静态 continuity stroke，并新增两个仅供这两个分支消费的 map-only token；冻结边界保持不变。当前仅文档闭环提交待生成并核对最新 workflow run/artifact，其 commit、run、attempt 和 artifact 不在此预填；regular PNG 只能证明 regular，compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 仍仅源码审查。
 
 历史阶段 v2.0-v2.51 已完成地图优先构图、白昼底材、地貌连续性、军械、据点、轨道、材质、河道、蚀刻边界、道路路基与战果反馈等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.52 条目。
