@@ -74,6 +74,8 @@ Agent A 写给 Agent B 的提示词必须包含：
 
 ## 当前建议
 
-当前推进到 `v2.50（六角格蚀刻边界层次）.md`：v2.49 已由 Agent C 针对文档闭环 `main`/`origin/main`/`HEAD` `a6ccfd9f95765a9b7d9e54a0e80234a384b1183a`、workflow run `31641260268`、attempt `1`、artifact `ww2tactics-ci-v2.49-main-a6ccfd9-run31641260268-attempt1` 和 digest `sha256:6a916a787b39ce83c4eff488a35dd9b00ec0df7ac6538cdc9d324efa2ce48de7` 验收通过。v2.50 只计划在 `BattlefieldMap.swift` 的 `HexMapView`/`HexTileView` 静态六角边界表现区域与 `BattlefieldTheme.swift` 的边界 token 中，收敛普通六角蚀刻线、同类地貌连续面和地形/地图外缘的明度与线宽层级，使六角结构可读但不形成硬网格；v2.49 river corridor、道路网络/环路、五类地貌纹理、据点、军械、战果、HUD、`AL / OBJ / AX` rail、规则、模型、输入、地图几何、测试实现、project 和 workflow 均冻结。B/C 仍必须遵循 main 直推、精确 manifest/SHA/run/attempt/artifact 核对与 regular-only 截图证据边界；compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 只能源码审查。
+当前推进到 `v2.51（道路路基材质降噪）.md`。权威 `main`、`origin/main`、`HEAD` 基线为 `67817e9fae6f9dc11a3aee6db3a75d5432624437`；v2.50 文档闭环已由 Agent C 针对 workflow run `32626724915`、attempt `1` 和 artifact `ww2tactics-ci-v2.50-main-67817e9-run32626724915-attempt1` 验收通过，artifact id 为 `9489961590`，digest 为 `sha256:f429e3c4661d2e47fce70ae6e363ac007aed4d97c92e80173aa2677db572bda6`，下载目录为 `/private/tmp/ww2tactics-c-review-32626724915/`。
 
-历史阶段 v2.0-v2.49 已完成地图优先构图、白昼底材、地貌连续性、军械、据点、轨道、材质与战果反馈等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.50 条目。
+v2.51 已由 Agent B 按 prompt 限定在 `BattlefieldMap.swift` 的 `TerrainTexture` road-only connection/material 分支实现：复用同一个未修改的 `connectionPath`，把醒目棕色折线路网整理为低对比路基、3pt 窄主路面和只在边缘露出的克制高光；`RoadConnectionNetwork`、canonical/selected edges、loop quota、`terrainConnectionDirections`、`connectionPath`、`endpoint`、地图几何/输入/规则、river corridor、v2.50 六角边界、五类非道路材质、`BattlefieldTheme.swift`、`ContentView.swift`、测试实现、project 和 workflow 全部冻结。当前等待本轮提交、push 后对应 SHA 的云端 workflow 与 Agent C exact artifact/regular PNG 验收；compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 只能源码审查。
+
+历史阶段 v2.0-v2.50 已完成地图优先构图、白昼底材、地貌连续性、军械、据点、轨道、材质、河道、蚀刻边界与战果反馈等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.51 条目。

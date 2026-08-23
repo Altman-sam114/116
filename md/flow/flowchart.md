@@ -725,6 +725,23 @@ flowchart LR
 
 蚀刻层仅从既有地格和邻接事实确定性派生，固定在地貌与战术反馈之下；同类地貌共享面弱化，地形切换和地图外缘保留分级轮廓。边段限制在 `Hexagon` clip 内，关闭命中并隐藏于无障碍树，不写回模型或规则。
 
+## v2.51 道路路基材质降噪
+
+```mermaid
+flowchart LR
+  T["TerrainTile(.road)"] --> N["RoadConnectionNetwork / canonical edges / loop quota 不变"]
+  N --> D["terrainConnectionDirections 不变"]
+  D --> P["同一 connectionPath / endpoint"]
+  P --> B["最宽最弱的低对比路基"]
+  B --> E["略宽边缘高光"]
+  E --> S["3pt 低饱和主路面覆盖中央"]
+  S --> R["只露克制 rim；无亮中心线"]
+  R --> H["既有据点 / 单位 / HP行动 / selected / marker / HIT-RET / HUD / rail"]
+  G["Hexagon clip / input / geometry / scroll-zoom / GameState 不变"] -.-> R
+```
+
+道路材质只在 `TerrainTexture` road-only 分支重排三层 stroke，连通主干、端点、分支、长环路、地图边缘连接和孤立短笔触继续来自既有只读网络与 Path；river corridor、v2.50 蚀刻边界及全部非道路材质保持原样。
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

@@ -21,6 +21,37 @@
 
 ## 历史记录
 
+### v2.51 / 道路路基材质降噪
+
+日期：2026-08-23
+
+核心变更：
+
+- `TerrainTexture.connectionLayer(in:)` 仅将 `.road` 分流到私有 road-only helper；同一个既有 `connectionPath` 依次承载最宽最弱的地表同族路基、略宽于主路面的低透明高光和 3pt 低饱和主路面，使高光只露成克制边缘 rim，不形成亮中心线。
+- `RoadConnectionNetwork`、`RoadDisjointSet`、canonical/selected edges、loop quota、paired half-path、`roadConnectionDirectionsByCoordinate`、`terrainConnectionDirections`、`connectionPath`、`endpoint`、`TerrainKind`、river corridor、v2.50 六角边界、非道路材质、地图几何/输入/规则和高优先级战术叠层均未修改；孤立道路继续复用既有短笔触。
+- 本轮 Swift 实现仅涉及 `BattlefieldMap.swift` 的 `TerrainTexture` road-only connection/material 区域；未新增状态、缓存、动画、随机源、资源、网络或依赖。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.51（道路路基材质降噪）.md`
+
+验证结果：
+
+- 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `67817e9fae6f9dc11a3aee6db3a75d5432624437`，远端为 `https://github.com/Altman-sam114/116.git`；Agent A 留在工作树的 v2.51 prompt 与 `md/prompt/README.md` 合法未提交改动均已保留并纳入本轮范围。
+- 本地按人工约束只运行轻量检查：`git diff --check` 无输出且退出码为 0；`git diff --name-only` 仅列出 7 个已跟踪的本轮文件，`git status --short --branch` 另确认 Agent A 新增的 v2.51 prompt，共 8 个本轮文件；范围 `rg` 确认道路网络、方向、`connectionPath`、`endpoint` 与六角裁剪/命中边界等冻结符号仍在既有位置，并确认 road-only helper 三层参数。未运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图。
+- 本条目写入时 v2.51 commit、workflow run/attempt、artifact 名称/id/digest、下载目录和 PNG 事实尚未生成，未预填未知值；提交并 push 后等待对应 SHA 的 GitHub Actions 重验证和 Agent C exact artifact/regular PNG 验收。
+
+遗留事项：
+
+- 现有 workflow 只生成 regular PNG；compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 仍只能源码审查，不能由 regular PNG 冒充独立实测。
+- 云端验收完成前不得宣称 v2.51 通过，也不得使用 v2.50 旧 artifact 替代本轮证据。
+
 ### v2.50 / 六角格蚀刻边界层次
 
 日期：2026-08-13

@@ -1724,6 +1724,8 @@ struct TerrainTexture: View {
 
             if tile.terrain == .river {
                 riverConnectionLayer(path)
+            } else if tile.terrain == .road {
+                roadConnectionLayer(path)
             } else if tile.terrain.showsMapConnections {
                 ZStack {
                     path
@@ -1759,6 +1761,42 @@ struct TerrainTexture: View {
                     }
                 }
             }
+        }
+    }
+
+    private func roadConnectionLayer(_ path: Path) -> some View {
+        ZStack {
+            path
+                .stroke(
+                    roadbedColor,
+                    style: StrokeStyle(
+                        lineWidth: roadbedWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+
+            // Paint the wider highlight before the surface so only a quiet
+            // edge rim remains instead of a bright center line.
+            path
+                .stroke(
+                    roadEdgeHighlightColor,
+                    style: StrokeStyle(
+                        lineWidth: roadEdgeHighlightWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+
+            path
+                .stroke(
+                    roadSurfaceColor,
+                    style: StrokeStyle(
+                        lineWidth: roadSurfaceWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
         }
     }
 
@@ -2121,6 +2159,18 @@ struct TerrainTexture: View {
     private var riverCorridorBankWidth: CGFloat { 8 }
     private var riverCorridorChannelWidth: CGFloat { 5.8 }
     private var riverCorridorHighlightWidth: CGFloat { 0.9 }
+    private var roadbedColor: Color {
+        Color(red: 0.51, green: 0.49, blue: 0.41).opacity(0.18)
+    }
+    private var roadSurfaceColor: Color {
+        Color(red: 0.44, green: 0.41, blue: 0.35).opacity(0.46)
+    }
+    private var roadEdgeHighlightColor: Color {
+        Color(red: 0.78, green: 0.76, blue: 0.67).opacity(0.14)
+    }
+    private var roadbedWidth: CGFloat { 6.2 }
+    private var roadSurfaceWidth: CGFloat { 3.0 }
+    private var roadEdgeHighlightWidth: CGFloat { 3.7 }
 
     private var connectionShadowWidth: CGFloat {
         switch tile.terrain {
