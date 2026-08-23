@@ -74,7 +74,7 @@ Agent A 写给 Agent B 的提示词必须包含：
 
 ## 当前建议
 
-当前推进到 `v2.54（据点静态整格轮廓局部化）.md` 的实现阶段：Agent B 已按 prompt 完成 `BattlefieldMap.swift` 唯一五处 Swift 改动并同步本轮文档，冻结文件无 diff；本地只执行 Git/text 白名单检查。v2.54 的最新 commit、workflow run、attempt 和 artifact 由 push 后 Agent C 精确核对，本索引不预填未知 CI 事实。
+当前 `v2.54（据点静态整格轮廓局部化）.md` 功能已通过，文档闭环提交待最新 run 复验：功能提交为 `6cc5c378d9a0906b4ffce319e6c4a1637e4073f6`，对应 workflow run `32647289526`、attempt `1`、状态 `completed/success`；Agent C 已核对 artifact `ww2tactics-ci-v2.54-main-6cc5c37-run32647289526-attempt1`（id `9495311729`，digest `sha256:3d12474ebcba78629ecb457db9266d38f985b2e58ff627d72994d45653c7c071`，API size `6,797,996 bytes`，目录 `/private/tmp/ww2tactics-c-review-32647289526/`）。manifest 的 `version=v2.54`、`branch=main`、commit/run/attempt 完全匹配；static checks、Rules smoke、Xcode build-for-testing、JUnit 和 `xcresult` 均符合功能验收，实际 XCTest 为 skipped。regular PNG 为 `2064x2752`、8-bit RGBA、non-interlaced、`5,573,657 bytes`，SHA-256 为 `626362a33d1b44e8ecd5db9fbdbbc71f843f45d4929719ec8f8ae42a2a5ee7d7`；静态据点粗边减少、局部据点身份和 selected/combat-response 反馈保留且无明显回归。XCTest skipped、2 个非致命 AppIntents metadata warnings 以及 regular-only 限制仍如实保留；attack-focus/latest capture/guided/AI/实时命令/route/compact/窄宽/`xxxLarge`/多焦点/VoiceOver/Reduce Motion/4x 仅源码审查。即将生成的文档闭环 commit、run、attempt、artifact 和 digest 不预填。
 
 v2.53 已完成最终云端闭环：文档闭环提交 `b6bd2a4349c5ea4c427d5fc181035c5366d89385` 对应 workflow run `32639356579`、attempt `1`、`completed/success`；artifact 为 `ww2tactics-ci-v2.53-main-b6bd2a4-run32639356579-attempt1`，artifact id `9493294466`，digest `sha256:bdbd51fe7b19190eb7b06ef10b3f67b2faed6f19dd711e90576a46aa4d71c478`。Agent C 已下载到 `/private/tmp/ww2tactics-c-review-32639356579/` 并精确核对，旧的“文档闭环提交待最新 run 复验”状态已关闭。
 

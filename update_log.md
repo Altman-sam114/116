@@ -47,11 +47,15 @@
 - 本轮开始前依次完成 `git fetch origin`、`git switch main`、`git pull --ff-only origin main` 和 `git status --short --branch`；`main`、`HEAD`、`origin/main` 基线为 `b6bd2a4349c5ea4c427d5fc181035c5366d89385`，Agent A 的 prompt 文档改动已保留。远端为 `origin/main`，活动 GitHub 账号为 `Altman-sam114`。
 - 本地仅按 v2.54 prompt 运行 Git/text 白名单：`git diff --check` 无输出且退出码为 0；`git diff --name-only`、`git status --short --branch`、BattlefieldMap 精确 diff 和指定 `rg` 符号检查用于核对范围、空白、五处 Swift 事实和冻结链。
 - 未运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、`xcodebuild`、模拟器、Playwright、SwiftUI preview、预览或截图；上述 Git/text 检查不是编译、规则、可访问性或视觉通过证据。
-- 本轮云端 workflow、run/attempt、artifact、manifest、日志、`.xcresult` 和 PNG 事实待 push 后由 Agent C 针对最新 `origin/main` 精确核对；本条目不预填未知 CI 证据，也不替代 Agent C 验收。
+- 功能提交为 `6cc5c378d9a0906b4ffce319e6c4a1637e4073f6`；对应 workflow run `32647289526`、attempt `1`，状态为 `completed/success`。
+- Agent C 已核对精确结果包 `ww2tactics-ci-v2.54-main-6cc5c37-run32647289526-attempt1`，artifact id 为 `9495311729`，digest 为 `sha256:3d12474ebcba78629ecb457db9266d38f985b2e58ff627d72994d45653c7c071`，API size 为 `6,797,996 bytes`，下载目录为 `/private/tmp/ww2tactics-c-review-32647289526/`。
+- `ci-artifact-manifest.json` 的 `version=v2.54`、`branch=main`、commit、run 和 attempt 与 `6cc5c378d9a0906b4ffce319e6c4a1637e4073f6`、`32647289526`、`1` 完全匹配；static checks success，Rules smoke passed，Xcode build-for-testing 为 `TEST BUILD SUCCEEDED`，JUnit 为 4 tests、0 failures、0 errors、0 skipped，实际 XCTest 为 `skipped`，`xcresult` 可读。
+- Agent C 实际查看的 regular PNG 为 `2064x2752`、8-bit RGBA、non-interlaced、`5,573,657 bytes`，SHA-256 为 `626362a33d1b44e8ecd5db9fbdbbc71f843f45d4929719ec8f8ae42a2a5ee7d7`。普通盟军、轴心和中立据点的静态蓝/红/黄粗完整六角边减少；`ObjectiveLandmark`、旗牌、`AL`/`AX`/`NEU`、名称牌和 owner fill 清晰；selected 暖金与 combat-response 橙色 `3pt` 保留，地图、单位、HUD、`HIT`/`RET`、`AL`/`OBJ`/`AX` 无明显回归。
+- 风险与证据边界：XCTest 实际为 skipped；有 2 个非致命 AppIntents metadata warnings；本轮为 regular-only，attack-focus、latest capture、guided、AI、实时命令、route、compact、窄宽、`xxxLarge`、多焦点、VoiceOver、Reduce Motion 和 4x 仅作源码审查，不能由 regular PNG 冒充独立实测。
 
 遗留事项：
 
-- v2.54 需由 Agent B 在 `main` 以 `v2.54: 局部化据点静态轮廓` 提交并直接 push `origin/main`；随后由 Agent C 使用最新 workflow artifact 核对 regular 截图和源码边界。regular 之外的 attack-focus fallback、latest capture、guided、AI、实时命令、compact、Dynamic Type、VoiceOver、Reduce Motion 和 4x 仍只能按 prompt 进行源码审查。
+- v2.54 功能提交已由 Agent C 针对上述精确 SHA、workflow、manifest、artifact、`.xcresult` 和 regular PNG 验收通过。本轮只补录功能证据并更新两份文档；文档闭环提交的新 SHA、workflow run/attempt 和 artifact 尚未生成，不预填、不自引用，push 后仍须由 Agent C 对最新文档 SHA 重新核对。regular 之外的状态和环境仍受上述源码审查边界限制。
 
 ### v2.53 / 控制区威胁补给边框去重
 
