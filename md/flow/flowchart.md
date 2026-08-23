@@ -756,6 +756,25 @@ flowchart LR
 
 平原与雪地只补齐既有 continuity switch 的两个空分支，不创建新方向、边集合、Path、overlay 或状态；森林/山地连续层、局部纹理、六角边界、道路河流和全部高优先级反馈保持原链。
 
+## v2.53 控制区威胁补给边框去重
+
+```mermaid
+flowchart LR
+  F["GameState 地图事实不变"] --> T["threat / enemy ZOC"]
+  F --> S["supply line"]
+  F --> A["attack coverage"]
+  T --> W["保留红色 wash"]
+  S --> M["保留连续 SupplyLineMarker + SUP/CUT"]
+  A --> O["保留橙色 0.40 / 1pt 射程边"]
+  T -. "删除重复 border 消费" .-> B["通用 Hexagon stroke"]
+  S -. "删除重复 border 消费" .-> B
+  O --> B
+  B --> H["selected / route / focused / objective / AI 原优先级"]
+  G["geometry / input / VoiceOver / rules 不变"] -.-> H
+```
+
+本轮只从 `HexTileView.borderColor` 与 `borderWidth` 删除 threat、enemy control zone、supply line 三组低优先级整格边框分支；事实集合、红色水洗、连续补给通道、橙色射程边、通用 stroke 和高优先级状态保持原链。
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

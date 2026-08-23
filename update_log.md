@@ -21,6 +21,38 @@
 
 ## 历史记录
 
+### v2.53 / 控制区威胁补给边框去重
+
+日期：2026-08-23
+
+核心变更：
+
+- `HexTileView.borderColor` 仅删除普通态 `isThreatenedMoveTile`、`isEnemyControlZone`、`isSupplyLine` 三个低优先级整格边框分支；`borderWidth` 同步删除对应三行，共六行 Swift 删除。
+- threat/ZOC 仍由既有 `!isAttackFocusMode` 红色 wash 表达，supply line 仍由连续 `SupplyLineMarker` 与 `SUP`/`CUT` 链表达；`isAttackCoverage` 的橙色 `0.40`/`1pt` 唯一射程边框、通用 `Hexagon` stroke、selected/route/focused/objective/AI 及其他高优先级分支保持原值和相对顺序。
+- 上游事实、`GameState`、补给 BFS、地图 geometry/input/VoiceOver、地貌/道路/河流、单位、战果、HUD、`AL / OBJ / AX`、测试实现、project 和 workflow 均未修改；未新增 token、状态、helper、Path、marker、资源、动画、缓存或依赖。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.53（控制区威胁补给边框去重）.md`
+
+验证结果：
+
+- 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `27e21351187fffaf04aaa2e7362f840168a4f45b`；开始前依次完成 `git fetch origin`、`git switch main`、`git pull --ff-only origin main` 与 `git status --short --branch`，并保留 Agent A 的 `md/prompt/README.md` 修改和新增 v2.53 prompt，未发现其他来源不明改动。
+- 本地按 prompt 白名单运行 `git diff --check`，无输出且退出码为 0；`git diff --name-only` 仅列出 7 个已跟踪的本轮文件，`git status --short --branch` 另确认 Agent A 新 prompt；精准 `rg` 确认通用 stroke、red wash、连续 `SupplyLineMarker`、orange attack coverage、后续边框分支、geometry/input/VoiceOver 符号仍在，六个待删分支已不再出现在两个 computed property。
+- 人工与 v2.53 prompt 明确禁止本地 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright、预览和截图；上述 Git/text 检查只证明空白、范围与符号文本事实，不是编译、规则、可访问性或视觉通过证据。
+- 本条在提交前记录真实实现；v2.53 commit、workflow run/attempt、artifact 名称/id/digest、下载目录和 PNG 视觉结论尚未生成，未预填未知值。完整 static、RulesSmokeTest、Xcode build-for-testing 与 regular screenshot 必须由本轮 push 后 GitHub Actions 和 Agent C 精确 artifact 验收。
+
+遗留事项：
+
+- Agent C 必须只下载最新 v2.53 `origin/main` SHA 对应的结果包，核对 manifest/run/attempt、日志、JUnit、`.xcresult` 并实际查看 regular PNG；不得复用 v2.52 artifact。
+- regular `selected-combat-impact-steady` 可直接验证 enemy ZOC/supply 整格边减少，但不激活 threatened；threatened、route、实时 ATK/POS、CUT、compact、窄宽度、`.xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和无独立输出的 4x 只能源码审查，不能由 regular PNG 冒充独立实测。
+
 ### v2.52 / 平原雪地跨格连续晕染
 
 日期：2026-08-23

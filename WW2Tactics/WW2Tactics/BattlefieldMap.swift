@@ -807,9 +807,6 @@ struct HexTileView: View {
         if isEnemyThreatIntentTarget { return .pink.opacity(0.92) }
         if isMovementRoute { return .cyan.opacity(0.88) }
         if isAttackCoverage { return .orange.opacity(0.40) }
-        if isThreatenedMoveTile { return .red.opacity(0.34) }
-        if isEnemyControlZone { return .red.opacity(0.26) }
-        if isSupplyLine { return BattlefieldTheme.supplyLine.opacity(0.38) }
         if isFocused { return .white.opacity(0.9) }
         if tile.isObjective { return (tile.owner?.accentColor ?? .yellow).opacity(0.9) }
         if !aiPhaseMapMarkers.isEmpty { return .indigo.opacity(0.86) }
@@ -837,9 +834,6 @@ struct HexTileView: View {
         if isEnemyThreatIntentTarget { return 2 }
         if isMovementRoute { return 2 }
         if isAttackCoverage { return 1 }
-        if isThreatenedMoveTile { return 1 }
-        if isEnemyControlZone { return 1 }
-        if isSupplyLine { return 0.75 }
         if isFocused { return 2 }
         if tile.isObjective { return 2 }
         if !aiPhaseMapMarkers.isEmpty { return 2 }

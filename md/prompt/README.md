@@ -74,10 +74,10 @@ Agent A 写给 Agent B 的提示词必须包含：
 
 ## 当前建议
 
-当前推进到 `v2.52（平原雪地跨格连续晕染）.md`。本次文档闭环开始时，权威 `main`、`origin/main`、`HEAD` 基线为已通过功能验收的 `69dfd3f1e2530927ef9ec1c5fa59a066137bade2`。
+当前推进到 `v2.53（控制区威胁补给边框去重）.md` 的实现完成、等待云端验收阶段。Agent A 建档时权威 `main`、`origin/main`、`HEAD` 均为 `27e21351187fffaf04aaa2e7362f840168a4f45b`；Agent B 保留该 prompt 与本索引的合法未提交改动，并按限定范围完成实现与文档同步。本记录不预填尚未知的 v2.53 commit、workflow run、attempt 或 artifact。
 
-v2.51 已完成完整云端闭环：功能提交 `e3c449b9b9a6b36c0c8482c7ae131939cb6237da` 对应 workflow run `32628944413`、attempt `1` 和 artifact `ww2tactics-ci-v2.51-main-e3c449b-run32628944413-attempt1`；文档提交 `48ddf198fc4682ef4c7626bd50e4870dcf2504bf` 对应 workflow run `32630060664`、attempt `1` 和 artifact `ww2tactics-ci-v2.51-main-48ddf19-run32630060664-attempt1`。两份结果包均已由 Agent C 下载并精确核对，旧的“等待提交、push 和验收”状态已关闭。
+v2.52 已完成完整云端闭环：功能提交 `69dfd3f1e2530927ef9ec1c5fa59a066137bade2` 对应 workflow run `32633020222`、attempt `1` 和 artifact `ww2tactics-ci-v2.52-main-69dfd3f-run32633020222-attempt1`；最终文档闭环 SHA `27e21351187fffaf04aaa2e7362f840168a4f45b` 对应 workflow run `32633841924`、attempt `1`、artifact `ww2tactics-ci-v2.52-main-27e2135-run32633841924-attempt1`、artifact id `9491881137`、digest `sha256:ac9a381743dda8eff0d299806e3467b81f82a70e907ef205160fbefdf23a4c47`。最终结果包已由 Agent C 下载到 `/private/tmp/ww2tactics-c-review-32633841924/` 并精确核对，旧的“等待文档提交、push 和验收”状态已关闭。
 
-v2.52 功能提交 `69dfd3f1e2530927ef9ec1c5fa59a066137bade2` 已由 Agent C 精确验收通过，对应 workflow run `32633020222`、attempt `1` 和 artifact `ww2tactics-ci-v2.52-main-69dfd3f-run32633020222-attempt1`。实现只在 `TerrainTexture.terrainContinuityLayer(_:)` 为 `.plains` 与 `.snow` 各复用同一个既有 path 绘制一次极弱、宽幅、round 的静态 continuity stroke，并新增两个仅供这两个分支消费的 map-only token；冻结边界保持不变。当前仅文档闭环提交待生成并核对最新 workflow run/artifact，其 commit、run、attempt 和 artifact 不在此预填；regular PNG 只能证明 regular，compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 仍仅源码审查。
+v2.53 已在 `BattlefieldMap.swift` 的 `HexTileView.borderColor` 与 `borderWidth` 删除普通态 `isThreatenedMoveTile`、`isEnemyControlZone`、`isSupplyLine` 三组重复整格边框分支，共六行；threat/ZOC 红 wash、连续 `SupplyLineMarker`、`isAttackCoverage` 橙色 `0.40`/`1pt` 唯一射程边框、通用 stroke 和所有高优先级状态保持不变。该实现尚待最新 `origin/main` GitHub Actions 与 Agent C 精确 artifact 验收，当前不得宣称 v2.53 通过。
 
-历史阶段 v2.0-v2.51 已完成地图优先构图、白昼底材、地貌连续性、军械、据点、轨道、材质、河道、蚀刻边界、道路路基与战果反馈等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.52 条目。
+历史阶段 v2.0-v2.52 已完成地图优先构图、白昼底材、地貌连续性、军械、据点、轨道、材质、河道、蚀刻边界、道路路基、战果反馈与平原雪地连续晕染等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.53 条目。
