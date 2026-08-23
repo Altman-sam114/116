@@ -614,7 +614,7 @@ struct HexTileView: View {
     var body: some View {
         ZStack {
             Hexagon()
-                .fill(tile.terrain.mapGradient)
+                .fill(tile.terrain.mapGradient.opacity(0.78))
                 .overlay(
                     Hexagon()
                         .fill(

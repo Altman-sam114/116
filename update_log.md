@@ -21,6 +21,36 @@
 
 ## 历史记录
 
+### v2.55 / 六角地貌底色连续化
+
+日期：2026-08-24
+
+核心变更：
+
+- `HexTileView` 的最底层 `Hexagon` fill 改为使用既有 `tile.terrain.mapGradient` 的固定 `0.78` opacity，让 `MapGridBackdrop` 参与平原/雪地底色混合，降低独立六角块的明暗跳变。
+- 未修改 `TerrainKind` map gradient/token、`TerrainTexture`、`HexEtchedBoundaryLayer`、道路/河流、据点、单位、owner/status/marker、geometry、输入、可访问性、规则或任何新状态/缓存/动画/资产；后续 overlay 顺序保持不变。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.55（六角地貌底色连续化）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮开始前已依次执行 `git fetch origin`、`git switch main`、`git pull --ff-only origin main` 和 `git status --short --branch`；`main`、`HEAD`、`origin/main` 基线为 `c71bfc800456de24ec693911f63772a72c377433`，工作树当时只有 Agent A 的 v2.55 prompt。
+- 按 v2.55 prompt 只执行 Git/text 轻量检查；未运行任何本地 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode/xcodebuild、模拟器、Playwright、SwiftUI preview、截图或完整构建。Git/text 检查不等于编译、规则、可访问性或视觉通过证据。
+- 本轮提交并 push 后等待 GitHub Actions 生成最新结果；run、run attempt、artifact、manifest、日志和 regular PNG 均不在本记录中预写，须由 Agent C 针对 exact commit 下载核对。
+
+遗留事项：
+
+- 等待最新 `origin/main` commit 对应的 Actions run 与 Agent C exact artifact 验收；regular 之外的 compact、窄宽度、动态字体、VoiceOver、Reduce Motion、多焦点和 4x 状态仍不由本轮本地检查证明。
+
 ### v2.54 / 据点静态整格轮廓局部化
 
 日期：2026-08-23

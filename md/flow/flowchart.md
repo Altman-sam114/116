@@ -797,6 +797,20 @@ flowchart LR
 
 据点静态身份由局部地标、旗牌、名称牌和低强度 owner fill 承接；交互与结果状态继续消费原有通用状态边，蚀刻边界层保持独立静态地貌结构。
 
+## v2.55 六角地貌底色连续化
+
+```mermaid
+flowchart LR
+  B["MapGridBackdrop：既有连续地图底材"] --> F["HexTileView 最底层 Hexagon fill\nterrain.mapGradient.opacity(0.78)"]
+  T["TerrainTile.terrain\n既有 TerrainKind token"] --> G["既有 mapGradient"]
+  G --> F
+  F --> E["既有蚀刻共享边 / 过渡边 / 地图外缘"]
+  E --> O["TerrainTexture / 道路河流 / 据点 / 单位 / marker / 战果 / HUD / rail"]
+  C["geometry / contentShape / zIndex / input / GameState 不变"] -.-> F
+```
+
+v2.55 只降低最底层地貌渐变的视觉重量，使已有地图底材在六角内部参与混合；不改变 `TerrainKind` token，不新增邻接、状态或全图覆盖层，后续 overlay 顺序和交互链保持原样。
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。
