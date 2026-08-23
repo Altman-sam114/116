@@ -21,6 +21,38 @@
 
 ## 历史记录
 
+### v2.52 / 平原雪地跨格连续晕染
+
+日期：2026-08-23
+
+核心变更：
+
+- `TerrainTexture.terrainContinuityLayer(_:)` 仅补齐 `.plains` 与 `.snow` 两个空分支：各对同一个既有 `connectionPath` 绘制一次极低对比、宽幅、round stroke，使同类平原和雪地跨共享边形成柔和连续色面。
+- `BattlefieldTheme` 新增 `mapPlainsContinuity` 与 `mapSnowContinuity` 两个 map-only 静态 token，只供上述两个分支消费；未修改任何既有 token。
+- `terrainConnectionDirections`、`connectionLayer(in:)`、`connectionPath(in:)`、`endpoint(for:in:)`、`fieldLines(in:)`、`snowDrifts(in:)`/针叶树、森林/山地 continuity、`HexEtchedBoundaryLayer`、道路/河流、地图 geometry/输入、模型、规则和高优先级战术叠层均未修改；未新增状态、缓存、动画、随机、资源或依赖。
+
+关键文件：
+
+- `WW2Tactics/WW2Tactics/BattlefieldTheme.swift`
+- `WW2Tactics/WW2Tactics/BattlefieldMap.swift`
+- `WW2Tactics/README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v2（六角格战争界面）/v2.52（平原雪地跨格连续晕染）.md`
+
+验证结果：
+
+- 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `48ddf198fc4682ef4c7626bd50e4870dcf2504bf`，远端为 `https://github.com/Altman-sam114/116.git`；Agent A 留在工作树的 v2.52 prompt 与 `md/prompt/README.md` 合法未提交改动均已保留并纳入本轮范围。
+- 本地按人工约束只运行 prompt 白名单内的 Git/text 轻量检查：`git diff --check`、`git diff --name-only`、`git status --short --branch` 和指定范围 `rg`；未运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright、预览或截图。上述 Git/text 命令只证明空白、范围和符号事实，不是编译、规则或视觉通过证据。
+- 本条目写入时，v2.52 commit、workflow run/attempt、artifact 名称/id/digest、下载目录和 PNG 事实尚未生成，未预填未知值；push 后必须由 Agent C 只下载并核对 v2.52 最新 SHA 的精确结果包和 regular PNG。
+
+遗留事项：
+
+- 现有 workflow 只生成 regular `selected-combat-impact-steady` PNG；compact、窄宽度、`.xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 只能源码审查，不能由 regular PNG 冒充独立实测。
+- v2.52 仍等待本轮提交、GitHub Actions 重验证与 Agent C exact artifact/PNG 验收；在该闭环完成前不得宣称版本通过。
+
 ### v2.51 / 道路路基材质降噪
 
 日期：2026-08-23

@@ -74,8 +74,10 @@ Agent A 写给 Agent B 的提示词必须包含：
 
 ## 当前建议
 
-当前推进到 `v2.51（道路路基材质降噪）.md`。权威 `main`、`origin/main`、`HEAD` 基线为 `67817e9fae6f9dc11a3aee6db3a75d5432624437`；v2.50 文档闭环已由 Agent C 针对 workflow run `32626724915`、attempt `1` 和 artifact `ww2tactics-ci-v2.50-main-67817e9-run32626724915-attempt1` 验收通过，artifact id 为 `9489961590`，digest 为 `sha256:f429e3c4661d2e47fce70ae6e363ac007aed4d97c92e80173aa2677db572bda6`，下载目录为 `/private/tmp/ww2tactics-c-review-32626724915/`。
+当前推进到 `v2.52（平原雪地跨格连续晕染）.md`。权威 `main`、`origin/main`、`HEAD` 基线为 `48ddf198fc4682ef4c7626bd50e4870dcf2504bf`。
 
-v2.51 已由 Agent B 按 prompt 限定在 `BattlefieldMap.swift` 的 `TerrainTexture` road-only connection/material 分支实现：复用同一个未修改的 `connectionPath`，把醒目棕色折线路网整理为低对比路基、3pt 窄主路面和只在边缘露出的克制高光；`RoadConnectionNetwork`、canonical/selected edges、loop quota、`terrainConnectionDirections`、`connectionPath`、`endpoint`、地图几何/输入/规则、river corridor、v2.50 六角边界、五类非道路材质、`BattlefieldTheme.swift`、`ContentView.swift`、测试实现、project 和 workflow 全部冻结。当前等待本轮提交、push 后对应 SHA 的云端 workflow 与 Agent C exact artifact/regular PNG 验收；compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 只能源码审查。
+v2.51 已完成完整云端闭环：功能提交 `e3c449b9b9a6b36c0c8482c7ae131939cb6237da` 对应 workflow run `32628944413`、attempt `1` 和 artifact `ww2tactics-ci-v2.51-main-e3c449b-run32628944413-attempt1`；文档提交 `48ddf198fc4682ef4c7626bd50e4870dcf2504bf` 对应 workflow run `32630060664`、attempt `1` 和 artifact `ww2tactics-ci-v2.51-main-48ddf19-run32630060664-attempt1`。两份结果包均已由 Agent C 下载并精确核对，旧的“等待提交、push 和验收”状态已关闭。
 
-历史阶段 v2.0-v2.50 已完成地图优先构图、白昼底材、地貌连续性、军械、据点、轨道、材质、河道、蚀刻边界与战果反馈等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.51 条目。
+v2.52 已完成本地实现并等待提交、push 和云端精确验收：`TerrainTexture.terrainContinuityLayer(_:)` 为 `.plains` 与 `.snow` 各复用同一个既有 path 绘制一次极弱、宽幅、round 的静态 continuity stroke，`BattlefieldTheme.swift` 新增两个仅供这两个分支消费的 map-only token。`fieldLines`、`snowDrifts`/针叶树、`HexEtchedBoundaryLayer`、道路/河流、模型、`GameState`、规则、输入、geometry、`ContentView`、测试实现、project 和 workflow 全部冻结。本轮 commit、run、attempt 和 artifact 尚未生成，不预填未知值；regular PNG 只能证明 regular，compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 只能源码审查。
+
+历史阶段 v2.0-v2.51 已完成地图优先构图、白昼底材、地貌连续性、军械、据点、轨道、材质、河道、蚀刻边界、道路路基与战果反馈等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.52 条目。

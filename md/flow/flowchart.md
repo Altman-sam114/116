@@ -742,6 +742,20 @@ flowchart LR
 
 道路材质只在 `TerrainTexture` road-only 分支重排三层 stroke，连通主干、端点、分支、长环路、地图边缘连接和孤立短笔触继续来自既有只读网络与 Path；river corridor、v2.50 蚀刻边界及全部非道路材质保持原样。
 
+## v2.52 平原雪地跨格连续晕染
+
+```mermaid
+flowchart LR
+  T["TerrainTile(.plains / .snow) + existing same-terrain neighbors"] --> D["terrainConnectionDirections 不变"]
+  D --> P["同一 connectionPath / endpoint"]
+  P --> C["terrainContinuityLayer：各一次极弱宽幅 round stroke"]
+  C --> L["原 fieldLines / snowDrifts + 针叶树"]
+  L --> H["既有蚀刻边界 / 道路河流 / 据点单位 / marker / 战果 / HUD / rail"]
+  G["Hexagon clip / geometry / input / GameState / rules 不变"] -.-> C
+```
+
+平原与雪地只补齐既有 continuity switch 的两个空分支，不创建新方向、边集合、Path、overlay 或状态；森林/山地连续层、局部纹理、六角边界、道路河流和全部高优先级反馈保持原链。
+
 ## 2. 地图命令执行流
 
 读图说明：这张图展示地图交互的安全边界。聚焦只看信息，不消耗行动；右键或执行按钮才会进入实际命令执行。

@@ -1837,6 +1837,12 @@ struct TerrainTexture: View {
     @ViewBuilder
     private func terrainContinuityLayer(_ path: Path) -> some View {
         switch tile.terrain {
+        case .plains:
+            path
+                .stroke(
+                    BattlefieldTheme.mapPlainsContinuity,
+                    style: StrokeStyle(lineWidth: 29, lineCap: .round, lineJoin: .round)
+                )
         case .forest:
             // A quiet canopy shadow reaches the existing neighbouring edges
             // before individual trees are painted above it.
@@ -1853,7 +1859,13 @@ struct TerrainTexture: View {
                     BattlefieldTheme.mapMountainContinuity,
                     style: StrokeStyle(lineWidth: 23, lineCap: .round, lineJoin: .round)
                 )
-        case .plains, .city, .snow, .river, .road:
+        case .snow:
+            path
+                .stroke(
+                    BattlefieldTheme.mapSnowContinuity,
+                    style: StrokeStyle(lineWidth: 31, lineCap: .round, lineJoin: .round)
+                )
+        case .city, .river, .road:
             EmptyView()
         }
     }
