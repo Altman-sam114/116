@@ -45,12 +45,16 @@
 
 - 本轮权威基线为 `main`、`origin/main` 和 `HEAD` 共同指向的 `67817e9fae6f9dc11a3aee6db3a75d5432624437`，远端为 `https://github.com/Altman-sam114/116.git`；Agent A 留在工作树的 v2.51 prompt 与 `md/prompt/README.md` 合法未提交改动均已保留并纳入本轮范围。
 - 本地按人工约束只运行轻量检查：`git diff --check` 无输出且退出码为 0；`git diff --name-only` 仅列出 7 个已跟踪的本轮文件，`git status --short --branch` 另确认 Agent A 新增的 v2.51 prompt，共 8 个本轮文件；范围 `rg` 确认道路网络、方向、`connectionPath`、`endpoint` 与六角裁剪/命中边界等冻结符号仍在既有位置，并确认 road-only helper 三层参数。未运行 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode build、模拟器、Playwright 或截图。
-- 本条目写入时 v2.51 commit、workflow run/attempt、artifact 名称/id/digest、下载目录和 PNG 事实尚未生成，未预填未知值；提交并 push 后等待对应 SHA 的 GitHub Actions 重验证和 Agent C exact artifact/regular PNG 验收。
+- 本条目初始实现记录写入时，v2.51 commit、workflow run/attempt、artifact 名称/id/digest、下载目录和 PNG 事实尚未生成，未预填未知值；后续真实结果见下方。
+- v2.51 功能实现提交为 `e3c449b9b9a6b36c0c8482c7ae131939cb6237da`；对应 GitHub Actions workflow run `32628944413`、attempt `1`、结论 `success`。Agent C 已下载并核对 artifact `ww2tactics-ci-v2.51-main-e3c449b-run32628944413-attempt1`，artifact id 为 `9490611113`，digest 为 `sha256:1016c8a6378cbe8de5ceece38a141d8a5cfd995a4ec74f8fb280e1a98bc6a61b`，API size 为 `6,828,833` bytes，下载目录为 `/private/tmp/ww2tactics-c-review-32628944413/`。
+- 该 artifact 的 manifest branch、commit SHA、run id 和 attempt 与 `main`、`e3c449b9b9a6b36c0c8482c7ae131939cb6237da`、`32628944413`、`1` 精确一致；static checks、RulesSmokeTest、Xcode build-for-testing 和 regular screenshot 均为 `success`，JUnit 为 `4/4` 且 failures/errors 均为 `0`，`xcresult` 可读。XCTest 为 `skipped`，AppIntents warning 为非致命告警。
+- regular PNG 为 `2064x2752`、`5,603,797` bytes、8-bit RGBA，Agent C 已实际查看并确认非黑屏；道路呈灰褐低对比路基、窄主路面和克制 rim，主干、分支、路口、长环路、地图边缘连接与孤立短笔触均可追踪，其他地图、单位、战果、HUD 和 `AL / OBJ / AX` rail 均无明显回归。
 
 遗留事项：
 
 - 现有 workflow 只生成 regular PNG；compact、窄宽度、`xxxLarge` Dynamic Type、多焦点、VoiceOver、Reduce Motion 和没有独立输出的 4x 仍只能源码审查，不能由 regular PNG 冒充独立实测。
-- 云端验收完成前不得宣称 v2.51 通过，也不得使用 v2.50 旧 artifact 替代本轮证据。
+- v2.51 功能提交已由 Agent C 针对 `e3c449b9b9a6b36c0c8482c7ae131939cb6237da` 的精确 workflow、manifest、artifact 和 regular PNG 验收通过，可进行文档闭环。
+- 本次 `update_log.md` 补录提交不能由上述旧 `e3c449b` 功能 artifact 自引用验收；该包只证明 `e3c449b` 功能提交。后续 Agent C 必须核对本次新日志提交对应的新 SHA exact workflow/artifact，不预填未来文档 run、artifact、id 或 digest。
 
 ### v2.50 / 六角格蚀刻边界层次
 
