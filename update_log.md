@@ -45,11 +45,14 @@
 
 - 本轮开始前已依次执行 `git fetch origin`、`git switch main`、`git pull --ff-only origin main` 和 `git status --short --branch`；`main`、`HEAD`、`origin/main` 基线为 `c71bfc800456de24ec693911f63772a72c377433`，工作树当时只有 Agent A 的 v2.55 prompt。
 - 按 v2.55 prompt 只执行 Git/text 轻量检查；未运行任何本地 Swift、`swiftc`、RulesSmokeTest、XCTest、Xcode/xcodebuild、模拟器、Playwright、SwiftUI preview、截图或完整构建。Git/text 检查不等于编译、规则、可访问性或视觉通过证据。
-- 本轮提交并 push 后等待 GitHub Actions 生成最新结果；run、run attempt、artifact、manifest、日志和 regular PNG 均不在本记录中预写，须由 Agent C 针对 exact commit 下载核对。
+- 功能提交 `0344bd67f4ff7f2e3f526b413ca697a67df33cfc` 已由活动账号 `Altman-sam114` 的 `WW2Tactics CI Results` workflow_dispatch run `34172993990`（attempt `1`，`completed/success`）验收。唯一 exact artifact 为 `ww2tactics-ci-v2.55-main-0344bd6-run34172993990-attempt1`（id `10036475656`，digest `sha256:41c43c57267fcc3b607e96a117b6ecf5b25cc28decd2bfcc2d4c964b4f56372e`，API size `7,034,095 bytes`）；Agent C 下载并解包到 `/private/tmp/ww2tactics-c-review-34172993990/`，解包大小为 `9.5M`。
+- `ci-artifact-manifest.json` 的 `version=v2.55`、`branch=main`、`commitSha=0344bd67f4ff7f2e3f526b413ca697a67df33cfc`、`runId=34172993990`、`runAttempt=1` 和 workflow 与远端完全匹配。static project check 为 `OK`，Rules smoke 为 `Rules smoke test passed`，Xcode build-for-testing 为 `TEST BUILD SUCCEEDED`，JUnit 为 4 stages、0 failures、0 errors、0 skipped；XCTest 实际为 `skipped`，`.xcresult` 可读。两条 AppIntents metadata warning 与 Actions Node.js 20、`punycode`、`url.parse()` 弃用提示均为非致命。
+- Agent C 已实际打开 exact regular PNG：场景 `selected-combat-impact-steady`，iPad Pro 13-inch (M5)、iOS 26.5 simulator，`2064x2752`、8-bit RGBA、non-interlaced、`5,808,590 bytes`，SHA-256 `1e3d32570a83f6497219b2fd1179dc784d58e8d085d44244a1f3f004e1c3fd6c`。平原/雪地底色更克制；细六角结构、道路、河流、森林/山地纹理、单位、据点、暖金 selected、橙色 combat-response、`HIT`/`RET`/交火、HUD 和 `AL`/`OBJ`/`AX` 均可读，未见明显回归。
+- 范围核对：Swift 仅 `BattlefieldMap.swift` 的一行基础 fill 为 `tile.terrain.mapGradient.opacity(0.78)`，其余为允许文档；`GameState`、`GameModels`、规则、输入/geometry、测试实现、project 和 workflow 均无 diff。v2.54 objective fallback 未恢复，v2.50-v2.53 的连续地貌、道路和边界去重链保持。
 
 遗留事项：
 
-- 等待最新 `origin/main` commit 对应的 Actions run 与 Agent C exact artifact 验收；regular 之外的 compact、窄宽度、动态字体、VoiceOver、Reduce Motion、多焦点和 4x 状态仍不由本轮本地检查证明。
+- v2.55 功能已通过；本次仅补录上述功能验收证据。即将产生的文档闭环提交其新 SHA、workflow run、attempt 和 artifact 尚未生成，不能预填、自引用或宣称已经验收。regular PNG 不能证明 compact、窄宽、Dynamic Type、VoiceOver、Reduce Motion、多焦点、4x 或未激活状态。
 
 ### v2.54 / 据点静态整格轮廓局部化
 
