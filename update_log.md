@@ -4293,3 +4293,7 @@
 本轮基于 origin/main `a52fadb` 和已通过的 run `36235971104` 拆分。调整 `BattlefieldTheme` 的地图纸张、平原/雪地/森林连续层明度，降低 `HexTileView` 地貌底色不透明度；提升 `CommandTitle`、`StatusChip`、战区 ribbon 的视觉层级，并将地图工具栏标题改为“作战地图”。不修改 GameState、GameModels、地图几何、命中区域或命令 action。
 
 本地仅计划运行 `git diff --check`；完整验证交由 push 后 GitHub Actions。
+
+### v2.58 云端验收
+
+功能提交 `b9ac3550ca7ec6a552e8b62eb3dc63089fe1a940` 对应 run `36259653841`、attempt `1`、artifact `ww2tactics-ci-v2.58-main-b9ac355-run36259653841-attempt1`（id `10911838493`，digest `sha256:ef1d132ce41b418f2fec7b80dea71a67365c2739e9cfc3e2babf52d851bc2a4c`）。artifact 已下载到 `/private/tmp/ww2tactics-c-review-36259653841/`；manifest、JUnit、static、Rules smoke、build-for-testing、regular screenshot 均通过，XCTest skipped。
