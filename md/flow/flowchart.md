@@ -1116,3 +1116,15 @@ flowchart TD
 ## 据点压力与复盘入口（v1.76）
 
 `BattlefieldSituationObjectivePressureRow` 与 `BattlefieldSituationReplayTargetButton` 使用更强的指挥台卡片与当前态反馈。定位/复盘仍只转发 `GameState`。
+
+
+### v2.58 表现层
+
+```mermaid
+graph LR
+  T[既有 GameState] --> C[作战台顶部指挥带]
+  T --> M[六角地图]
+  Theme[明度与地貌 token] --> M
+  C --> M
+  M --> R[单位/据点/战斗反馈]
+```

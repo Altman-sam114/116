@@ -72,8 +72,8 @@ private struct WarLedgerSituationRibbon: View {
                 .lineLimit(1)
         }
         .padding(.horizontal, 9)
-        .frame(minHeight: 25)
-        .background(BattlefieldTheme.warLedgerField.opacity(0.24), in: RoundedRectangle(cornerRadius: 5))
+         .frame(minHeight: 30)
+        .background(BattlefieldTheme.warLedgerField.opacity(0.32), in: RoundedRectangle(cornerRadius: 5))
         .overlay {
             RoundedRectangle(cornerRadius: 5)
                 .stroke(BattlefieldTheme.warLedgerAmber.opacity(0.20), lineWidth: 1)
@@ -132,11 +132,11 @@ struct CommandTitle: View {
     var body: some View {
         HStack(spacing: 7) {
             Text("WW2")
-                .font(.system(size: 10, weight: .black, design: .rounded))
+                .font(.system(size: 13, weight: .black, design: .rounded))
                 .foregroundStyle(BattlefieldTheme.brass)
                 .kerning(0.7)
             Text(game.scenario.name)
-                .font(.subheadline.weight(.black))
+                .font(.headline.weight(.black))
                 .foregroundStyle(BattlefieldTheme.ink)
                 .lineLimit(1)
             Text("\(game.scenario.year)")
@@ -204,13 +204,13 @@ struct StatusChip: View {
 
     var body: some View {
         Label(value, systemImage: icon)
-            .font(.system(size: 11, weight: .bold, design: .rounded))
+            .font(.system(size: 12, weight: .bold, design: .rounded))
             .foregroundStyle(BattlefieldTheme.ink)
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 8)
-            .frame(minHeight: 32)
-            .background(BattlefieldTheme.warLedgerField.opacity(0.18))
+            .frame(minHeight: 36)
+            .background(BattlefieldTheme.warLedgerField.opacity(0.26))
             .overlay(alignment: .leading) { WarLedgerDivider() }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(label)
@@ -434,7 +434,12 @@ struct MapToolbar: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 2)
-        .background(BattlefieldTheme.commandDeck.opacity(0.80))
+        .background(
+            LinearGradient(
+                colors: [BattlefieldTheme.commandDeck.opacity(0.96), BattlefieldTheme.commandDeckDeep.opacity(0.96)],
+                startPoint: .top, endPoint: .bottom
+            )
+        )
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(BattlefieldTheme.brass.opacity(0.18))
@@ -447,7 +452,7 @@ struct MapToolbar: View {
             Image(systemName: "map.fill")
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(BattlefieldTheme.brass)
-            Text("战区 \(game.scenario.mapColumns)x\(game.scenario.mapRows)")
+            Text("作战地图  ·  \(game.scenario.mapColumns)x\(game.scenario.mapRows)")
                 .font(.caption.bold())
                 .foregroundStyle(BattlefieldTheme.ink)
                 .lineLimit(1)

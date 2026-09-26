@@ -403,3 +403,8 @@ CI 失败时，Agent C 写退回清单；Agent B 在 `main` 上追加修复 comm
 - 不得用“已验证”代替具体命令和结果。
 - 环境失败和代码失败必须区分说明。
 - 未跑的本机完整测试必须写清原因，例如“本轮是文档和 workflow 修改，默认交由云端重验证”。
+
+
+### v2.58 云端基线
+
+表现层改动只在本地运行 `git diff --check`；push 后由 GitHub Actions 执行 static checks、Rules smoke、Xcode build-for-testing 和 regular battlefield screenshot。XCTest 是否执行以 workflow manifest 为准。

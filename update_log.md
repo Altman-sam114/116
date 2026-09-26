@@ -4284,3 +4284,12 @@
 遗留事项：
 
 - 可继续剩余细面板与可玩性反馈增强。
+
+
+### v2.58 / 作战台层级与地图可读性
+
+日期：2026-09-26
+
+本轮基于 origin/main `a52fadb` 和已通过的 run `36235971104` 拆分。调整 `BattlefieldTheme` 的地图纸张、平原/雪地/森林连续层明度，降低 `HexTileView` 地貌底色不透明度；提升 `CommandTitle`、`StatusChip`、战区 ribbon 的视觉层级，并将地图工具栏标题改为“作战地图”。不修改 GameState、GameModels、地图几何、命中区域或命令 action。
+
+本地仅计划运行 `git diff --check`；完整验证交由 push 后 GitHub Actions。

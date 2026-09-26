@@ -36,9 +36,9 @@ enum BattlefieldTheme {
 
     // Map-only ground tokens. The stepped values create a restrained daylight
     // field while keeping all tactical feedback above the terrain layer.
-    static let mapParchmentSoil = Color(red: 0.56, green: 0.54, blue: 0.40)
-    static let mapParchmentLight = Color(red: 0.70, green: 0.67, blue: 0.50)
-    static let mapParchmentShade = Color(red: 0.43, green: 0.45, blue: 0.35)
+    static let mapParchmentSoil = Color(red: 0.49, green: 0.48, blue: 0.35)
+    static let mapParchmentLight = Color(red: 0.61, green: 0.59, blue: 0.44)
+    static let mapParchmentShade = Color(red: 0.38, green: 0.40, blue: 0.31)
     static let mapParchmentWash = Color(red: 0.82, green: 0.72, blue: 0.50).opacity(0.08)
     static let mapParchmentEdge = Color.black.opacity(0.055)
     static let mapTileHighlight = Color.white.opacity(0.045)
@@ -49,9 +49,9 @@ enum BattlefieldTheme {
     static let mapEtchedSharedBoundaryWidth: CGFloat = 0.24
     static let mapEtchedTerrainBoundaryWidth: CGFloat = 0.62
     static let mapEtchedOuterBoundaryWidth: CGFloat = 0.88
-    static let mapPlainsContinuity = Color(red: 0.55, green: 0.51, blue: 0.35).opacity(0.055)
-    static let mapSnowContinuity = Color(red: 0.56, green: 0.63, blue: 0.65).opacity(0.045)
-    static let mapForestContinuity = Color(red: 0.18, green: 0.30, blue: 0.17).opacity(0.13)
+    static let mapPlainsContinuity = Color(red: 0.49, green: 0.46, blue: 0.31).opacity(0.045)
+    static let mapSnowContinuity = Color(red: 0.48, green: 0.56, blue: 0.59).opacity(0.035)
+    static let mapForestContinuity = Color(red: 0.14, green: 0.25, blue: 0.14).opacity(0.11)
     static let mapMountainContinuity = Color(red: 0.24, green: 0.23, blue: 0.20).opacity(0.13)
 
     // Local terrain-material tokens. They sit above the daylight ground and
