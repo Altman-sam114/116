@@ -59,6 +59,23 @@ private struct WarLedgerSituationRibbon: View {
 
             Spacer(minLength: 4)
 
+            HStack(spacing: 5) {
+                Text("OBJ")
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .foregroundStyle(BattlefieldTheme.warLedgerAmber)
+                ProgressView(
+                    value: Double(game.alliedScore),
+                    total: Double(max(game.objectiveTiles.count, 1))
+                )
+                .progressViewStyle(.linear)
+                .tint(BattlefieldTheme.warLedgerAmber)
+                .frame(width: 42)
+                Text("\(game.activeCommandPoints) CP")
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .foregroundStyle(BattlefieldTheme.signal)
+            }
+            .accessibilityHidden(true)
+
             FactionTurnPill(faction: game.activeFaction)
 
             Label("目标 \(game.alliedScore)/\(game.objectiveTiles.count)", systemImage: "flag.fill")
@@ -803,7 +820,7 @@ struct ObjectiveJumpDock: View {
 
     var body: some View {
         ObjectiveJumpStrip(compact: compact)
-            .frame(height: 66)
+            .frame(height: 72)
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
             .background(MapHudBackground())

@@ -408,3 +408,8 @@ CI 失败时，Agent C 写退回清单；Agent B 在 `main` 上追加修复 comm
 ### v2.58 云端基线
 
 表现层改动只在本地运行 `git diff --check`；push 后由 GitHub Actions 执行 static checks、Rules smoke、Xcode build-for-testing 和 regular battlefield screenshot。XCTest 是否执行以 workflow manifest 为准。
+
+
+### v2.59 云端基线
+
+本轮本地只运行 `git diff --check`；UI 与 SwiftUI build、规则 smoke、截图由 GitHub Actions 验证。

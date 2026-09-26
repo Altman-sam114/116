@@ -4297,3 +4297,10 @@
 ### v2.58 云端验收
 
 功能提交 `b9ac3550ca7ec6a552e8b62eb3dc63089fe1a940` 对应 run `36259653841`、attempt `1`、artifact `ww2tactics-ci-v2.58-main-b9ac355-run36259653841-attempt1`（id `10911838493`，digest `sha256:ef1d132ce41b418f2fec7b80dea71a67365c2739e9cfc3e2babf52d851bc2a4c`）。artifact 已下载到 `/private/tmp/ww2tactics-c-review-36259653841/`；manifest、JUnit、static、Rules smoke、build-for-testing、regular screenshot 均通过，XCTest skipped。
+
+
+### v2.59 / 战役铭牌与编队轨道
+
+日期：2026-09-26
+
+顶部战区 ribbon 增加 OBJ 进度和 CP 读数，底部 ObjectiveJumpDock 提高承载高度；只改表现层，不修改规则和输入。

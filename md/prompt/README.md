@@ -101,3 +101,7 @@ cat >> update_log.md <<'EOF'
 v2.58 云端验收：功能提交 `b9ac3550ca7ec6a552e8b62eb3dc63089fe1a940` 对应 run `36259653841`、attempt `1`、artifact `ww2tactics-ci-v2.58-main-b9ac355-run36259653841-attempt1`（id `10911838493`，digest `sha256:ef1d132ce41b418f2fec7b80dea71a67365c2739e9cfc3e2babf52d851bc2a4c`）。artifact 已下载到 `/private/tmp/ww2tactics-c-review-36259653841/`；manifest、JUnit、static、Rules smoke、build-for-testing、regular screenshot 均通过，XCTest skipped。截图为 iPad Pro 13-inch (M5)、iOS 26.5 simulator 的 `selected-combat-impact-steady` 场景，地图底色和作战台层级改动可见。\nEOF
 
 git add md/prompt/README.md update_log.md && git commit -m 'v2.58: 记录作战台视觉云端验收' && git push origin main && git log -2 --oneline --decorate
+
+### v2.59（战役铭牌与编队轨道）
+
+提示词见 `v2（六角格战争界面）/v2.59（战役铭牌与编队轨道）.md`，当前轮次等待云端验收。
