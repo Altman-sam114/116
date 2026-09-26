@@ -88,4 +88,4 @@ v2.53 已在 `BattlefieldMap.swift` 的 `HexTileView.borderColor` 与 `borderWid
 
 ### v2.57（战区指挥台视觉重构）
 
-本轮提示词已写入 `v2.57（战区指挥台视觉重构）.md`：基于 v2.55 云端通过基线与 EasyTech《Glory of Generals 3: WW2》App Store 只读截图，重构 War Ledger 顶部指挥带、地图测绘底材和蓝/红阵营单位环。功能提交 `7638bd77b55c1ba4da1bb28dbc5d409762bed2f8` 已由 run `36234655341` / attempt `1` 验收通过，exact artifact 为 `ww2tactics-ci-v2.57-main-7638bd7-run36234655341-attempt1`（id `10904270515`，digest `sha256:b360b22a800ac6d2dd5532c6ed83cd504b77c0a46a7480b67dc091308e6b46b6`），下载目录 `/private/tmp/ww2tactics-c-review-36234655341/`；文档闭环提交仍待其自身 latest run 复验。
+本轮提示词已写入 `v2.57（战区指挥台视觉重构）.md`：基于 v2.55 云端通过基线与 EasyTech《Glory of Generals 3: WW2》App Store 只读截图，重构 War Ledger 顶部指挥带、地图测绘底材和蓝/红阵营单位环。功能提交 `7638bd77b55c1ba4da1bb28dbc5d409762bed2f8` 已由 run `36234655341` / attempt `1` 验收通过，exact artifact 为 `ww2tactics-ci-v2.57-main-7638bd7-run36234655341-attempt1`（id `10904270515`，digest `sha256:b360b22a800ac6d2dd5532c6ed83cd504b77c0a46a7480b67dc091308e6b46b6`），下载目录 `/private/tmp/ww2tactics-c-review-36234655341/`；文档闭环提交 `57aec4e852dc6afbbff3d1b7226b6b70038718b9` 对应 run `36235397932` / attempt `1`，artifact 已下载核对，v2.57 云端闭环完成。

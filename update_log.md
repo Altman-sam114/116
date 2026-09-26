@@ -36,7 +36,7 @@
 
 验证状态：本机只做 `git diff --check`、范围 `rg`、状态和 diff 检查，没有运行 Swift、Xcode、模拟器或本地截图。功能提交 `7638bd77b55c1ba4da1bb28dbc5d409762bed2f8` 对应 GitHub Actions run `36234655341`、attempt `1`，状态 `completed/success`。Agent C 已下载唯一 exact artifact `ww2tactics-ci-v2.57-main-7638bd7-run36234655341-attempt1`（id `10904270515`，digest `sha256:b360b22a800ac6d2dd5532c6ed83cd504b77c0a46a7480b67dc091308e6b46b6`，API size `7,099,856 bytes`）到 `/private/tmp/ww2tactics-c-review-36234655341/`，解包大小 `9.6M`。manifest 的 `version=v2.57`、`branch=main`、`commitSha`、`runId`、`runAttempt` 与远端完全匹配；static checks、Rules smoke、Xcode build-for-testing、regular screenshot 均 success，JUnit 为 4 tests、0 failures、0 errors，XCTest 实际 skipped。结果包 regular PNG 为 `2064x2752`、8-bit RGBA、non-interlaced、`5,873,254 bytes`，SHA-256 `552f2adca9036c799f16ac7061909603ecf65e6c1f9f2c077d8f43a2eb0f68c8`，设备为 `iPad Pro 13-inch (M5)` / iOS 26.5；实际查看确认双层 War Ledger、测绘底材、蓝/红阵营环、单位模型、选中暖金、战果 HUD、`AL / OBJ / AX` rail 和支援甲板均可读，未见明显回归。
 
-遗留事项：本条为功能提交的 exact 云端验收证据；文档闭环提交仍需新的 latest run 复验。regular-only 不能覆盖 compact、窄宽、Dynamic Type、VoiceOver、Reduce Motion。
+遗留事项：本条已覆盖功能提交及其文档闭环提交的 exact 云端验收证据；regular-only 不能覆盖 compact、窄宽、Dynamic Type、VoiceOver、Reduce Motion。
 
 
 ### v2.55 / 六角地貌底色连续化
