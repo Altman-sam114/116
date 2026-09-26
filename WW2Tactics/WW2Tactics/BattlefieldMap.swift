@@ -506,6 +506,8 @@ struct MapGridBackdrop: View {
             }
             .stroke(BattlefieldTheme.mapParchmentLight.opacity(0.12), lineWidth: max(width, height) * 0.045)
 
+            MapSurveyOverlay(width: width, height: height)
+
             LinearGradient(
                 colors: [
                     BattlefieldTheme.mapParchmentEdge,
@@ -517,6 +519,53 @@ struct MapGridBackdrop: View {
             )
         }
         .frame(width: width, height: height)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct MapSurveyOverlay: View {
+    let width: CGFloat
+    let height: CGFloat
+
+    var body: some View {
+        Path { path in
+            let gridStep: CGFloat = 86
+            stride(from: 0, through: width, by: gridStep).forEach { x in
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x, y: height))
+            }
+            stride(from: 0, through: height, by: gridStep).forEach { y in
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: width, y: y))
+            }
+
+            for index in 0..<4 {
+                let y = height * (0.19 + CGFloat(index) * 0.18)
+                path.move(to: CGPoint(x: -width * 0.08, y: y))
+                path.addCurve(
+                    to: CGPoint(x: width * 1.08, y: y + height * 0.035),
+                    control1: CGPoint(x: width * 0.24, y: y - height * 0.07),
+                    control2: CGPoint(x: width * 0.73, y: y + height * 0.10)
+                )
+            }
+        }
+        .stroke(
+            BattlefieldTheme.mapSurveyLine,
+            style: StrokeStyle(lineWidth: 0.55, lineCap: .round, lineJoin: .round, dash: [5, 8])
+        )
+        .overlay {
+            LinearGradient(
+                colors: [
+                    .clear,
+                    BattlefieldTheme.mapSurveyContour.opacity(0.46),
+                    .clear
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .blendMode(.multiply)
+        }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

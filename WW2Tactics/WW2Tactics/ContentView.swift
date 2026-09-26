@@ -37,35 +37,74 @@ struct ContentView: View {
         ZStack {
             LinearGradient(
                 colors: [
+                    BattlefieldTheme.warLedgerOlive,
                     BattlefieldTheme.backdropTop,
                     BattlefieldTheme.backdropBottom
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+
+            MapRoomGrid()
+                .opacity(0.48)
+
+            RadialGradient(
+                colors: [
+                    BattlefieldTheme.warLedgerAmber.opacity(0.12),
+                    .clear,
+                    Color.black.opacity(0.22)
+                ],
+                center: .topLeading,
+                startRadius: 80,
+                endRadius: 720
+            )
+
             Rectangle()
                 .fill(
                     LinearGradient(
                         colors: [
-                            BattlefieldTheme.brass.opacity(0.10),
+                            BattlefieldTheme.brass.opacity(0.12),
                             .clear,
-                            BattlefieldTheme.signal.opacity(0.08)
+                            BattlefieldTheme.signal.opacity(0.07),
+                            Color.black.opacity(0.26)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
+
             VStack(spacing: 0) {
                 Rectangle()
-                    .fill(BattlefieldTheme.brass.opacity(0.08))
+                    .fill(BattlefieldTheme.warLedgerAmber.opacity(0.24))
                     .frame(height: 1)
                 Spacer()
                 Rectangle()
-                    .fill(.black.opacity(0.18))
+                    .fill(.black.opacity(0.28))
                     .frame(height: 26)
             }
         }
         .ignoresSafeArea()
+    }
+}
+
+private struct MapRoomGrid: View {
+    var body: some View {
+        GeometryReader { proxy in
+            Path { path in
+                let step: CGFloat = 42
+                stride(from: 0, through: proxy.size.width, by: step).forEach { x in
+                    path.move(to: CGPoint(x: x, y: 0))
+                    path.addLine(to: CGPoint(x: x, y: proxy.size.height))
+                }
+                stride(from: 0, through: proxy.size.height, by: step).forEach { y in
+                    path.move(to: CGPoint(x: 0, y: y))
+                    path.addLine(to: CGPoint(x: proxy.size.width, y: y))
+                }
+            }
+            .stroke(BattlefieldTheme.mapSurveyLine, lineWidth: 0.55)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

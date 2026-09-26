@@ -1,3 +1,7 @@
+## v2.57 表现层当前状态
+
+War Ledger 由 `ContentView` 的战区背景、`BattlefieldChrome` 的双层顶部指挥带、`BattlefieldMap` 的测绘底材和 `BattlefieldUnitViews` 的阵营环组成。它们只读取 `GameState` 已有的回合、阵营、目标、单位和地形状态；测绘网格/等高线、暗角和单位环均关闭命中并隐藏于无障碍树。六角坐标、tile frame、`contentShape`、zIndex、滚动缩放与所有命令继续由原链路负责。
+
 # 项目核心流程文档
 
 ## 0. 一句话总览

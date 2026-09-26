@@ -1,3 +1,18 @@
+## v2.57 战区指挥台表现层
+
+```mermaid
+flowchart TD
+    GS[GameState 既有回合/阵营/目标/单位/地形] --> LEDGER[War Ledger 顶部双层指挥带]
+    GS --> MAP[HexMapView 连续六角战区]
+    MAP --> SURVEY[低对比测绘网格与等高线]
+    MAP --> PIECE[蓝/红阵营环 + 军械模型 + HP/行动轨道]
+    GS --> DECK[既有支援甲板与命令 HUD]
+    LEDGER --> PLAYER[玩家选择/移动/攻击仍回到 GameState]
+    PIECE --> PLAYER
+```
+
+新增纹理只属于表现层，不创建规则状态、不改变输入命中和执行时序。
+
 # 项目流程图
 
 本文用 Mermaid 图把当前真实逻辑画出来。每张图前都有读图说明，方便人工快速理解。

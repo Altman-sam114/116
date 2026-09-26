@@ -2,32 +2,102 @@ import SwiftUI
 
 struct TopCommandBar: View {
     var body: some View {
-        HStack(spacing: 0) {
-            CommandTitle()
-                .layoutPriority(2)
-                .padding(.trailing, 8)
-            CampaignPicker()
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                CommandTitle()
+                    .layoutPriority(2)
+                    .padding(.trailing, 8)
+                CampaignPicker()
+                    .overlay(alignment: .leading) {
+                        WarLedgerDivider()
+                    }
+                    .padding(.horizontal, 4)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    StatusStrip()
+                }
                 .overlay(alignment: .leading) {
                     WarLedgerDivider()
                 }
-                .padding(.horizontal, 4)
+                .layoutPriority(1)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                StatusStrip()
+                EndTurnButton()
+                    .overlay(alignment: .leading) {
+                        WarLedgerDivider()
+                    }
+                    .padding(.leading, 4)
             }
-            .overlay(alignment: .leading) {
-                WarLedgerDivider()
-            }
-            .layoutPriority(1)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 48)
 
-            EndTurnButton()
-                .overlay(alignment: .leading) {
-                    WarLedgerDivider()
-                }
-                .padding(.leading, 4)
+            WarLedgerSituationRibbon()
+                .padding(.horizontal, 10)
+                .padding(.bottom, 6)
         }
-        .padding(.horizontal, 10)
         .background(WarLedgerSurface(cornerRadius: 0))
+    }
+}
+
+private struct WarLedgerSituationRibbon: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label("战区指挥台", systemImage: "scope")
+                .font(.system(size: 10, weight: .black, design: .rounded))
+                .foregroundStyle(BattlefieldTheme.warLedgerAmber)
+                .lineLimit(1)
+
+            Rectangle()
+                .fill(BattlefieldTheme.warLedgerDivider)
+                .frame(width: 1, height: 14)
+
+            Text("\(game.scenario.mapColumns)×\(game.scenario.mapRows) 战区")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundStyle(BattlefieldTheme.mutedInk)
+                .lineLimit(1)
+
+            Spacer(minLength: 4)
+
+            FactionTurnPill(faction: game.activeFaction)
+
+            Label("目标 \(game.alliedScore)/\(game.objectiveTiles.count)", systemImage: "flag.fill")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundStyle(Faction.allies.accentColor)
+                .lineLimit(1)
+
+            Label("剩余 \(game.remainingTurns)", systemImage: "hourglass")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundStyle(BattlefieldTheme.ink)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 9)
+        .frame(minHeight: 25)
+        .background(BattlefieldTheme.warLedgerField.opacity(0.24), in: RoundedRectangle(cornerRadius: 5))
+        .overlay {
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(BattlefieldTheme.warLedgerAmber.opacity(0.20), lineWidth: 1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("战区指挥台")
+        .accessibilityValue("\(game.scenario.mapColumns)乘\(game.scenario.mapRows)，\(game.activeFaction.title)行动，目标 \(game.alliedScore)，剩余 \(game.remainingTurns) 回合")
+    }
+}
+
+private struct FactionTurnPill: View {
+    let faction: Faction
+
+    var body: some View {
+        Label(faction.shortTitle, systemImage: faction == .allies ? "shield.fill" : "bolt.fill")
+            .font(.system(size: 10, weight: .black, design: .rounded))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(faction.accentColor.opacity(0.76), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(Color.white.opacity(0.36), lineWidth: 0.7)
+            }
     }
 }
 

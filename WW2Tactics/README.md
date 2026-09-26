@@ -21,6 +21,12 @@
 
 未来可用 `agentx:`、`x:` 或 `X:` 启动主控循环：Agent X 接收总目标并拆分多轮任务，但不直接替代 A/B/C；每轮仍由 Agent A 写提示词、Agent B 实现并 push、Agent C 下载 artifact 验收后，再由 Agent X 判断继续、退回、暂停或完成。
 
+## v2.57 战区指挥台视觉重构（云端待验收）
+
+本轮将表现层收敛为 War Ledger 战区指挥台：顶部增加战区/阵营/目标/剩余回合的双层指挥带，外围背景改为温暖橄榄色测绘桌面；六角地图增加低对比测绘网格和等高线，保持道路、河流、据点和全部战术标记的优先级；地图单位强化蓝/红阵营椭圆环、内圈高光和模型落地关系，选中暖金反馈与 HP/行动轨道保留。规则、地图坐标、命中测试和 `GameState` 不变。
+
+参考只读素材来自 EasyTech《Glory of Generals 3: WW2》App Store 截图，未复制或提交第三方图片。本轮本机不运行 Swift/Xcode/模拟器，等待 GitHub Actions 的 exact artifact 与 regular PNG 验收；compact、窄宽、Dynamic Type、VoiceOver、Reduce Motion 和未激活战术状态仍需源码边界审查。
+
 ## 已实现
 
 - 二战战役目录：1944 阿登反击战、1944 诺曼底突破

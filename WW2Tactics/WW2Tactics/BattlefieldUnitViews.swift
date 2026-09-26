@@ -128,8 +128,8 @@ struct MapUnitPiece: View {
     var body: some View {
         ZStack {
             MapUnitGrounding(faction: faction, isSpent: isSpent)
-                .frame(width: width * 0.86, height: height * 0.36)
-                .offset(y: height * 0.21)
+                .frame(width: width * 0.98, height: height * 0.58)
+                .offset(y: height * 0.12)
 
             UnitModelView(
                 kind: kind,
@@ -196,6 +196,25 @@ private struct MapUnitGrounding: View {
                     .fill(BattlefieldTheme.mapUnitContactShadow.opacity(contactOpacity / 0.28))
                     .frame(width: proxy.size.width * 0.94, height: proxy.size.height * 0.38)
                     .position(x: proxy.size.width * 0.50, y: proxy.size.height * 0.75)
+
+                // GoG3-inspired faction halo: shape and HP remain readable
+                // even when color differentiation is disabled.
+                Ellipse()
+                    .fill(faction.accentColor.opacity(isSpent ? 0.12 : 0.20))
+                    .overlay {
+                        Ellipse()
+                            .stroke(
+                                faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing,
+                                lineWidth: isSpent ? 0.9 : 1.5
+                            )
+                    }
+                    .overlay {
+                        Ellipse()
+                            .stroke(Color.white.opacity(isSpent ? 0.08 : 0.24), lineWidth: 0.55)
+                            .scaleEffect(0.86)
+                    }
+                    .frame(width: proxy.size.width * 0.96, height: proxy.size.height * 0.66)
+                    .position(x: proxy.size.width * 0.50, y: proxy.size.height * 0.53)
 
                 RoundedRectangle(cornerRadius: proxy.size.height * 0.34)
                     .fill(

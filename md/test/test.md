@@ -1,3 +1,7 @@
+## v2.57 云端验证边界
+
+本轮是 SwiftUI 表现层改动；本机只运行 `git diff --check`、`git diff --name-only`、`git status --short --branch` 和范围 `rg`，不运行 Swift、RulesSmokeTest、XCTest、Xcode、模拟器或截图。push 后 GitHub Actions 必须运行 static checks、Rules smoke、Xcode build-for-testing 和 `selected-combat-impact-steady` regular screenshot；Agent C 需下载 exact artifact、核对 manifest 的 commit/run/attempt 并打开 PNG。XCTest 若仍为 skipped 必须照实记录，regular PNG 不覆盖 compact、窄宽、Dynamic Type、VoiceOver、Reduce Motion 等证据边界。
+
 # 测试规范
 
 本文指导 Agent B、Agent C 和未来 Agent X 循环选择测试层级、记录命令和判断当前基线。

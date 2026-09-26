@@ -15,6 +15,15 @@ enum BattlefieldTheme {
     static let mutedInk = Color.white.opacity(0.62)
     static let hairline = Color.white.opacity(0.12)
 
+    // v2.57 War Ledger tokens: warm map-room chrome and faction-readable rings.
+    static let warLedgerAmber = Color(red: 0.93, green: 0.68, blue: 0.25)
+    static let warLedgerOlive = Color(red: 0.16, green: 0.19, blue: 0.13)
+    static let mapSurveyLine = Color(red: 0.89, green: 0.79, blue: 0.51).opacity(0.09)
+    static let mapSurveyContour = Color(red: 0.26, green: 0.31, blue: 0.18).opacity(0.16)
+    static let mapVignette = Color.black.opacity(0.22)
+    static let alliesRing = Color(red: 0.25, green: 0.65, blue: 0.98)
+    static let axisRing = Color(red: 0.93, green: 0.28, blue: 0.22)
+
     // War Ledger is deliberately scoped to the command bar and map overlays.
     // It shares the existing palette without changing the wider TacticalSurface language.
     static let warLedgerBase = Color(red: 0.052, green: 0.060, blue: 0.050)

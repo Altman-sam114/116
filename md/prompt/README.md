@@ -85,3 +85,7 @@ v2.52 已完成完整云端闭环：功能提交 `69dfd3f1e2530927ef9ec1c5fa59a0
 v2.53 已在 `BattlefieldMap.swift` 的 `HexTileView.borderColor` 与 `borderWidth` 删除普通态 `isThreatenedMoveTile`、`isEnemyControlZone`、`isSupplyLine` 三组重复整格边框分支，共六行；threat/ZOC 红 wash、连续 `SupplyLineMarker`、`isAttackCoverage` 橙色 `0.40`/`1pt` 唯一射程边框、通用 stroke 和所有高优先级状态保持不变。功能 artifact 的 manifest、static、Rules smoke、Xcode 26.6 build-for-testing、JUnit、`.xcresult` 和 regular PNG 已由 Agent C 核对；PNG 为 `2064×2752`、`5,589,062 bytes`、8-bit RGBA、non-interlaced，SHA-256 为 `3bfd75abb47a01931709e589d625ec5da00e863a9b8c8b48150d89121556c344`，红 ZOC/绿 supply 整格边减少且 red wash/连续补给线保留。XCTest 执行仍 skipped；两条 AppIntents warning 与 Node/punycode/`url.parse` 提醒为非致命维护信息。
 
 历史阶段 v2.0-v2.53 已完成地图优先构图、白昼底材、地貌连续性、军械、据点、轨道、材质、河道、蚀刻边界、道路路基、战果反馈、平原雪地连续晕染与控制区/威胁/补给边框去重等表现层迭代；各轮 prompt 和云端证据仍保留在本目录与 `update_log.md`，当前轮次见上方 v2.54 条目。
+
+### v2.57（战区指挥台视觉重构）
+
+本轮提示词已写入 `v2.57（战区指挥台视觉重构）.md`：基于 v2.55 云端通过基线与 EasyTech《Glory of Generals 3: WW2》App Store 只读截图，重构 War Ledger 顶部指挥带、地图测绘底材和蓝/红阵营单位环。当前 exact commit、workflow、artifact 与 PNG 尚未产生，不能预填或自引用云端证据。

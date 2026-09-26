@@ -21,6 +21,24 @@
 
 ## 历史记录
 
+### v2.57 / 战区指挥台视觉重构（待云端验收）
+
+日期：2026-09-26
+
+核心变更：
+
+- `ContentView` 外围改为温暖橄榄色战区桌面，加入低对比测绘网格和暗角层。
+- `BattlefieldChrome` 顶部改为两层 War Ledger，集中显示战区尺寸、当前阵营、目标进度和剩余回合。
+- `BattlefieldMap` 的地图底材加入低对比网格/等高线；`BattlefieldUnitViews` 强化友军蓝环、敌军红环与内圈高光，同时保留军械模型和行动信息。
+- 参考素材仅来自 EasyTech《Glory of Generals 3: WW2》App Store 截图，未引入第三方资产或网络依赖。
+
+关键文件：`ContentView.swift`、`BattlefieldChrome.swift`、`BattlefieldMap.swift`、`BattlefieldUnitViews.swift`、`BattlefieldTheme.swift`、`WW2Tactics/README.md`、`md/flow/*`、`md/test/test.md`、`md/prompt/v2（六角格战争界面）/v2.57（战区指挥台视觉重构）.md`。
+
+验证状态：本机只做 Git/text 检查；commit、GitHub Actions run、attempt、artifact 和 PNG 待 push 后产生，不能提前宣称通过。
+
+遗留事项：云端 exact artifact 尚未验收；regular-only 不能覆盖 compact、窄宽、Dynamic Type、VoiceOver、Reduce Motion。
+
+
 ### v2.55 / 六角地貌底色连续化
 
 日期：2026-08-24
