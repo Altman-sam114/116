@@ -73,7 +73,7 @@ jobs:
           {
             echo "## Rules smoke test"
             macos_sdk="$(xcrun --sdk macosx --show-sdk-path)"
-            xcrun --sdk macosx swiftc \
+            timeout 300 xcrun --sdk macosx swiftc \
               -swift-version 5 \
               -sdk "$macos_sdk" \
               -module-cache-path "$MODULE_CACHE" \
@@ -99,7 +99,7 @@ jobs:
             echo "## Xcode"
             xcodebuild -version
             echo
-            xcodebuild \
+            timeout 900 xcodebuild \
               -project WW2Tactics/WW2Tactics.xcodeproj \
               -scheme WW2Tactics \
               -configuration Debug \
