@@ -302,6 +302,12 @@ struct HexMapView: View {
                 .accessibilityHidden(true)
                 .zIndex(-1)
 
+            MapBattleLegend()
+                .frame(width: contentWidth, height: contentHeight, alignment: .topTrailing)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                .zIndex(-1)
+
             ForEach(mapTiles, id: \.coordinate.id) { tile in
                 let point = position(for: tile.coordinate)
                 let unit = game.unit(at: tile.coordinate)
@@ -3485,5 +3491,25 @@ private struct MapCartographyStamp: View {
             }
             .stroke(BattlefieldTheme.ink.opacity(0.55), lineWidth: 1)
         }
+    }
+}
+
+private struct MapBattleLegend: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            legend("AL", BattlefieldTheme.alliesRing)
+            legend("AX", BattlefieldTheme.axisRing)
+            legend("OBJ", BattlefieldTheme.warLedgerAmber)
+        }
+        .font(.system(size: 8, weight: .black, design: .monospaced))
+        .foregroundStyle(BattlefieldTheme.ink.opacity(0.74))
+        .padding(.horizontal, 8)
+        .frame(height: 24)
+        .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 3))
+        .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.mapSurveyLine, lineWidth: 0.7) }
+        .padding(10)
+    }
+    private func legend(_ label: String, _ color: Color) -> some View {
+        HStack(spacing: 3) { Circle().fill(color).frame(width: 6, height: 6); Text(label) }
     }
 }
