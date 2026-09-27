@@ -191,7 +191,7 @@ jobs:
                 echo "app: $app_path"
 
                 xcrun simctl boot "$device_udid" >/dev/null 2>&1 || true
-                xcrun simctl bootstatus "$device_udid" -b
+                timeout 180 xcrun simctl bootstatus "$device_udid" -b
                 boot_status=$?
 
                 if [[ $boot_status -ne 0 ]]; then
@@ -204,13 +204,13 @@ jobs:
                     --time 09:41 \
                     --batteryState charged \
                     --batteryLevel 100 || true
-                  xcrun simctl install "$device_udid" "$app_path"
+                  timeout 120 xcrun simctl install "$device_udid" "$app_path"
                   install_status=$?
 
                   if [[ $install_status -ne 0 ]]; then
                     echo "App installation failed."
                   else
-                    xcrun simctl launch \
+                    timeout 60 xcrun simctl launch \
                       --terminate-running-process \
                       "$device_udid" \
                       com.easytech.prototype.WW2Tactics \
