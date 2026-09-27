@@ -441,3 +441,7 @@ v2.58 将地图纸张、地貌连续层和六角底色收敛到更低明度，�
 
 
 v2.59 的作战带只读派生目标数量、指令点和当前阵营，底部编队轨道只读既有单位/据点数组；均不写回 GameState。
+
+### v2.60 制图层
+
+`HexMapView` 在既有 `MapGridBackdrop` 下方渲染只读 `MapCartographyStamp`，以地图尺寸定位北向、比例尺和六角公里说明。该层关闭命中与无障碍，不进入 `GameState`，不改变 tile frame、contentShape、zIndex 或命令输入。

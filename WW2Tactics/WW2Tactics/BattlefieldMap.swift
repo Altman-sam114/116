@@ -296,6 +296,12 @@ struct HexMapView: View {
         ZStack(alignment: .topLeading) {
             MapGridBackdrop(width: contentWidth, height: contentHeight)
 
+            MapCartographyStamp(mapWidth: contentWidth, mapHeight: contentHeight)
+                .frame(width: contentWidth, height: contentHeight, alignment: .topLeading)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                .zIndex(-1)
+
             ForEach(mapTiles, id: \.coordinate.id) { tile in
                 let point = position(for: tile.coordinate)
                 let unit = game.unit(at: tile.coordinate)
@@ -3437,6 +3443,47 @@ extension TerrainKind {
             Color.black.opacity(0.32)
         default:
             Color.black.opacity(0.28)
+        }
+    }
+}
+
+private struct MapCartographyStamp: View {
+    let mapWidth: CGFloat
+    let mapHeight: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            HStack(spacing: 7) {
+                Image(systemName: "location.north.fill")
+                    .font(.system(size: 11, weight: .black))
+                Text("N")
+                    .font(.system(size: 10, weight: .black, design: .monospaced))
+                Rectangle()
+                    .fill(BattlefieldTheme.mapSurveyLine)
+                    .frame(width: 24, height: 1)
+                Text("1 HEX = 10 KM")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+            }
+            .foregroundStyle(BattlefieldTheme.ink.opacity(0.72))
+            .padding(.horizontal, 8)
+            .frame(height: 24)
+            .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 3))
+            .overlay {
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(BattlefieldTheme.mapSurveyLine, lineWidth: 0.7)
+            }
+            .padding(10)
+
+            Path { path in
+                let inset: CGFloat = 14
+                path.move(to: CGPoint(x: inset, y: mapHeight - inset))
+                path.addLine(to: CGPoint(x: min(mapWidth - inset, 110), y: mapHeight - inset))
+                path.move(to: CGPoint(x: inset, y: mapHeight - inset - 4))
+                path.addLine(to: CGPoint(x: inset, y: mapHeight - inset + 4))
+                path.move(to: CGPoint(x: min(mapWidth - inset, 110), y: mapHeight - inset - 4))
+                path.addLine(to: CGPoint(x: min(mapWidth - inset, 110), y: mapHeight - inset + 4))
+            }
+            .stroke(BattlefieldTheme.ink.opacity(0.55), lineWidth: 1)
         }
     }
 }
