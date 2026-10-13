@@ -21,6 +21,16 @@
 
 ## 历史记录
 
+### v2.64 / 恢复云端超时执行与截图基线（待云端验收）
+
+日期：2026-10-13
+
+Agent C 核对远端 `0350620` 的 run `38342329685`：static、Rules smoke、build-for-testing 成功，但截图日志出现 `timeout: command not found`，macOS runner 缺少 GNU timeout，未产生 PNG；不是游戏规则失败。本轮审核并继承本地既有 `8376dd7420b4606d424ae16e7bfb3bca5c9ab675`，不 amend、不 reset，随 v2.64 一并直推。
+
+新增 `.github/scripts/run_with_timeout.py`，以 Python 标准库独立进程组运行命令、转发真实退出状态、超时 TERM/KILL 清理子孙并返回 124、缺少命令返回 127、启动异常返回 126。`.github/workflows/ci-results.yml` 替换 swiftc、xcodebuild、bootstatus、install、launch 五处裸 timeout，区分模拟器阶段超时/缺命令/实际退出错误；云端 static 增加 YAML 解析与六类 wrapper 契约，日志进入 artifact 和总门禁。`md/test/test.md` 与 v2.64 prompt 记录契约及恢复验收边界。
+
+验证状态：仅 Git/text diff、status 和范围审查；人工禁止的本地 Python/YAML/plutil/Swift/Xcode/smoke/XCTest/模拟器/截图全部未跑。云端结果待本轮 push 后生成，不预填 SHA/run/artifact，不宣称已通过。500 KB regular 截图门禁和 always 产包保持，XCTest 仍 skipped。v3.0 游戏重构尚未实施；已知 v3 prompt/index 与旧 v2.56 未跟踪文件不纳入本轮提交。
+
 ### v2.57 / 战区指挥台视觉重构（待云端验收）
 
 日期：2026-09-26

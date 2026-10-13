@@ -65,7 +65,13 @@ jobs:
             echo
             plutil -lint WW2Tactics/WW2Tactics.xcodeproj/project.pbxproj
             plutil_status=$?
-            if [[ $diff_status -ne 0 || $plutil_status -ne 0 ]]; then
+            echo
+            ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
+            yaml_status=$?
+            python3 .github/scripts/run_with_timeout.py --self-test > ci-results/timeout-contracts.log 2>&1
+            timeout_contract_status=$?
+            cat ci-results/timeout-contracts.log
+            if [[ $diff_status -ne 0 || $plutil_status -ne 0 || $yaml_status -ne 0 || $timeout_contract_status -ne 0 ]]; then
               static_status=1
             fi
           } > ci-results/static-checks.log 2>&1
@@ -73,7 +79,7 @@ jobs:
           {
             echo "## Rules smoke test"
             macos_sdk="$(xcrun --sdk macosx --show-sdk-path)"
-            timeout 300 xcrun --sdk macosx swiftc \
+            python3 .github/scripts/run_with_timeout.py 300 xcrun --sdk macosx swiftc \
               -swift-version 5 \
               -sdk "$macos_sdk" \
               -module-cache-path "$MODULE_CACHE" \
@@ -99,7 +105,7 @@ jobs:
             echo "## Xcode"
             xcodebuild -version
             echo
-            timeout 900 xcodebuild \
+            python3 .github/scripts/run_with_timeout.py 900 xcodebuild \
               -project WW2Tactics/WW2Tactics.xcodeproj \
               -scheme WW2Tactics \
               -configuration Debug \
@@ -126,6 +132,16 @@ jobs:
           screenshot_device_name="unavailable"
           screenshot_runtime="unavailable"
           device_udid=""
+
+          report_command_failure() {
+            local phase="$1" status="$2"
+            case "$status" in
+              124) echo "$phase timed out (exit 124); see bounded command diagnostics." ;;
+              127) echo "$phase command is missing (exit 127); this is not a Simulator failure." ;;
+              126) echo "$phase command could not start (exit 126); see launch diagnostics." ;;
+              *) echo "$phase returned exit $status; see original simctl output." ;;
+            esac
+          }
 
           {
             echo "## Battlefield screenshot"
@@ -191,11 +207,11 @@ jobs:
                 echo "app: $app_path"
 
                 xcrun simctl boot "$device_udid" >/dev/null 2>&1 || true
-                timeout 180 xcrun simctl bootstatus "$device_udid" -b
+                python3 .github/scripts/run_with_timeout.py 180 xcrun simctl bootstatus "$device_udid" -b
                 boot_status=$?
 
                 if [[ $boot_status -ne 0 ]]; then
-                  echo "Simulator failed to boot."
+                  report_command_failure "Simulator bootstatus" "$boot_status"
                 elif [[ ! -d "$app_path" ]]; then
                   echo "Built app was not found at $app_path."
                 else
@@ -204,13 +220,13 @@ jobs:
                     --time 09:41 \
                     --batteryState charged \
                     --batteryLevel 100 || true
-                  timeout 120 xcrun simctl install "$device_udid" "$app_path"
+                  python3 .github/scripts/run_with_timeout.py 120 xcrun simctl install "$device_udid" "$app_path"
                   install_status=$?
 
                   if [[ $install_status -ne 0 ]]; then
-                    echo "App installation failed."
+                    report_command_failure "App installation" "$install_status"
                   else
-                    timeout 60 xcrun simctl launch \
+                    python3 .github/scripts/run_with_timeout.py 60 xcrun simctl launch \
                       --terminate-running-process \
                       "$device_udid" \
                       com.easytech.prototype.WW2Tactics \
@@ -218,7 +234,7 @@ jobs:
                     launch_status=$?
 
                     if [[ $launch_status -ne 0 ]]; then
-                      echo "App launch failed."
+                      report_command_failure "App launch" "$launch_status"
                     else
                       screenshot_size=0
                       capture_status=1
@@ -301,7 +317,7 @@ jobs:
             if [[ "$static_outcome" == "success" && "$smoke_outcome" == "success" && "$build_outcome" == "success" && "$screenshot_outcome" == "success" ]]; then
               echo "All configured CI checks passed. XCTest execution is skipped; build-for-testing produced the test bundle and the app launch produced a battlefield screenshot."
             else
-              echo "One or more checks failed. Inspect ci-results/static-checks.log, ci-results/rules-smoke.log, ci-results/xcodebuild.log, and ci-results/battlefield-screenshot.log."
+              echo "One or more checks failed. Inspect ci-results/static-checks.log, ci-results/timeout-contracts.log, ci-results/rules-smoke.log, ci-results/xcodebuild.log, and ci-results/battlefield-screenshot.log."
             fi
           } > ci-results/ci-failure-summary.md
 
@@ -347,6 +363,7 @@ jobs:
               "testOutcome": "skipped",
               "projectSpecificReports": [
                   "ci-results/static-checks.log",
+                  "ci-results/timeout-contracts.log",
                   "ci-results/rules-smoke.log",
                   "ci-results/battlefield-screenshot.log",
                   "ci-results/battlefield-screenshot.png"
@@ -363,7 +380,7 @@ jobs:
           import xml.etree.ElementTree as ET
 
           checks = [
-              ("static-checks", os.environ.get("STATIC_STATUS", "1"), "git diff --check and plutil"),
+              ("static-checks", os.environ.get("STATIC_STATUS", "1"), "git diff --check, plutil, YAML, and timeout wrapper contracts"),
               ("rules-smoke", os.environ.get("SMOKE_STATUS", "1"), "RulesSmokeTest compile and run"),
               ("xcode-build-for-testing", os.environ.get("BUILD_STATUS", "1"), "xcodebuild build-for-testing"),
               ("battlefield-screenshot", os.environ.get("SCREENSHOT_STATUS", "1"), f"boot simulator, install app, launch {os.environ['SCREENSHOT_SCENARIO']}, and capture battlefield screenshot"),

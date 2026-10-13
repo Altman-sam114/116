@@ -1,3 +1,9 @@
+## v2.64 云端超时执行恢复（待验收）
+
+人工要求全部云端，本地仅 Git/text 范围审查，不执行 YAML、Python、plutil、Swift、Xcode、smoke、XCTest、模拟器或截图。macOS runner 不保证 GNU `timeout` 存在，所有有界构建/模拟器命令统一使用 `python3 .github/scripts/run_with_timeout.py <seconds> <command>...`；返回原始退出状态，超时为 `124`，缺少命令为 `127`，启动异常为 `126`。
+
+云端 static 阶段执行 `python3 .github/scripts/run_with_timeout.py --self-test`，在 `timeout-contracts.log` 记录成功、普通失败、超时、缺命令、信号退出和忽略 TERM 的子孙进程回收契约；任一失败进入 static 总门禁。同时在云端执行 YAML 解析、`git diff --check` 和项目 `plutil -lint`。Rules smoke、Xcode build-for-testing、regular `selected-combat-impact-steady` 500 KB PNG 门禁保持；XCTest 仍 skipped，不能称为实际执行通过。Agent C 必须下载最新 commit/run/attempt 的包，核对契约日志并打开 PNG 后才能确认恢复；旧 run `38342329685` 因 `timeout: command not found` 未产图，不是游戏规则失败。
+
 ## v2.57 云端验证边界
 
 本轮是 SwiftUI 表现层改动；本机只运行 `git diff --check`、`git diff --name-only`、`git status --short --branch` 和范围 `rg`，不运行 Swift、RulesSmokeTest、XCTest、Xcode、模拟器或截图。push 后 GitHub Actions 必须运行 static checks、Rules smoke、Xcode build-for-testing 和 `selected-combat-impact-steady` regular screenshot；Agent C 需下载 exact artifact、核对 manifest 的 commit/run/attempt 并打开 PNG。XCTest 若仍为 skipped 必须照实记录，regular PNG 不覆盖 compact、窄宽、Dynamic Type、VoiceOver、Reduce Motion 等证据边界。
