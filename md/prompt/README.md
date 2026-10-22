@@ -74,6 +74,18 @@ Agent A 写给 Agent B 的提示词必须包含：
 
 ## 当前建议
 
+### v3.0（战争沙盘整体重构）：实施 / 待云端验收
+
+入口：`v3（战争沙盘重构）/v3.0（战争沙盘整体重构）.md`。2026-10-22 已重新通过百度查看《将军的荣耀3》战场参考，当前会话顺序执行 A/B/C，不启动子智能体。
+
+最新旧版基线 `origin/main=4b49cd3677236b9bbc67c7ee1054412dada84b04`，run `38343683400` / attempt `1`，artifact 已下载核对：超时契约/static/smoke/build 成功，实际 XCTest skipped，PNG 偏黑，不予视觉通过。v3.0 作为 C 退回 B 的整体纠正，重构密铺六角几何、地图级地貌、3/4 兵模、边缘界面与真实 XCTest/四图/亮度门禁；只把完成的源码与文档提交，push 后再由 C 验收最新 SHA，禁止沿用旧通过文字。
+
+保留既有未跟踪 v2.56 prompt，不纳入本轮提交。v2.63 与 v2.64 已在 origin/main，不再作为待推送本地提交。
+
+### 历史阶段记录
+
+以下为 v2 各轮历史证据与当时状态，不代表当前 `origin/main` 已通过，也不能替代最新 run 验收。
+
 当前 `v2.55（六角地貌底色连续化）.md` 功能已通过：功能提交 `0344bd67f4ff7f2e3f526b413ca697a67df33cfc` 的 `WW2Tactics CI Results` workflow_dispatch run `34172993990`、attempt `1` 为 `completed/success`，活动账号为 `Altman-sam114`。Agent C 已下载并核对唯一 exact artifact `ww2tactics-ci-v2.55-main-0344bd6-run34172993990-attempt1`（id `10036475656`，digest `sha256:41c43c57267fcc3b607e96a117b6ecf5b25cc28decd2bfcc2d4c964b4f56372e`，API size `7,034,095 bytes`，解包 `9.5M`，目录 `/private/tmp/ww2tactics-c-review-34172993990/`）。manifest 的 `version=v2.55`、`branch=main`、commitSha、runId、runAttempt、workflow 精确匹配；static project check、Rules smoke、build-for-testing、JUnit（4 stages、0 failures、0 errors、0 skipped）和可读 `.xcresult` 均通过，XCTest 实际 skipped。exact regular PNG 为 `selected-combat-impact-steady`（iPad Pro 13-inch (M5)、iOS 26.5 simulator），`2064x2752`、8-bit RGBA、non-interlaced、`5,808,590 bytes`，SHA-256 `1e3d32570a83f6497219b2fd1179dc784d58e8d085d44244a1f3f004e1c3fd6c`；底色连续化可见且地图、战术状态与 HUD 无明显回归。Swift 仅 `BattlefieldMap.swift` 一行 `mapGradient.opacity(0.78)`，冻结链无 diff；v2.54 objective fallback 未恢复，v2.50-v2.53 链保持。两条 AppIntents warning 与 Actions Node.js 20、`punycode`、`url.parse()` 弃用提示为非致命。regular 不证明 compact、窄宽、Dynamic Type、VoiceOver、Reduce Motion、多焦点、4x 或未激活状态。本次仅补录功能证据：文档闭环提交的新 SHA/run/attempt/artifact 尚未生成，不能预填、自引用或宣称已验收。
 
 当前 `v2.54（据点静态整格轮廓局部化）.md` 功能已通过，文档闭环提交待最新 run 复验：功能提交为 `6cc5c378d9a0906b4ffce319e6c4a1637e4073f6`，对应 workflow run `32647289526`、attempt `1`、状态 `completed/success`；Agent C 已核对 artifact `ww2tactics-ci-v2.54-main-6cc5c37-run32647289526-attempt1`（id `9495311729`，digest `sha256:3d12474ebcba78629ecb457db9266d38f985b2e58ff627d72994d45653c7c071`，API size `6,797,996 bytes`，目录 `/private/tmp/ww2tactics-c-review-32647289526/`）。manifest 的 `version=v2.54`、`branch=main`、commit/run/attempt 完全匹配；static checks、Rules smoke、Xcode build-for-testing、JUnit 和 `xcresult` 均符合功能验收，实际 XCTest 为 skipped。regular PNG 为 `2064x2752`、8-bit RGBA、non-interlaced、`5,573,657 bytes`，SHA-256 为 `626362a33d1b44e8ecd5db9fbdbbc71f843f45d4929719ec8f8ae42a2a5ee7d7`；静态据点粗边减少、局部据点身份和 selected/combat-response 反馈保留且无明显回归。XCTest skipped、2 个非致命 AppIntents metadata warnings 以及 regular-only 限制仍如实保留；attack-focus/latest capture/guided/AI/实时命令/route/compact/窄宽/`xxxLarge`/多焦点/VoiceOver/Reduce Motion/4x 仅源码审查。即将生成的文档闭环 commit、run、attempt、artifact 和 digest 不预填。
@@ -95,12 +107,7 @@ v2.53 已在 `BattlefieldMap.swift` 的 `HexTileView.borderColor` 与 `borderWid
 
 本轮 Agent X 已基于 origin/main `a52fadb` 拆分为表现层小轮次，提示词见 `v2（六角格战争界面）/v2.58（作战台层级与地图可读性）.md`。等待本轮云端 artifact 后再进入下一轮。
 
-v2.58 功能提交 `b9ac3550ca7ec6a552e8b62eb3dc63089fe1a940` 已通过 GitHub Actions run `36259653841`、attempt `1`；artifact `ww2tactics-ci-v2.58-main-b9ac355-run36259653841-attempt1`（id `10911838493`，digest `sha256:ef1d132ce41b418f2fec7b80dea71a67365c2739e9cfc3e2babf52d851bc2a4c`）已下载到 `/private/tmp/ww2tactics-c-review-36259653841/` 并核对。manifest、JUnit、static checks、Rules smoke、build-for-testing 和 regular screenshot 均通过；XCTest 按 workflow 配置 skipped。\nEOF
-cat >> update_log.md <<'EOF'
-
-v2.58 云端验收：功能提交 `b9ac3550ca7ec6a552e8b62eb3dc63089fe1a940` 对应 run `36259653841`、attempt `1`、artifact `ww2tactics-ci-v2.58-main-b9ac355-run36259653841-attempt1`（id `10911838493`，digest `sha256:ef1d132ce41b418f2fec7b80dea71a67365c2739e9cfc3e2babf52d851bc2a4c`）。artifact 已下载到 `/private/tmp/ww2tactics-c-review-36259653841/`；manifest、JUnit、static、Rules smoke、build-for-testing、regular screenshot 均通过，XCTest skipped。截图为 iPad Pro 13-inch (M5)、iOS 26.5 simulator 的 `selected-combat-impact-steady` 场景，地图底色和作战台层级改动可见。\nEOF
-
-git add md/prompt/README.md update_log.md && git commit -m 'v2.58: 记录作战台视觉云端验收' && git push origin main && git log -2 --oneline --decorate
+v2.58 功能提交 `b9ac3550ca7ec6a552e8b62eb3dc63089fe1a940` 已通过 GitHub Actions run `36259653841`、attempt `1`；artifact `ww2tactics-ci-v2.58-main-b9ac355-run36259653841-attempt1`（id `10911838493`，digest `sha256:ef1d132ce41b418f2fec7b80dea71a67365c2739e9cfc3e2babf52d851bc2a4c`）已下载到 `/private/tmp/ww2tactics-c-review-36259653841/` 并核对。manifest、JUnit、static checks、Rules smoke、build-for-testing 和 regular screenshot 均通过；XCTest 按 workflow 配置 skipped。截图为 iPad Pro 13-inch (M5)、iOS 26.5 simulator 的 `selected-combat-impact-steady` 场景，地图底色和作战台层级改动可见。
 
 ### v2.59（战役铭牌与编队轨道）
 

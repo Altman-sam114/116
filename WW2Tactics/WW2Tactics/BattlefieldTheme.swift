@@ -3,10 +3,10 @@ import SwiftUI
 enum BattlefieldTheme {
     static let backdropTop = Color(red: 0.055, green: 0.064, blue: 0.056)
     static let backdropBottom = Color(red: 0.115, green: 0.105, blue: 0.082)
-    static let commandDeck = Color(red: 0.13, green: 0.145, blue: 0.12)
-    static let commandDeckDeep = Color(red: 0.045, green: 0.052, blue: 0.046)
+    static let commandDeck = Color(red: 0.16, green: 0.19, blue: 0.16)
+    static let commandDeckDeep = Color(red: 0.09, green: 0.12, blue: 0.11)
     static let fieldGlass = Color(red: 0.18, green: 0.21, blue: 0.17)
-    static let brass = Color(red: 0.86, green: 0.64, blue: 0.27)
+    static let brass = Color(red: 0.88, green: 0.74, blue: 0.43)
     static let selectedPiece = Color(red: 0.94, green: 0.78, blue: 0.38)
     static let supplyLine = Color(red: 0.24, green: 0.48, blue: 0.30)
     static let signal = Color(red: 0.38, green: 0.75, blue: 0.62)

@@ -2887,6 +2887,21 @@ final class GameState: ObservableObject {
     }
 
     func mapActionHint(for coordinate: HexCoordinate) -> MapActionHint {
+        mapActionHint(for: coordinate, availableRoutes: nil)
+    }
+
+    /// One route search per map render instead of one search for every empty hex.
+    func mapActionHints() -> [HexCoordinate: MapActionHint] {
+        let routes = winner == nil ? selectedUnit.map { movementRoutes(for: $0) } : nil
+        return Dictionary(uniqueKeysWithValues: tiles.map { tile in
+            (tile.coordinate, mapActionHint(for: tile.coordinate, availableRoutes: routes ?? [:]))
+        })
+    }
+
+    private func mapActionHint(
+        for coordinate: HexCoordinate,
+        availableRoutes: [HexCoordinate: MovementRoute]?
+    ) -> MapActionHint {
         guard winner == nil else { return .none }
 
         if let occupant = unit(at: coordinate) {
@@ -2922,7 +2937,13 @@ final class GameState: ObservableObject {
             return .enemyUnavailable(distance: distance, range: selectedUnit.range)
         }
 
-        if let route = movementRoute(for: selectedUnit, to: coordinate) {
+        let route: MovementRoute?
+        if let availableRoutes {
+            route = availableRoutes[coordinate]
+        } else {
+            route = movementRoute(for: selectedUnit, to: coordinate)
+        }
+        if let route {
             return .move(
                 cost: route.totalCost,
                 controlZonePenalty: route.controlZonePenalty

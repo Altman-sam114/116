@@ -135,6 +135,11 @@ struct RulesSmokeTest {
     static func main() async {
         await MainActor.run {
             let game = GameState()
+            let mapHints = game.mapActionHints()
+            require(mapHints.count == game.tiles.count, "Map hint snapshot must cover every tile")
+            for tile in game.tiles {
+                require(mapHints[tile.coordinate] == game.mapActionHint(for: tile.coordinate), "Batch and individual map hints must agree")
+            }
 
             require(game.scenario.name == "阿登反击战", "scenario name should be present")
             require(game.campaignCatalog.count >= 2, "campaign catalog should include multiple scenarios")

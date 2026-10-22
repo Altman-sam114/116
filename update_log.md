@@ -21,6 +21,27 @@
 
 ## 历史记录
 
+### v3.0 / 战争沙盘整体重构（实施，待最新云端验收）
+
+日期：2026-10-22
+
+基线：`origin/main=4b49cd3677236b9bbc67c7ee1054412dada84b04`。Agent C 已下载 run `38343683400` / attempt `1` 的 `ww2tactics-ci-v2.64-main-4b49cd3-run38343683400-attempt1`（id `11788531613`，digest `sha256:400c88b8f26de0e9117a2441ba58fb010812791415f90260dd32583a3da8b8b2`，3,231,691 bytes）到 `/private/tmp/ww2tactics-c-review-38343683400/`（解包 5.9M）。manifest 身份、static、smoke、build 与超时六类契约匹配；XCTest 实际 skipped。PNG 实看整体偏黑，CI success 不等于视觉通过，退回 B。本轮不启子智能体，当前会话依次落实 A 方案、B 实现、C 验收。
+
+核心变更：
+
+- 根界面从 6243 行拆为 ContentView 编排、CommandDeck 边缘控件、CommandPanels 与保留业务的 Inspector；移除双层 ribbon、地图标题栏与层叠外壳。默认轨道/支援收起，情报覆盖展开，结束回合有文字。
+- 正确尖顶六角投影替换旧不密铺图形/步长组合；实际 tile union bounds 修复右下行偏移漏算。Canvas、交互、单位、战果、滚动使用统一 layout，输入桥先固定 tile frame 再 position。
+- 地图级原生 Canvas 连续绘制山林、街区、田块、雪地和河路；道路 canonical 主干/回边保留。旧逐格 TerrainTexture 和多套静态地表结构移除，战果与道路网络各自拆文件。
+- 四类原创 3/4 兵模：坦克履带/炮塔、火炮双轮/拖架、步兵组、轮式侦察车；AL 实线/AX 虚线与字码，独立 M/A 资源槽、HP/将领/军衔/CUT/战术状态保留。
+- GameState 单格/批量地图提示共用判定，批量仅复用一次移动路线搜索；不改伤害、AI、寻路或其他规则语义。新增布局/表现层/逐格等价测试，smoke 增加快照一致性。
+- 云端实际执行全部 XCTest，不再固定 skipped；同 SHA iPad/iPhone 默认/真实战果四图，500 KB + 战场亮度/可读比例 + 有界重试。阶段与真实测试统计分离，always 产包，不上传辅助二进制和缓存。
+- 百度检索“将军的荣耀3”并实看公开“不列颠战役”1536×864 截图，仅参考构图/材质/兵模，不下载或打包商业资产，不引入依赖。旧未跟踪 v2.56 prompt 保留。
+
+验证：本地只进行 Git/text diff/status/范围审查，没有运行 Python/YAML/plist/Swift/smoke/XCTest/Xcode/模拟器/截图测试。完整命令与结果由即将 push 的最新云端包提供，当前不预填 commit/run/artifact，不宣称通过。新版几何替换旧错误投影是明确设计调整，不改变轴向规则坐标。
+
+遗留：无 UI test target，触屏拖动/鼠标/VoiceOver/横屏/Dynamic Type 仍需要独立运行证据；不能把四图当全部交互实测。v3.0 是本轮原创风格重构基座，不代表商业级长期目标完成。
+
+
 ### v2.64 / 恢复云端超时执行与截图基线（待云端验收）
 
 日期：2026-10-13

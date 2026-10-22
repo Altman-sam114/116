@@ -10,7 +10,7 @@ jobs:
   ci-results:
     name: Build and package CI results
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -70,8 +70,10 @@ jobs:
             yaml_status=$?
             python3 .github/scripts/run_with_timeout.py --self-test > ci-results/timeout-contracts.log 2>&1
             timeout_contract_status=$?
+            python3 -m py_compile .github/scripts/ci_simulator.py .github/scripts/ci_package.py
+            python_status=$?
             cat ci-results/timeout-contracts.log
-            if [[ $diff_status -ne 0 || $plutil_status -ne 0 || $yaml_status -ne 0 || $timeout_contract_status -ne 0 ]]; then
+            if [[ $diff_status -ne 0 || $plutil_status -ne 0 || $yaml_status -ne 0 || $timeout_contract_status -ne 0 || $python_status -ne 0 ]]; then
               static_status=1
             fi
           } > ci-results/static-checks.log 2>&1
@@ -100,7 +102,6 @@ jobs:
             fi
           } > ci-results/rules-smoke.log 2>&1
 
-          rm -rf "$RESULT_BUNDLE"
           {
             echo "## Xcode"
             xcodebuild -version
@@ -122,298 +123,28 @@ jobs:
             echo "BUILD_STATUS=$build_status"
           } >> "$GITHUB_ENV"
 
-      - name: Capture battlefield screenshot
+      - name: Execute XCTest and capture four battlefield scenes
         if: always()
         shell: bash
-        run: |
-          set +e
-
-          screenshot_status=1
-          screenshot_device_name="unavailable"
-          screenshot_runtime="unavailable"
-          device_udid=""
-
-          report_command_failure() {
-            local phase="$1" status="$2"
-            case "$status" in
-              124) echo "$phase timed out (exit 124); see bounded command diagnostics." ;;
-              127) echo "$phase command is missing (exit 127); this is not a Simulator failure." ;;
-              126) echo "$phase command could not start (exit 126); see launch diagnostics." ;;
-              *) echo "$phase returned exit $status; see original simctl output." ;;
-            esac
-          }
-
-          {
-            echo "## Battlefield screenshot"
-            echo "scenario: $SCREENSHOT_SCENARIO"
-
-            if [[ "${BUILD_STATUS:-1}" != "0" ]]; then
-              echo "Skipping screenshot because build-for-testing failed."
-            else
-              device_line="$(python3 - <<'PY'
-          import json
-          import re
-          import subprocess
-
-          payload = subprocess.check_output(
-              ["xcrun", "simctl", "list", "devices", "available", "--json"],
-              text=True,
-          )
-          data = json.loads(payload)
-          candidates = []
-
-          for runtime, devices in data.get("devices", {}).items():
-              if ".iOS-" not in runtime:
-                  continue
-
-              version_text = runtime.rsplit(".iOS-", 1)[-1]
-              version = tuple(int(part) for part in re.findall(r"\d+", version_text))
-
-              for device in devices:
-                  if not device.get("isAvailable", False):
-                      continue
-
-                  name = device.get("name", "")
-                  if name == "iPad Pro 13-inch (M4)":
-                      device_rank = 4
-                  elif name.startswith("iPad Pro"):
-                      device_rank = 3
-                  elif name.startswith("iPad"):
-                      device_rank = 2
-                  elif name.startswith("iPhone"):
-                      device_rank = 1
-                  else:
-                      continue
-
-                  candidates.append(
-                      (device_rank, version, name, device["udid"], runtime)
-                  )
-
-          if candidates:
-              _, _, name, udid, runtime = max(candidates)
-              print(f"{udid}|{name}|{runtime}")
-          PY
-              )"
-
-              if [[ -z "$device_line" ]]; then
-                echo "No available iOS Simulator device was found."
-              else
-                IFS='|' read -r device_udid screenshot_device_name screenshot_runtime <<< "$device_line"
-                app_path="$DERIVED_DATA/Build/Products/Debug-iphonesimulator/WW2Tactics.app"
-
-                echo "device: $screenshot_device_name"
-                echo "runtime: $screenshot_runtime"
-                echo "udid: $device_udid"
-                echo "app: $app_path"
-
-                xcrun simctl boot "$device_udid" >/dev/null 2>&1 || true
-                python3 .github/scripts/run_with_timeout.py 180 xcrun simctl bootstatus "$device_udid" -b
-                boot_status=$?
-
-                if [[ $boot_status -ne 0 ]]; then
-                  report_command_failure "Simulator bootstatus" "$boot_status"
-                elif [[ ! -d "$app_path" ]]; then
-                  echo "Built app was not found at $app_path."
-                else
-                  xcrun simctl ui "$device_udid" appearance dark || true
-                  xcrun simctl status_bar "$device_udid" override \
-                    --time 09:41 \
-                    --batteryState charged \
-                    --batteryLevel 100 || true
-                  python3 .github/scripts/run_with_timeout.py 120 xcrun simctl install "$device_udid" "$app_path"
-                  install_status=$?
-
-                  if [[ $install_status -ne 0 ]]; then
-                    report_command_failure "App installation" "$install_status"
-                  else
-                    python3 .github/scripts/run_with_timeout.py 60 xcrun simctl launch \
-                      --terminate-running-process \
-                      "$device_udid" \
-                      com.easytech.prototype.WW2Tactics \
-                      --ci-selected-combat-impact-steady
-                    launch_status=$?
-
-                    if [[ $launch_status -ne 0 ]]; then
-                      report_command_failure "App launch" "$launch_status"
-                    else
-                      screenshot_size=0
-                      capture_status=1
-                      for capture_attempt in 1 2 3 4; do
-                        sleep 6
-                        xcrun simctl io "$device_udid" screenshot "$BATTLEFIELD_SCREENSHOT"
-                        capture_status=$?
-                        screenshot_size=0
-                        if [[ -f "$BATTLEFIELD_SCREENSHOT" ]]; then
-                          screenshot_size="$(stat -f '%z' "$BATTLEFIELD_SCREENSHOT")"
-                        fi
-                        echo "capture attempt $capture_attempt: status=$capture_status bytes=$screenshot_size"
-                        if [[ $capture_status -eq 0 && $screenshot_size -ge 500000 ]]; then
-                          break
-                        fi
-                      done
-
-                      if [[ $capture_status -eq 0 && $screenshot_size -ge 500000 ]]; then
-                        sips -g pixelWidth -g pixelHeight "$BATTLEFIELD_SCREENSHOT"
-                        echo "bytes: $screenshot_size"
-                        screenshot_status=0
-                      else
-                        echo "Screenshot capture failed or produced an implausibly small image ($screenshot_size bytes)."
-                      fi
-                    fi
-                  fi
-                fi
-              fi
-            fi
-          } > "$SCREENSHOT_LOG" 2>&1
-
-          if [[ -n "$device_udid" ]]; then
-            xcrun simctl shutdown "$device_udid" >> "$SCREENSHOT_LOG" 2>&1 || true
-          fi
-
-          {
-            echo "SCREENSHOT_STATUS=$screenshot_status"
-            echo "SCREENSHOT_DEVICE_NAME=$screenshot_device_name"
-            echo "SCREENSHOT_RUNTIME=$screenshot_runtime"
-          } >> "$GITHUB_ENV"
+        run: python3 .github/scripts/ci_simulator.py
 
       - name: Generate result package metadata
         if: always()
         shell: bash
-        run: |
-          set -euo pipefail
-
-          static_outcome="success"
-          smoke_outcome="success"
-          build_outcome="success"
-          screenshot_outcome="success"
-          [[ "${STATIC_STATUS:-1}" == "0" ]] || static_outcome="failure"
-          [[ "${SMOKE_STATUS:-1}" == "0" ]] || smoke_outcome="failure"
-          [[ "${BUILD_STATUS:-1}" == "0" ]] || build_outcome="failure"
-          [[ "${SCREENSHOT_STATUS:-1}" == "0" ]] || screenshot_outcome="failure"
-
-          result_bundle_exists="false"
-          if [[ -d "$RESULT_BUNDLE" ]]; then
-            result_bundle_exists="true"
-          fi
-
-          {
-            echo "# WW2Tactics CI Failure Summary"
-            echo
-            echo "- version: ${CI_VERSION}"
-            echo "- branch: ${GITHUB_REF_NAME}"
-            echo "- commitSha: ${GITHUB_SHA}"
-            echo "- runId: ${GITHUB_RUN_ID}"
-            echo "- runAttempt: ${GITHUB_RUN_ATTEMPT}"
-            echo "- staticChecksOutcome: ${static_outcome}"
-            echo "- smokeTestOutcome: ${smoke_outcome}"
-            echo "- buildOutcome: ${build_outcome}"
-            echo "- screenshotOutcome: ${screenshot_outcome}"
-            echo "- screenshotScenario: ${SCREENSHOT_SCENARIO}"
-            echo "- screenshotDevice: ${SCREENSHOT_DEVICE_NAME:-unavailable}"
-            echo "- screenshotRuntime: ${SCREENSHOT_RUNTIME:-unavailable}"
-            echo "- testOutcome: skipped"
-            echo "- resultBundleExists: ${result_bundle_exists}"
-            echo
-            if [[ "$static_outcome" == "success" && "$smoke_outcome" == "success" && "$build_outcome" == "success" && "$screenshot_outcome" == "success" ]]; then
-              echo "All configured CI checks passed. XCTest execution is skipped; build-for-testing produced the test bundle and the app launch produced a battlefield screenshot."
-            else
-              echo "One or more checks failed. Inspect ci-results/static-checks.log, ci-results/timeout-contracts.log, ci-results/rules-smoke.log, ci-results/xcodebuild.log, and ci-results/battlefield-screenshot.log."
-            fi
-          } > ci-results/ci-failure-summary.md
-
-          python3 - <<'PY'
-          import json
-          import os
-          from datetime import datetime, timezone
-
-          static_status = os.environ.get("STATIC_STATUS", "1")
-          smoke_status = os.environ.get("SMOKE_STATUS", "1")
-          build_status = os.environ.get("BUILD_STATUS", "1")
-          screenshot_status = os.environ.get("SCREENSHOT_STATUS", "1")
-
-          def outcome(status):
-              return "success" if status == "0" else "failure"
-
-          manifest = {
-              "version": os.environ["CI_VERSION"],
-              "branch": os.environ["GITHUB_REF_NAME"],
-              "commitSha": os.environ["GITHUB_SHA"],
-              "shortSha": os.environ["SHORT_SHA"],
-              "runId": os.environ["GITHUB_RUN_ID"],
-              "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
-              "workflowName": "WW2Tactics CI Results",
-              "createdAt": datetime.now(timezone.utc).isoformat(),
-              "projectName": "WW2Tactics",
-              "scheme": "WW2Tactics",
-              "destination": "generic/platform=iOS Simulator",
-              "resultBundlePath": os.environ["RESULT_BUNDLE"],
-              "resultBundleExists": os.path.isdir(os.environ["RESULT_BUNDLE"]),
-              "junitPath": "ci-results/junit.xml",
-              "buildLogPath": "ci-results/xcodebuild.log",
-              "failureSummaryPath": "ci-results/ci-failure-summary.md",
-              "staticChecksOutcome": outcome(static_status),
-              "smokeTestOutcome": outcome(smoke_status),
-              "buildOutcome": outcome(build_status),
-              "screenshotOutcome": outcome(screenshot_status),
-              "screenshotScenario": os.environ["SCREENSHOT_SCENARIO"],
-              "screenshotPath": os.environ["BATTLEFIELD_SCREENSHOT"],
-              "screenshotLogPath": os.environ["SCREENSHOT_LOG"],
-              "screenshotDevice": os.environ.get("SCREENSHOT_DEVICE_NAME", "unavailable"),
-              "screenshotRuntime": os.environ.get("SCREENSHOT_RUNTIME", "unavailable"),
-              "testOutcome": "skipped",
-              "projectSpecificReports": [
-                  "ci-results/static-checks.log",
-                  "ci-results/timeout-contracts.log",
-                  "ci-results/rules-smoke.log",
-                  "ci-results/battlefield-screenshot.log",
-                  "ci-results/battlefield-screenshot.png"
-              ]
-          }
-
-          with open("ci-results/ci-artifact-manifest.json", "w", encoding="utf-8") as f:
-              json.dump(manifest, f, indent=2)
-              f.write("\n")
-          PY
-
-          python3 - <<'PY'
-          import os
-          import xml.etree.ElementTree as ET
-
-          checks = [
-              ("static-checks", os.environ.get("STATIC_STATUS", "1"), "git diff --check, plutil, YAML, and timeout wrapper contracts"),
-              ("rules-smoke", os.environ.get("SMOKE_STATUS", "1"), "RulesSmokeTest compile and run"),
-              ("xcode-build-for-testing", os.environ.get("BUILD_STATUS", "1"), "xcodebuild build-for-testing"),
-              ("battlefield-screenshot", os.environ.get("SCREENSHOT_STATUS", "1"), f"boot simulator, install app, launch {os.environ['SCREENSHOT_SCENARIO']}, and capture battlefield screenshot"),
-          ]
-          failures = sum(1 for _, status, _ in checks if status != "0")
-          suite = ET.Element("testsuite", {
-              "name": "WW2Tactics CI Results",
-              "tests": str(len(checks)),
-              "failures": str(failures),
-              "errors": "0",
-              "skipped": "0",
-          })
-          for name, status, detail in checks:
-              case = ET.SubElement(suite, "testcase", {
-                  "classname": "WW2TacticsCI",
-                  "name": name,
-              })
-              if status != "0":
-                  failure = ET.SubElement(case, "failure", {
-                      "message": f"{name} failed",
-                  })
-                  failure.text = detail
-          tree = ET.ElementTree(suite)
-          ET.indent(tree, space="  ")
-          tree.write("ci-results/junit.xml", encoding="utf-8", xml_declaration=True)
-          PY
+        run: python3 .github/scripts/ci_package.py
 
       - name: Upload CI result package
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ci-results
+          path: |
+            ci-results/*.json
+            ci-results/*.md
+            ci-results/*.xml
+            ci-results/*.log
+            ci-results/*.png
+            ci-results/*.xcresult
           if-no-files-found: error
           retention-days: 14
 
@@ -421,6 +152,6 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [[ "${STATIC_STATUS:-1}" != "0" || "${SMOKE_STATUS:-1}" != "0" || "${BUILD_STATUS:-1}" != "0" || "${SCREENSHOT_STATUS:-1}" != "0" ]]; then
+          if [[ "${STATIC_STATUS:-1}" != "0" || "${SMOKE_STATUS:-1}" != "0" || "${BUILD_STATUS:-1}" != "0" || "${SCREENSHOT_STATUS:-1}" != "0" || "${TEST_STATUS:-1}" != "0" ]]; then
             exit 1
           fi

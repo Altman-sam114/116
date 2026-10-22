@@ -1,447 +1,62 @@
-## v2.58 表现层当前状态
+# 项目核心流程
 
-War Ledger 由 `ContentView` 的战区背景、`BattlefieldChrome` 的双层顶部指挥带、`BattlefieldMap` 的测绘底材和 `BattlefieldUnitViews` 的阵营环组成。它们只读取 `GameState` 已有的回合、阵营、目标、单位和地形状态；测绘网格/等高线、暗角和单位环均关闭命中并隐藏于无障碍树。六角坐标、tile frame、`contentShape`、zIndex、滚动缩放与所有命令继续由原链路负责。
+## 当前架构（v3.0 战争沙盘）
 
-# 项目核心流程文档
+规则唯一事实源是 `GameState`。地图优先界面使用共享尖顶六角投影、地图级静态 Canvas、透明交互地格、原创 3/4 兵模和按需边缘指挥面板；没有另建简化战斗状态机。
 
-## 0. 一句话总览
+## 模块职责
 
-`WW2Tactics` 的主链路是：玩家在 SwiftUI 六角格地图上选择单位和目标，`GameState` 根据 `GameModels` 执行移动、攻击、补给、AI、目标和胜负规则，v2.0 表现层由 `ContentView` 根编排、`BattlefieldChrome`、`BattlefieldMap`、`BattlefieldUnitViews` 和 `BattlefieldTheme` 将状态渲染为连续战区；测试层用 XCTest 和 smoke test 锁住核心规则。云端链路在 build-for-testing 后启动模拟器生成首屏战场截图，PNG 必须非空且至少 500 KB 才通过截图门禁；未加密 artifact 同时保存规则、构建和视觉证据，下载后再验收。
+- `GameModels.swift`：阵营、兵种、地形、轴向坐标、战役、单位、规则预览与结果值。
+- `GameState.swift`：选择、焦点、移动、攻击、反击、AI、补给、士气、据点、命令点、增援、胜负、规划、态势与回放。`mapActionHints()` 在一次只读快照中共享移动路线搜索；单格与批量调用同一判定函数，不建立跨回合缓存。
+- `ContentView.swift`：60pt 顶部战役带、全幅战场和本地情报展开状态。情报在宽屏右缘覆盖、窄屏底部覆盖，不挤压地图。
+- `BattlefieldCommandDeck.swift`：战役菜单、资源、结束回合、地图缩放/重开、单一选中单位动作坞、战况通讯条、编队/据点与支援开关。支援和定位轨道默认收起。
+- `BattlefieldChrome.swift`：AL/OBJ/AX 全量横向定位轨道、焦点滚动、紧凑行动标记和共用 HUD 小组件。
+- `BattlefieldCommandPanels.swift`：既有详细攻击预览、编队摘要、战术命令和增援面板。详细预览仍可由情报入口访问。
+- `BattlefieldInspector.swift`：保留单位详情、任务、地格、战线态势、压力、反制、战果、后勤、AI 时间线与战报；不在本轮重写业务语义。
+- `BattlefieldMapLayout.swift`：统一六角顶点、中心、tile frame、全部实际地格的 union bounds、24pt 留白及缩放尺寸；另有纯值 `UnitReadinessPresentation`。
+- `BattlefieldTerrainRenderer.swift`：一个静态 Canvas 绘制连续苔绿底材、低频田块、针叶树林、分面岩脊、雪地、街区与据点建筑。道路/河道沿真实邻接的共享中心连接；无随机状态、计时器、图片或网络。
+- `BattlefieldRoadNetwork.swift`：从真实道路邻接派生 canonical 主干及有界长回边，仅用于画路，不改变路线和移动成本。
+- `BattlefieldMap.swift`：透明战术地格、标记、单位层次、稳定 coordinate ID、UIKit 输入桥和 SwiftUI 无障碍摘要。静态地形不再嵌入每个交互 View。
+- `BattlefieldCombatFeedback.swift`：真实执行坐标上的交战轴线、HIT/RET/HP 前后、可取消反馈序列和 Reduce Motion。
+- `BattlefieldUnitRenderer.swift`：原生 Canvas 原创坦克、火炮、步兵组三种姿势与轮式侦察车，统一左上光源、厚度、结构与接地阴影。
+- `BattlefieldUnitViews.swift`：将领/军衔/CUT/战术状态、实线 AL / 虚线 AX 阵营环与字码、五段 HP、独立移动与攻击槽。spent 严格为 `hasMoved && hasAttacked`。
+- `BattlefieldTheme.swift`：橄榄炭灰 chrome、浅色正文与克制黄铜强调。
 
-v2.2 首屏 chrome 保持单行顶栏，地图内只叠加当前动作 HUD；编队、战术、增援和图例由 `BattlefieldSupportDeck` 管理本地展开状态，默认收起以扩大地图，但内部按钮仍直接调用既有 `GameState` 入口。普通地格不再常驻地形代码，战术 marker 与 VoiceOver 数据不变。v2.3 进一步由 `BattlefieldWorkspace` 让地图占满主工作区，Inspector 只以本地 SwiftUI 状态从右缘或底部按需覆盖展开；它不进入 `GameState`，也不删除任何规则信息或命令入口。v2.4 的 `TerrainTexture` 仅为河流、道路和弱林带绘制跨格连接，其他纹理从 q/r 坐标确定性派生位置与坡度，避免随机状态和重复拼花。v2.5 的 `UnitModelView` 从现有 `UnitKind`、`Faction` 和 spent 状态只读派生军械色板、结构线与阴影，`MiniHealthBar` 只读取既有 HP 比例绘制五段刻度。v2.6 由 `MapCommandCenter` 把 viewport 高度传给 `HexMapView`，后者从既有地图行数与 tile 高度计算只读 fill scale，再叠加战役/战术/细节倍率；缩放只改变渲染与滚动范围，不改变 tile frame、坐标、命中或规则。v2.7 的 `MapCommandCenter` 仅在已选中单位时显示完整动作 HUD，空闲态改用边缘 `NEXT` 指挥坞；`HexTileView` 从既有 `isSelected`、`isFocused` 和 `actionHint` 只读派生蓝色选中光环、四角框与红橙目标准星。v2.8 的地图 `UnitCounter` 改用透明 `MapUnitPiece`，军械模型直接落在阵营地面环上；非地图区域继续使用原 `UnitShapeBadge`。v2.9 的 `TerrainTexture` 在同一 q/r seed 与邻接 Path 上增加田块、树冠层、建筑体块、山体明暗面、雪地凹陷和河路多层高光，不新增状态或改变地形规则。v2.10 仅在 `--ci-selected-approach-preview` 启动参数存在时，由 `WW2TacticsApp` 复用 `handleTap` 与 `focus` 构造选中/接敌预览；不带参数的正常启动保持默认状态，截图场景名进入 artifact 元数据。v2.11 保持 `ActionMarker` 与 `ThreatenedMoveMarker` 的既有单一 HStack 结构，只把 M/ATK/POS/THR 长标签缩为成本/伤害/P/! 并收紧 padding；规则集合和 tile accessibility 摘要不变。v2.12 的 CI 场景复用 `handleTap` 与 `handleSecondaryAction` 真实执行一次接敌移动，随后由 `focusedCommandPreview.attack` 和 `combatPreviewAgainstFocusedTarget()` 只读驱动火力解算带；只有玩家点击“开火”才调用 `executeFocusedCommand()`，View 不复制伤害公式。v2.13 只从 `.attack` 派生 `isAttackFocusMode`：`HexTileView` 暂时过滤非焦点控制区、射程覆盖、命令和态势 chips，`EngagementAxisOverlay` 连接 selected/focused 点位并关闭 hit testing；底层集合、accessibility、tile frame 和输入不变。v2.14 由 `GameState.attack` 把执行时双方坐标写入 `latestCombatResult`，`CombatResolutionOverlay` 只读显示真实 HIT/RET、HP 前后和交火/击毁结果；即使攻击后选择轮转或目标被击毁，反馈仍定位原交战格。v2.15 的 `combatPreview` 通过 `previewCombatantsAfterPrimaryAttack` 复制双方值并推进主伤害后的 HP、士气、姿态、经验、军衔和晋升 HP，再复用 `counterDamageValue` 预测反击；纯预判不写入 scenario、日志或 latest result。v2.16 的 `CombatResolutionOverlay` 继续以 `latestCombatResult` 为唯一事实源，并用只属于 SwiftUI 的本地 phase 按命中、HIT、真实 RET、结论顺序绘制；`.task(id: summary.id)` 使新战果取消旧序列，Reduce Motion 与 `--ci-selected-combat-impact-steady` 则直接进入同一个 resolved 画面，均不把 phase 写入 `GameState`。
+## 地图坐标与渲染
 
-v2.17 在 resolved 后增加只属于 `CombatResolutionOverlay` 的 dismissing/hidden phase：地图战果停留约 2.4 秒后以 opacity 淡出，`latestCombatResult` 本身继续保留给 Inspector、态势响应和复盘。Reduce Motion 跳过缩放与位移但仍会透明度退场；`--ci-selected-combat-impact-steady` 永远固定在 resolved，不进入退场计时。
-
-v2.18 让 `UnitCounter` 直接读取 `BattleUnit.hasMoved/hasAttacked`，在军械模型下方以固定的移动图标、五段 HP 和开火图标表达剩余行动资源；消耗后的图标在原位切为完成符号。只有两个资源都耗尽时才把 `MapUnitPiece` 视为 spent 并整体降权，不新增或回写规则状态。`HexMapView` 同时从 tile 是否有单位、是否聚焦/选中只读派生 sibling `zIndex`，使含单位的整格高于普通地形，而交战轴线和战果叠层继续位于所有 tile 上方。
-
-v2.19 将 `MapActionHUD` 从选中单位摘要、指标、命令三行收敛为两行边缘动作坞：上行合并军械徽章、单位名/HP、图标数值和 44pt 待命，下行保留四个 44pt 快捷命令。`MapHudMetric.compact` 只改变可视排版，VoiceOver 继续读出完整标签/数值；`InlineMapCommandPreview` 仍只在可执行时按需展开。
-
-## 1. 当前核心数据流
+规则仍使用 `HexCoordinate(q,r)` 和原有六邻接、距离。v3 将旧版不密铺的扁顶图形/近似步长组合整体替换为尖顶投影：
 
 ```text
-用户输入 / 快捷按钮
-  -> BattlefieldMap / BattlefieldChrome 地图格和 HUD 事件
-  -> GameState handleTap / handlePrimaryAction / handleSecondaryAction / executeFocusedCommand / focusEnemyThreatCountermeasure / focusBattlefieldSituationPrimaryTarget / focusBattlefieldSituationObjectivePressure / focusBattlefieldSituationObjectivePressureReplayTarget / focusBattlefieldSituationResponseTarget / focusPreviousBattlefieldSituationResponse / focusNextBattlefieldSituationResponse / focusBattlefieldSituationReplayTarget / focusAIPhaseTimelineEvent / focusPreviousAIPhaseTimelineEvent / focusNextAIPhaseTimelineEvent / toggleAIPhaseTimelinePlayback / advanceAIPhaseTimelinePlayback
-  -> GameModels 中的 Scenario / BattleUnit / TerrainTile / HexCoordinate / MapCommandPreview / BattlefieldSituationSummary / BattlefieldSituationObjectivePressure / BattlefieldSituationObjectivePressureMapMarker / BattlefieldSituationResponseSummary / BattlefieldSituationResponseHistoryEntry / BattlefieldSituationResponseMapMarker / BattlefieldSituationReplayTarget / BattlefieldSituationReplayTargetSource
-  -> GameState 规则判定与状态更新
-  -> @Published 状态变化
-  -> SwiftUI 表现层重新渲染地图、单位、侧栏、HUD、图例、战斗结果、战报
-  -> GameStateTests / RulesSmokeTest 验证行为
+width = 86; height = 100
+rawCenter.x = (q + r/2) * 86 + 43
+rawCenter.y = r * 75 + 50
+bounds = union(全部实际 tile frame) + 24pt 四周留白
+center = rawCenter + 统一 offset
 ```
 
-## 2. 核心模块
+六角顶点与投影相符：每个邻格恰好共享两个顶点；不再漏算最右下行偏移，不因选中/战果重算另一套位置。Canvas、交互格、单位、轴线、战果、滚动尺寸共用布局。`HexInputReader` 在 tile 固定 frame 内先组合再整体 position，避免输入桥覆盖整个已定位容器。
 
-### 2.1 `GameModels.swift`
+绘制顺序：连续底材与静态地貌 → 透明交互格的 owner/控制区/可达/路线/补给 → 单位与 HP/行动槽 → 焦点、目标与局部 marker → 交战轴线与真实战果 → 边缘 chrome。装饰不命中并隐藏于无障碍树。普通格低对比边界，选中/目标/可达才强调。
 
-职责：
+## 操作与规则状态流
 
-- 定义阵营、兵种、地形、士气、战术状态、单位、地图格、战役。
-- 定义地图命令提示 `MapActionHint`、执行预览 `MapCommandPreview`、路线步骤预览 `RouteStepPreview`、移动后攻击预判 `PostMoveAttackPreview`、移动后火力暴露预览 `PostMoveFireExposurePreview`、OBJ 据点推进计划摘要 `ObjectiveAdvancePreview`、安全接敌候选 `SafeEngagementOption`、安全接敌路径风险对比 `SafeEngagementComparisonPreview`、敌方威胁意图预判 `EnemyThreatIntentPreview`、敌方意图反制建议 `EnemyThreatCountermeasurePreview`、据点防守取舍解释 `EnemyThreatObjectiveDefenseTradeoff`、反制建议收益解释 `EnemyThreatCountermeasureBenefitMetric`、反制建议排序解释 `EnemyThreatCountermeasurePriorityFactor`、反制建议相邻对比 `EnemyThreatCountermeasureComparisonPreview`、反制建议执行前后预计对照 `EnemyThreatCountermeasureImpactComparison`、反制建议地图标记 `EnemyThreatCountermeasureMapMarker`、反制建议执行桥接预览 `EnemyThreatCountermeasureExecutionPreview`、反制建议执行回放 `EnemyThreatCountermeasureExecutionResultSummary`、反制建议敌方回合复核 `EnemyThreatCountermeasureFollowUpSummary` 及其复核结论等级/定位目标/据点防守细分 `EnemyThreatObjectiveDefenseFollowUpDetail`/关联 AI 行动 `EnemyThreatCountermeasureFollowUpAIEvent`、玩家回合战线态势汇总 `BattlefieldSituationSummary` 及其据点防守压力 `BattlefieldSituationObjectivePressure`、压力来源 `BattlefieldSituationObjectivePressureSource`、压力态势对照 `BattlefieldSituationObjectivePressureComparison`、压力敌方回合影响 `BattlefieldSituationObjectivePressureEnemyPhaseImpact`、威胁来源坐标和压力地图标记 `BattlefieldSituationObjectivePressureMapMarker`、首要定位目标和下一步提示、战线态势执行反馈/敌方回合影响/普通行动态势响应 `BattlefieldSituationResponseSummary`、最近态势响应历史条目 `BattlefieldSituationResponseHistoryEntry`、战线态势响应地图标记 `BattlefieldSituationResponseMapMarker`、战线态势关联 AI 复盘目标 `BattlefieldSituationReplayTarget` 及其来源 `BattlefieldSituationReplayTargetSource`、普通攻击后的 `CombatResultSummary`、战术命令后的 `TacticalCommandResultSummary`、据点占领后的 `ObjectiveCaptureResultSummary`、部署后的 `DeploymentResultSummary`、整补后的 `ReinforcementResultSummary`、敌方回合行动时间线 `AIPhaseTimelineEvent`、敌方回合复盘播放速度 `AIPhaseTimelinePlaybackPace`、敌方回合地图复盘标记 `AIPhaseMapMarker`、敌方回合后的 `AIPhaseSummary` 和纯派生复盘结论 `AIPhaseReplayConclusion`。
-- 生成阿登反击战、诺曼底突破等战役初始数据。
+1. 战役菜单调用 `selectScenario(id:)`；重开调用 `restart()`。
+2. 直接点击、鼠标主键、次键分别转发 `handleTap`、`handlePrimaryAction`、`handleSecondaryAction`，没有 Canvas 私有点击规则。
+3. 友军轨道 `select(unitID:)`，敌军 `focus(unitID:)`，据点 `focus(coordinate:)`；完整数组、既有排序不截断。焦点变化使地图与轨道按稳定 ID 滚动，不执行命令。
+4. 单位选择后从 `mapActionHints()`、可达/攻击/控制区/补给、路线步骤、接敌位和预判驱动叠层。
+5. 动作坞显示真实 HP 与 M/A 状态，攻击/接敌/据点按钮只调用现有 focus 入口。执行仅调用 `executeFocusedCommand()`；详细 `focusedCommandPreview` 与 `combatPreviewAgainstFocusedTarget()` 在情报中保留。
+6. 移动仍经 GameState 路线搜索、地形适性、控制区成本、占据与剩余行动校验；攻击仍经距离、兵种/地形/将领/士气/夹击/防御姿态和经验规则，移动后再攻击不绕过校验。
+7. `CombatResultSummary` 保存执行时双方坐标、伤害、HP 起止、反击和击毁事实；反馈不从当前焦点或消息猜测。正常序列可取消、2.4 秒 resolved 后透明度退场；Reduce Motion 不做缩放/移动，steady CI 参数固定真实 resolved。
+8. `endTurn()` 推进轴心 AI，再恢复盟军行动，继续执行后勤、目标、任务和胜负规则。AI 时间线/复盘、反制执行回放/敌方回合复核、据点压力、态势响应历史均保留原 GameState 链路。
 
-输入：
+## 云端验证与验收
 
-- 静态规则常量。
-- 战役构造函数。
+人工要求不做本地测试；本地只 Git/text 审查。`main` push → static（diff/plist/YAML/Python/timeout 契约）→ Rules smoke → Xcode build-for-testing → 已有云端 iPad 真正运行全部 XCTest → iPad/iPhone 各默认/真实选中战果两图 → always 生成结果包 → Agent C 下载最新 exact artifact。
 
-输出：
+四图均记录 device/UDID/runtime、场景、portrait、尺寸、bytes、SHA-256、亮度与可读比例。保留至少 500 KB 初筛，新增战场中央平均亮度 ≥45/255、≥45% 采样点亮度 ≥55，并至少等待两次截图机会；最多 8 次重试，拒绝早期 launch fade。大小与采样仍不能替代人工视觉检查。
 
-- `Scenario`、`BattleUnit`、`TerrainTile` 等规则层对象。
+manifest 分开记录 build、真实 test outcome/count/failure/skipped/result bundle 与四图。JUnit 的 CI 阶段和实际 XCTest suite 分离。没有 UI test target：拖动、触屏命令、VoiceOver、Dynamic Type、横屏与 Reduce Motion 的行为没有运行证据时只作源码审查，不宣称实测通过。
 
-禁止：
+## A → B → C → X
 
-- 不在这里写 UI。
-- 不在这里执行回合状态变更。
-
-### 2.2 `GameState.swift`
-
-职责：
-
-- 项目核心状态机。
-- 管理当前战役、选中单位、焦点坐标、安全接敌候选焦点、当前阵营、回合、消息、战报、最新普通攻击结果、最新战术命令结果、最新据点占领结果、最新部署结果、最新整补结果、最新反制建议执行回放、最新反制建议敌方回合复核、最近 5 条态势响应历史、当前查看响应 order、最新 AI 回合摘要及其行动时间线、AI 复盘播放状态和速度、胜负、指令点。
-- 处理移动、攻击、反击、攻击后战损摘要、补给、士气、控制区、战术命令、战术命令结果摘要、增援、部署结果摘要、整补、整补结果摘要、据点占领、据点占领结果摘要、目标推进、目标推进计划摘要、AI 行动、AI 回合摘要和行动时间线、AI 行动地图复盘标记派生、当前 AI 复盘事件选中 order、上一条/下一条复盘导航、播放/暂停/速度控制及其地图标记派生、威胁覆盖、路线步骤情报、移动后攻击预判、移动后火力暴露预览、安全接敌候选、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、战线态势汇总和据点防守压力列表、据点压力来源标识和排序、据点压力地图标记、压力行当前态、压力态势对照、压力敌方回合影响和压力复盘线索、战线态势复盘影响来源筛选、首要目标定位、下一步提示、执行反馈、敌方回合影响、普通行动态势响应、态势响应历史追加/裁剪/连续查看、态势响应地图标记、态势响应定位入口和 AI 关键复盘目标派生、反制建议相邻排序对比、反制建议执行前后预计对照、当前反制建议地图标记派生、当前反制建议执行入口桥接派生、最近一次反制建议执行回放、敌方回合后复核、据点防守复核细分、关联 AI 行动和复核目标定位。
-
-输入：
-
-- `ContentView` 发来的用户意图。
-- 当前 `Scenario` 和单位状态。
-
-输出：
-
-- `@Published` 状态。
-- 地图命令预览。
-- 战报和消息。
-- 胜负与评价。
-
-禁止：
-
-- 不写 SwiftUI 视图。
-- 不把规则结果交给 View 再二次判定。
-
-### 2.3 SwiftUI 表现层
-
-职责：
-
-- `ContentView.swift` 只负责根响应式编排、Inspector 和本轮未拆分的侧栏/战报组件。
-- `BattlefieldWorkspace` 默认收起 Inspector，regular 宽度从右缘覆盖、compact 宽度从底部覆盖；展开按钮保持 44pt、支持 VoiceOver 和 Reduce Motion，地图尺寸不随 Inspector 开关改变。
-- `BattlefieldTheme.swift` 提供颜色、tactical surface 和跨模块视觉 token。
-- `BattlefieldChrome.swift` 提供薄顶栏、地图工具条、两行选中单位边缘动作坞、空闲 `NEXT` 指挥坞、边缘快捷命令和地图外壳；compact 指标只显示图标/数值并保留完整 VoiceOver 语义，按钮 action 继续原样转发 `GameState`。
-- `ObjectiveJumpDock` 将 `mapFriendlyFocusUnits`、按既有 `objectiveSort` 排列的 `objectiveTiles` 和 `mapEnemyFocusUnits` 分别放入同时可见的 AL/OBJ/AX 有界 section；每段只读完整数组并独立横向滚动，不截断、不缓存、不改排序。友军继续调用 `select(unitID:)`，敌军继续调用 `focus(unitID:)`，据点继续调用 `focus(coordinate:)`，焦点变化沿既有 `ScrollViewReader` 链定位地图。
-- v2.38 的 `ObjectiveJumpDock` 继续使用上述三组事实数组和定位 action，但只保留一个 `MapHudBackground` 外层轨道；`ObjectiveJumpSection` 使用短码/数量与细分隔，不再叠加独立圆角背板，`UnitFocusButton`/`ObjectiveJumpButton` 以透明 item、焦点边框和底部阵营色线保持 50pt 稳定项目。展开的 `ForceRibbon` 只读 `game.units(for:)` 生成 AL/AX 数量与 READY 摘要，不再渲染 `UnitRibbonButton` 单位卡；支援甲板仍默认收起，标题/按钮至少 44pt，VoiceOver、Dynamic Type、Reduce Motion、地图工作区和既有 `select`/`focus` action 不变。
-- v2.39 的 `ObjectiveJumpStrip` 读取 `dynamicTypeSize`，在 `xxxLarge` 及以上把单位名称改为兵种 code、据点名称改为 `OBJ`，保留 HP、M/A、归属、坐标、短码、数量和完整 accessibility 文案；section 在同一 66pt 内用 16/48pt 大字号标题/项目或 14/50pt 普通布局，三段比例、完整数组、LazyHStack、按钮 action、焦点边框和地图 overlay 不变。`RoadConnectionNetwork` 仍从 `.road` 邻接只读生成 canonical 边：Kruskal 主干保留桥接/端点，每个有回边的组件确定性补一条低度回边，再将同一去重边投影为 paired half-path；不写入 `GameState`、移动成本、路线或输入。
-- v2.40 的 `RoadConnectionNetwork` 在完成 canonical Kruskal 主干后，按每个道路组件的 `edgeCount - vertexCount + 1` 计算只读 `cycleRank`，将回边 quota 固定为 0/1；候选回边用主干 BFS 路径长度、内部高阶节点数、端点度数及 q/r/direction 稳定排序，优先长、低分叉环路。仍只向两端投影 paired half-path，`ObjectiveJump` rail、`GameState`、路线成本、输入和 marker 不变。
-- v2.41 的 `ObjectiveJumpSection` 继续接收三组完整数组和既有排序，但为每段 `ScrollView` 在本地测量 viewport、内容宽度与 minX 偏移；以小 epsilon 只读派生 overflow 和 leading/trailing edge fade/chevron，装饰层关闭 hit testing。单位 UUID 和据点 coordinate id 同时作为 section-local `ScrollViewReader` 的稳定 item id；`focusedUnit` 或 `focusedCoordinate` 改变且 id 位于本段时，才把该 item 滚到中间，其他 section、地图 `ScrollViewReader`、数组和 `GameState` 均不写入。轨道项目继续是 72/84pt 宽、48/50pt 高与至少 44pt Button，VoiceOver 标题补充实际可滑动方向；Reduce Motion 禁止自动滚动动画但保留静态 cue/fade。
-- v2.42 的 `WarLedgerSurface` 和专用 token 只读统一 `TopCommandBar`、`MapHudBackground` 与 `ObjectiveJumpDock` 的深色底材、蚀刻边、细分隔、静态内高光和受控阴影；`CommandTitle`、六个 `StatusChip` 与 `EndTurnButton` 形成单一连续顶栏，HUD/rail 保持单层覆盖。数值仍完全来自既有 `GameState`，`CampaignPicker`、`endTurn`、rail 的 `select`/`focus`、66pt 高度、72/84pt 宽、48/50pt 高、44pt、VoiceOver、compact/Dynamic Type 和 Reduce Motion 均不变；所有 surface/分隔/阴影均为无障碍隐藏的纯渲染，不写入规则或输入链。
-- v2.43 的 `HexMapView` 继续只读既有 tiles、q/r seed、同类邻接方向和 `RoadConnectionNetwork` 输出：`MapGridBackdrop` 以同尺寸、不可命中且无障碍隐藏的低频泥土/纸张 Path 替代规则网格；默认不再渲染边缘 q/r 标签。`HexTileView` 的普通静态接缝降为 map-only 背景级 token，而 selected/focus/command/route/supply/marker/目标的原有 `borderColor` 和 `borderWidth` 优先级保持。`TerrainTexture` 不改道路/河流 connection path，仅以现有方向在森林和山体下方绘制低对比连续阴影；地图双轴 `ScrollView` 只隐藏系统 indicators，滚动、缩放、`ScrollViewReader`、tile frame/position/id/contentShape/zIndex、`HexInputReader`、VoiceOver 和 `GameState` 均不变。
-- v2.44 的地图 `UnitCounter` 继续从完整 `BattleUnit` 与 `GameState.supplyState(for:)` 只读取得 HP、ready、军衔、将领、CUT、战术状态和 spent；`MapUnitPiece` 在固定 width/44pt 画布内按 contact shadow < faction base/rim < `UnitModelView` 暗色厚度/阵营漆面/装备面/结构线/顶缘高光组成静态实体。`UnitModelView` 用既有 `UnitKind`、`Faction`、`isSpent` 与纯表现 presentation 区分地图和紧凑 badge，原创 tank/artillery/infantry/recon 轮廓保持可辨；selected halo/3pt 抬升、tile zIndex/frame/contentShape、marker、HIT/RET、输入、VoiceOver 摘要和 `GameState` action 均不变。
-- v2.45 的 `CombatResolutionOverlay` 继续只接收 `CombatResultSummary`、执行时 attacker/defender 点位和既有环境值；`CombatResolutionConclusion` 只从 summary 的击毁/反击字段派生结论文字、SF Symbol、颜色和“无反击”限定，`CombatDamagePlate` 只显示真实 HIT/RET、伤害与对应 HP 起止值。`CombatResolutionLayout` 从两点和 overlay 局部 bounds 派生 trimmed axis、法向、端点外移与短距间距：结论位独立高于铭牌，HIT 靠近 defender，真实 RET 靠近 attacker；不改 `position(for:)`、地图 frame、tile/contentShape/zIndex、HUD/通讯坞/AL-OBJ-AX rail 或输入。结果装饰关闭命中与 VoiceOver，父层仍只暴露一条完整摘要；phase、`.task(id:)` 取消、约 2.4 秒退场、steady-state、Reduce Motion 和 `latestCombatResult` 保持原链。
-- v2.46 的 `HexTileView` 继续把同一份 `TerrainTile` 传给 `TerrainTexture`、据点旗标和名称牌；`tile.isObjective`、`objectiveName`、`owner` 只读派生 `ObjectiveLandmark` 的城市建筑/非城市前哨几何、接地阴影、owner code 和短名称牌。`TerrainTexture` 复用 tile 局部 `GeometryReader` 与既有 q/r seed，不写回据点或创建缓存；有单位时名称牌在既有旗杆侧收紧到上缘，单位 `UnitCounter` 与 HP/行动轨道仍占原表现优先级。新地标关闭命中并隐藏于 VoiceOver，`HexTileView` 仍只有一条完整摘要；`ObjectiveJumpDock`、`focus(coordinate:)`、地图 frame/contentShape/zIndex、输入、scroll/zoom、HUD、rail、marker 和 v2.45 战果 overlay 均不变。
-- v2.47 的 `BattlefieldTheme` 地图 token、`MapGridBackdrop`、`HexTileView` 底材和 `TerrainTexture` 局部颜色只改变白昼明度，不改变 `TerrainTile`、`GameState`、地形规则或输入。底材、普通地貌、道路/河流、据点、军械/状态、marker/战果、HUD/rail 依照既有叠层保持由低到高的明度阶梯；`TerrainKind` 色相差异、既有道路/河流 connection Path、q/r 确定性纹理和 v2.46 据点/旗标组合继续只读派生。地图暗边和局部黑面被软化，但没有新增全屏 wash、动态主题、状态、缓存、动画、依赖或几何；纯装饰仍关闭命中并隐藏于无障碍树，`HexTileView` 的坐标、frame、contentShape、zIndex、VoiceOver、单位、marker、v2.45 战果、HUD、rail、scroll/zoom 和 `GameState` action 不变。
-- v2.48 的 `TerrainTexture` 继续只读 `TerrainTile`、q/r `terrainSeed` 与既有 `connectionDirections`，仅收敛五类非道路/非河流局部纹理：平原为 1-2 个低对比块面，森林为共享树冠、接地阴影和 2-3 棵树，城市为原街廓加 3-4 个稀疏建筑，山地为主峰、单侧明面、雪顶和可选低支撑脊，雪地为漂移曲线和低密度针叶树。`BattlefieldTheme` 新增 token 只供这些方法消费；connection Path、道路/河流颜色宽度与方向、底材 v2.47 明度、据点、单位、marker、HIT/RET、HUD、rail、地图几何、输入、VoiceOver 和 `GameState` 均不变。所有纹理继续在既有 tile bounds/Hexagon 内静态绘制、关闭命中并隐藏于无障碍树，不新增状态、缓存、动画或依赖。
-- v2.49 的 `TerrainTexture` 继续只读既有 river `TerrainTile`、q/r `terrainSeed` 和 `connectionDirections`：river connection 分支复用未改变的 `connectionPath`，以低饱和 bank、窄主水槽和细高光构成连续走廊；`waterHighlight(in:)` 在有连接时不再添加中心水池，仅为孤立 river 提供确定性细长局部水面。道路分支、道路网络、v2.47 白昼、v2.48 五类非河流材质、据点、单位、marker、HIT/RET、HUD、`AL / OBJ / AX` rail、地图几何、输入、VoiceOver 和 `GameState` 均不变。新增 river token 只在 `BattlefieldTheme` 定义并由该 river-only 区域消费；绘制仍位于既有 tile bounds/Hexagon、关闭命中并隐藏于无障碍树，无状态、缓存、动画或资源依赖。
-- v2.50 的 `HexMapView` 继续使用同一份 `TerrainTile` 字典与 `HexCoordinate.neighbors`，只读把六方向分类为同类地貌共享边、地形切换边和地图外缘；`HexTileView` 用 `BattlefieldTheme` 三档 map-only token 在 tile-local `Hexagon` clip 内绘制静态边段。同类共享边最弱，地形切换边略强，地图外缘最清楚，原先默认整六角状态 border fallback 改为透明；selected/focused/命令/路线/补给/目标/威胁/态势 marker 的 `borderColor` 与 `borderWidth` 分支和优先级不变。蚀刻层关闭命中并隐藏于无障碍树，位于 `TerrainTexture`、据点、单位和战术反馈之下；road/river connection、地图 frame/position/id/contentShape/zIndex、输入、scroll/zoom、VoiceOver、模型与 `GameState` 均不变。
-- v2.51 的 `TerrainTexture.connectionLayer(in:)` 保持 river 与非道路分支原链，只把 `.road` 分流到私有 `roadConnectionLayer(_:)`。该 helper 对同一个未修改的 `connectionPath` 依次绘制最宽最弱的地表同族路基、略宽于主路面的低透明边缘高光和 3pt 低饱和主路面，使高光只露成克制 rim 而非中心导线；孤立道路自然复用既有短笔触。`RoadConnectionNetwork`、canonical/selected edges、loop quota、`terrainConnectionDirections`、`connectionPath`、`endpoint`、river corridor、v2.50 边界、非道路材质、地图几何/输入/规则及高优先级叠层均不变，绘制继续继承既有 Hexagon clip、不可命中和无障碍隐藏边界。
-- v2.52 的 `TerrainTexture` 继续从既有同类邻接只读接收 `terrainConnectionDirections`，并复用未修改的 `connectionPath(in:)` 与 `endpoint(for:in:)`；`terrainContinuityLayer(_:)` 仅为 `.plains` 和 `.snow` 各增加一次极低对比、宽幅、round stroke，再按原顺序进入 `fieldLines(in:)` 或 `snowDrifts(in:)`。两个 map-only token 只控制这两种连续晕染；森林/山地 continuity、城市、道路/河流、`HexEtchedBoundaryLayer`、地图 geometry/输入/规则和高优先级叠层均不变，绘制继续继承既有 Hexagon clip、不可命中和无障碍隐藏边界。
-- v2.53 的 `HexTileView` 继续接收未改变的 threatened、enemy control zone、supply line 与 attack coverage 事实；threat/ZOC 仍进入 `!isAttackFocusMode` 下的红色 wash，supply 仍进入连续 `SupplyLineMarker` 与 `SUP`/`CUT` 链，但三者不再重复消费通用 `borderColor`/`borderWidth`。`isAttackCoverage` 继续保留橙色 `0.40`/`1pt` 射程边，selected、route、focused、objective、AI 等存续分支保持原值和相对顺序，普通格自然回落到既有后续状态或 `.clear`/`0.45`；通用 stroke、地图 geometry/input/VoiceOver 与 `GameState` 均不变。
-- v2.54 的 `HexTileView` 继续从 `tile.isObjective` 只读绘制 `ObjectiveLandmark`、旗牌、`AL`/`AX`/`NEU` 和名称牌；owner fill 保持据点 `0.10`、普通格 `0.035`，owner stroke 统一为 `0.10`/`0.8pt`。静态 `tile.isObjective` 不再消费 normal/attack-focus 的通用 `borderColor`/`borderWidth` fallback，普通无其他状态时自然回落 `.clear`/`0.45`；selected、focused、命令、路线、capture/guided、态势、AI、response、intent、coverage 与其他高优先级边框、通用 stroke、`HexEtchedBoundaryLayer`、地图 geometry/input/VoiceOver 和 `GameState` 均不变。
-- v2.55 的 `HexTileView` 只把最底层 `Hexagon` 的既有 `tile.terrain.mapGradient` 以固定 `0.78` opacity 绘制，让同尺寸、不可命中的 `MapGridBackdrop` 参与地貌基底混合，收敛平原/雪地独立六角块的明暗对比。`TerrainKind` 的 map gradient/token、`TerrainTexture`、蚀刻边界、owner/status/marker、据点、单位、HUD/rail、地图 geometry/input/VoiceOver 和 `GameState` 均不变；不新增状态、邻接计算、全图层、缓存、动画或资产。
-- v2.21 不再让 `BattlefieldView` 用独立 HStack 压缩地图；`BattlefieldMessageDock` 在地图左上只读 `game.message` 并关闭 hit testing，右上动作坞和底部定位轨道保持原链。`MapRestartButton` 位于地图工具栏，只把 Button action 转发给既有 `game.restart()`。
-- v2.22 的 `CommandTitle` 将战役名和年份收为单行，`StatusStrip` 继续遍历全部六项既有状态但只显示图标与短值；每个 `StatusChip` 用 accessibility label/value 保留完整语义。`EndTurnButton` 是固定 44x44pt 的 plain 方形命令键，仍只转发 `game.endTurn()` 并复用 winner 禁用条件，不新增规则状态。
-- v2.23 的 `UnitModelView` 从既有 `UnitKind`、`Faction` 和 `isSpent` 只读组合暗色厚度、主材质、`UnitModelPlateShape` 装备面、结构线与 `UnitModelHighlightShape` 高光；四类模型适度放大但 `HexTileView` frame、contentShape、输入和 zIndex 不变。所有模型装饰继续隐藏于无障碍树，`UnitCounter` 保留唯一完整摘要；completed 降权仍只来自 `hasMoved && hasAttacked`。
-- v2.34 的 `CombatDamagePlate` 仍只接收 `CombatResultSummary` 派生的真实 HIT/RET、伤害和 HP 前后文本，将双行牌改为图标 + 伤害 + HP 的单行金属铭牌，并缩小结论胶囊；`CombatResolutionPhase`、任务取消、Reduce Motion、steady-state、坐标、输入与 `GameState` 均不变，装饰继续隐藏且整层只暴露一条组合摘要。
-- v2.35 的 selected border、reticle、`SelectedUnitGroundHalo` 和 `UnitCounter` offset 只读既有 `isSelected`，统一使用 `BattlefieldTheme.selectedPiece`；3pt 抬升和阴影仅改变渲染，不改变 tile frame、contentShape、输入、zIndex 或 `GameState`，装饰继续隐藏且单位保留原组合摘要。
-- `--ci-selected-combat-impact-steady` 在真实结算后复用 `latestCombatResult.attackerCoordinate` 和公开 `handleTap` 重新选择可见攻击方，以同时验证战果与选中焦点；该桥接仅存在于启动参数分支，不带参数与普通 `selected-combat-result` 行为不变。
-- v2.36 的补给线仍只由 `GameState.supplyLineTiles(for:)` 提供路径集合；`HexMapView` 在表现层从 `HexCoordinate.neighbors` 只读派生相邻方向，`SupplyLineMarker` 以细窄、低对比的中心到边界笔触连接六角格，单格使用短中心笔触。补给边框降为接近基础蚀刻网格的弱提示，selected、命令、路线、火力、态势/复盘 marker 继续优先；攻击焦点过滤、tile frame、contentShape、输入、zIndex、VoiceOver 摘要与 `SupplyState` 均不变，View 不复制 BFS 或判断 `SUP`/`CUT`。
-- v2.37 的道路连接在 `HexMapView` 表现层构造稳定的 canonical 无向边网络：按坐标稳定排序并只枚举方向 `0/1/2`，每条视觉边加入一次，再向两端投影 paired half-path；`TerrainTexture` 的道路 shadow、主体和高光共用该 `connectionPath`，固定水平 `roadHighlight` 被移除，孤立道路用确定性短中心笔触保持可读。该网络只是视觉生成森林，不改变道路 tile、规则连通性或路线成本；河流和弱林带继续使用完整同类邻接，`TerrainKind`、`TerrainTile`、移动力、路线预览、tile frame、contentShape、输入、zIndex 和 VoiceOver 均不变。
-- `BattlefieldMap.swift` 保持原有 `position(for:)`、tile frame、`Hexagon` 命中路径和 `HexInputReader` 三种输入链；连续田块、分层树林、建筑体块、山地明暗面、雪地凹陷、河流与公路多层纹理只从 `TerrainTile`、q/r seed 和 `HexCoordinate.neighbors` 只读派生；河路暗边、主体和高光复用同一连接 Path；地图外接 frame 按 viewport 高度计算满幅缩放；选中光环与目标准星只叠加绘制，不参与命中。地格 sibling 呈现层级只从当前单位、聚焦和选中状态派生，不改变数据、布局或输入。
-- `CombatResolutionOverlay` 用 `summary.id` 驱动可取消的一次性表现 phase；冲击点由 `summary.defenderCoordinate` 经既有 `position(for:)` 定位，HIT、RET、HP 和结论只读 summary。反馈层不响应输入并只暴露一条组合 VoiceOver 摘要；Reduce Motion 禁用缩放和位移。
-- `CombatResolutionOverlay` 的任务由 `summary.id` 驱动并在每次阶段写入前检查取消；新战果会从 impact 或 Reduce Motion 的 resolved 重新开始，不继承旧 hidden。hidden 后不暴露 VoiceOver 元素，整个反馈层始终不响应输入。
-- 地貌 seed 只由 `HexCoordinate.q/r` 计算并用于绘制参数，不写回模型；河流/道路连续性仍来自同类邻接方向。
-- `BattlefieldUnitViews.swift` 提供坦克、步兵、火炮、侦察车具象轮廓、盟军/轴心军械色板、兵种内部结构线、五段 HP、状态角标和通用将领徽章；地图 `MapUnitPiece` 使用静态接地阴影、低调阵营底座/细 rim 与多层军械材质，非地图 `UnitShapeBadge` 保留原阵营底座和调用语义；两者都不计算单位规则。
-- 地图 `UnitCounter` 的固定底部轨道从左到右显示移动、HP、开火；图标直接只读 `hasMoved/hasAttacked` 并通过轮廓与明暗共同区分可用/已消耗，整枚棋子只在二者均耗尽时降权。图标隐藏于无障碍树，组合摘要继续使用 `actionStateText`；含单位 tile 整体高于普通地形 sibling，保证超出 tile frame 的轨道不被覆盖。
-- 地图 marker 的数据源、排序、顶/底槽位、溢出、边框优先级和无障碍摘要保持不变；Reduce Motion 只取消滚动动画，不改变焦点目标。
-- 将地图左键/点按/右键转换为 `GameState` 方法调用。
-- 用统一顶/底 marker 槽位与角落命令角标显示 MOVE、ATK、POS、NEXT、OBJ、CAP、THR、INT、AI 复盘（同格最多 2 个栈内徽标 + 溢出 +N，布局纯派生不改 marker 数据源）、战线态势汇总、据点压力行当前态、据点压力来源标识、据点压力态势对照、据点压力敌方回合影响、据点压力地图标记、据点压力复盘线索、战线态势复盘影响来源、态势响应地图标记、态势响应定位入口、态势响应上一条/下一条历史查看、首要定位入口、下一步提示、执行反馈、普通行动态势响应、敌方回合影响和关联 AI 复盘入口、补给线、控制区、攻击覆盖、战斗预览和战斗结果等标记与反馈卡；态势简报和 AI 回放各子 View 只接收既有模型、状态和 action，仍由 `GameState` 完成定位、播放状态和复盘切换，Timer 只在 active 时调用既有 advance 入口。 v1.76 起据点压力行与复盘影响入口使用更强的指挥台卡片与当前态反馈。
-
-输入：
-
-- `@EnvironmentObject GameState`。
-- 用户手势和按钮点击。
-
-输出：
-
-- 视觉地图和 UI。
-- 调用 `GameState` 的意图方法。
-
-禁止：
-
-- 不直接修改核心规则。
-- 不绕过 `GameState` 消耗行动。
-
-### 2.4 测试层
-
-职责：
-
-- `GameStateTests.swift` 用 XCTest 覆盖规则、交互链、边界状态。
-- `RulesSmokeTest.swift` 用命令行可执行程序快速覆盖主链路。
-
-禁止：
-
-- 不用视觉细节代替规则断言。
-- 不伪造测试结果。
-
-## 3. 当前核心执行流
-
-### 3.1 选择和聚焦
-
-1. 玩家左键或点按地图格。
-2. `ContentView.HexInputReader` 调用 `GameState.handleTap` 或 `handlePrimaryAction`。
-3. 若点己方单位，`selectedUnitID` 更新。
-4. 若点空格或敌军，更新 `focusedCoordinate` 并生成预览消息。
-5. 聚焦本身不能消耗移动或攻击。
-
-### 3.2 移动
-
-1. 选中单位后，`movementRoutes(for:)` 基于地形、占位、敌方控制区和有效移动力计算可达路线。
-2. `routeStepPreviews(for:route:)` 从既有路线派生逐步路线情报：步序、坐标、实际进入消耗、控制区额外消耗、敌火威胁来源和终点标记。
-3. `postMoveAttackPreviews(for:to:)` 只对合法 MOVE 目的地生成移动后攻击预判，用临时 attacker 位置复用 `combatPreview`，不写回战役状态。
-4. `fireExposurePreview(for:at:)` 对合法 MOVE 目的地用临时移动后的单位复用 `combatPreview(enemy, movedUnit)`，估算敌火来源、潜在伤害、HP 后果和风险等级，不写回战役状态。
-5. 地图显示 `MOVE` 标记、步序/消耗、路线风险、终点火力风险和移动后可攻击目标。
-6. 右键或执行按钮触发 `executeMapCommand(.move)`。
-7. `move(unitID:to:)` 更新单位位置、消耗移动、清理防御姿态、更新据点控制；若真实占领或夺取据点，写入 `latestObjectiveCaptureResult`。
-8. 若移动后有可攻击目标，聚焦 NEXT 目标。
-
-### 3.3 攻击
-
-1. `attackCoverageTiles` 和 `attackableTiles` 判断射程覆盖与有效目标。
-2. `combatPreview` 计算伤害、反击、地形、兵种克制、夹击、将领协同、击毁结果。
-3. 地图显示 `ATK`、伤害或 `KILL`。
-4. 右键或执行按钮触发 `attack(attackerID:targetID:)`。
-5. 攻击更新 HP、经验、士气、行动状态、战报、胜负。
-6. `latestCombatResult` 记录本次普通攻击的双方 HP 前后、伤害、反击、击毁、机动追击、夹击、防御姿态消耗、经验/士气/军衔变化；聚焦、`combatPreview`、MOVE/POS 预览不会写入该结果。
-
-### 3.4 接敌 POS
-
-1. 敌军射程外但存在可进入攻击位时，`attackPositionRoutes` 返回路线。
-2. `focusedRouteStepPreviews` 对推荐 `focusedAttackPositionRoute` 同样生成路线风险，展示到攻击位的消耗、控制区和敌火来源。
-3. `focusedFireExposurePreview` 对推荐攻击位估算潜在承伤；`focusedSafeEngagementOptions` 从所有攻击位中按风险、潜在伤害、路线消耗和坐标稳定排序，给出更安全接敌建议，但不改变默认 POS 执行目的地。
-4. `focusedSafeEngagementComparisons` 以未切换安全候选前的默认 POS 首选路线为稳定参考，把候选路线与默认路线的风险等级、潜在承伤、最高单源伤害、敌火来源数量、移动力消耗、控制区惩罚和路线受威胁步数做成纯派生对比；即使当前已点选某安全候选，对比参考也不漂移成“候选和自己比”。
-5. 侧栏安全接敌候选点击只调用 `focusSafeEngagementOption(_:)` / `focusSafeEngagement(targetID:destination:)`，由 `GameState` 基于当前单位和目标敌军重新查候选路线，避免 UI 使用过期路线。
-6. 点选安全候选只切换 `focusedSafeEngagementDestination` 和当前 POS 预览路线，不消耗行动、不移动单位、不自动攻击、不生成结果摘要。
-7. 地图显示 `POS`、路线步序/风险和终点风险短码；安全候选聚焦后，路线和火力风险切到被点选的攻击位，候选行继续显示相对默认 POS 路线的风险/承伤/移动代价对比。
-7. 右键敌军或执行按钮移动到当前预览的攻击位。
-8. 移动后聚焦敌军，提示继续点按或右键攻击；POS 本身不直接执行攻击。
-
-### 3.5 OBJ 目标推进
-
-1. `objectiveAdvancePlans(for:)` 选择未占据、未归属己方的据点，并按当前距离、是否直达、剩余距离、路线消耗、步数和名称稳定排序。
-2. `objectiveAdvancePreviews(for:limit:)` 将同一套计划转换为最多 3 条 `ObjectiveAdvancePreview`，附带路线、距离变化、直达/推进状态、终点火力风险和优先级解释；首项必须与 OBJ 快捷目标一致。
-3. `ObjectiveAdvancePreview` 的优先级解释从已有字段纯派生，说明据点归属、本回合可占/可夺或推进几格、当前距离到剩余距离、路线消耗、步数、控制区惩罚和终点风险；它不改变 `objectiveAdvancePlanSort`，也不新增据点评分。
-4. 侧栏目标计划行点击只调用 `focusObjectiveAdvancePreview(_:)` / `focusObjectiveAdvanceTarget(coordinate:)`，由 `GameState` 重新查当前计划，避免 UI 使用过期路线。
-5. `focusNearestObjectiveTarget` 复用同一套计划首项；候选计划点击也复用同一私有聚焦 helper。若可直达，聚焦据点并设置 `guidedObjectiveCoordinate`。
-6. 若不可直达，聚焦本回合推进格，同时保留最终目标据点。
-7. 点选计划只更新 `focusedCoordinate`、`guidedObjectiveCoordinate` 和消息，不消耗行动、不移动单位、不生成结果摘要；右键或执行按钮才通过既有 MOVE 链执行。
-8. 普通聚焦、攻击、待命、回合切换等应清理目标引导，避免状态残留。
-9. 只有单位实际进入中立或敌方据点并改变归属时，才生成据点占领结果；远距离 OBJ 中继推进不会生成虚假占领摘要。
-
-### 3.6 THR 敌火覆盖
-
-1. `threateningEnemies(against:at:)` 查询某坐标被哪些敌军射程覆盖。
-2. `threatenedTiles(for:)` 生成阵营威胁地图。
-3. `threatenedReachableTiles(for:)` 标记选中单位可达但危险的格子。
-4. MOVE/POS 聚焦时，`PostMoveFireExposurePreview` 将敌火覆盖转换为风险等级、潜在伤害和预计剩余耐久；这是纯预览，不触发反应射击或真实伤害。
-5. `ContentView` 在 HUD 显示 THR 数量，在地图显示 THR 和 SAFE/LOW/MED/HIGH/CRIT 风险标记。
-
-### 3.7 回合和 AI
-
-1. 玩家结束回合调用 `endTurn()`。
-2. 轴心国重置行动、获得指令点，`beginAIPhaseRecording(for: .axis)` 采样 AI 行动前的指令点、单位 HP/存活和据点归属。
-3. 执行 `runAxisAI()`；AI 优先整补/增援，随后按可击毁攻击、战术命令、直取可达非己方据点、普通攻击、推进接敌的顺序行动。推进接敌后会先尝试普通攻击；若普通攻击不可用但战术命令可用，移动后的火炮等单位会继续执行战术压制。成功整补、部署、战术命令、攻击和移动会在规则成功路径记录动作计数，并追加结构化 `AIPhaseTimelineEvent`。
-4. `finishAIPhaseRecording()` 用前后状态差异生成 `latestAIPhaseSummary`：指令点变化、动作计数、占点、歼灭、己方损失、对敌伤害、己方承伤和真实成功动作时间线。被动据点休整、预览和失败动作不计入主动动作，也不会生成时间线事件。
-5. 若玩家回合结束前存在最近一次反制建议执行回放，`GameState` 会在清理即时回放前保存单位 HP/位置、威胁来源和据点归属基线，并在 `finishAIPhaseRecording()` 后、盟军新回合休整前发布 `latestEnemyThreatCountermeasureFollowUpResult`；据点防守复核会额外记录进驻/封堵动作、守点位置、威胁来源是否仍压迫据点、防守单位状态，并从同一 `AIPhaseSummary.timeline` 保守关联最多 3 条真实 AI 行动。
-6. 盟军新回合重置行动、获得指令点，自动选择可行动单位；AI 回合摘要、行动时间线、由时间线派生的地图复盘标记和反制建议敌方回合复核保留在侧栏/地图，点选时间线、使用上一条/下一条或播放 tick 后还会保留当前复盘事件 order 和对应标记强调；复盘播放状态会在播放到末尾、手动暂停、重开/切战役或下一次 AI 回合开始时清理，其他复盘状态直到重开/切战役、下一次 AI 回合开始清理、下一次 AI 回合无基线清理或新的反制执行覆盖。
-
-### 3.8 战术命令结果
-
-1. `tacticalCommandPreview` 只计算火炮弹幕和突破突击的执行前结果，不写回战役状态。
-2. `useTacticalCommand` 成功执行后扣除指令点、写入伤害、消耗防御姿态、更新施放者行动状态、授予经验、降低目标士气并写入战术状态。
-3. `latestTacticalCommandResult` 记录施放者/目标 HP、经验、士气、军衔前后、命令类型、伤害、指令点消耗、士气损失、状态效果、无反击、击毁和防御姿态消耗。
-4. 普通攻击、战术命令、据点占领、部署和整补结果互斥展示：战术命令写入 `latestTacticalCommandResult` 时清理其他结果摘要。
-5. AI 使用战术命令时也通过同一 `useTacticalCommand` 路径写入结果摘要。
-
-### 3.9 据点占领结果
-
-1. `updateObjectiveControl()` 是据点归属变化的唯一落点。
-2. 占领中立或敌方据点时，`applyObjectiveCaptureReward()` 发放指令点、经验和士气奖励，并写入 `latestObjectiveCaptureResult`。
-3. 据点占领结果记录据点名、坐标、占领单位、原归属、新归属、奖励值和占领后的据点进度。
-4. 据点占领结果与普通攻击结果、战术命令结果、部署结果、整补结果互斥展示；新的攻击、战术命令、部署或整补会清理旧占领结果，新的占领会清理旧战斗/战术/后勤结果。
-5. `ContentView` 在侧栏战报前显示占领结果卡，并在最新占领据点显示 `CAP` 地图标记。
-
-### 3.10 后勤结果
-
-1. `deploy(kind:at:)` 是部署增援的成功落点；部署前校验胜负、指令点和合法部署点，失败只更新提示，不生成或清理真实结果摘要。
-2. 成功部署会扣除指令点、新建已行动单位、选中新单位、聚焦部署坐标，并写入 `latestDeploymentResult`，记录来源据点、新单位 ID/名称/兵种/阵营、坐标、消耗和部署后剩余指令点。
-3. `reinforce(unitID:)` 是主动整补的成功落点；只允许受损单位在己方据点且指令点足够时执行，失败只更新提示，不生成或清理真实结果摘要。
-4. 成功整补会记录 HP 前后、恢复量、消耗和剩余指令点，重置该单位战术状态与防御姿态，并写入 `latestReinforcementResult`。
-5. 普通攻击、战术命令、据点占领、部署和整补结果五者互斥；任一成功结果会清理其他旧结果，确保侧栏只显示最近一次真实结果。
-6. AI 整补和部署复用同一路径，因此敌方回合的最新后勤动作也会生成同一类摘要；据点被动休整不写入主动整补摘要。
-
-### 3.11 AI 回合摘要和行动时间线
-
-1. `AIPhaseSummary` 是敌方回合总览模型，记录阵营、回合、AI 开始/结束指令点、主动整补、部署、战术命令、攻击、移动、占点、歼灭、损失、对敌伤害、己方承伤和 `timeline`。
-2. `latestAIPhaseSummary` 只由 `GameState` 在 `endTurn()` 包裹 `runAxisAI()` 时生成；玩家聚焦、预览和失败命令不会生成摘要。
-3. `AIPhaseTimelineEvent` 记录真实成功动作的顺序号、阵营、回合、动作类型、行动单位、目标单位、起终点、战术命令、部署兵种、据点、伤害、反击、恢复、指令点消耗/奖励、剩余指令点、击毁和占点标记。
-4. 摘要的动作计数来自真实成功路径，战损和占点来自 AI phase 前后状态差异；占点作为结果事件写入时间线，但不增加 `totalActions`。
-5. `AIPhaseSummary.replayConclusion` 是纯派生战果结论，不新增 `@Published` 状态。它按占点、火力/击毁/战术命令、后勤、机动、低强度的优先级归类为夺点突破、火力压制、后勤整备、机动推进或低强度回合，并固定输出伤害、占点、后勤和指令点指标。
-6. `AIPhaseReplayKeyEvent` 从时间线纯派生最多 3 条关键事件，优先占点，其次击毁、高伤害、战术命令和后勤；同优先级按原始 order 稳定排序。结论区关键事件按钮只把 key event 的 `order` 转发给 `focusAIPhaseTimelineEvent(order:)`，不自行查坐标、marker 或重新排序。
-7. 移动导致占点时，时间线顺序为移动事件先写入，再由 `updateObjectiveControl()` 写入占点事件；直取据点场景形成 `move -> objectiveCapture`，机动追击场景可形成 `attack -> move -> objectiveCapture`，移动后火炮弹幕场景可形成 `move -> tacticalCommand`。
-8. `latestAIPhaseMapMarkers` 是从 `latestAIPhaseSummary.timeline` 纯派生的只读地图复盘标记，不新增独立 `@Published` 状态。移动输出起点/终点，攻击和战术命令输出行动单位/目标，部署和整补输出目的坐标，占点输出据点坐标；缺少坐标的事件会被容忍，不由 View 反推。
-9. `focusedAIPhaseTimelineEventOrder` 记录当前成功点选的 AI 时间线顺序号；`focusedAIPhaseMapMarkers` 从 `latestAIPhaseMapMarkers` 按该 order 过滤派生，不存第二份 marker。
-10. `focusAIPhaseTimelineEvent(order:)` 是侧栏时间线点选定位入口。它只从最新 `AIPhaseSummary.timeline` 查找事件，按 `event.to ?? event.from` 选择定位坐标，校验坐标仍在当前地图后更新 `focusedCoordinate`、`focusedAIPhaseTimelineEventOrder` 和 `message`，并清理 OBJ/SAFE/反制等临时引导。
-11. `focusPreviousAIPhaseTimelineEvent()` / `focusNextAIPhaseTimelineEvent()` 是连续复盘入口。它们从最新 timeline 和当前 order 选择相邻事件；无当前 order 时 next 从第一条开始、previous 从最后一条开始；到达首尾边界时只写边界提示并保留旧焦点和旧 order。
-12. `toggleAIPhaseTimelinePlayback()` / `pauseAIPhaseTimelinePlayback()` / `setAIPhaseTimelinePlaybackPace(_:)` / `advanceAIPhaseTimelinePlayback()` 是自动复盘入口。播放可用性来自 `GameState.canPlayAIPhaseTimeline`；无当前 order 时第一次 tick 聚焦第一条，有当前 order 时 tick 聚焦下一条，到最后一条后自动暂停并保留最后焦点、order 和 marker 强调；已在最后一条时播放只写提示不启动。
-13. 点选、连续切换或自动播放 AI 时间线不会调用移动、攻击、战术命令、部署、整补或 AI 方法，不改变单位 HP/位置、行动状态、据点归属、指令点、AI summary、timeline 或 `latestAIPhaseMapMarkers`；无 summary、无事件、无坐标或坐标不在当前地图时只写提示并保留旧焦点和旧复盘选中 order，播放路径会同时暂停。
-14. 侧栏展示顺序仍以普通攻击、战术命令、据点占领、部署、整补等单项结果卡优先，其后显示 AI 回合摘要卡、复盘结论和最多 5 条行动时间线，再显示 battleLog；地图将同坐标 AI 复盘标记聚合成紧凑徽标，并把复盘内容加入 tile 无障碍文案。结论关键事件、时间线行、播放/暂停、速度菜单和上一条/下一条按钮使用 `Button` / `Menu` 转发到 `GameState`，当前结论关键事件和当前时间线行共享 `focusedAIPhaseTimelineEventOrder` 选中态，地图自动滚动复用 `focusedCoordinate` 监听链，并把当前事件 marker 强调为当前 AI 复盘。
-15. `loadScenario()`、重开和切换战役会清理 `latestAIPhaseSummary`、当前复盘选中 order、复盘播放状态、内部 AI phase 记录器和 timeline 缓冲；复盘标记随 summary 变空而变空。下一次 AI 回合开始记录时也会清理旧复盘选中 order 和播放状态，避免跨回合残留。
-
-### 3.12 敌方威胁意图预判
-
-1. `EnemyThreatIntentPreview` 是玩家回合的只读态势预判模型，区分直接攻击、机动接敌攻击和据点占领三类威胁。
-2. `enemyThreatIntentPreviews(from:against:limit:)` 默认评估轴心国对盟军的威胁，返回稳定排序且去重后的最多 `limit` 条结果；`visibleEnemyThreatIntentPreviews` 供 `ContentView` 展示。
-3. 直接攻击用敌方当前位置复用 `combatPreview(attacker:defender:)`，记录预计伤害、目标剩余 HP 和击毁判断。
-4. 机动接敌攻击使用只读预测路线 helper，把敌方单位按下一回合可行动状态计算可达攻击位，再用临时位置复用 `combatPreview`；该路径不修改 `activeFaction`。
-5. 据点占领威胁只针对目标阵营拥有且未被占据的据点，记录目标据点、当前归属、路线终点和消耗，不生成虚假伤害。
-6. 预判查询不调用 `move`、`attack`、`deploy`、`reinforce`、`useTacticalCommand`、`appendLog` 或任何写状态方法，不改变单位行动状态、地图归属、消息、战报、指令点或 `latest*Result`。
-7. `ContentView` 在侧栏战报前显示“敌方意图”面板，并在目标坐标显示 `INT` 地图标记；UI 只展示 `GameState` 已生成的字段，不计算威胁评分或战斗结果。
-
-### 3.13 敌方意图反制建议
-
-1. `EnemyThreatCountermeasurePreview` 是 `EnemyThreatIntentPreview` 的只读下游预览，给玩家提供抢先打击、撤出危险区、据点防守和整补支撑建议。
-2. `enemyThreatCountermeasurePreviews(for:limit:)` 接收敌方意图列表或默认使用 `visibleEnemyThreatIntentPreviews`，生成稳定排序且去重后的最多 `limit` 条建议；`visibleEnemyThreatCountermeasurePreviews` 供 `ContentView` 展示。
-3. 抢先打击只考虑当前可攻击威胁来源的己方单位，复用 `combatPreview(attacker:defender:)` 记录预计伤害、敌军剩余 HP、是否击毁和己方反击后 HP。
-4. 撤出危险区只针对攻击类威胁，复用当前玩家可用 `movementRoutes(for:)` 与 `fireExposurePreview(for:at:)`，选择能降低威胁来源射程或提高预计剩余耐久的目的格。
-5. 据点防守只针对据点占领威胁，建议己方单位进驻目标据点或移动到相邻封堵格，路线消耗来自 `movementRoutes(for:)`。
-6. 整补支撑只针对受威胁、受损且满足 `canReinforce(_:)` 的己方单位，计算预计恢复量和整补后耐久，但不调用真实 `reinforce`。
-7. 反制建议查询不调用 `move`、`attack`、`deploy`、`reinforce`、`useTacticalCommand`、`advanceTurn`、`performAIPhase` 或任何写状态方法，不改变 `activeFaction`、HP、位置、行动状态、据点归属、指令点、战报、消息或 `latest*Result`。
-8. `focusEnemyThreatCountermeasure(_:)` 是反制建议的点选入口。它会重新校验当前单位、目标、路线或整补条件，然后只更新 `selectedUnitID`、`focusedCoordinate`、`guidedObjectiveCoordinate`、安全接敌焦点和 `message`。
-9. 抢先打击聚焦执行单位和威胁来源敌军；撤出危险区聚焦执行单位和撤退目的格；据点防守聚焦防守目的格并保留被威胁据点引导；整补支撑聚焦受威胁单位当前位置。
-10. 反制建议点选不调用真实移动、攻击、整补、部署、战术命令或 AI 方法，不改变 HP、位置、行动状态、据点归属、指令点、战报、胜负或 `latest*Result`。
-11. `focusedEnemyThreatCountermeasureMapMarkers` 只对当前点选且仍可匹配的反制建议输出地图标记，区分 ACT 执行单位、SRC 威胁来源、CTR 反制目标和 TGT 受威胁目标；普通聚焦、行动执行、重开或切战役会清理旧反制聚焦。
-12. `EnemyThreatCountermeasurePreview.benefitMetrics` 和 `benefitSummary` 从已有建议字段派生只读收益解释，覆盖战果、生存、守点、恢复、路线和优先值；它们不重新计算战斗、路线、整补或排序。
-13. `EnemyThreatCountermeasurePreview.objectiveDefenseTradeoff` 只对 `.objectiveDefense` 从 `destination`、`threatTargetCoordinate`、`targetName`、`routeCost`、`score` 和 objective impact 纯派生进驻/封堵取舍说明；非守点建议返回空。它不参与 `enemyThreatCountermeasureSort`、不改 score、不新增 `@Published` 状态，也不调用移动、攻击、整补、部署或 AI。
-14. `EnemyThreatCountermeasurePreview.priorityFactors` 和 `prioritySummary` 从既有排序字段派生只读排序依据，覆盖可执行、击毁、优先值、路线、执行单位、目标和坐标；它们不改变 `enemyThreatCountermeasureSort`、score 公式或建议顺序。
-15. `enemyThreatCountermeasureComparisonPreviews(for:limit:)` 基于已排序反制建议生成相邻对比，按 `enemyThreatCountermeasureSort` 的维度顺序解释首条为何领先下一条；`limit: 0` 或 `limit: 1` 不生成虚假对比。
-16. `EnemyThreatCountermeasurePreview.impactComparisons` 由 `GameState` 构造建议时填充，`impactSummary` 由 `GameModels` 从对照数组派生，记录当前威胁后果、采纳建议后的预计状态和改善值；它们不调用真实执行方法，不改变单位、据点、指令点或战报。
-17. `focusedEnemyThreatCountermeasureExecutionPreview` 只对当前点选且仍可匹配的反制建议输出下一步入口：抢先打击桥接到现有地图 ATK/执行按钮，撤出危险区和据点防守桥接到现有地图 MOVE/执行按钮，整补支撑桥接到既有单位详情整补按钮；失效时返回不可用说明或空预览。
-18. 执行桥接预览复用 `mapCommandPreview(for:)`、`movementRoute(for:to:)`、`combatPreview(attacker:defender:)` 和 `canReinforce(_:)` 重新校验当前状态，不调用 `move`、`attack`、`reinforce` 或 `executeFocusedCommand()`。
-19. `latestEnemyThreatCountermeasureExecutionResult` 只在当前点选反制建议经既有 ATK、MOVE 或整补入口真实成功执行后写入：抢先打击读取 `latestCombatResult`，撤出危险区和据点防守读取执行后的单位位置/HP/据点关系，整补支撑读取 `latestReinforcementResult`。
-20. 执行回放只比较“预计 / 实际 / 结果”，不会重新计算或改变战斗、移动、整补、AI、排序、score 或胜负规则；预览、点选建议、普通聚焦和过期建议不生成回放。
-21. `endTurn()` 会在清理 `latestEnemyThreatCountermeasureExecutionResult` 前捕获复核基线，保存执行回放、执行单位、受威胁单位、威胁来源、据点归属和执行后坐标；即时回放仍按回合切换语义清空。
-22. `latestEnemyThreatCountermeasureFollowUpResult` 只在敌方 AI 阶段完成后由 `GameState` 发布，基于真实 post-AI 状态对比 HP、位置、威胁源存活、据点归属和 AI 总览；`.objectiveDefense` 会追加“守点位置”“威胁来源”对照和 `objectiveDefenseDetail`，说明进驻/封堵是否奏效、据点是否守住、防守单位是否受损、威胁源是否仍压迫据点；同时 `relatedAIEvents` 从真实 timeline 按据点坐标、防守单位、威胁来源和目标单位匹配最多 3 条事件，只表达关联，不模拟 AI，也不精确归因逐行动 attacker/target。
-23. `EnemyThreatCountermeasureFollowUpSummary.outcomeLevel` 对据点防守优先读取结构化 `objectiveDefenseDetail.result`，其他反制仍从既有复核结论和 comparisons 纯派生奏效、部分奏效或失败；`focusTargets` 从执行单位、威胁来源和受威胁目标/据点字段纯派生定位入口，不新增 `@Published` 状态。
-24. `focusEnemyThreatCountermeasureFollowUpTarget(_:)` 是复核卡定位入口。它只接受当前最新复核 summary 中仍存在的目标，重新定位单位或坐标后更新 `focusedCoordinate` 和 `message`；目标过期或坐标不可用时只写提示，不调用移动、攻击、整补、部署、战术命令或 AI 方法，也不改变单位、据点、指令点、AI summary、follow-up summary、战报或胜负。
-25. `loadScenario()`、重开、切战役、下一次无基线回合切换、新的反制执行回放和新的无关普通移动、攻击、整补、部署、战术命令或占点成功路径会清理旧回放或旧复核，避免侧栏显示过期结果。
-26. `ContentView` 在“敌方意图”面板下方显示“反制建议”面板；建议行使用 `Button` 点选聚焦，行内显示结构化收益解释、据点防守取舍、排序依据和执行前后预计对照，面板显示首选相邻对比，地图显示反制聚焦标记，列表下方显示只读“下一步”入口提示，真实执行后显示最近一次反制回放，敌方回合后显示复核卡、复核等级、据点防守复核细分、关联 AI 行动和定位按钮并提供无障碍说明；关联 AI 行动按钮只转发 order 到 `focusAIPhaseTimelineEvent(order:)`；UI 只展示 `GameState`/`GameModels` 字段，不计算路线、评分、战斗、整补结果、排序结果、前后对照、回放结果、敌方回合复核、复核等级、守点细分、关联行动、定位有效性或入口可执行性。
-
-### 3.14 战线态势汇总
-
-1. `BattlefieldSituationSummary` 是当前行动阵营的只读玩家回合态势模型，汇总指令点、待命部队、据点进度、敌方意图数量、攻击威胁数量、据点威胁数量、可执行反制数量、受威胁据点、据点防守压力、首要建议、首要定位目标、下一步提示和可定位的 AI 复盘影响事件。
-2. `GameState.battlefieldSituationSummary` 是 computed property，不新增 `@Published` 状态；它复用 `enemyThreatIntentPreviews(from:against:limit:)`、`enemyThreatCountermeasurePreviews(for:limit:)`、`readyUnits`、`objectiveTiles` 和 `activeCommandPoints` 纯派生。
-3. `BattlefieldSituationObjectivePressure` 从同一批 `.objectiveCapture` 敌方意图、同 threatID 的反制建议、最新守点 follow-up 和最新 AI 时间线纯派生，按据点坐标聚合来源、威胁来源数量、当前归属、首要占点风险、推荐反制入口、可执行性、态势对照、敌方回合影响和可选复盘线索；它不调用移动、攻击、整补、部署、战术命令或 AI，也不改变敌方意图排序、反制 score、AI 时间线或守点规则。
-4. `BattlefieldSituationObjectivePressure.source` 区分 NOW 当前威胁和 CHK 回合复核。当前 `.objectiveCapture` 威胁压力使用 `.currentThreat`，守点 follow-up 派生的已复核压力使用 `.enemyPhaseFollowUp`；排序先按 source.sortRank，当前威胁稳定排在回合复核前。
-5. 首要建议优先级为：已胜负结算、存在可执行反制、存在受威胁据点、仍有待命单位且据点未全控、仍有待命单位但战线稳定、暂无待命单位可结束回合。
-6. 态势汇总查询不调用移动、攻击、战术命令、部署、整补、AI、日志写入或任何真实执行方法，不改变单位 HP/位置、行动状态、据点归属、指令点、战报、结果摘要、AI 摘要或胜负。
-7. `BattlefieldSituationFocusTarget` 从同一批态势输入纯派生，优先定位可执行反制，其次受威胁据点，其次选中/待命单位的首个 OBJ 推进计划，最后定位第一支待命单位；没有可行动目标或战役已结算时为空。
-8. `BattlefieldSituationActionHint` 挂在首要定位目标和据点防守压力上，同步说明定位后的下一步入口：抢先打击为 ATK，撤退和据点防守为 MOVE，整补支撑为整补按钮，OBJ 推进为 MOVE，待命单位为选择后查看入口，单纯受威胁据点为防守查看提示。
-9. action hint 是只读解释，不依赖 SwiftUI 焦点现场重算，不调用真实命令，也不替代 `EnemyThreatCountermeasureExecutionPreview`；反制目标定位后，既有执行桥接预览仍负责重新校验当前状态。
-10. `focusBattlefieldSituationPrimaryTarget()` 每次点击都重新读取最新 `battlefieldSituationSummary.primaryFocusTarget`，再复用 `focusEnemyThreatCountermeasure(_:)`、`focusObjectiveAdvancePreview(_:)` 或既有选择/聚焦逻辑；它只更新选择、焦点、目标引导和消息，不消耗行动、不执行攻击/移动/整补/部署/回合推进。
-11. `focusBattlefieldSituationObjectivePressure(id:)` 每次点击都重新读取最新压力列表并按 id 校验。若压力仍有关联反制，复用 `focusEnemyThreatCountermeasure(_:)` 定位执行单位、目的格和守点引导；若无反制，则只聚焦受威胁据点并设置目标引导。过期 id、战役结算或坐标失效只写提示，不使用旧对象继续定位。
-12. `BattlefieldSituationObjectivePressure.threatSourceCoordinates` 从同一压力分组内敌方威胁的 `enemyUnitID` 回查当前单位位置，过滤失效坐标，去重并稳定排序；它只解释来源位置，不改变威胁排序、反制建议或 AI。
-13. `focusedBattlefieldSituationObjectivePressureMapMarkers` 从当前压力 id 和最新压力列表纯派生，不新增 `@Published` marker 数组。它对受压据点输出 PRS 标记，对威胁来源输出 SRC 标记；若有不同于据点坐标的守点目的格，则输出 DEF 标记。普通聚焦、选择单位、直接点选普通反制、重开和切战役会清理当前压力 id，避免旧压力标记残留。
-14. `isBattlefieldSituationObjectivePressureFocused(id:)` 只读判断给定压力 id 是否等于当前压力 id，且仍存在于最新 `battlefieldSituationSummary.objectivePressures`。它和 PRS/SRC/DEF marker 使用同一个 `GameState` 当前压力 id，不在 SwiftUI 中保存独立选中状态。
-15. `BattlefieldSituationObjectivePressure.comparison` 是压力行的只读态势对照，从据点归属、威胁来源数量、路线状态、action hint、匹配反制和 replay target 派生当前守势/敌控/中立争夺、当前详情、应对标题和应对详情；它不模拟未来敌方行动，也不改变 pressure id。
-16. `BattlefieldSituationObjectivePressure.enemyPhaseImpact` 只从最新 `latestEnemyThreatCountermeasureFollowUpResult` 中匹配同一受威胁据点的守点复核，并要求 AI 回合号仍等于最新 `latestAIPhaseSummary`。它复用 follow-up 的复核等级、首条据点归属前后对比、结果和据点防守细分；无 follow-up、非守点复核、坐标不匹配或 AI summary 不匹配时为空，不从普通 replay target 或全局 key event 伪造影响，也不参与 pressure id。
-17. `BattlefieldSituationObjectivePressure.replayTarget` 从最新 `AIPhaseSummary.timeline` 保守匹配当前压力的威胁来源单位或受压据点坐标，只输出 1 条可定位 `BattlefieldSituationReplayTarget`。匹配优先威胁来源单位，再按据点坐标，事件类型按占点、移动、攻击、战术命令等稳定排序；无匹配、无 AI summary、无坐标或坐标失效时为空，不回退到全局关键事件。
-18. `focusedBattlefieldSituationObjectivePressureReplayTarget` 从当前压力 id 和最新压力列表纯派生，不新增 `@Published` 状态。`focusBattlefieldSituationObjectivePressureReplayTarget()` 每次点击重新校验当前压力和 replay target，有目标时复用 `focusAIPhaseTimelineEvent(order:)` 移交到 AI 复盘焦点，无目标或过期时只写提示。
-19. 据点压力定位只更新选择、焦点、目标引导、反制聚焦、当前压力 id 和消息；据点压力复盘线索只切换 AI 复盘焦点和地图复盘标记强调；据点压力态势对照和敌方回合影响只展示结构化文案。它们都不调用移动、攻击、整补、部署、战术命令、回合推进或 AI，不改变单位 HP/位置、行动状态、据点归属、指令点、战报、latest result、AI summary、follow-up 或胜负。
-20. `BattlefieldSituationResponseSummary` 是态势响应的只读展示模型；反制 follow-up、反制执行、据点占领、普通战斗、战术命令、部署和整补的真实成功发布点会把当前响应快照追加为 `BattlefieldSituationResponseHistoryEntry`，最近历史最多保留 5 条，最新响应默认成为当前查看项。
-21. `GameState.battlefieldSituationResponseSummary` 从当前查看的历史条目派生，不再从 `latest*Result` 读取时即时拼装旧响应；内部 `latestBattlefieldSituationResponseSummary` 只供真实成功发布点生成快照。读取 summary 不追加历史，不调用移动、攻击、战术命令、部署、整补、AI、日志写入或任何真实执行方法。
-22. 敌方回合影响响应显示复核等级、反制类型、执行单位、目标、结论、首条敌方回合前后对比和复核坐标；据点防守响应首条结果仍以据点归属为准，细分进驻/封堵、守点位置、威胁来源和关联 AI 行动只作为复核 detail 展示；它不重新模拟 AI，也不精确归因逐个 AI 行动。无反制 baseline 的敌方回合不会伪造 follow-up 响应；若 AI 真实占点触发既有占点结果，仍可显示占点响应。
-23. 反制执行响应显示建议类型、执行单位、入口类型、首条预计/实际对照和执行坐标；占点响应显示占领/夺取据点、归属变化、奖励和据点进度；普通战斗响应显示攻击单位、目标、伤害、反击、目标 HP、防御姿态、追击和夹击影响；战术命令响应显示命令名、施放者、目标、伤害、指令点消耗、士气/状态和无反击；部署响应显示来源据点、新单位、部署坐标和剩余指令点；整补响应显示单位、HP 恢复和指令点消耗。普通移动、预览聚焦或失败命令不会伪造态势响应或追加历史。
-24. `focusedBattlefieldSituationResponseOrder` 记录当前查看的历史响应；`focusPreviousBattlefieldSituationResponse()` 和 `focusNextBattlefieldSituationResponse()` 只在最近 5 条历史内切换当前查看项，更新焦点坐标和消息，不能执行命令，也不能改变单位、据点、指令点、战报、AI 摘要、latest result 或历史内容。边界处只写提示并保留旧选中项。
-25. `BattlefieldSituationResponseMapMarker` 是当前查看响应的只读地图投影；`GameState.battlefieldSituationResponseMapMarker` 只在响应坐标存在且仍属于当前地图时输出 marker，复用 response kind 的短码和图标，不新增第二份 marker 状态，不改变焦点、消息、单位、据点、指令点、战报、AI 摘要或 latest result。
-26. `focusBattlefieldSituationResponseTarget()` 每次点击都重新读取当前查看响应的 `battlefieldSituationResponseMapMarker`；有合法 marker 时只更新 `focusedCoordinate` 和消息，无 marker 或坐标失效时只写提示。它不执行移动、攻击、战术命令、部署、整补、回合推进或 AI，也不清理 OBJ/SAFE/反制引导，不改变 response、marker、history、latest result、单位、据点、指令点、战报或胜负。
-27. `loadScenario()`、重开和切换战役会清空态势响应历史、当前查看 order 和历史序号，避免旧响应坐标污染新场景；普通移动和失败命令不清空历史，只是不追加新响应。
-28. `BattlefieldSituationReplayTarget` 带有 `source` 来源：当前压力关联、响应位置关联或全局关键事件。它从最新 `AIPhaseSummary.timeline` 和战线态势上下文纯派生，优先使用当前点选压力的保守 replay target；没有压力线索时，按当前查看态势响应坐标匹配 timeline 的 `to/from`；仍无匹配时回退到 `AIPhaseSummary.replayConclusion.keyEvents.first`。三种路径都会用同一 summary 的 timeline 按 order 回查合法坐标，只有 `event.to ?? event.from` 存在且仍在当前地图内时才输出目标。
-29. 战线态势复盘影响筛选不新增 `@Published` 状态，不改变 AI summary、timeline、关键事件排序、压力线索、响应历史或地图 marker；匹配文案只表达关联或关键事件，不声明 AI 因果归因。
-30. `focusBattlefieldSituationReplayTarget()` 每次点击都重新读取最新 `battlefieldSituationSummary.replayTarget`，有目标时只调用既有 `focusAIPhaseTimelineEvent(order:)`，无目标时只写提示；它不直接设置坐标、不过滤 marker、不执行移动、攻击、战术命令、部署、整补或 AI。
-31. `ContentView` 在侧栏靠前显示“战线态势”卡，展示 summary 的等级、指标、受威胁据点、据点防守压力、压力来源标识、压力态势对照、压力敌方回合影响、建议说明、态势响应反馈/敌方回合影响、响应历史位置、上一条/下一条响应按钮、响应定位按钮、“复盘影响”按钮、首要“定位”按钮和下一步入口提示；据点压力行是按钮，但只把压力 id 转发给 `GameState`，并通过 `isBattlefieldSituationObjectivePressureFocused(id:)` 展示当前态。当前压力若有 replay target，压力列表下方显示独立“复盘线索”按钮，避免嵌套在压力行按钮内；战线态势“复盘影响”按钮展示 PRS/RSP/KEY 来源短码和来源标题。地图格展示当前压力派生的 PRS/SRC/DEF marker 和当前查看响应派生的态势响应 marker，并把压力摘要和响应摘要加入 tile 无障碍文案。UI 不重新计算威胁、反制、据点压力、压力来源、压力态势对照、压力敌方回合影响、复盘影响来源、OBJ 计划、待命单位、入口类型、执行反馈、复核影响、AI timeline、关键事件坐标、压力选中、压力复盘线索、威胁来源或地图 marker。
-32. v1.56 后 `ContentView` 外层背景、`TopCommandBar`、`BattlefieldView`、`MapCommandCenter`、`MapToolbar`、`MapHudBackground`、`StatusChip` 和 `InspectorPanel` 共享战场主题色和 tactical surface 背板。v1.57 后 `HexTileView` 使用地形渐变、高光/低光和归属覆盖，`TerrainSymbol`、`TerrainCodeBadge`、`ObjectiveNamePlate` 和 `UnitShapeBadge` 统一为更清晰的地图符号和棋子层级。该视觉基线只改变层级、色彩、描边、间距和容器质感，不新增状态、不调用规则方法、不改变地图滚动、按钮入口或侧栏信息顺序。
-
-## 4. 架构边界
-
-- 规则状态必须从 `GameState` 发起和落地。
-- `ContentView` 只能展示状态和转发用户意图。
-- `GameModels` 只定义数据和静态规则，不执行业务流程。
-- 测试必须优先断言 `GameState` 行为。
-- README 面向使用者；`md/flow` 面向 Agent 和维护者。
-
-## 5. 用户入口
-
-- Xcode 打开 `WW2Tactics.xcodeproj` 运行。
-- 主 UI 入口：`WW2TacticsApp` 注入 `GameState`，显示 `ContentView`。
-- 地图入口：`BattlefieldView` -> `MapCommandCenter` -> `HexMapView` -> `HexTileView`。
-- 侧栏入口：`InspectorPanel` 显示单位、地形、战报和预测。
-
-## 6. 测试映射
-
-- 移动、攻击、补给、士气、AI、目标推进、目标推进计划摘要、优先级解释和候选预览、安全接敌候选点选预览、安全接敌路径风险对比、敌方威胁意图预判、敌方意图反制建议、反制建议收益解释、据点防守取舍解释、排序对比解释、执行前后预计对照、反制建议点选聚焦、地图标记、执行入口桥接预览、执行回放、敌方回合复核、据点防守复核细分、关联 AI 行动、复核等级和复核目标定位、战线态势汇总、据点防守压力列表、据点压力定位入口、据点压力行当前态、据点压力态势对照、据点压力敌方回合影响、据点压力威胁来源和地图标记、据点压力复盘线索、战线态势复盘影响来源筛选、首要定位、下一步提示、执行反馈、普通行动态势响应、态势响应历史追加/裁剪/连续查看、态势响应地图标记、态势响应定位入口、敌方回合影响和 AI 关键复盘联动定位、部署/整补结果摘要、AI 直取据点优先、AI 移动后火炮弹幕、AI 回合行动摘要、行动时间线、AI 时间线点选定位、复盘事件选中态、上一条/下一条连续查看、自动播放控制和地图复盘标记强调：`GameStateTests.swift` + `RulesSmokeTest.swift`。
-- SwiftUI 编译：iPhone Simulator SDK typecheck。
-- Xcode 集成：`xcodebuild build-for-testing`。
-- 文档-only 修改：本地 `git diff --check`，云端 workflow 仍生成可验收结果包。
-- workflow 修改：本地 YAML 解析，云端上传 manifest、failure summary、JUnit、构建日志、smoke 日志和 `.xcresult`。
-
-## 7. 云端协作执行流
-
-### 7.1 Agent X 主控循环阶段
-
-1. 人工用 `agentx`、`x:` 或 `X:` 提供总目标 X、限制、验收标准和优先级。
-2. Agent X 不直接替代 Agent A/B/C，而是把总目标拆成多个小轮次。
-3. 每轮开始时，Agent X 明确本轮目标、非目标、边界、验证要求和预期产物。
-4. Agent X 调度 Agent A 写版本化提示词，再调度 Agent B 实现、轻量检查、提交并 `git push origin main`。
-5. GitHub Actions 生成未加密 CI 结果包后，Agent X 必须等待 Agent C 下载并核对 artifact。
-6. Agent X 只基于 Agent C 对最新 `origin/main` commit、workflow run、run attempt 和 artifact 的结论判断下一步。
-7. 通过时，Agent X 判断总目标是否完成；未完成则拆分下一轮目标并回到 Agent A。
-8. 不通过时，Agent X 默认退回 Agent B 在 `main` 上追加修复 commit，不得伪装本轮完成。
-9. 遇到连续阻塞、连续无有效 diff、同因 CI 连续失败、账号权限密钥需求、无法判断归属的工作区冲突或人工要求停止时，Agent X 暂停并交还人工决策。
-
-### 7.2 Agent A 提示词阶段
-
-1. 人工用 `agenta`、`a:` 或 `A:` 召唤 Agent A。
-2. Agent A 阅读入口文档、测试规范、核心流程和相关源码。
-3. Agent A 写入 `md/prompt/vN（阶段）/vN.x（任务）.md`。
-4. 提示词必须写清 `main` 直推、云端验证、CI artifact、Agent C 下载核对和失败后追加修复 commit 要求。
-
-### 7.3 Agent B main 直推阶段
-
-1. Agent B 基于最新 `origin/main` 切到本地 `main`。
-2. Agent B 小步实现、补测试和同步文档。
-3. Agent B 本地只跑轻量检查；除非人工明确要求，不默认本机完整 build。
-4. Agent B 用 `vN.x: 简要说明` 提交本轮相关文件。
-5. Agent B 直接 `git push origin main` 触发 GitHub Actions。
-6. GitHub Actions 运行静态检查、规则 smoke test、Xcode build-for-testing，并上传未加密 CI 结果包。
-
-### 7.4 Agent C 结果包验收阶段
-
-1. Agent C 确认 `origin/main` 最新 commit。
-2. Agent C 用 `gh auth login` 后下载 artifact 到 `/private/tmp/ww2tactics-c-review-<run_id>/`。
-3. Agent C 核对 `ci-artifact-manifest.json` 中的 `branch`、`commitSha`、`runId`、`runAttempt`。
-4. Agent C 检查 `ci-failure-summary.md`、`junit.xml`、`xcodebuild.log`、`rules-smoke.log` 和 `.xcresult`。
-5. 通过时，Agent C 确认 `origin/main` 最新 run 通过并输出验收结论。
-6. 不通过时，Agent C 写清退回清单；Agent B 在 `main` 上追加修复 commit，再次 push 触发新 run。
-
-### 7.5 当前远端约束
-
-- 默认流程要求存在 `origin/main` 和 GitHub Actions 权限。
-- 若本地仓库没有配置远端或没有权限下载 artifact，Agent 必须在 push 或验收前停止并说明阻塞。
-- 不能把旧结果包、旧 output 或 checkout 自带报告当作本轮云端结果。
-
-## 8. 已确认铁律
-
-- 聚焦不能执行命令。
-- 右键/执行按钮才执行 MOVE、ATK、POS。
-- 非法命令只提示，不消耗行动。
-- 核心规则不能写进 View。
-- 用户可见功能变化必须更新 README。
-- 核心流程变化必须更新 `md/flow`。
-- 测试命令和结果必须真实记录。
-- `main` 是唯一默认提交、推送和云端验证分支。
-- Agent C 只验收 `origin/main` 最新 commit 对应的未加密 CI 结果包。
-- Agent X 只能调度 A/B/C 多轮推进，不能跳过 Agent C artifact 验收或无限循环。
-
-## 9. 未来扩展点
-
-- 地图拖动/缩放手感、路线箭头、危险格更细粒度显示。
-- 战斗动画、战斗结果回放动效、更多战术命令结果细节。
-- 更完整 AI：据点优先级、补给、撤退、集中火力。
-- 更多战役、国家、科技、生产队列。
-- 保存进度和战役进度界面。
-- 真实地图贴图、单位立绘、将领头像。
-
-## 10. 不允许破坏的行为
-
-- 选中己方单位后，地图必须显示可移动/可攻击/可接敌反馈。
-- 据点条和敌军条只能聚焦，不得误触发攻击。
-- 移动后若出现 NEXT 目标，应自动聚焦并可继续攻击。
-- OBJ 引导必须在普通聚焦或行动后按规则清理。
-- THR 只提示危险，不应阻止合法移动，除非未来规则明确改变。
-
-
-v2.58 将地图纸张、地貌连续层和六角底色收敛到更低明度，顶部战役/回合/资源栏提升层级，地图工具栏标识为作战地图；这些 token 与文字层只读既有 GameState，不改变地图几何、命中或规则。
-
-
-v2.59 的作战带只读派生目标数量、指令点和当前阵营，底部编队轨道只读既有单位/据点数组；均不写回 GameState。
-
-### v2.60 制图层
-
-`HexMapView` 在既有 `MapGridBackdrop` 下方渲染只读 `MapCartographyStamp`，以地图尺寸定位北向、比例尺和六角公里说明。该层关闭命中与无障碍，不进入 `GameState`，不改变 tile frame、contentShape、zIndex 或命令输入。
+本轮不启动子智能体：当前会话依次完成 A 版本化方案、B main 实现/push、C exact 最新包验收，X 依据证据推进/退回/暂停。旧 run、旧 screenshot、本地半成品均不得冒充最新通过。相同原因 CI 连续失败、同阻塞三轮、无有效 diff 两轮或需要账号/人工决策时停止无条件循环。

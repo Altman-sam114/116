@@ -1,3 +1,34 @@
+# v3.0 当前云端验证基线
+
+人工明确不做本地测试；本地仅 Git/text diff/status/范围审查。YAML/Python/plist/Swift/smoke/XCTest/Xcode/模拟器/截图全部在 GitHub Actions，本轮不执行旧文档中的本机命令。
+
+## 当前必需门禁
+
+- 云端 static：`git diff --check HEAD^ HEAD`（有父提交时）、`plutil -lint`、Ruby YAML 解析、Python `py_compile`、`run_with_timeout.py --self-test`。
+- 云端 Rules smoke：编译 GameModels/GameState/RulesSmokeTest 并真实执行；包含批量地图提示与单格入口一致性。
+- 云端 build：`xcodebuild ... -destination 'generic/platform=iOS Simulator' build-for-testing CODE_SIGNING_ALLOWED=NO`。
+- 云端真实测试：已有 iPad 上 `xcodebuild ... -destination 'platform=iOS Simulator,id=<云端UDID>' -parallel-testing-enabled NO test-without-building CODE_SIGNING_ALLOWED=NO`；900 秒上限，保存独立 `xctest.log` 与 `WW2Tactics-tests.xcresult`。
+- `xcresulttool get test-results summary/tests` 输出真实总数、失败、跳过及用例树。总数不得少于测试源中所有 `func test...`，失败/跳过必须为零才通过；CI 阶段数不冒充 XCTest 数。
+- 同 commit/run/attempt 四图：`battlefield-ipad-default.png`、`battlefield-ipad-selected-combat-impact-steady.png`、`battlefield-iphone-default.png`、`battlefield-iphone-selected-combat-impact-steady.png`。
+- 每场景明确 terminate/relaunch；默认无启动参数，战果只用公开 action。每图 ≥500 KB，中央战场采样 mean ≥45/255、≥45% 点亮度 ≥55，至少第二次截图机会，最多 8 次×6 秒等待；保存尺寸、bytes、SHA-256、device/runtime/UDID、portrait、场景与 outcome。亮度门禁不替代 Agent C 逐图检查。
+- always 上传 manifest、failure summary、阶段与实际 XCTest JUnit、static/smoke/build/test/screenshot 日志、两个 xcresult、四图及元数据；不上传 DerivedData、缓存、运行时或编译出的辅助二进制。
+
+## 新增表现层测试
+
+`BattlefieldPresentationTests.swift` 覆盖两战役全部 tile/最右下的 union bounds、六邻格完整共享边、统一投影中心、缩放边界、空集/负坐标/非法 scale、四种 M/A 状态、带非零 origin 的绘制与命中、真实攻击证据不变；批量提示对全部战役/兵种和空闲/耗尽/胜利状态与单格提示逐格等价且只读。全部既有 GameStateTests 保留。
+
+## 证据与停止边界
+
+v2.64 最新基线 `4b49cd3677236b9bbc67c7ee1054412dada84b04` 的 run `38343683400` / attempt `1` 已下载核对：static/smoke/build/timeout 契约成功，XCTest skipped，regular PNG 实看偏黑，因此不是 v3.0 验收通过证据。v3.0 当前等待新提交的云端结果，不能预填 run 或宣称通过。
+
+无 UI test target，触屏、鼠标、拖动、VoiceOver、横屏、Dynamic Type 和 Reduce Motion 没有运行证据时只能源码审查。相同原因 CI 连续失败按 AGENTS 停止条件处理，不靠无限提高 timeout 或削弱断言通过。
+
+---
+
+# 历史验证规范（v2.64 及之前）
+
+以下保留历史契约和旧命令供追溯，涉及 regular-only、XCTest skipped 或本地命令的段落不覆盖当前 v3.0 门禁。
+
 ## v2.64 云端超时执行恢复（待验收）
 
 人工要求全部云端，本地仅 Git/text 范围审查，不执行 YAML、Python、plutil、Swift、Xcode、smoke、XCTest、模拟器或截图。macOS runner 不保证 GNU `timeout` 存在，所有有界构建/模拟器命令统一使用 `python3 .github/scripts/run_with_timeout.py <seconds> <command>...`；返回原始退出状态，超时为 `124`，缺少命令为 `127`，启动异常为 `126`。
