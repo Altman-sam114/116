@@ -6,13 +6,16 @@
 flowchart TD
     State[GameState 唯一规则事实源] --> Models[战役 / 地形 / 单位 / 轴向坐标]
     Models --> Layout[共享六角投影 / union bounds / 已缩放子视图 Layout 锚框]
-    Layout --> Terrain[地图级静态 Canvas 连续地貌 / 河道 / 道路]
+    Layout --> Terrain[原创底材与地貌 atlas / 柔化雪地 / 曲线河路]
     Layout --> Tiles[透明交互地格 / 稳定 ID / HexInputReader]
-    State --> Hints[批量 mapActionHints 共享一次移动路线搜索]
+    State --> Routes[单次只读地格与 ZOC 快照 / 原 FIFO 与成本]
+    Routes --> Hints[批量 mapActionHints 共享一次移动路线搜索]
     Hints --> Tiles
     State --> Rules[可达 / 攻击 / 控制区 / 补给 / 预判]
     Rules --> Tiles
-    Tiles --> Units[原创 3/4 兵模 / AL 实线 AX 虚线 / HP / M 与 A]
+    Artwork[四份离线原创 PNG / ImageIO 单次解码与复用] --> Terrain
+    Artwork --> Units[八款精细兵模 / AL 实线 AX 虚线 / HP / M 与 A]
+    Tiles --> Units
     State --> Result[执行时坐标与真实 CombatResultSummary]
     Layout --> Feedback[轴线 / 定宽夹紧 HIT 与 RET / HP 前后 / 交战中点焦点]
     Result --> Feedback
@@ -58,7 +61,7 @@ flowchart TD
     Push --> Static[云端 diff / plist / YAML / Python / 超时契约]
     Static --> Smoke[RulesSmokeTest]
     Smoke --> Build[Xcode build-for-testing]
-    Build --> XCTest[已有云端 iPad test-without-building 全部 XCTest]
+    Build --> XCTest[云端 iPad 全部 XCTest / 资源 alpha 与预算 / 独立路线 oracle]
     XCTest --> Four[同 SHA 四图 iPad + iPhone 各默认与真实战果]
     Four --> Gates[尺寸 / 500 KB / 战场亮度 / 可读比例 / 有界重试]
     Gates --> Package[always manifest + JUnit + logs + xcresult + PNG]

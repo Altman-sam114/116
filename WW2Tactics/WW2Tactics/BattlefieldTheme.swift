@@ -15,6 +15,18 @@ enum BattlefieldTheme {
     static let mutedInk = Color.white.opacity(0.62)
     static let hairline = Color.white.opacity(0.12)
 
+    static var commandMetal: LinearGradient {
+        LinearGradient(colors: [Color(red: 0.21, green: 0.24, blue: 0.20),
+                                commandDeckDeep, Color(red: 0.11, green: 0.14, blue: 0.12)],
+                       startPoint: .top, endPoint: .bottom)
+    }
+
+    static var actionBrass: LinearGradient {
+        LinearGradient(colors: [Color(red: 0.95, green: 0.84, blue: 0.59), brass,
+                                Color(red: 0.68, green: 0.53, blue: 0.29)],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
     // v2.57 War Ledger tokens: warm map-room chrome and faction-readable rings.
     static let warLedgerAmber = Color(red: 0.93, green: 0.68, blue: 0.25)
     static let warLedgerOlive = Color(red: 0.16, green: 0.19, blue: 0.13)

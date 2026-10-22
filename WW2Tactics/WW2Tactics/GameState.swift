@@ -3373,16 +3373,24 @@ final class GameState: ObservableObject {
         var bestPenalty: [HexCoordinate: Int] = [unit.position: 0]
         var parent: [HexCoordinate: HexCoordinate] = [:]
         var frontier: [HexCoordinate] = [unit.position]
-        let occupied = Set(units.filter { $0.id != unit.id }.map(\.position))
+        var frontierIndex = 0
+        // This query is synchronous and read-only; no snapshot survives a command or turn.
+        let tilesByCoordinate = Dictionary(tiles.map { ($0.coordinate, $0) }, uniquingKeysWith: { first, _ in first })
+        let livingUnits = units
+        let occupied = Set(livingUnits.filter { $0.id != unit.id }.map(\.position))
+        let controlZones = Set(livingUnits.filter { $0.faction != unit.faction }
+            .flatMap { $0.position.neighbors }
+            .filter { tilesByCoordinate[$0] != nil })
 
-        while !frontier.isEmpty {
-            let current = frontier.removeFirst()
+        while frontierIndex < frontier.count {
+            let current = frontier[frontierIndex]
+            frontierIndex += 1
             let currentCost = bestCost[current, default: 0]
 
             for next in current.neighbors {
-                guard let tile = tile(at: next), !occupied.contains(next) else { continue }
-                let stepPenalty = enemyControlZonePenalty(for: unit, entering: next)
-                let newCost = currentCost + movementCost(for: unit, entering: tile)
+                guard let tile = tilesByCoordinate[next], !occupied.contains(next) else { continue }
+                let stepPenalty = controlZones.contains(next) ? Self.enemyControlZoneMovementPenalty : 0
+                let newCost = currentCost + tile.terrain.movementCost(for: unit.kind) + stepPenalty
                 let newPenalty = bestPenalty[current, default: 0] + stepPenalty
                 guard newCost <= movementAllowance else { continue }
 

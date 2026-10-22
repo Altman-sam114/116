@@ -29,7 +29,7 @@ struct TopCommandBar: View {
             .frame(height: 60)
         }
         .frame(height: 60)
-        .background(BattlefieldTheme.commandDeckDeep)
+        .background(BattlefieldTheme.commandMetal)
         .overlay(alignment: .bottom) {
             Rectangle().fill(BattlefieldTheme.brass.opacity(0.45)).frame(height: 1)
         }
@@ -96,7 +96,8 @@ struct EndTurnButton: View {
             }
             .foregroundStyle(Color(red: 0.16, green: 0.18, blue: 0.13))
             .frame(width: 64, height: 46)
-            .background(BattlefieldTheme.brass, in: RoundedRectangle(cornerRadius: 3))
+            .background(BattlefieldTheme.actionBrass, in: RoundedRectangle(cornerRadius: 3))
+            .overlay { RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.24), lineWidth: 0.8) }
         }
         .buttonStyle(.plain)
         .disabled(game.winner != nil)
@@ -188,7 +189,8 @@ struct MapCommandCenter: View {
         }
         .padding(10)
         .frame(width: 186)
-        .background(BattlefieldTheme.commandDeckDeep.opacity(0.91), in: RoundedRectangle(cornerRadius: 3))
+        .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
+        .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.34), lineWidth: 0.8) }
         .accessibilityElement(children: .combine)
     }
 
@@ -202,7 +204,8 @@ struct MapCommandCenter: View {
                 .font(.system(size: 17, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
-                .background(BattlefieldTheme.commandDeckDeep.opacity(0.94), in: RoundedRectangle(cornerRadius: 3))
+                .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
+                .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.34), lineWidth: 0.8) }
         }
         .accessibilityLabel("地图缩放")
         .accessibilityValue(mapScaleMode.title)
@@ -219,7 +222,8 @@ struct MapCommandCenter: View {
                     .foregroundStyle(BattlefieldTheme.brass)
                     .padding(.horizontal, 10)
                     .frame(minHeight: 44)
-                    .background(BattlefieldTheme.commandDeckDeep, in: RoundedRectangle(cornerRadius: 3))
+                    .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
+                    .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.32), lineWidth: 0.8) }
             }
             .buttonStyle(.plain)
             .disabled(game.readyUnits.isEmpty)
@@ -233,7 +237,8 @@ struct MapCommandCenter: View {
                 .foregroundStyle(selected ? BattlefieldTheme.brass : .white)
                 .padding(.horizontal, 10)
                 .frame(minHeight: 44)
-                .background(BattlefieldTheme.commandDeckDeep, in: RoundedRectangle(cornerRadius: 3))
+                .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
+                .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.26), lineWidth: 0.8) }
         }
         .buttonStyle(.plain)
         .accessibilityValue(selected ? "已展开" : "已收起")
@@ -278,7 +283,8 @@ struct MapRestartButton: View {
                 .font(.system(size: 17, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
-                .background(BattlefieldTheme.commandDeckDeep.opacity(0.94), in: RoundedRectangle(cornerRadius: 3))
+                .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
+                .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.34), lineWidth: 0.8) }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("重新开始当前战役")
@@ -312,19 +318,25 @@ struct MapActionHUD: View {
                     .accessibilityLabel("待命防御")
                     .disabled(unit.hasMoved && unit.hasAttacked)
                 }
-                HStack(spacing: 6) {
-                    quick("攻击", icon: "scope", enabled: !game.attackableUnits(for: unit).isEmpty, action: game.focusNearestAttackTarget)
-                    quick("接敌", icon: "arrow.up.right", enabled: game.nearestApproachTarget(for: unit) != nil, action: game.focusNearestApproachTarget)
-                    quick("据点", icon: "flag.fill", enabled: game.nearestObjectiveTarget(for: unit) != nil, action: game.focusNearestObjectiveTarget)
-                    if game.focusedCommandPreview?.isExecutable == true {
-                        Button(action: game.executeFocusedCommand) {
-                            Label("执行", systemImage: "play.fill")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(BattlefieldTheme.commandDeckDeep)
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                                .background(BattlefieldTheme.brass, in: RoundedRectangle(cornerRadius: 3))
+                if unit.hasMoved && unit.hasAttacked {
+                    Label("本回合行动完毕 · 可切换下一支部队", systemImage: "checkmark.circle")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(BattlefieldTheme.mutedInk)
+                } else {
+                    HStack(spacing: 6) {
+                        quick("攻击", icon: "scope", enabled: !game.attackableUnits(for: unit).isEmpty, action: game.focusNearestAttackTarget)
+                        quick("接敌", icon: "arrow.up.right", enabled: game.nearestApproachTarget(for: unit) != nil, action: game.focusNearestApproachTarget)
+                        quick("据点", icon: "flag.fill", enabled: game.nearestObjectiveTarget(for: unit) != nil, action: game.focusNearestObjectiveTarget)
+                        if game.focusedCommandPreview?.isExecutable == true {
+                            Button(action: game.executeFocusedCommand) {
+                                Label("执行", systemImage: "play.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(BattlefieldTheme.commandDeckDeep)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .background(BattlefieldTheme.actionBrass, in: RoundedRectangle(cornerRadius: 3))
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
                 if let preview = game.focusedCommandPreview, preview.isExecutable {
@@ -337,7 +349,8 @@ struct MapActionHUD: View {
             .padding(10)
             .foregroundStyle(.white)
             .frame(maxWidth: compact ? .infinity : 520)
-            .background(BattlefieldTheme.commandDeckDeep.opacity(0.96), in: RoundedRectangle(cornerRadius: 4))
+            .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 4))
+            .overlay { RoundedRectangle(cornerRadius: 4).stroke(BattlefieldTheme.brass.opacity(0.34), lineWidth: 0.8) }
             .overlay(alignment: .top) { Rectangle().fill(unit.faction.accentColor).frame(height: 2) }
         }
     }

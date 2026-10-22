@@ -3,6 +3,68 @@ import XCTest
 
 @MainActor
 final class GameStateTests: XCTestCase {
+    func testMovementQuerySnapshotsMatchTheIndependentLegacySearch() {
+        for scenario in Scenario.campaignCatalog {
+            let game = GameState(scenario: scenario)
+            for faction in Faction.allCases {
+                game.activeFaction = faction
+                let beforeUnits = game.scenario.units
+                let beforeTiles = game.scenario.tiles
+                let beforePoints = game.commandPoints
+                for unit in game.units {
+                    XCTAssertEqual(
+                        game.movementRoutes(for: unit),
+                        legacyMovementRoutes(in: game, for: unit),
+                        "\(scenario.id) / \(faction.rawValue) / \(unit.name)"
+                    )
+                }
+                XCTAssertEqual(game.scenario.units, beforeUnits)
+                XCTAssertEqual(game.scenario.tiles, beforeTiles)
+                XCTAssertEqual(game.commandPoints, beforePoints)
+            }
+        }
+    }
+
+    // Independent pre-refactor FIFO search: deliberately uses public per-cell queries, not snapshots.
+    private func legacyMovementRoutes(in game: GameState, for unit: BattleUnit) -> [HexCoordinate: MovementRoute] {
+        guard unit.faction == game.activeFaction, unit.canMove else { return [:] }
+        let allowance = max(1, unit.movement - game.supplyState(for: unit).movementPenalty
+                            - unit.tacticalStatus.movementPenalty + unit.moraleState.movementModifier)
+        var costs = [unit.position: 0]
+        var penalties = [unit.position: 0]
+        var parent: [HexCoordinate: HexCoordinate] = [:]
+        var frontier = [unit.position]
+        let occupied = Set(game.units.filter { $0.id != unit.id }.map(\.position))
+        while !frontier.isEmpty {
+            let current = frontier.removeFirst()
+            for next in current.neighbors {
+                guard !occupied.contains(next), let step = game.movementCostPreview(for: unit, entering: next) else { continue }
+                let cost = costs[current, default: 0] + step
+                let penalty = penalties[current, default: 0] + game.enemyControlZonePenalty(for: unit, entering: next)
+                guard cost <= allowance else { continue }
+                if costs[next] == nil || cost < costs[next, default: .max] ||
+                    (cost == costs[next, default: .max] && penalty < penalties[next, default: .max]) {
+                    costs[next] = cost
+                    penalties[next] = penalty
+                    parent[next] = current
+                    frontier.append(next)
+                }
+            }
+        }
+        costs.removeValue(forKey: unit.position)
+        return costs.reduce(into: [HexCoordinate: MovementRoute]()) { result, entry in
+            var path = [entry.key]
+            var cursor = entry.key
+            while cursor != unit.position {
+                guard let previous = parent[cursor] else { return }
+                path.append(previous)
+                cursor = previous
+            }
+            result[entry.key] = MovementRoute(destination: entry.key, coordinates: path.reversed(),
+                                             totalCost: entry.value, controlZonePenalty: penalties[entry.key, default: 0])
+        }
+    }
+
     private func assertAIPhaseMapMarkers(
         _ markers: [AIPhaseMapMarker],
         match summary: AIPhaseSummary,

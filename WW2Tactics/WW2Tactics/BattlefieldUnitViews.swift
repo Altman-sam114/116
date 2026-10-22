@@ -57,7 +57,7 @@ struct UnitCounter: View {
                 tacticalStatus: unit.tacticalStatus,
                 isSpent: isActionComplete,
                 width: unit.kind.mapPieceWidth,
-                height: 44
+                height: 54
             )
             .overlay(alignment: .topLeading) {
                 if let commander = unit.commander {
@@ -65,7 +65,7 @@ struct UnitCounter: View {
                         .offset(x: -6, y: -7)
                 }
             }
-            .opacity(isActionComplete ? 0.78 : 1)
+            .opacity(isActionComplete ? 0.9 : 1)
 
             HStack(spacing: 3) {
                 readinessSlot(symbol: readiness.moveSymbol, available: readiness.canMove)
@@ -175,60 +175,16 @@ private struct MapUnitGrounding: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let contactOpacity = isSpent ? 0.16 : 0.28
-            let baseOpacity = isSpent ? 0.20 : 0.36
-            let rimOpacity = isSpent ? 0.34 : 0.62
-
-            ZStack {
-                Ellipse()
-                    .fill(BattlefieldTheme.mapUnitContactShadow.opacity(contactOpacity / 0.28))
-                    .frame(width: proxy.size.width * 0.94, height: proxy.size.height * 0.38)
-                    .position(x: proxy.size.width * 0.50, y: proxy.size.height * 0.75)
-
-                // GoG3-inspired faction halo: shape and HP remain readable
-                // even when color differentiation is disabled.
-                Ellipse()
-                    .fill(faction.accentColor.opacity(isSpent ? 0.12 : 0.20))
-                    .overlay {
-                        Ellipse()
-                            .stroke(
-                                faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing,
-                                style: StrokeStyle(lineWidth: isSpent ? 0.9 : 1.5, dash: faction == .allies ? [] : [4, 2])
-                            )
-                    }
-                    .overlay {
-                        Ellipse()
-                            .stroke(Color.white.opacity(isSpent ? 0.08 : 0.24), lineWidth: 0.55)
-                            .scaleEffect(0.86)
-                    }
-                    .frame(width: proxy.size.width * 0.96, height: proxy.size.height * 0.66)
-                    .position(x: proxy.size.width * 0.50, y: proxy.size.height * 0.53)
-
-                RoundedRectangle(cornerRadius: proxy.size.height * 0.34)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                faction.accentColor.opacity(baseOpacity),
-                                BattlefieldTheme.mapUnitBaseInset.opacity(isSpent ? 0.46 : 0.72)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+            Ellipse()
+                .fill(faction.accentColor.opacity(isSpent ? 0.06 : 0.12))
+                .overlay {
+                    Ellipse().stroke(
+                        faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing,
+                        style: StrokeStyle(lineWidth: isSpent ? 1 : 1.6, dash: faction == .allies ? [] : [4, 2])
                     )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: proxy.size.height * 0.34)
-                            .stroke(faction.accentColor.opacity(rimOpacity), lineWidth: 0.9)
-                    }
-                    .overlay(alignment: .top) {
-                        RoundedRectangle(cornerRadius: proxy.size.height * 0.34)
-                            .stroke(BattlefieldTheme.mapUnitBaseHighlight.opacity(isSpent ? 0.35 : 0.72), lineWidth: 0.55)
-                            .mask(alignment: .top) {
-                                Rectangle().frame(height: proxy.size.height * 0.42)
-                            }
-                    }
-                    .frame(width: proxy.size.width * 0.82, height: proxy.size.height * 0.57)
-                    .position(x: proxy.size.width * 0.50, y: proxy.size.height * 0.57)
-            }
+                }
+                .frame(width: proxy.size.width * 0.94, height: proxy.size.height * 0.61)
+                .position(x: proxy.size.width / 2, y: proxy.size.height * 0.66)
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -428,13 +384,13 @@ extension UnitKind {
     var mapPieceWidth: CGFloat {
         switch self {
         case .infantry:
-            68
+            77
         case .tank:
-            74
+            82
         case .artillery:
-            71
+            82
         case .recon:
-            70
+            78
         }
     }
 }

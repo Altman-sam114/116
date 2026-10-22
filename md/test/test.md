@@ -1,12 +1,14 @@
-## 当前验收状态：C 退回 B，有界修复待云端验证
+## 当前验收状态：技术修复通过，精细美术纠正待最新云端验证
 
-前次 main `6cc6da3` / run `39807296780` / attempt `1` 的 exact 包已下载核对：static/build/四图成功，smoke 失败，XCTest 125 total、123 passed、2 failed。原停止记录见 `v3.0-cloud-review.md`，不抹掉或改写成通过。
+C 已下载核对 `origin/main=c3a2f6c7ea869cb4d4daeb55e4ab2ddc284bc525`，run `39813336318` / attempt `1`，artifact `ww2tactics-ci-v3.0-main-c3a2f6c-run39813336318-attempt1`（id `12442631249`，18,566,892 bytes，digest `sha256:63a306c05c048f8bc7dbafed6b904e70bf585fe0ef2fa39c281702ec0b6cd572`），目录 `/private/tmp/ww2tactics-c-review-39813336318/`，约 19M。五阶段 success，127 XCTest 全通过/0 skipped，四图逐张查看，交战中点与 HIT/RET 裁切修复通过。实际 XCTest 用时 132.994 秒；不能把 CI 等候/模拟器启动耗时都归给规则测试。
 
-目标继续推进后，本轮仅修复已定位根因：夺点事件类别优先；六次部署避开原装甲的全部邻格，XCTest/smoke 显式建立并保留真实引导；地图使用已缩放真实子视图 frame 的 Layout 锚点，战果定位双方中点、定宽铭牌夹紧地图边缘。新增两个几何/铭牌测试，既有用例不删除、不 skip。全部 127 个测试、smoke、build 与四图仍须由本轮最新 SHA 的云端包验收，不能预填成功。本地仍不运行任何测试或模拟器。
+几何美术仍未达到人工目标，故继续原 v3.0 的 C 退回 B，不虚称总目标完成。本轮增加四份原创 PNG 与原生缓存/裁格读取、连续地貌/曲线河路、精细兵模和 HUD，新增三项资源解码/透明度/格位/24 MB 预算测试。movementRoutes 只读快照优化增加独立旧 FIFO 搜索 oracle，逐真实战役、全部单位、双方行动阵营比较完整路线，不削减旧用例。目标真实 XCTest：131 项（116 规则 + 15 表现/资源），仍须由本次最新 SHA 的全套云端结果验收。
+
+本地只 Git/text/资源复制与原图元数据、alpha 像素读取，不运行任何项目编译、smoke、XCTest、模拟器或 app 截图。生成工具原图检查不是游戏集成测试，实际资源门禁也只在云端执行。历史失败和原停止证据保留在 `v3.0-cloud-review.md`。
 
 # v3.0 当前云端验证基线
 
-人工明确不做本地测试；本地仅 Git/text diff/status/范围审查。YAML/Python/plist/Swift/smoke/XCTest/Xcode/模拟器/截图全部在 GitHub Actions，本轮不执行旧文档中的本机命令。
+人工明确不做本地项目测试；本地只 Git/text diff/status/范围审查与美术资源复制/原图检查。YAML/Python/plist/Swift/smoke/XCTest/Xcode/模拟器/截图全部在 GitHub Actions，本轮不执行旧文档中的本机命令。
 
 ## 当前必需门禁
 
@@ -17,11 +19,11 @@
 - `xcresulttool get test-results summary/tests` 输出真实总数、失败、跳过及用例树。总数不得少于测试源中所有零参数公开 `func test...()`（排除 private 带参数 helper），失败/跳过必须为零才通过；CI 阶段数不冒充 XCTest 数。
 - 同 commit/run/attempt 四图：`battlefield-ipad-default.png`、`battlefield-ipad-selected-combat-impact-steady.png`、`battlefield-iphone-default.png`、`battlefield-iphone-selected-combat-impact-steady.png`。
 - 每场景明确 terminate/relaunch；默认无启动参数，战果只用公开 action。每图 ≥500 KB，中央战场采样 mean ≥45/255、≥45% 点亮度 ≥55，连续两帧可读，最多 8 次×6 秒等待；保存尺寸、bytes、SHA-256、device/runtime/UDID、portrait、场景与 outcome。亮度门禁不替代 Agent C 逐图检查。
-- always 上传 manifest、failure summary、阶段与实际 XCTest JUnit、static/smoke/build/test/screenshot 日志、两个 xcresult、四图及元数据；不上传 DerivedData、缓存、运行时或编译出的辅助二进制。
+- always 上传 manifest（含美术资源摘要）、artwork-resources.json、failure summary、阶段与实际 XCTest JUnit、static/smoke/build/test/screenshot 日志、两个 xcresult、四图及元数据；不上传 DerivedData、缓存、运行时或编译出的辅助二进制。
 
 ## 旧测试夹具审计
 
-首次真实执行暴露的 7 项旧用例已逐项审查：不删用例/断言、不 skip、不更改生产规则。修正提前胜利与堵路的夹具，拆分弹幕/断补给伤害，明确 ZOC 成本、响应坐标优先和完整意图查询，并补全局回放与射程外断言。实际集合为既有 115 + 新增 10 = 125 个零参数测试；另 2 个 private test... helper 不计数。
+首次真实执行暴露的 7 项旧用例已逐项审查：不删用例/断言、不 skip、不更改生产规则。修正提前胜利与堵路的夹具，拆分弹幕/断补给伤害，明确 ZOC 成本、响应坐标优先和完整意图查询，并补全局回放与射程外断言。实际集合为既有 115 + 新增 10 = 125 个零参数测试；另 2 个 private test... helper 不计数。后续修复增加 2 个几何测试，美术纠正增加 3 个资源测试和 1 个独立旧寻路 oracle，当前目标为 131；以最新 SHA 的实际集合为准。
 
 ## 新增表现层测试
 

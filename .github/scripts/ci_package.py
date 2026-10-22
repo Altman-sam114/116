@@ -1,6 +1,7 @@
 """Package stage outcomes separately from actual XCTest counts."""
 
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,10 @@ stages = [
     ("four-battlefield-screenshots", "SCREENSHOT_STATUS", "battlefield-screenshot.log"),
 ]
 outcomes = {name: "success" if os.environ.get(key, "1") == "0" else "failure" for name, key, _ in stages}
+artwork = [{"path": str(path), "bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+           for path in sorted(Path("WW2Tactics/WW2Tactics/BattlefieldArt").glob("*.png"))]
+(root / "artwork-resources.json").write_text(json.dumps(artwork, indent=2) + "\n")
 manifest = {
     "version": os.environ["CI_VERSION"], "branch": os.environ["GITHUB_REF_NAME"],
     "commitSha": os.environ["GITHUB_SHA"], "shortSha": os.environ["SHORT_SHA"],
@@ -34,6 +39,7 @@ manifest = {
     "failureSummaryPath": "ci-results/ci-failure-summary.md",
     "staticChecksOutcome": outcomes["static-checks"], "smokeTestOutcome": outcomes["rules-smoke"],
     "buildOutcome": outcomes["xcode-build-for-testing"],
+    "artworkResources": artwork,
     **simulator,
 }
 (root / "ci-artifact-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")

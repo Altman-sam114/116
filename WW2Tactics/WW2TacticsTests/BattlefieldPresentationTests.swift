@@ -4,6 +4,65 @@ import XCTest
 
 @MainActor
 final class BattlefieldPresentationTests: XCTestCase {
+    func testOriginalArtworkResourcesAreBundledWithinBudget() throws {
+        var totalBytes = 0
+        for name in BattlefieldArtwork.resourceNames {
+            let url = try XCTUnwrap(BattlefieldArtwork.resourceURL(name), "Missing bundled art: \(name)")
+            let values = try url.resourceValues(forKeys: [.fileSizeKey])
+            totalBytes += try XCTUnwrap(values.fileSize)
+        }
+        XCTAssertGreaterThan(totalBytes, 1_000_000)
+        XCTAssertLessThanOrEqual(totalBytes, 24_000_000)
+        let ground = try XCTUnwrap(BattlefieldArtwork.ground)
+        XCTAssertGreaterThanOrEqual(ground.width, 512)
+        XCTAssertEqual(ground.width, ground.height)
+    }
+
+    func testEveryUnitAndScenerySpriteHasTransparencyAndVisibleArtwork() throws {
+        var images: [CGImage] = []
+        for faction in Faction.allCases {
+            for kind in UnitKind.allCases {
+                let first = try XCTUnwrap(BattlefieldArtwork.unit(kind, faction: faction))
+                let second = try XCTUnwrap(BattlefieldArtwork.unit(kind, faction: faction))
+                XCTAssertTrue(first === second, "Sprites must reuse their decoded image")
+                images.append(first)
+            }
+        }
+        for kind in BattlefieldScenery.allCases {
+            images.append(try XCTUnwrap(BattlefieldArtwork.scenery(kind)))
+        }
+        XCTAssertEqual(images.count, 12)
+        for image in images {
+            XCTAssertEqual(image.width, 768)
+            XCTAssertEqual(image.height, 512)
+            var pixels = [UInt8](repeating: 0, count: 64 * 64 * 4)
+            try pixels.withUnsafeMutableBytes { buffer in
+                let context = try XCTUnwrap(CGContext(
+                    data: buffer.baseAddress, width: 64, height: 64, bitsPerComponent: 8,
+                    bytesPerRow: 64 * 4, space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                ))
+                context.draw(image, in: CGRect(x: 0, y: 0, width: 64, height: 64))
+            }
+            let alpha = stride(from: 3, to: pixels.count, by: 4).map { pixels[$0] }
+            XCTAssertGreaterThan(alpha.filter { $0 < 8 }.count, 4096 / 8, "No opaque atlas backdrop")
+            XCTAssertGreaterThan(alpha.filter { $0 > 180 }.count, 4096 / 8, "No empty/transparent sprite")
+        }
+    }
+
+    func testAtlasCellsPartitionTheOriginalSheetWithoutOverlap() {
+        let cells = (0..<4).map {
+            BattlefieldArtwork.cellRect(column: $0 % 2, row: $0 / 2, width: 1536, height: 1024)
+        }
+        XCTAssertEqual(cells.reduce(CGRect.null) { $0.union($1) }, CGRect(x: 0, y: 0, width: 1536, height: 1024))
+        for index in cells.indices {
+            XCTAssertEqual(cells[index].size, CGSize(width: 768, height: 512))
+            for other in cells.indices where index != other {
+                XCTAssertFalse(cells[index].intersects(cells[other]))
+            }
+        }
+    }
+
     func testAllCampaignTileFramesFitScrollableBounds() {
         for scenario in Scenario.campaignCatalog {
             let coordinates = scenario.tiles.map(\.coordinate)

@@ -2,24 +2,25 @@
 
 ## 当前架构（v3.0 战争沙盘）
 
-规则唯一事实源是 `GameState`。地图优先界面使用共享尖顶六角投影、地图级静态 Canvas、透明交互地格、原创 3/4 兵模和按需边缘指挥面板；没有另建简化战斗状态机。
+规则唯一事实源是 `GameState`。地图优先界面使用共享尖顶六角投影、地图级静态 Canvas、透明交互地格、原创精细预渲染兵模和按需边缘指挥面板；没有另建简化战斗状态机。
 
 ## 模块职责
 
 - `GameModels.swift`：阵营、兵种、地形、轴向坐标、战役、单位、规则预览与结果值。
-- `GameState.swift`：选择、焦点、移动、攻击、反击、AI、补给、士气、据点、命令点、增援、胜负、规划、态势与回放。`mapActionHints()` 在一次只读快照中共享移动路线搜索；单格与批量调用同一判定函数，不建立跨回合缓存。
+- `GameState.swift`：选择、焦点、移动、攻击、反击、AI、补给、士气、据点、命令点、增援、胜负、规划、态势与回放。`mapActionHints()` 在一次只读快照中共享移动路线搜索；单格与批量调用同一判定函数，不建立跨回合缓存。`movementRoutes` 在单次查询内建立地格/存活单位/敌 ZOC 快照；索引推进保留原 FIFO 顺序，成本与 tie-break 不变，独立旧搜索 oracle 逐路线对比。
 - `ContentView.swift`：60pt 顶部战役带、全幅战场和本地情报展开状态。情报在宽屏右缘覆盖、窄屏底部覆盖，不挤压地图。
 - `BattlefieldCommandDeck.swift`：战役菜单、资源、结束回合、地图缩放/重开、单一选中单位动作坞、战况通讯条、编队/据点与支援开关。支援和定位轨道默认收起。
 - `BattlefieldChrome.swift`：AL/OBJ/AX 全量横向定位轨道、焦点滚动、紧凑行动标记和共用 HUD 小组件。
 - `BattlefieldCommandPanels.swift`：既有详细攻击预览、编队摘要、战术命令和增援面板。详细预览仍可由情报入口访问。
 - `BattlefieldInspector.swift`：保留单位详情、任务、地格、战线态势、压力、反制、战果、后勤、AI 时间线与战报；不在本轮重写业务语义。
 - `BattlefieldMapLayout.swift`：统一六角顶点、中心、tile frame、全部实际地格的 union bounds、24pt 留白及缩放尺寸；另有纯值 `UnitReadinessPresentation`。
-- `BattlefieldTerrainRenderer.swift`：一个静态 Canvas 绘制连续苔绿底材、低频田块、针叶树林、分面岩脊、雪地、街区与据点建筑。道路/河道沿真实邻接的共享中心连接；无随机状态、计时器、图片或网络。
+- `BattlefieldTerrainRenderer.swift`：一个静态 Canvas 组合原创草土底材、少量低频田块与透明树丛/岩脊/村镇/雪林。雪地按真实 snow 格中心覆盖柔化漂雪，不再硬填白色六角。道路/河道沿真实邻接的共享边中点连接，双邻接用中心为控制点的二次曲线；无随机状态、计时器或网络。
 - `BattlefieldRoadNetwork.swift`：从真实道路邻接派生 canonical 主干及有界长回边，仅用于画路，不改变路线和移动成本。
 - `BattlefieldMap.swift`：透明战术地格、标记、单位层次、稳定 coordinate ID、UIKit 输入桥和 SwiftUI 无障碍摘要。静态地形不再嵌入每个交互 View。
 - `BattlefieldCombatFeedback.swift`：真实执行坐标上的交战轴线、HIT/RET/HP 前后、可取消反馈序列和 Reduce Motion。
-- `BattlefieldUnitRenderer.swift`：原生 Canvas 原创坦克、火炮、步兵组三种姿势与轮式侦察车，统一左上光源、厚度、结构与接地阴影。
-- `BattlefieldUnitViews.swift`：将领/军衔/CUT/战术状态、实线 AL / 虚线 AX 阵营环与字码、五段 HP、独立移动与攻击槽。spent 严格为 `hasMoved && hasAttacked`。
+- `BattlefieldUnitRenderer.swift`：呈现八款原创透明坦克、火炮、三人步兵与轮式侦察车，统一左上光源与接地阴影；不再逐实例重画几何图标。
+- `BattlefieldArtwork.swift` / `BattlefieldArt/`：四份原创 PNG 随包离线使用，ImageIO 一次解码，三个 2×2 atlas 按固定象限裁成 12 个 CGImage 静态复用；资源读取失败由云端资源测试拒收，不关联任何 GameState。
+- `BattlefieldUnitViews.swift`：将领/军衔/CUT/战术状态、实线 AL / 虚线 AX 阵营环与字码、五段 HP、独立移动与攻击槽。模型放大但不扩大输入六角；小实/虚线阵营环不再叠不透明棋子底座。spent 严格为 `hasMoved && hasAttacked`。
 - `BattlefieldTheme.swift`：橄榄炭灰 chrome、浅色正文与克制黄铜强调。
 
 ## 地图坐标与渲染
@@ -56,7 +57,7 @@ center = rawCenter + 统一 offset
 
 四图均记录 device/UDID/runtime、场景、portrait、尺寸、bytes、SHA-256、亮度与可读比例。保留至少 500 KB 初筛，新增战场中央平均亮度 ≥45/255、≥45% 采样点亮度 ≥55，并至少等待两次截图机会；最多 8 次重试，拒绝早期 launch fade。大小与采样仍不能替代人工视觉检查。
 
-manifest 分开记录 build、真实 test outcome/count/failure/skipped/result bundle 与四图。JUnit 的 CI 阶段和实际 XCTest suite 分离。没有 UI test target：拖动、触屏命令、VoiceOver、Dynamic Type、横屏与 Reduce Motion 的行为没有运行证据时只作源码审查，不宣称实测通过。
+资源门禁校验四图随包解码、固定格位、12 sprite 透明边缘/可见主体、静态复用和 24 MB 预算；结果包另存各资源字节与 SHA-256。manifest 分开记录 build、真实 test outcome/count/failure/skipped/result bundle 与四图。JUnit 的 CI 阶段和实际 XCTest suite 分离。没有 UI test target：拖动、触屏命令、VoiceOver、Dynamic Type、横屏与 Reduce Motion 的行为没有运行证据时只作源码审查，不宣称实测通过。
 
 ## A → B → C → X
 

@@ -24,6 +24,8 @@
 		A30000000000000000000005 /* BattlefieldInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000105 /* BattlefieldInspector.swift */; };
 		A30000000000000000000006 /* BattlefieldRoadNetwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000106 /* BattlefieldRoadNetwork.swift */; };
 		A30000000000000000000007 /* BattlefieldCombatFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000107 /* BattlefieldCombatFeedback.swift */; };
+		A30000000000000000000008 /* BattlefieldArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000108 /* BattlefieldArtwork.swift */; };
+		A30000000000000000000009 /* BattlefieldArt in Resources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000109 /* BattlefieldArt */; };
 		A30000000000000000000200 /* BattlefieldPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000201 /* BattlefieldPresentationTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -57,6 +59,8 @@
 		A30000000000000000000105 /* BattlefieldInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldInspector.swift; sourceTree = "<group>"; };
 		A30000000000000000000106 /* BattlefieldRoadNetwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldRoadNetwork.swift; sourceTree = "<group>"; };
 		A30000000000000000000107 /* BattlefieldCombatFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldCombatFeedback.swift; sourceTree = "<group>"; };
+		A30000000000000000000108 /* BattlefieldArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldArtwork.swift; sourceTree = "<group>"; };
+		A30000000000000000000109 /* BattlefieldArt */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BattlefieldArt; sourceTree = "<group>"; };
 		A30000000000000000000201 /* BattlefieldPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldPresentationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -105,6 +109,8 @@
 				A30000000000000000000105 /* BattlefieldInspector.swift */,
 				A30000000000000000000106 /* BattlefieldRoadNetwork.swift */,
 				A30000000000000000000107 /* BattlefieldCombatFeedback.swift */,
+				A30000000000000000000108 /* BattlefieldArtwork.swift */,
+				A30000000000000000000109 /* BattlefieldArt */,
 				A10000000000000000000018 /* BattlefieldUnitViews.swift */,
 			);
 			path = WW2Tactics;
@@ -209,6 +215,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A30000000000000000000009 /* BattlefieldArt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -241,6 +248,7 @@
 				A30000000000000000000005 /* BattlefieldInspector.swift in Sources */,
 				A30000000000000000000006 /* BattlefieldRoadNetwork.swift in Sources */,
 				A30000000000000000000007 /* BattlefieldCombatFeedback.swift in Sources */,
+				A30000000000000000000008 /* BattlefieldArtwork.swift in Sources */,
 				A10000000000000000000008 /* BattlefieldUnitViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

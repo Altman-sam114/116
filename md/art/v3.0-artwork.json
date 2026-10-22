@@ -1,0 +1,39 @@
+{
+  "generator": "Built-in imagegen",
+  "postProcessing": false,
+  "promptFile": "md/art/v3.0-artwork.md",
+  "resources": [
+    {
+      "path": "WW2Tactics/WW2Tactics/BattlefieldArt/ground.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 4354834,
+      "sha256": "0d928900e427ec81dcb16eabb3e4134b923859c944b4c1261c3727fe64c9bd25",
+      "alpha": false
+    },
+    {
+      "path": "WW2Tactics/WW2Tactics/BattlefieldArt/scenery.png",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 3002093,
+      "sha256": "1e60bb4a753d2b8754d578533e205bc9021590b7158a414fef4f5cb8f038df79",
+      "alpha": true
+    },
+    {
+      "path": "WW2Tactics/WW2Tactics/BattlefieldArt/troops.png",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 2087535,
+      "sha256": "b86841499f7d58f276df945c3828201fbaa8b9492cd831ed39642a6eddf33531",
+      "alpha": true
+    },
+    {
+      "path": "WW2Tactics/WW2Tactics/BattlefieldArt/vehicles.png",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 2420630,
+      "sha256": "c1538a3ebbfb86d3bcee681189f3394d3005b3bab14be8c75e2f43e3254abfd4",
+      "alpha": true
+    }
+  ]
+}
