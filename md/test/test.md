@@ -6,7 +6,7 @@
 
 - 云端 static：`git diff --check HEAD^ HEAD`（有父提交时）、`plutil -lint`、Ruby YAML 解析、Python `py_compile`、`run_with_timeout.py --self-test`。
 - 云端 Rules smoke：编译 GameModels/GameState/RulesSmokeTest 并真实执行；包含批量地图提示与单格入口一致性。
-- 云端 build：`xcodebuild ... -destination 'generic/platform=iOS Simulator' build-for-testing CODE_SIGNING_ALLOWED=NO`。
+- 云端 build：`xcodebuild ... -destination 'generic/platform=iOS Simulator' build-for-testing CODE_SIGNING_ALLOWED=NO ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES`，只编译 runner 的原生模拟器架构，覆盖该 runner 上两种设备。截图检查器失败不阻止独立实际 XCTest 执行。
 - 云端真实测试：已有 iPad 上 `xcodebuild ... -destination 'platform=iOS Simulator,id=<云端UDID>' -parallel-testing-enabled NO test-without-building CODE_SIGNING_ALLOWED=NO`；900 秒上限，保存独立 `xctest.log` 与 `WW2Tactics-tests.xcresult`。
 - `xcresulttool get test-results summary/tests` 输出真实总数、失败、跳过及用例树。总数不得少于测试源中所有 `func test...`，失败/跳过必须为零才通过；CI 阶段数不冒充 XCTest 数。
 - 同 commit/run/attempt 四图：`battlefield-ipad-default.png`、`battlefield-ipad-selected-combat-impact-steady.png`、`battlefield-iphone-default.png`、`battlefield-iphone-selected-combat-impact-steady.png`。

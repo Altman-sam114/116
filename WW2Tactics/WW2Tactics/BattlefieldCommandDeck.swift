@@ -8,6 +8,7 @@ struct TopCommandBar: View {
             let compact = proxy.size.width < 600
             HStack(spacing: compact ? 8 : 18) {
                 CampaignPicker()
+                    .frame(maxWidth: compact ? 130 : 200)
                 if !compact {
                     Rectangle().fill(BattlefieldTheme.brass.opacity(0.35)).frame(width: 1, height: 30)
                 }

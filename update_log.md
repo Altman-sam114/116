@@ -41,6 +41,8 @@
 
 首次云端修复：`8b1df6ebd1a5181b739316575f36fa1c0e72206d` 的 run `39800364920` / attempt `1` 已下载 artifact `ww2tactics-ci-v3.0-main-8b1df6e-run39800364920-attempt1`（id `12435846844`，38,824 bytes，digest `sha256:17af3105c0959dbbcd8d6bee5b7fec079d6d5c2d32600a1dad4dcd5faead5f16`）。static、Rules smoke 成功；build 在两处 `TacticalCommand.systemImage` 跨文件 fileprivate 访问处失败，XCTest/四图未运行，无测试断言失败证据。C 退回 B：将共用 Faction/TacticalCommand 表现扩展移入 BattlefieldTheme，TacticalCommand 改为 module internal；另由 PNG 实际宽高派生 orientation。首次拆分提交的三处尾部空白已用追加提交清理，未 amend；被替代 run `39800272788` 已取消避免重复消耗。
 
+第二次云端纠正：`6addfbff9b38eb56655f0c859bc27d638666d826` 对应 run `39801556615` / attempt `1`，C 已下载并核对 artifact `ww2tactics-ci-v3.0-main-6addfbf-run39801556615-attempt1`（id `12436541324`，48,234 bytes，digest `sha256:c8bcd0b6750e46666c33386c4c31b9e7fec4d2f18cc90e1b0290ea7c2a87f576`）。static/smoke/build-for-testing 成功，游戏与新增测试源码均已编译；辅助截图检查器的 NSBitmapImageRep 初始化 API 错误使模拟器阶段提前退出，实际 XCTest/四图仍未运行。B 改为 Data + NSBitmapImageRep(data:) 并拆开颜色表达式，XCTest 与辅助检查器编译成败解耦；构建显式 ARCHS=runner 原生架构 + ONLY_ACTIVE_ARCH，避免 generic simulator 的重复架构编译。compact 战役入口约束 130pt，保证关键资源带空间。该失败与上一轮的跨文件访问根因不同，不将其伪装为游戏规则断言失败。
+
 遗留：无 UI test target，触屏拖动/鼠标/VoiceOver/横屏/Dynamic Type 仍需要独立运行证据；不能把四图当全部交互实测。v3.0 是本轮原创风格重构基座，不代表商业级长期目标完成。
 
 

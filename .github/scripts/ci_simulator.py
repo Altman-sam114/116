@@ -119,8 +119,7 @@ def main():
             raise RuntimeError("build-for-testing failed; test/screenshot stages not run")
         with (ROOT / "battlefield-screenshot.log").open("w") as log:
             inspector = run(["xcrun", "swiftc", ".github/scripts/inspect_screenshot.swift", "-o", str(ROOT / "inspect-screenshot")], log, seconds=90)
-            if inspector.returncode:
-                raise RuntimeError("screenshot inspector did not compile")
+            inspector_ready = inspector.returncode == 0
             selected = devices()
             if set(selected) != {"ipad", "iphone"}:
                 raise RuntimeError("runner must provide existing iPad and iPhone simulators")
@@ -133,8 +132,11 @@ def main():
                 app = Path(os.environ["DERIVED_DATA"]) / "Build/Products/Debug-iphonesimulator/WW2Tactics.app"
                 if run(["xcrun", "simctl", "install", device[3], str(app)], log).returncode:
                     raise RuntimeError("app installation failed")
-                screenshot(category, device, "default", log)
-                screenshot(category, device, "selected-combat-impact-steady", log)
+                if inspector_ready:
+                    screenshot(category, device, "default", log)
+                    screenshot(category, device, "selected-combat-impact-steady", log)
+                else:
+                    REPORT["error"] = "screenshot inspector did not compile; XCTest still executed independently"
                 run(["xcrun", "simctl", "shutdown", device[3]], log, seconds=45)
             if len(REPORT["screenshots"]) == 4 and all(item["outcome"] == "success" for item in REPORT["screenshots"]):
                 REPORT["screenshotOutcome"] = "success"

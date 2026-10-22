@@ -113,7 +113,7 @@ jobs:
               -destination 'generic/platform=iOS Simulator' \
               -derivedDataPath "$DERIVED_DATA" \
               -resultBundlePath "$RESULT_BUNDLE" \
-              build-for-testing CODE_SIGNING_ALLOWED=NO
+              build-for-testing CODE_SIGNING_ALLOWED=NO ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES
           } > ci-results/xcodebuild.log 2>&1
           build_status=$?
 
