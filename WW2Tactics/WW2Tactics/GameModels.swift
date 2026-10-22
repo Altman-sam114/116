@@ -879,6 +879,10 @@ struct AIPhaseReplayKeyEvent: Identifiable, Equatable {
         timeline
             .filter { $0.replayConclusionPriority > 0 }
             .sorted { left, right in
+                // Capturing an objective is the strategic result, not just another damage score.
+                let leftCaptures = left.didCaptureObjective || left.kind == .objectiveCapture
+                let rightCaptures = right.didCaptureObjective || right.kind == .objectiveCapture
+                if leftCaptures != rightCaptures { return leftCaptures }
                 if left.replayConclusionPriority != right.replayConclusionPriority {
                     return left.replayConclusionPriority > right.replayConclusionPriority
                 }

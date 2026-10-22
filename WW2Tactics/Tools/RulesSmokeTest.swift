@@ -3715,7 +3715,13 @@ struct RulesSmokeTest {
             scenario: responseHistoryDeploymentScenario(),
             commandPoints: [.allies: 60, .axis: 6]
         )
-        let historySites = Array(historyGame.deploymentSites(for: .allies).prefix(6))
+        guard let historyTank = historyGame.units.first(where: { $0.name == "历史推进装甲" }) else {
+            require(false, "response history smoke should retain an original guidance unit")
+            return
+        }
+        let historySites = Array(historyGame.deploymentSites(for: .allies)
+            .filter { $0.coordinate.distance(to: historyTank.position) > 1 }
+            .prefix(6))
         require(historySites.count == 6, "response history smoke should find six deployment sites")
         for site in historySites {
             historyGame.deploy(kind: .infantry, at: site.coordinate)
@@ -3726,6 +3732,15 @@ struct RulesSmokeTest {
         require(historyGame.battlefieldSituationResponseHistoryPositionText == "5/5", "response history should expose newest position")
         require(historyGame.canFocusPreviousBattlefieldSituationResponse, "response history should allow previous navigation")
         require(!historyGame.canFocusNextBattlefieldSituationResponse, "response history should not navigate beyond newest")
+        require(historyGame.winner == nil, "response history fixture should remain nonterminal")
+        historyGame.handleTap(on: historyTank.position)
+        require(historyGame.selectedUnitID == historyTank.id, "response history should select the original tank")
+        require(!historyGame.movementRoutes(for: historyTank).isEmpty, "deployments should leave a real guidance route")
+        historyGame.focusObjectiveAdvanceTarget(coordinate: HexCoordinate(q: 7, r: 0))
+        guard let historyGuidance = historyGame.guidedObjectiveCoordinate else {
+            require(false, "response history should establish guidance before read-only navigation")
+            return
+        }
         let historyUnitsBeforeNavigation = historyGame.units
         let historyTilesBeforeNavigation = historyGame.scenario.tiles
         let historyCommandPointsBeforeNavigation = historyGame.commandPoints
@@ -3738,6 +3753,7 @@ struct RulesSmokeTest {
         require(historyGame.scenario.tiles == historyTilesBeforeNavigation, "response history navigation should not alter tiles")
         require(historyGame.commandPoints == historyCommandPointsBeforeNavigation, "response history navigation should not alter command points")
         require(historyGame.battleLog == historyBattleLogBeforeNavigation, "response history navigation should not alter battle log")
+        require(historyGame.guidedObjectiveCoordinate == historyGuidance, "response history navigation should preserve objective guidance")
         historyGame.restart()
         require(historyGame.battlefieldSituationResponseHistory.isEmpty, "restart should clear response history")
         require(historyGame.battlefieldSituationResponseSummary == nil, "restart should clear selected response")
@@ -5239,17 +5255,22 @@ struct RulesSmokeTest {
 
     private static func responseHistoryDeploymentScenario() -> Scenario {
         var tiles: [TerrainTile] = []
-        for q in 0..<7 {
+        for q in 0..<9 {
             var tile = TerrainTile(
                 coordinate: HexCoordinate(q: q, r: 0),
                 terrain: .plains
             )
-            tile.objectiveName = q == 6 ? "轴心阻滞点" : "响应补给\(q + 1)"
-            tile.owner = q == 6 ? .axis : .allies
+            if q <= 6 {
+                tile.objectiveName = "响应补给\(q + 1)"
+                tile.owner = .allies
+            } else if q == 7 {
+                tile.objectiveName = "轴心阻滞点"
+                tile.owner = .axis
+            }
             tiles.append(tile)
         }
 
-        // A second lane keeps six deployed allies from blocking the guidance probe.
+        // Deployments must also leave the tank's entrance to this lane unoccupied.
         for q in 0..<9 {
             tiles.append(TerrainTile(coordinate: HexCoordinate(q: q, r: 1), terrain: .plains))
         }
@@ -5260,15 +5281,23 @@ struct RulesSmokeTest {
             year: "1944",
             briefing: "测试最近态势响应历史的裁剪和连续查看。",
             initialFocus: HexCoordinate(q: 0, r: 0),
-            mapColumns: 7,
+            mapColumns: 9,
             mapRows: 2,
             tiles: tiles,
             units: [
                 BattleUnit(
+                    name: "历史推进装甲",
+                    kind: .tank,
+                    faction: .allies,
+                    position: HexCoordinate(q: 0, r: 0),
+                    hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
                     name: "历史测试守军",
                     kind: .infantry,
                     faction: .axis,
-                    position: HexCoordinate(q: 6, r: 0),
+                    position: HexCoordinate(q: 8, r: 0),
                     hp: UnitKind.infantry.baseHP,
                     commander: nil
                 )

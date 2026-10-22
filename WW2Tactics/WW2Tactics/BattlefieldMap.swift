@@ -59,72 +59,89 @@ struct HexMapView: View {
         let contentHeight = layout.size.height
         let fillScale = min(1.25, max(0.72, viewportHeight / contentHeight))
         let resolvedScale = fillScale * scaleMultiplier
+        let scaledSize = layout.scaledSize(resolvedScale)
         let mapTiles: [TerrainTile] = Array(game.tiles)
 
         ZStack(alignment: .topLeading) {
             BattlefieldTerrainRenderer(tiles: mapTiles, layout: layout, roadConnections: roadConnectionDirectionsByCoordinate)
+                .scaleEffect(resolvedScale, anchor: .topLeading)
+                .frame(width: scaledSize.width, height: scaledSize.height, alignment: .topLeading)
 
-            ForEach(mapTiles, id: \.coordinate.id) { tile in
-                let point = layout.center(for: tile.coordinate)
-                let unit = game.unit(at: tile.coordinate)
-                let tileIsSelected = selected?.position == tile.coordinate
-                let tileIsFocused = game.focusedCoordinate == tile.coordinate
-                let supplyLineConnectionDirections = supplyLine.contains(tile.coordinate)
-                    ? tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
-                        supplyLine.contains(coordinate) ? index : nil
-                    }
-                    : []
-                HexTileView(
-                    tile: tile,
-                    supplyLineConnectionDirections: supplyLineConnectionDirections,
-                    unit: unit,
-                    isSelected: tileIsSelected,
-                    isFocused: tileIsFocused,
-                    isAttackFocusMode: isAttackFocusMode,
-                    actionHint: actionHints[tile.coordinate] ?? .none,
-                    isMovementRoute: focusedRouteCoordinates.contains(tile.coordinate),
-                    isRouteDestination: focusedRoute?.destination == tile.coordinate,
-                    routeStepPreview: focusedRouteSteps[tile.coordinate],
-                    isSupplyLine: supplyLine.contains(tile.coordinate),
-                    isAttackCoverage: attackCoverage.contains(tile.coordinate),
-                    isPostMoveAttackTarget: postMoveAttackTargets.contains(tile.coordinate),
-                    isAttackPosition: attackPositions.contains(tile.coordinate),
-                    isEnemyControlZone: enemyControlZones.contains(tile.coordinate),
-                    isThreatenedMoveTile: threatenedReachableTiles.contains(tile.coordinate),
-                    fireExposurePreview: focusedFireExposure?.coordinate == tile.coordinate ? focusedFireExposure : nil,
-                    isGuidedObjective: guidedObjectiveCoordinate == tile.coordinate,
-                    isLatestObjectiveCapture: latestCaptureCoordinate == tile.coordinate,
-                    isEnemyThreatIntentTarget: enemyIntentTargets.contains(tile.coordinate),
-                    enemyThreatCountermeasureMarkers: countermeasureMarkersByCoordinate[tile.coordinate] ?? [],
-                    objectivePressureMarkers: objectivePressureMarkersByCoordinate[tile.coordinate] ?? [],
-                    aiPhaseMapMarkers: aiPhaseMarkersByCoordinate[tile.coordinate] ?? [],
-                    focusedAIPhaseMapMarkers: focusedAIPhaseMarkersByCoordinate[tile.coordinate] ?? [],
-                    battlefieldSituationResponseMarker: battlefieldSituationResponseMarker?.coordinate == tile.coordinate ? battlefieldSituationResponseMarker : nil
-                )
-                .frame(width: tileWidth, height: tileHeight)
-                .overlay(
-                    HexInputReader(
-                        hitShape: Hexagon().path(in: CGRect(origin: .zero, size: CGSize(width: tileWidth, height: tileHeight))),
-                        directTouchAction: {
-                            game.handleTap(on: tile.coordinate)
-                        },
-                        primaryAction: {
-                            game.handlePrimaryAction(on: tile.coordinate)
-                        },
-                        secondaryAction: {
-                            game.handleSecondaryAction(on: tile.coordinate)
+            BattlefieldPositionedLayout(size: scaledSize) {
+                ForEach(mapTiles, id: \.coordinate.id) { tile in
+                    let unit = game.unit(at: tile.coordinate)
+                    let tileIsSelected = selected?.position == tile.coordinate
+                    let tileIsFocused = game.focusedCoordinate == tile.coordinate
+                    let supplyLineConnectionDirections = supplyLine.contains(tile.coordinate)
+                        ? tile.coordinate.neighbors.enumerated().compactMap { index, coordinate in
+                            supplyLine.contains(coordinate) ? index : nil
                         }
-                    )
-                )
-                .id(tile.coordinate.id)
-                .position(x: point.x, y: point.y)
-                .zIndex(
-                    tilePresentationLayer(
-                        hasUnit: unit != nil,
+                        : []
+                    HexTileView(
+                        tile: tile,
+                        supplyLineConnectionDirections: supplyLineConnectionDirections,
+                        unit: unit,
                         isSelected: tileIsSelected,
-                        isFocused: tileIsFocused
+                        isFocused: tileIsFocused,
+                        isAttackFocusMode: isAttackFocusMode,
+                        actionHint: actionHints[tile.coordinate] ?? .none,
+                        isMovementRoute: focusedRouteCoordinates.contains(tile.coordinate),
+                        isRouteDestination: focusedRoute?.destination == tile.coordinate,
+                        routeStepPreview: focusedRouteSteps[tile.coordinate],
+                        isSupplyLine: supplyLine.contains(tile.coordinate),
+                        isAttackCoverage: attackCoverage.contains(tile.coordinate),
+                        isPostMoveAttackTarget: postMoveAttackTargets.contains(tile.coordinate),
+                        isAttackPosition: attackPositions.contains(tile.coordinate),
+                        isEnemyControlZone: enemyControlZones.contains(tile.coordinate),
+                        isThreatenedMoveTile: threatenedReachableTiles.contains(tile.coordinate),
+                        fireExposurePreview: focusedFireExposure?.coordinate == tile.coordinate ? focusedFireExposure : nil,
+                        isGuidedObjective: guidedObjectiveCoordinate == tile.coordinate,
+                        isLatestObjectiveCapture: latestCaptureCoordinate == tile.coordinate,
+                        isEnemyThreatIntentTarget: enemyIntentTargets.contains(tile.coordinate),
+                        enemyThreatCountermeasureMarkers: countermeasureMarkersByCoordinate[tile.coordinate] ?? [],
+                        objectivePressureMarkers: objectivePressureMarkersByCoordinate[tile.coordinate] ?? [],
+                        aiPhaseMapMarkers: aiPhaseMarkersByCoordinate[tile.coordinate] ?? [],
+                        focusedAIPhaseMapMarkers: focusedAIPhaseMarkersByCoordinate[tile.coordinate] ?? [],
+                        battlefieldSituationResponseMarker: battlefieldSituationResponseMarker?.coordinate == tile.coordinate ? battlefieldSituationResponseMarker : nil
                     )
-                )
+                    .frame(width: tileWidth, height: tileHeight)
+                    .overlay(
+                        HexInputReader(
+                            hitShape: Hexagon().path(in: CGRect(origin: .zero, size: CGSize(width: tileWidth, height: tileHeight))),
+                            directTouchAction: {
+                                game.handleTap(on: tile.coordinate)
+                            },
+                            primaryAction: {
+                                game.handlePrimaryAction(on: tile.coordinate)
+                            },
+                            secondaryAction: {
+                                game.handleSecondaryAction(on: tile.coordinate)
+                            }
+                        )
+                    )
+                    .scaleEffect(resolvedScale)
+                    .frame(width: tileWidth * resolvedScale, height: tileHeight * resolvedScale)
+                    .layoutValue(key: BattlefieldPositionKey.self, value: layout.scaledCenter(for: tile.coordinate, scale: resolvedScale))
+                    .id(tile.coordinate.id)
+                    .zIndex(
+                        tilePresentationLayer(
+                            hasUnit: unit != nil,
+                            isSelected: tileIsSelected,
+                            isFocused: tileIsFocused
+                        )
+                    )
+                }
+
+                if let result = game.latestCombatResult {
+                    Color.clear
+                        .frame(width: 1, height: 1)
+                        .layoutValue(key: BattlefieldPositionKey.self, value: layout.combatFocusPoint(
+                            attacker: result.attackerCoordinate, defender: result.defenderCoordinate, scale: resolvedScale
+                        ))
+                        .id("combat-\(result.id)")
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
             }
 
             if isAttackFocusMode,
@@ -135,6 +152,8 @@ struct HexMapView: View {
                     end: layout.center(for: targetCoordinate)
                 )
                 .frame(width: contentWidth, height: contentHeight, alignment: .topLeading)
+                .scaleEffect(resolvedScale, anchor: .topLeading)
+                .frame(width: scaledSize.width, height: scaledSize.height, alignment: .topLeading)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
                 .zIndex(10)
@@ -148,17 +167,13 @@ struct HexMapView: View {
                 )
                 .id(combatResult.id)
                 .frame(width: contentWidth, height: contentHeight, alignment: .topLeading)
+                .scaleEffect(resolvedScale, anchor: .topLeading)
+                .frame(width: scaledSize.width, height: scaledSize.height, alignment: .topLeading)
                 .allowsHitTesting(false)
                 .zIndex(20)
             }
         }
-        .frame(width: contentWidth, height: contentHeight)
-        .scaleEffect(resolvedScale, anchor: .topLeading)
-        .frame(
-            width: contentWidth * resolvedScale,
-            height: contentHeight * resolvedScale,
-            alignment: .topLeading
-        )
+        .frame(width: scaledSize.width, height: scaledSize.height, alignment: .topLeading)
     }
 
     private func tilePresentationLayer(
@@ -177,6 +192,26 @@ struct HexMapView: View {
         guard let preview = game.focusedCommandPreview else { return false }
         if case .attack = preview { return true }
         return false
+    }
+}
+
+private struct BattlefieldPositionKey: LayoutValueKey {
+    static let defaultValue = CGPoint.zero
+}
+
+/// Real child frames let ScrollViewReader resolve both axes without a full-map position wrapper.
+private struct BattlefieldPositionedLayout: Layout {
+    let size: CGSize
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize { size }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for subview in subviews {
+            let point = subview[BattlefieldPositionKey.self]
+            let childSize = subview.sizeThatFits(.unspecified)
+            subview.place(at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y),
+                          anchor: .center, proposal: ProposedViewSize(childSize))
+        }
     }
 }
 

@@ -47,6 +47,18 @@ struct BattlefieldMapLayout {
         return CGSize(width: size.width * safeScale, height: size.height * safeScale)
     }
 
+    func scaledCenter(for coordinate: HexCoordinate, scale: CGFloat) -> CGPoint {
+        let safeScale = scale.isFinite && scale > 0 ? scale : 1
+        let point = center(for: coordinate)
+        return CGPoint(x: point.x * safeScale, y: point.y * safeScale)
+    }
+
+    func combatFocusPoint(attacker: HexCoordinate, defender: HexCoordinate, scale: CGFloat) -> CGPoint {
+        let start = scaledCenter(for: attacker, scale: scale)
+        let end = scaledCenter(for: defender, scale: scale)
+        return CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
+    }
+
     static func vertices(in rect: CGRect) -> [CGPoint] {
         [CGPoint(x: rect.midX, y: rect.minY),
          CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.25),

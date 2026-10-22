@@ -137,6 +137,7 @@ struct MapCommandCenter: View {
                     }
                     .onAppear { scrollToFocus(proxy, animated: false) }
                     .onChange(of: game.focusedCoordinate?.id) { _, _ in scrollToFocus(proxy, animated: true) }
+                    .onChange(of: game.latestCombatResult?.id) { _, _ in scrollToFocus(proxy, animated: true) }
                     .onChange(of: mapScaleMode) { _, _ in scrollToFocus(proxy, animated: true) }
                 }
 
@@ -254,10 +255,17 @@ struct MapCommandCenter: View {
 
     private func scrollToFocus(_ proxy: ScrollViewProxy, animated: Bool) {
         guard let coordinate = game.focusedCoordinate else { return }
-        if animated && !reduceMotion {
-            withAnimation(.easeInOut(duration: 0.22)) { proxy.scrollTo(coordinate.id, anchor: .center) }
+        let targetID: String
+        if let result = game.latestCombatResult,
+           coordinate == result.attackerCoordinate || coordinate == result.defenderCoordinate {
+            targetID = "combat-\(result.id)"
         } else {
-            proxy.scrollTo(coordinate.id, anchor: .center)
+            targetID = coordinate.id
+        }
+        if animated && !reduceMotion {
+            withAnimation(.easeInOut(duration: 0.22)) { proxy.scrollTo(targetID, anchor: UnitPoint(x: 0.5, y: 0.42)) }
+        } else {
+            proxy.scrollTo(targetID, anchor: UnitPoint(x: 0.5, y: 0.42))
         }
     }
 }

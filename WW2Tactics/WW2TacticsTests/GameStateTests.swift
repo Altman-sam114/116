@@ -1711,6 +1711,10 @@ final class GameStateTests: XCTestCase {
             keyEventKinds: [.objectiveCapture, .attack]
         )
         XCTAssertEqual(replayConclusion.keyEvents.first?.kind, .objectiveCapture)
+        XCTAssertEqual(
+            AIPhaseReplayKeyEvent.keyEvents(for: Array(summary.timeline.reversed())),
+            replayConclusion.keyEvents
+        )
 
         let markers = game.latestAIPhaseMapMarkers
         assertAIPhaseMapMarkers(markers, match: summary)
@@ -3221,7 +3225,10 @@ final class GameStateTests: XCTestCase {
             scenario: Self.responseHistoryDeploymentScenario(),
             commandPoints: [.allies: 60, .axis: 6]
         )
-        let deploymentSites = Array(game.deploymentSites(for: .allies).prefix(6))
+        let objectiveUnit = try XCTUnwrap(game.units.first { $0.name == "历史推进装甲" })
+        let deploymentSites = Array(game.deploymentSites(for: .allies)
+            .filter { $0.coordinate.distance(to: objectiveUnit.position) > 1 }
+            .prefix(6))
         XCTAssertEqual(deploymentSites.count, 6)
 
         for (index, site) in deploymentSites.enumerated() {
@@ -3248,8 +3255,12 @@ final class GameStateTests: XCTestCase {
         let battleLogBeforeNavigation = game.battleLog
         let latestDeploymentBeforeNavigation = game.latestDeploymentResult
         let latestAIPhaseSummaryBeforeNavigation = game.latestAIPhaseSummary
-        let objectiveUnit = try XCTUnwrap(game.units.first { $0.name == "历史推进装甲" })
+        XCTAssertNil(game.winner)
         game.handleTap(on: objectiveUnit.position)
+        XCTAssertEqual(game.selectedUnitID, objectiveUnit.id)
+        XCTAssertTrue(try XCTUnwrap(game.selectedUnit).canMove)
+        XCTAssertFalse(game.movementRoutes(for: objectiveUnit).isEmpty)
+        XCTAssertNil(game.unit(at: HexCoordinate(q: 7, r: 0)))
         game.focusObjectiveAdvanceTarget(coordinate: HexCoordinate(q: 7, r: 0))
         let guidedObjectiveBeforeNavigation = try XCTUnwrap(game.guidedObjectiveCoordinate)
 
@@ -5433,7 +5444,7 @@ final class GameStateTests: XCTestCase {
             tiles.append(tile)
         }
 
-        // A second lane keeps six deployed allies from blocking the guidance probe.
+        // Deployments must also leave the tank's entrance to this lane unoccupied.
         for q in 0..<9 {
             tiles.append(TerrainTile(coordinate: HexCoordinate(q: q, r: 1), terrain: .plains))
         }

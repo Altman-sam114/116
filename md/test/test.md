@@ -1,3 +1,9 @@
+## 当前验收状态：C 退回 B，有界修复待云端验证
+
+前次 main `6cc6da3` / run `39807296780` / attempt `1` 的 exact 包已下载核对：static/build/四图成功，smoke 失败，XCTest 125 total、123 passed、2 failed。原停止记录见 `v3.0-cloud-review.md`，不抹掉或改写成通过。
+
+目标继续推进后，本轮仅修复已定位根因：夺点事件类别优先；六次部署避开原装甲的全部邻格，XCTest/smoke 显式建立并保留真实引导；地图使用已缩放真实子视图 frame 的 Layout 锚点，战果定位双方中点、定宽铭牌夹紧地图边缘。新增两个几何/铭牌测试，既有用例不删除、不 skip。全部 127 个测试、smoke、build 与四图仍须由本轮最新 SHA 的云端包验收，不能预填成功。本地仍不运行任何测试或模拟器。
+
 # v3.0 当前云端验证基线
 
 人工明确不做本地测试；本地仅 Git/text diff/status/范围审查。YAML/Python/plist/Swift/smoke/XCTest/Xcode/模拟器/截图全部在 GitHub Actions，本轮不执行旧文档中的本机命令。

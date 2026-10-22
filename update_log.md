@@ -21,6 +21,22 @@
 
 ## 历史记录
 
+### v3.0 / 已定位根因的有界修复（待云端验收）
+
+当前目标继续推进；前次 C 失败与 X 停止证据保持，不视为通过。原 A 提示词新增有界补充，当前会话顺序 A/B/C，无子智能体。本轮定位并修复：关键事件用占点类别优先，避免击毁加伤害分数盖过占点；六次部署明确避开原坦克全部邻格，XCTest/smoke 验证非终局、真实路线与引导，再检查历史导航只读，未删除或 skip 旧用例；真实已缩放子视图 Layout 替换全图 position/transform 锚框，战果焦点取交战中点，140pt 伤害/174pt 结论铭牌夹紧地图边缘。新增两项锚框/边缘测试，目标 127 项真实 XCTest。
+
+本地只 Git/text 编辑和范围审查，无 Swift/Xcode/smoke/XCTest/模拟器/截图。main 追加修复提交/push，最新 run/artifact 待生成，不预填成功；精细地貌与兵模的整体重做仍未完成，技术门禁通过后才进入下一 A 方案。旧 v2.56 未跟踪文件不动、不提交。
+
+
+### v3.0 / C 退回与 X 停止记录（总目标未完成）
+
+日期：2026-10-23（Asia/Taipei）。最新 main / origin/main 为 `6cc6da3a738b08056828c36fa3a11bb39fc44a3f`，已 push。run `39807296780` / attempt `1` 为 failure，C 已下载并逐图核对 artifact `ww2tactics-ci-v3.0-main-6cc6da3-run39807296780-attempt1`（id `12439362057`，77,942,428 bytes，digest `sha256:60ed6d80b152b08d8b148fa1efcc7020b5b2350a76e43fb0bf74b5855cae8457`）到 `/private/tmp/ww2tactics-c-review-39807296780/`（约 80M）。manifest/JUnit/日志/云端 xcresult summary/tests 与四图身份均匹配；static/build/four screenshots success，Rules smoke failure，实际 XCTest 125 total、123 passed、2 failed、0 skipped，新增 10 项表现层全部通过。
+
+剩余：追击关键事件首项实际 attack，测试/smoke 期待 objectiveCapture；历史响应导航建立引导仍 nil。后者在 run 39803059307 与 39807296780 连续两轮重复失败，触发项目“CI 连续失败且原因相同”停止条件，X 暂停继续提交/push，等待人工决定下一轮有界修复。四图门禁通过不等于验收通过；iPhone RET 左缘裁切、焦点置中不足，且当前几何地貌/兵模未达到人工新增“彻底重构画面”的美术目标，不宣布完成。
+
+详细文件清单、实际命令、四图证据与退回点见 `md/test/v3.0-cloud-review.md`。本条为历史停止记录，随后续修复提交归档，不冒充修复版本的云端验收。新轮须先修复规则/焦点并验收，再经人工确认原创高清兵模/地貌资源方向，不直接跳入下一轮或使用官方游戏资产。本地无测试/构建/模拟器，无子智能体；旧 v2.56 未跟踪文件未动。
+
+
 ### v3.0 / 战争沙盘整体重构（实施，待最新云端验收）
 
 日期：2026-10-22

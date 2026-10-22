@@ -347,7 +347,7 @@ private struct CombatResolutionConclusionView: View {
         .lineLimit(1)
         .allowsTightening(true)
         .minimumScaleFactor(0.72)
-        .frame(minWidth: 82, maxWidth: 198)
+        .frame(width: CombatResolutionLayout.conclusionWidth - 14)
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
         .background(
@@ -364,7 +364,9 @@ private struct CombatResolutionConclusionView: View {
     }
 }
 
-private struct CombatResolutionLayout {
+struct CombatResolutionLayout {
+    static let damagePlateWidth: CGFloat = 140
+    static let conclusionWidth: CGFloat = 174
     let trimmedStart: CGPoint
     let trimmedEnd: CGPoint
     let hitPlatePoint: CGPoint
@@ -410,30 +412,37 @@ private struct CombatResolutionLayout {
             x: defenderPoint.x - unitX * inset,
             y: defenderPoint.y - unitY * inset
         )
-        hitPlatePoint = Self.offset(
+        hitPlatePoint = Self.clamped(Self.offset(
             from: defenderPoint,
             axisX: unitX,
             axisY: unitY,
             axisDistance: outwardOffset,
             normal: normal,
             normalDistance: plateNormalOffset
-        )
-        retPlatePoint = Self.offset(
+        ), width: Self.damagePlateWidth, bounds: bounds)
+        retPlatePoint = Self.clamped(Self.offset(
             from: attackerPoint,
             axisX: -unitX,
             axisY: -unitY,
             axisDistance: outwardOffset,
             normal: normal,
             normalDistance: plateNormalOffset
-        )
-        conclusionPoint = Self.offset(
+        ), width: Self.damagePlateWidth, bounds: bounds)
+        conclusionPoint = Self.clamped(Self.offset(
             from: midpoint,
             axisX: 0,
             axisY: 0,
             axisDistance: 0,
             normal: normal,
             normalDistance: conclusionNormalOffset
-        )
+        ), width: Self.conclusionWidth, bounds: bounds)
+    }
+
+    private static func clamped(_ point: CGPoint, width: CGFloat, bounds: CGSize) -> CGPoint {
+        let insetX = min(bounds.width / 2, width / 2 + 4)
+        let insetY = min(bounds.height / 2, 16)
+        return CGPoint(x: min(max(point.x, insetX), bounds.width - insetX),
+                       y: min(max(point.y, insetY), bounds.height - insetY))
     }
 
     private static func offset(
@@ -539,9 +548,9 @@ struct CombatDamagePlate: View {
         }
         .foregroundStyle(.white)
         .lineLimit(1)
-        .frame(minWidth: 118, maxWidth: 184)
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
+        .frame(width: CombatResolutionLayout.damagePlateWidth)
         .background(
             LinearGradient(
                 colors: [

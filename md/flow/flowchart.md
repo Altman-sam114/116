@@ -5,7 +5,7 @@
 ```mermaid
 flowchart TD
     State[GameState 唯一规则事实源] --> Models[战役 / 地形 / 单位 / 轴向坐标]
-    Models --> Layout[BattlefieldMapLayout 尖顶密铺 / 全 tile union bounds]
+    Models --> Layout[共享六角投影 / union bounds / 已缩放子视图 Layout 锚框]
     Layout --> Terrain[地图级静态 Canvas 连续地貌 / 河道 / 道路]
     Layout --> Tiles[透明交互地格 / 稳定 ID / HexInputReader]
     State --> Hints[批量 mapActionHints 共享一次移动路线搜索]
@@ -14,7 +14,7 @@ flowchart TD
     Rules --> Tiles
     Tiles --> Units[原创 3/4 兵模 / AL 实线 AX 虚线 / HP / M 与 A]
     State --> Result[执行时坐标与真实 CombatResultSummary]
-    Layout --> Feedback[轴线 / HIT / RET / HP 前后]
+    Layout --> Feedback[轴线 / 定宽夹紧 HIT 与 RET / HP 前后 / 交战中点焦点]
     Result --> Feedback
     Terrain --> Screen[全幅战场与边缘指挥带]
     Units --> Screen

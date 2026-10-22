@@ -85,6 +85,41 @@ final class BattlefieldPresentationTests: XCTestCase {
         }
     }
 
+    func testScaledScrollAnchorsAndCombatMidpointMatchVisibleGeometry() {
+        let attacker = HexCoordinate(q: 7, r: 6)
+        let defender = HexCoordinate(q: 9, r: 6)
+        let layout = BattlefieldMapLayout(coordinates: Scenario.ardennesPrototype().tiles.map(\.coordinate))
+        for scale in [CGFloat(0.72), 1, 1.25, 1.55] {
+            let start = layout.scaledCenter(for: attacker, scale: scale)
+            let end = layout.scaledCenter(for: defender, scale: scale)
+            let focus = layout.combatFocusPoint(attacker: attacker, defender: defender, scale: scale)
+            XCTAssertEqual(start.x, layout.center(for: attacker).x * scale)
+            XCTAssertEqual(start.y, layout.center(for: attacker).y * scale)
+            XCTAssertEqual(focus.x, (start.x + end.x) / 2)
+            XCTAssertEqual(focus.y, (start.y + end.y) / 2)
+            XCTAssertEqual(focus, layout.combatFocusPoint(attacker: defender, defender: attacker, scale: scale))
+        }
+        XCTAssertEqual(layout.scaledCenter(for: attacker, scale: .nan), layout.center(for: attacker))
+    }
+
+    func testCombatPlateFramesStayInsideMapAtEveryCorner() {
+        let bounds = CGSize(width: 600, height: 480)
+        for start in [CGPoint(x: 2, y: 2), CGPoint(x: 598, y: 2),
+                      CGPoint(x: 2, y: 478), CGPoint(x: 598, y: 478)] {
+            for end in [CGPoint(x: start.x + 86, y: start.y), start] {
+                let layout = CombatResolutionLayout(attackerPoint: start, defenderPoint: end, bounds: bounds)
+                for point in [layout.hitPlatePoint, layout.retPlatePoint] {
+                    XCTAssertGreaterThanOrEqual(point.x - CombatResolutionLayout.damagePlateWidth / 2, 0)
+                    XCTAssertLessThanOrEqual(point.x + CombatResolutionLayout.damagePlateWidth / 2, bounds.width)
+                    XCTAssertGreaterThanOrEqual(point.y, 16)
+                    XCTAssertLessThanOrEqual(point.y, bounds.height - 16)
+                }
+                XCTAssertGreaterThanOrEqual(layout.conclusionPoint.x - CombatResolutionLayout.conclusionWidth / 2, 0)
+                XCTAssertLessThanOrEqual(layout.conclusionPoint.x + CombatResolutionLayout.conclusionWidth / 2, bounds.width)
+            }
+        }
+    }
+
     func testHexPathHonorsNonzeroDrawingRectAndHitCenter() {
         let rect = CGRect(x: 197, y: 311, width: 86, height: 100)
         let path = Hexagon().path(in: rect)
