@@ -912,7 +912,9 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(commandResult.command, .artilleryBarrage)
         XCTAssertEqual(commandResult.caster.unitID, axisArtillery.id)
         XCTAssertEqual(commandResult.target.unitID, alliedTarget.id)
-        XCTAssertEqual(commandResult.damage, alliedTarget.hp - targetAfterAI.hp)
+        XCTAssertEqual(commandResult.damage, -commandResult.target.hpDelta)
+        XCTAssertEqual(game.supplyState(for: targetAfterAI), .isolated)
+        XCTAssertEqual(alliedTarget.hp - targetAfterAI.hp, commandResult.damage + SupplyState.isolated.attritionDamage)
         XCTAssertTrue(commandResult.didAvoidCounterAttack)
         XCTAssertNil(game.latestCombatResult)
 
@@ -1066,10 +1068,17 @@ final class GameStateTests: XCTestCase {
         )
         let battlefieldReplayTarget = try XCTUnwrap(game.battlefieldSituationSummary.replayTarget)
         XCTAssertEqual(battlefieldReplayTarget.order, conclusionKeyEvent.order)
-        XCTAssertEqual(battlefieldReplayTarget.title, conclusionKeyEvent.title)
+        XCTAssertEqual(battlefieldReplayTarget.title, "响应位置关联：\(conclusionTimelineEvent.kind.title)")
         XCTAssertEqual(battlefieldReplayTarget.detail, conclusionKeyEvent.detail)
         XCTAssertEqual(battlefieldReplayTarget.coordinate, conclusionReplayCoordinate)
-        XCTAssertEqual(battlefieldReplayTarget.source, .globalKeyEvent)
+        XCTAssertEqual(battlefieldReplayTarget.source, .responseCoordinate)
+
+        let globalReplayGame = GameState(scenario: game.scenario)
+        globalReplayGame.replaceLatestAIPhaseSummaryForTesting(summary)
+        let globalReplayTarget = try XCTUnwrap(globalReplayGame.battlefieldSituationSummary.replayTarget)
+        XCTAssertEqual(globalReplayTarget.source, .globalKeyEvent)
+        XCTAssertEqual(globalReplayTarget.order, conclusionKeyEvent.order)
+        XCTAssertEqual(globalReplayTarget.title, conclusionKeyEvent.title)
 
         let unitsBeforeBattlefieldReplayFocus = game.scenario.units
         let commandPointsBeforeBattlefieldReplayFocus = game.commandPoints
@@ -2311,24 +2320,25 @@ final class GameStateTests: XCTestCase {
     }
 
     func testThreateningEnemiesDetectsUnitsInRange() throws {
-        let game = GameState()
+        let game = GameState(scenario: Self.zoneOfControlScenario(includeEnemy: true))
         let exposedRecon = BattleUnit(
             name: "前出侦察",
             kind: .recon,
             faction: .allies,
-            position: HexCoordinate(q: 7, r: 2),
+            position: HexCoordinate(q: 1, r: 0),
             hp: UnitKind.recon.baseHP,
             commander: nil
         )
 
         let threats = game.threateningEnemies(against: exposedRecon)
         XCTAssertFalse(threats.isEmpty)
-        XCTAssertTrue(threats.contains { $0.name == "88炮阵地" || $0.name == "第2装甲集团" })
+        XCTAssertEqual(threats.map(\.name), ["控制区守军"])
         XCTAssertEqual(
             game.threateningEnemies(against: .allies, at: exposedRecon.position).map(\.id),
             threats.map(\.id)
         )
         XCTAssertTrue(game.threatenedTiles(for: .allies).contains(exposedRecon.position))
+        XCTAssertTrue(game.threateningEnemies(against: .allies, at: HexCoordinate(q: 0, r: 1)).isEmpty)
     }
 
     func testThreatenedReachableTilesExposeDangerousMoves() throws {
@@ -2559,7 +2569,7 @@ final class GameStateTests: XCTestCase {
     func testBattlefieldSituationObjectivePressureFocusesWithoutExecuting() throws {
         let game = GameState(scenario: Self.enemyThreatIntentScenario(axisSpent: true))
         let pressure = try XCTUnwrap(game.battlefieldSituationSummary.objectivePressures.first { $0.objectiveName == "后方油库" })
-        let pressureThreat = try XCTUnwrap(game.visibleEnemyThreatIntentPreviews.first {
+        let pressureThreat = try XCTUnwrap(game.enemyThreatIntentPreviews(limit: 100).first {
             $0.kind == .objectiveCapture &&
                 $0.targetCoordinate == pressure.coordinate
         })
@@ -5104,7 +5114,9 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(preview.distanceClosed, 2)
         XCTAssertEqual(preview.priorityReasonText, "本回合可夺取")
         XCTAssertEqual(preview.distanceSummaryText, "距 2->0")
-        XCTAssertEqual(preview.routeCostSummaryText, "消耗 2，2 步")
+        XCTAssertEqual(preview.route.totalCost, 3)
+        XCTAssertEqual(preview.route.controlZonePenalty, 1)
+        XCTAssertEqual(preview.routeCostSummaryText, "消耗 3，2 步，ZOC +1")
         XCTAssertEqual(preview.riskSummaryText, "终点 SAFE")
         XCTAssertTrue(preview.prioritySummaryText.contains("\(preview.ownerTitle)目标"))
         XCTAssertTrue(preview.prioritySummaryText.contains("本回合可夺取"))
@@ -5421,6 +5433,11 @@ final class GameStateTests: XCTestCase {
             tiles.append(tile)
         }
 
+        // A second lane keeps six deployed allies from blocking the guidance probe.
+        for q in 0..<9 {
+            tiles.append(TerrainTile(coordinate: HexCoordinate(q: q, r: 1), terrain: .plains))
+        }
+
         return Scenario(
             id: "response-history-deployment-test",
             name: "态势响应历史部署测试",
@@ -5428,7 +5445,7 @@ final class GameStateTests: XCTestCase {
             briefing: "测试最近态势响应历史的裁剪和连续查看。",
             initialFocus: HexCoordinate(q: 0, r: 0),
             mapColumns: 9,
-            mapRows: 1,
+            mapRows: 2,
             tiles: tiles,
             units: [
                 BattleUnit(
@@ -6093,7 +6110,7 @@ final class GameStateTests: XCTestCase {
 
     private static func multipleObjectiveAdvancePreviewScenario() -> Scenario {
         var tiles: [TerrainTile] = []
-        for q in 0..<6 {
+        for q in 0..<8 {
             var tile = TerrainTile(
                 coordinate: HexCoordinate(q: q, r: 0),
                 terrain: .road
@@ -6126,7 +6143,7 @@ final class GameStateTests: XCTestCase {
             year: "1944",
             briefing: "测试多个据点推进计划摘要。",
             initialFocus: HexCoordinate(q: 0, r: 0),
-            mapColumns: 6,
+            mapColumns: 8,
             mapRows: 1,
             tiles: tiles,
             units: [
@@ -6136,6 +6153,14 @@ final class GameStateTests: XCTestCase {
                     faction: .allies,
                     position: HexCoordinate(q: 0, r: 0),
                     hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "远端计划守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 7, r: 0),
+                    hp: UnitKind.infantry.baseHP,
                     commander: nil
                 )
             ],
@@ -6682,7 +6707,7 @@ final class GameStateTests: XCTestCase {
 
     private static func axisManeuverPursuitScenario() -> Scenario {
         var tiles: [TerrainTile] = []
-        for q in 0..<5 {
+        for q in 0..<9 {
             var tile = TerrainTile(
                 coordinate: HexCoordinate(q: q, r: 0),
                 terrain: .road
@@ -6695,6 +6720,10 @@ final class GameStateTests: XCTestCase {
                 tile.objectiveName = "纵深据点"
                 tile.owner = .allies
             }
+            if q == 8 {
+                tile.objectiveName = "未决远方据点"
+                tile.owner = nil
+            }
             tiles.append(tile)
         }
 
@@ -6704,7 +6733,7 @@ final class GameStateTests: XCTestCase {
             year: "1944",
             briefing: "测试轴心 AI 击毁后继续推进但不追加攻击。",
             initialFocus: HexCoordinate(q: 0, r: 0),
-            mapColumns: 5,
+            mapColumns: 9,
             mapRows: 1,
             tiles: tiles,
             units: [

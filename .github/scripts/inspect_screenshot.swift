@@ -2,8 +2,8 @@ import AppKit
 import Foundation
 
 guard CommandLine.arguments.count == 2,
-      let data = try? Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1])),
-      let image = NSBitmapImageRep(data: data) else {
+      let imageData = try? Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1])),
+      let image = NSBitmapImageRep(data: imageData) else {
     fputs("Cannot decode screenshot\n", stderr)
     exit(1)
 }
@@ -32,6 +32,6 @@ let result: [String: Any] = [
     "meanLuminance": mean, "visibleFraction": visibleFraction,
     "readable": mean >= 45 && visibleFraction >= 0.45
 ]
-let data = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
-print(String(decoding: data, as: UTF8.self))
+let jsonData = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
+print(String(decoding: jsonData, as: UTF8.self))
 exit(mean >= 45 && visibleFraction >= 0.45 ? 0 : 1)

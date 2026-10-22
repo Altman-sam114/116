@@ -2925,6 +2925,7 @@ struct RulesSmokeTest {
                 return
             }
             axisPursuitGame.endTurn()
+            require(axisPursuitGame.winner == nil, "pursuit fixture must remain nonterminal to exercise AI")
             if axisPursuitGame.winner == nil {
                 guard let axisPursuitTankAfterAI = axisPursuitGame.units.first(where: { $0.id == axisPursuitTank.id }),
                       let axisPursuitReserveAfterAI = axisPursuitGame.units.first(where: { $0.id == axisPursuitReserve.id }) else {
@@ -4808,7 +4809,7 @@ struct RulesSmokeTest {
 
     private static func axisManeuverPursuitScenario() -> Scenario {
         var tiles: [TerrainTile] = []
-        for q in 0..<5 {
+        for q in 0..<9 {
             var tile = TerrainTile(
                 coordinate: HexCoordinate(q: q, r: 0),
                 terrain: .road
@@ -4821,6 +4822,10 @@ struct RulesSmokeTest {
                 tile.objectiveName = "纵深据点"
                 tile.owner = .allies
             }
+            if q == 8 {
+                tile.objectiveName = "未决远方据点"
+                tile.owner = nil
+            }
             tiles.append(tile)
         }
 
@@ -4830,7 +4835,7 @@ struct RulesSmokeTest {
             year: "1944",
             briefing: "测试轴心 AI 击毁后继续推进但不追加攻击。",
             initialFocus: HexCoordinate(q: 0, r: 0),
-            mapColumns: 5,
+            mapColumns: 9,
             mapRows: 1,
             tiles: tiles,
             units: [
@@ -5244,6 +5249,11 @@ struct RulesSmokeTest {
             tiles.append(tile)
         }
 
+        // A second lane keeps six deployed allies from blocking the guidance probe.
+        for q in 0..<9 {
+            tiles.append(TerrainTile(coordinate: HexCoordinate(q: q, r: 1), terrain: .plains))
+        }
+
         return Scenario(
             id: "response-history-deployment-smoke",
             name: "态势响应历史部署测试",
@@ -5251,7 +5261,7 @@ struct RulesSmokeTest {
             briefing: "测试最近态势响应历史的裁剪和连续查看。",
             initialFocus: HexCoordinate(q: 0, r: 0),
             mapColumns: 7,
-            mapRows: 1,
+            mapRows: 2,
             tiles: tiles,
             units: [
                 BattleUnit(
@@ -5363,7 +5373,7 @@ struct RulesSmokeTest {
 
     private static func multipleObjectiveAdvancePreviewScenario() -> Scenario {
         var tiles: [TerrainTile] = []
-        for q in 0..<6 {
+        for q in 0..<8 {
             var tile = TerrainTile(
                 coordinate: HexCoordinate(q: q, r: 0),
                 terrain: .road
@@ -5396,7 +5406,7 @@ struct RulesSmokeTest {
             year: "1944",
             briefing: "测试多个据点推进计划摘要。",
             initialFocus: HexCoordinate(q: 0, r: 0),
-            mapColumns: 6,
+            mapColumns: 8,
             mapRows: 1,
             tiles: tiles,
             units: [
@@ -5406,6 +5416,14 @@ struct RulesSmokeTest {
                     faction: .allies,
                     position: HexCoordinate(q: 0, r: 0),
                     hp: UnitKind.tank.baseHP,
+                    commander: nil
+                ),
+                BattleUnit(
+                    name: "远端计划守军",
+                    kind: .infantry,
+                    faction: .axis,
+                    position: HexCoordinate(q: 7, r: 0),
+                    hp: UnitKind.infantry.baseHP,
                     commander: nil
                 )
             ],

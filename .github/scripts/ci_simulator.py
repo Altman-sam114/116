@@ -25,7 +25,9 @@ def run(command, log, seconds=120, capture=False):
     result = subprocess.run(bounded, stdout=subprocess.PIPE if capture else log,
                             stderr=log, text=True, check=False)
     if capture and result.stdout:
-        log.write(result.stdout)
+        log.write(result.stdout[:4000])
+        if len(result.stdout) > 4000:
+            log.write(f"\n[captured {len(result.stdout)} characters; full JSON saved separately]\n")
         log.flush()
     return result
 
@@ -41,7 +43,10 @@ def devices():
             name = item.get("name", "")
             category = "ipad" if name.startswith("iPad") else "iphone" if name.startswith("iPhone") else None
             if category and item.get("isAvailable"):
-                choices[category].append((version, "Pro" in name, name, item["udid"], runtime))
+                rank = 3 if name.startswith("iPad Pro") else 2 if name.startswith("iPad Air") else 1
+                if category == "iphone":
+                    rank = 3 if "Pro Max" in name else 2 if "Pro" in name else 1
+                choices[category].append((version, rank, name, item["udid"], runtime))
     return {key: max(value) for key, value in choices.items() if value}
 
 
@@ -76,7 +81,7 @@ def xctest(device, log):
         tree = run(["xcrun", "xcresulttool", "get", "test-results", "tests", "--path", "ci-results/WW2Tactics-tests.xcresult"], log, capture=True)
         if tree.returncode == 0:
             (ROOT / "xctest-test-tree.json").write_text(tree.stdout)
-    expected = sum(len(re.findall(r"func test\w+", path.read_text())) for path in Path("WW2Tactics/WW2TacticsTests").glob("*.swift"))
+    expected = sum(len(re.findall(r"(?m)^\s*func test\w+\(\)", path.read_text())) for path in Path("WW2Tactics/WW2TacticsTests").glob("*.swift"))
     REPORT["expectedTestCount"] = expected
     if result.returncode == 0 and REPORT["testCount"] >= expected > 0 and REPORT["testFailures"] == 0 and REPORT["testSkipped"] == 0:
         REPORT["testOutcome"] = "success"
@@ -92,23 +97,33 @@ def screenshot(category, device, scenario, log):
     if result.returncode:
         return
     # Retry readability as well as size: an early launch fade can exceed 500 KB.
+    readable_frames = 0
     for attempt in range(1, 9):
         time.sleep(6)
         result = run(["xcrun", "simctl", "io", device[3], "screenshot", str(path)], log, seconds=30)
         record["captureAttempt"] = attempt
         record["bytes"] = path.stat().st_size if path.exists() else 0
         if result.returncode or record["bytes"] < 500000:
+            readable_frames = 0
             continue
         inspection = run([str(ROOT / "inspect-screenshot"), str(path)], log, capture=True, seconds=30)
         if inspection.stdout:
-            record.update(json.loads(inspection.stdout))
+            try:
+                record.update(json.loads(inspection.stdout))
+            except json.JSONDecodeError:
+                record["error"] = "screenshot inspector output was not JSON"
+                readable_frames = 0
+                continue
         if inspection.returncode == 0:
             # Wait for a second readable frame, not a single transitional flash.
-            if attempt < 2:
+            readable_frames += 1
+            if readable_frames < 2:
                 continue
             record["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
             record["outcome"] = "success"
             break
+        else:
+            readable_frames = 0
     run(["xcrun", "simctl", "terminate", device[3], BUNDLE_ID], log, seconds=30)
 
 

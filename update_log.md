@@ -43,6 +43,12 @@
 
 第二次云端纠正：`6addfbff9b38eb56655f0c859bc27d638666d826` 对应 run `39801556615` / attempt `1`，C 已下载并核对 artifact `ww2tactics-ci-v3.0-main-6addfbf-run39801556615-attempt1`（id `12436541324`，48,234 bytes，digest `sha256:c8bcd0b6750e46666c33386c4c31b9e7fec4d2f18cc90e1b0290ea7c2a87f576`）。static/smoke/build-for-testing 成功，游戏与新增测试源码均已编译；辅助截图检查器的 NSBitmapImageRep 初始化 API 错误使模拟器阶段提前退出，实际 XCTest/四图仍未运行。B 改为 Data + NSBitmapImageRep(data:) 并拆开颜色表达式，XCTest 与辅助检查器编译成败解耦；构建显式 ARCHS=runner 原生架构 + ONLY_ACTIVE_ARCH，避免 generic simulator 的重复架构编译。compact 战役入口约束 130pt，保证关键资源带空间。该失败与上一轮的跨文件访问根因不同，不将其伪装为游戏规则断言失败。
 
+第三次实际测试审计：`6aa11435a7c096991d7f563b15c4a2ad5c95f037` 的 run `39803059307` / attempt `1`，artifact `ww2tactics-ci-v3.0-main-6aa1143-run39803059307-attempt1`（id `12437157101`，65,808,772 bytes，digest `sha256:5bf571576eb6ea8233d16ff7733a30d53b3840760d50defc2b73ee578ce81246`）已下载到 `/private/tmp/ww2tactics-c-review-39803059307/`（解包 72M，必要最新失败 xcresult，不下载历史模型/数据）。static/smoke/build 成功；真实 XCTest 为 125 个、118 passed、7 failed、0 skipped，新加 10 个表现层测试全部通过。旧源中的另 2 个 `private func test...` 是带参数 helper，不是 XCTest；计数改为只识别零参数公开测试方法，不削减实际测试集合。
+
+C 对七项失败逐条定位后，X 批准 B 做测试前提纠正，不改变生产规则：弹幕伤害与回合后断补给 -6 分开断言；回放响应坐标优先，另增全局回放 fallback 断言；追击夹具原来全据点属盟军，补一个远方中立据点避免提前胜利；威胁测试改用固定小夹具而非已扩图战役过期坐标，并新增射程外断言；压力测试取完整意图而不是 UI top-3；历史部署夹具补绕行路；多据点夹具原无任何敌军导致移动即胜利，补不影响目标路线的远端守军；直接推进明确断言既有 ZOC +1 与消耗 3。原用例保留，不删除失败断言、不 skip、不更改伤害/AI/胜负/寻路语义。smoke 同步夹具并要求追击不能提前终局。
+
+新版实际首屏已查看：偏黑消失，密铺地格、山林街区、原创兵模与边缘控制可见。但截图辅助脚本顶层输入/输出 `data` 同名导致输出输入 PNG 而非 JSON，后续图未完成，不能验收。改为独立 `imageData/jsonData`，捕获日志限长、非法 JSON 单图失败不再中断四图；设备排序明确优先 iPad Pro（不再误将 iPad mini 的 Pro 芯片名当机型），要求连续两帧可读。等待新 SHA 云端全套结果。
+
 遗留：无 UI test target，触屏拖动/鼠标/VoiceOver/横屏/Dynamic Type 仍需要独立运行证据；不能把四图当全部交互实测。v3.0 是本轮原创风格重构基座，不代表商业级长期目标完成。
 
 

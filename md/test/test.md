@@ -8,10 +8,14 @@
 - 云端 Rules smoke：编译 GameModels/GameState/RulesSmokeTest 并真实执行；包含批量地图提示与单格入口一致性。
 - 云端 build：`xcodebuild ... -destination 'generic/platform=iOS Simulator' build-for-testing CODE_SIGNING_ALLOWED=NO ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES`，只编译 runner 的原生模拟器架构，覆盖该 runner 上两种设备。截图检查器失败不阻止独立实际 XCTest 执行。
 - 云端真实测试：已有 iPad 上 `xcodebuild ... -destination 'platform=iOS Simulator,id=<云端UDID>' -parallel-testing-enabled NO test-without-building CODE_SIGNING_ALLOWED=NO`；900 秒上限，保存独立 `xctest.log` 与 `WW2Tactics-tests.xcresult`。
-- `xcresulttool get test-results summary/tests` 输出真实总数、失败、跳过及用例树。总数不得少于测试源中所有 `func test...`，失败/跳过必须为零才通过；CI 阶段数不冒充 XCTest 数。
+- `xcresulttool get test-results summary/tests` 输出真实总数、失败、跳过及用例树。总数不得少于测试源中所有零参数公开 `func test...()`（排除 private 带参数 helper），失败/跳过必须为零才通过；CI 阶段数不冒充 XCTest 数。
 - 同 commit/run/attempt 四图：`battlefield-ipad-default.png`、`battlefield-ipad-selected-combat-impact-steady.png`、`battlefield-iphone-default.png`、`battlefield-iphone-selected-combat-impact-steady.png`。
-- 每场景明确 terminate/relaunch；默认无启动参数，战果只用公开 action。每图 ≥500 KB，中央战场采样 mean ≥45/255、≥45% 点亮度 ≥55，至少第二次截图机会，最多 8 次×6 秒等待；保存尺寸、bytes、SHA-256、device/runtime/UDID、portrait、场景与 outcome。亮度门禁不替代 Agent C 逐图检查。
+- 每场景明确 terminate/relaunch；默认无启动参数，战果只用公开 action。每图 ≥500 KB，中央战场采样 mean ≥45/255、≥45% 点亮度 ≥55，连续两帧可读，最多 8 次×6 秒等待；保存尺寸、bytes、SHA-256、device/runtime/UDID、portrait、场景与 outcome。亮度门禁不替代 Agent C 逐图检查。
 - always 上传 manifest、failure summary、阶段与实际 XCTest JUnit、static/smoke/build/test/screenshot 日志、两个 xcresult、四图及元数据；不上传 DerivedData、缓存、运行时或编译出的辅助二进制。
+
+## 旧测试夹具审计
+
+首次真实执行暴露的 7 项旧用例已逐项审查：不删用例/断言、不 skip、不更改生产规则。修正提前胜利与堵路的夹具，拆分弹幕/断补给伤害，明确 ZOC 成本、响应坐标优先和完整意图查询，并补全局回放与射程外断言。实际集合为既有 115 + 新增 10 = 125 个零参数测试；另 2 个 private test... helper 不计数。
 
 ## 新增表现层测试
 
