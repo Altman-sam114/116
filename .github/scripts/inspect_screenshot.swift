@@ -24,6 +24,7 @@ let mean = luminance / Double(max(samples, 1))
 let visibleFraction = Double(brightSamples) / Double(max(samples, 1))
 let result: [String: Any] = [
     "width": image.pixelsWide, "height": image.pixelsHigh,
+    "orientation": image.pixelsHigh >= image.pixelsWide ? "portrait" : "landscape",
     "meanLuminance": mean, "visibleFraction": visibleFraction,
     "readable": mean >= 45 && visibleFraction >= 0.45
 ]

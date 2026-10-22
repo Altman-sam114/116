@@ -4988,17 +4988,6 @@ private struct BattleLogView: View {
 }
 
 
-extension Faction {
-    var accentColor: Color {
-        switch self {
-        case .allies:
-            Color(red: 0.12, green: 0.36, blue: 0.72)
-        case .axis:
-            Color(red: 0.72, green: 0.16, blue: 0.14)
-        }
-    }
-}
-
 private extension MoraleState {
     var accentColor: Color {
         switch self {
@@ -5051,25 +5040,5 @@ private extension CombatPreview {
             return "exclamationmark.circle.fill"
         }
         return "circle.grid.cross.fill"
-    }
-}
-
-private extension TacticalCommand {
-    var systemImage: String {
-        switch self {
-        case .artilleryBarrage:
-            "burst.fill"
-        case .breakthroughAssault:
-            "bolt.fill"
-        }
-    }
-
-    var accentColor: Color {
-        switch self {
-        case .artilleryBarrage:
-            .orange
-        case .breakthroughAssault:
-            .red
-        }
     }
 }

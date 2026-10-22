@@ -39,6 +39,8 @@
 
 验证：本地只进行 Git/text diff/status/范围审查，没有运行 Python/YAML/plist/Swift/smoke/XCTest/Xcode/模拟器/截图测试。完整命令与结果由即将 push 的最新云端包提供，当前不预填 commit/run/artifact，不宣称通过。新版几何替换旧错误投影是明确设计调整，不改变轴向规则坐标。
 
+首次云端修复：`8b1df6ebd1a5181b739316575f36fa1c0e72206d` 的 run `39800364920` / attempt `1` 已下载 artifact `ww2tactics-ci-v3.0-main-8b1df6e-run39800364920-attempt1`（id `12435846844`，38,824 bytes，digest `sha256:17af3105c0959dbbcd8d6bee5b7fec079d6d5c2d32600a1dad4dcd5faead5f16`）。static、Rules smoke 成功；build 在两处 `TacticalCommand.systemImage` 跨文件 fileprivate 访问处失败，XCTest/四图未运行，无测试断言失败证据。C 退回 B：将共用 Faction/TacticalCommand 表现扩展移入 BattlefieldTheme，TacticalCommand 改为 module internal；另由 PNG 实际宽高派生 orientation。首次拆分提交的三处尾部空白已用追加提交清理，未 amend；被替代 run `39800272788` 已取消避免重复消耗。
+
 遗留：无 UI test target，触屏拖动/鼠标/VoiceOver/横屏/Dynamic Type 仍需要独立运行证据；不能把四图当全部交互实测。v3.0 是本轮原创风格重构基座，不代表商业级长期目标完成。
 
 
