@@ -232,4 +232,3 @@ struct RoadConnectionNetwork {
         return left.end.r < right.end.r
     }
 }
-

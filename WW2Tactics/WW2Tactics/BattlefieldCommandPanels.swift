@@ -963,4 +963,3 @@ private struct DeploymentButton: View {
         .accessibilityLabel("部署\(kind.title)，消耗\(kind.commandCost)指令点")
     }
 }
-

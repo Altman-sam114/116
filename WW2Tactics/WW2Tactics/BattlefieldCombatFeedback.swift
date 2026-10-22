@@ -602,4 +602,3 @@ struct CornerReticleShape: Shape {
         return path
     }
 }
-
