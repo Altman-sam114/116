@@ -40,6 +40,8 @@
 
 首轮云端纠正：`3361cae3e490a9d29672ac218864cb47a34ce184` / run `40054994609` / attempt `1` 失败。已下载 exact artifact `ww2tactics-ci-v3.1-main-3361cae-run40054994609-attempt1`（id `12544683931`，33,374 bytes，digest `sha256:72c4a1731561418def4314b9b55bd24c6dc306212c8c29e7700ba93db6aeb8e5`）至 `/private/tmp/ww2tactics-c-review-40054994609/`。static 和 Rules smoke 通过；build 在总览单位标记的三元 Path 表达式触发 Swift 类型推断超时，实际 XCTest/四图未运行（不是 0 个断言失败即通过）。追加修复将总览 surface、地格/单位绘制与显式 Path 函数分开，不提高 timeout、不修改规则或削减测试；新 SHA 仍须完整云端复验。
 
+第二轮云端纠正：`d6eb879aa006b166963efb93fd3308d663ef53f0` / run `40055783651` / attempt `1` 的包 `ww2tactics-ci-v3.1-main-d6eb879-run40055783651-attempt1`（id `12544304930`，30,592 bytes，digest `sha256:99efc67658dc4c03c5492fb2fdba832da353e4d2e650f221a7f992270f6b02e9`）已下载。原类型推断超时消除，暴露下一处默认无障碍 action 的调用签名错误：缺少 `named`；改为明确尾随闭包 `.accessibilityAction { onFrontline() }`，只绑定返回前线。static/smoke 仍成功，XCTest/四图未执行，不能当通过；与上一轮不是相同失败根因，按具体日志追加单点修复后重新云端验证。
+
 ### v3.0 / 精细美术纠正与单次路线查询快照（待最新云端验收）
 
 C 已核对技术提交 `c3a2f6c7ea869cb4d4daeb55e4ab2ddc284bc525` / run `39813336318` / attempt `1`，artifact `ww2tactics-ci-v3.0-main-c3a2f6c-run39813336318-attempt1`（id `12442631249`，18,566,892 bytes，digest `sha256:63a306c05c048f8bc7dbafed6b904e70bf585fe0ef2fa39c281702ec0b6cd572`），下载约 19M。五阶段成功，127 XCTest 全通过、0 skipped，四图逐张查看，窄屏 HIT/RET 已完整居中。该 SHA 的几何美术仍未达到人工目标，继续原 v3.0 退回 B，不另开玩法或伪称完成。

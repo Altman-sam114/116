@@ -10,6 +10,8 @@ v3.1 不改 GameState/GameModels。已有 131 项用例全部保留，新加 9 �
 
 首轮 `3361cae` / run `40054994609` / attempt `1` 的 exact artifact 已下载核对：static/smoke success，build 因小地图三元 Path 类型推断超时失败，实际 XCTest/四图未运行。已拆分显式绘制函数并追加修复，门禁和 140 项目标不变，等待新 SHA；详见 update_log。
 
+第二轮 `d6eb879` / run `40055783651` / attempt `1` 已下载核对：原类型推断超时消除，build 暴露默认无障碍 action 调用签名错误，static/smoke success、XCTest/四图未运行。改成尾随闭包，不更改测试、timeout 或规则；继续等待修复 SHA 全套证据。
+
 ### v3.0 历史技术与美术纠正过程
 
 C 已下载核对 `origin/main=c3a2f6c7ea869cb4d4daeb55e4ab2ddc284bc525`，run `39813336318` / attempt `1`，artifact `ww2tactics-ci-v3.0-main-c3a2f6c-run39813336318-attempt1`（id `12442631249`，18,566,892 bytes，digest `sha256:63a306c05c048f8bc7dbafed6b904e70bf585fe0ef2fa39c281702ec0b6cd572`），目录 `/private/tmp/ww2tactics-c-review-39813336318/`，约 19M。五阶段 success，127 XCTest 全通过/0 skipped，四图逐张查看，交战中点与 HIT/RET 裁切修复通过。实际 XCTest 用时 132.994 秒；不能把 CI 等候/模拟器启动耗时都归给规则测试。
