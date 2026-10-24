@@ -4,6 +4,184 @@ import XCTest
 
 @MainActor
 final class BattlefieldPresentationTests: XCTestCase {
+    func testFrontlineFocusUsesClosestLivingPairDeterministically() {
+        for scenario in Scenario.campaignCatalog {
+            let layout = BattlefieldMapLayout(coordinates: scenario.tiles.map(\.coordinate))
+            let units = scenario.units
+            let point = layout.frontlineFocusPoint(units: units, fallback: scenario.initialFocus, scale: 1)
+            XCTAssertEqual(point, layout.frontlineFocusPoint(units: Array(units.reversed()), fallback: scenario.initialFocus, scale: 1))
+            var candidates: [(distance: Int, point: CGPoint)] = []
+            for allied in units where allied.faction == .allies && !allied.isDestroyed {
+                for axis in units where axis.faction == .axis && !axis.isDestroyed {
+                    candidates.append((allied.position.distance(to: axis.position), layout.combatFocusPoint(
+                        attacker: allied.position, defender: axis.position, scale: 1
+                    )))
+                }
+            }
+            let minimum = candidates.map(\.distance).min()
+            XCTAssertTrue(candidates.contains { $0.distance == minimum && $0.point == point })
+            XCTAssertTrue(CGRect(origin: .zero, size: layout.size).contains(point))
+            XCTAssertEqual(scenario.units, units)
+        }
+    }
+
+    func testFrontlineFocusIgnoresDestroyedUnitsAndFallsBackSafely() {
+        let allied = BattleUnit(name: "A", kind: .tank, faction: .allies, position: HexCoordinate(q: 0, r: 0), hp: 40)
+        let destroyed = BattleUnit(name: "X", kind: .tank, faction: .axis, position: HexCoordinate(q: 1, r: 0), hp: 0)
+        let enemy = BattleUnit(name: "B", kind: .tank, faction: .axis, position: HexCoordinate(q: 4, r: 0), hp: 40)
+        let fallback = HexCoordinate(q: 2, r: 0)
+        let layout = BattlefieldMapLayout(coordinates: [allied.position, destroyed.position, enemy.position, fallback])
+        XCTAssertEqual(layout.frontlineFocusPoint(units: [allied, destroyed, enemy], fallback: fallback, scale: 1.25),
+                       layout.combatFocusPoint(attacker: allied.position, defender: enemy.position, scale: 1.25))
+        for units in [[], [allied], [enemy], [allied, destroyed]] {
+            XCTAssertEqual(layout.frontlineFocusPoint(units: units, fallback: fallback, scale: .nan), layout.center(for: fallback))
+        }
+    }
+
+    func testOpeningCameraIdentitySurvivesSelectionButChangesOnCampaignReload() throws {
+        let game = GameState()
+        let openingID = try XCTUnwrap(game.scenario.units.first?.id)
+        let allied = try XCTUnwrap(game.units.first { $0.faction == .allies })
+        game.select(unitID: allied.id)
+        game.focus(coordinate: HexCoordinate(q: 9, r: 6))
+        XCTAssertEqual(game.scenario.units.first?.id, openingID)
+        let scenarioID = game.scenario.id
+        game.restart()
+        XCTAssertEqual(game.scenario.id, scenarioID)
+        XCTAssertNotEqual(game.scenario.units.first?.id, openingID)
+        XCTAssertNil(game.selectedUnitID)
+        XCTAssertEqual(game.focusedCoordinate, game.scenario.initialFocus)
+        XCTAssertNil(game.latestCombatResult)
+    }
+
+    func testOverviewProjectionRoundTripsEveryCampaignAndNegativeCoordinate() {
+        let sets = Scenario.campaignCatalog.map { $0.tiles.map(\.coordinate) } + [[HexCoordinate(q: -9, r: -7), HexCoordinate(q: 2, r: 4)]]
+        for coordinates in sets {
+            for size in [CGSize(width: 170, height: 74), CGSize(width: 96, height: 50)] {
+                let projection = BattlefieldOverviewProjection(coordinates: coordinates, size: size)
+                XCTAssertGreaterThan(projection.scale, 0)
+                XCTAssertTrue(CGRect(origin: .zero, size: size).contains(projection.contentRect))
+                for coordinate in coordinates {
+                    let point = projection.point(for: coordinate)
+                    XCTAssertEqual(projection.coordinate(at: point), coordinate)
+                }
+            }
+        }
+    }
+
+    func testOverviewProjectionRejectsPaddingEmptyAndInvalidInput() {
+        let coordinates = Scenario.ardennesPrototype().tiles.map(\.coordinate)
+        let projection = BattlefieldOverviewProjection(coordinates: coordinates, size: CGSize(width: 170, height: 74))
+        XCTAssertNil(projection.coordinate(at: .zero))
+        XCTAssertNil(projection.coordinate(at: CGPoint(x: -1, y: 20)))
+        XCTAssertNil(projection.coordinate(at: CGPoint(x: CGFloat.nan, y: 20)))
+        XCTAssertNil(BattlefieldOverviewProjection(coordinates: [], size: CGSize(width: 170, height: 74)).coordinate(at: CGPoint(x: 40, y: 30)))
+        for size in [CGSize.zero, CGSize(width: -1, height: 20), CGSize(width: CGFloat.nan, height: 20),
+                     CGSize(width: 100, height: CGFloat.infinity)] {
+            let invalid = BattlefieldOverviewProjection(coordinates: coordinates, size: size)
+            XCTAssertEqual(invalid.scale, 0)
+            XCTAssertNil(invalid.coordinate(at: CGPoint(x: 10, y: 10)))
+        }
+    }
+
+    func testOverviewRejectsEmptyHexCornersAndSparseMapGaps() {
+        let first = HexCoordinate(q: -2, r: -3)
+        let last = HexCoordinate(q: 4, r: 5)
+        let projection = BattlefieldOverviewProjection(coordinates: [first, last, first], size: CGSize(width: 170, height: 74))
+        XCTAssertEqual(projection.coordinates.count, 2)
+        let frame = projection.layout.frame(for: first)
+        let emptyCorner = CGPoint(x: projection.contentRect.minX + (frame.minX + 1) * projection.scale,
+                                  y: projection.contentRect.minY + (frame.minY + 1) * projection.scale)
+        XCTAssertTrue(projection.contentRect.contains(emptyCorner))
+        XCTAssertNil(projection.coordinate(at: emptyCorner))
+        XCTAssertNil(projection.coordinate(at: CGPoint(x: projection.contentRect.midX, y: projection.contentRect.midY)))
+        XCTAssertEqual(projection.coordinate(at: projection.point(for: first)), first)
+        XCTAssertEqual(projection.coordinate(at: projection.point(for: last)), last)
+    }
+
+    func testRiverNeighborsShareExactJunctionWidthAndTangent() {
+        for scenario in Scenario.campaignCatalog {
+            let layout = BattlefieldMapLayout(coordinates: scenario.tiles.map(\.coordinate))
+            let coordinates = Set(scenario.tiles.filter { $0.terrain == .river }.map(\.coordinate))
+            let geometry = BattlefieldRiverGeometry(tiles: scenario.tiles, layout: layout)
+            for coordinate in coordinates {
+                for neighbor in coordinate.neighbors where coordinates.contains(neighbor) {
+                    let junction = BattlefieldRiverGeometry.junction(from: coordinate, to: neighbor, layout: layout)
+                    XCTAssertEqual(junction, BattlefieldRiverGeometry.junction(from: neighbor, to: coordinate, layout: layout))
+                    XCTAssertGreaterThan(junction.halfWidth, 0)
+                    var normals: [CGPoint] = []
+                    for ribbon in geometry.ribbons {
+                        if ribbon.start == junction.point {
+                            normals.append(ribbon.normal(at: 0))
+                            XCTAssertEqual(ribbon.startHalfWidth, junction.halfWidth)
+                        }
+                        if ribbon.end == junction.point {
+                            normals.append(ribbon.normal(at: 1))
+                            XCTAssertEqual(ribbon.endHalfWidth, junction.halfWidth)
+                        }
+                    }
+                    XCTAssertEqual(normals.count, 2, "\(coordinate.id) / \(neighbor.id)")
+                    if normals.count == 2 {
+                        XCTAssertEqual(abs(normals[0].x * normals[1].x + normals[0].y * normals[1].y), 1, accuracy: 0.0001)
+                    }
+                }
+            }
+        }
+    }
+
+    func testRiverRibbonsAreFiniteStableAndCoverBranchesEndpointsAndIsolatedTiles() {
+        let branch = [HexCoordinate(q: 0, r: 0), HexCoordinate(q: 1, r: 0), HexCoordinate(q: 0, r: 1),
+                      HexCoordinate(q: -1, r: 0), HexCoordinate(q: 8, r: 8)].map { TerrainTile(coordinate: $0, terrain: .river) }
+        let sets = Scenario.campaignCatalog.map(\.tiles) + [branch, []]
+        for tiles in sets {
+            let layout = BattlefieldMapLayout(coordinates: tiles.map(\.coordinate))
+            let first = BattlefieldRiverGeometry(tiles: tiles, layout: layout)
+            let second = BattlefieldRiverGeometry(tiles: Array(tiles.reversed()), layout: layout)
+            XCTAssertEqual(first.ribbons.count, second.ribbons.count)
+            for (left, right) in zip(first.ribbons, second.ribbons) {
+                XCTAssertEqual(left.start, right.start)
+                XCTAssertEqual(left.end, right.end)
+                let outline = left.outline().boundingBoxOfPath
+                XCTAssertFalse(outline.isEmpty)
+                XCTAssertTrue(outline.minX.isFinite && outline.minY.isFinite && outline.maxX.isFinite && outline.maxY.isFinite)
+                XCTAssertTrue(left.outline(expansion: 5).boundingBoxOfPath.contains(outline))
+                for fraction in [CGFloat(0), 0.2, 0.5, 0.8, 1] {
+                    let point = left.point(at: fraction)
+                    XCTAssertTrue(point.x.isFinite && point.y.isFinite)
+                    XCTAssertGreaterThan(left.halfWidth(at: fraction), 0)
+                    let normal = left.normal(at: fraction)
+                    XCTAssertEqual(hypot(normal.x, normal.y), 1, accuracy: 0.0001)
+                }
+            }
+        }
+    }
+
+    func testOverviewNavigationOnlyFocusesWithoutExecutingCommands() throws {
+        let game = GameState()
+        let allied = try XCTUnwrap(game.units.first { $0.faction == .allies })
+        game.select(unitID: allied.id)
+        let units = game.scenario.units
+        let tiles = game.tiles
+        let points = game.commandPoints
+        let log = game.battleLog
+        let turn = game.turn
+        let faction = game.activeFaction
+        let projection = BattlefieldOverviewProjection(coordinates: tiles.map(\.coordinate), size: CGSize(width: 170, height: 74))
+        for tile in [tiles.first, tiles.last, game.tile(at: HexCoordinate(q: 9, r: 6))].compactMap({ $0 }) {
+            let coordinate = try XCTUnwrap(projection.coordinate(at: projection.point(for: tile.coordinate)))
+            game.focus(coordinate: coordinate)
+            XCTAssertEqual(game.focusedCoordinate, tile.coordinate)
+            XCTAssertEqual(game.selectedUnitID, allied.id)
+            XCTAssertEqual(game.scenario.units, units)
+            XCTAssertEqual(game.tiles, tiles)
+            XCTAssertEqual(game.commandPoints, points)
+            XCTAssertEqual(game.battleLog, log)
+            XCTAssertEqual(game.turn, turn)
+            XCTAssertEqual(game.activeFaction, faction)
+            XCTAssertNil(game.latestCombatResult)
+        }
+    }
+
     func testOriginalArtworkResourcesAreBundledWithinBudget() throws {
         var totalBytes = 0
         for name in BattlefieldArtwork.resourceNames {

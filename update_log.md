@@ -14,12 +14,29 @@
 - 项目为 SwiftUI iOS 原型，主目录是 `WW2Tactics/`。
 - 目标体验是 EasyTech 风格二战回合制战棋：大地图、多据点、单位移动、攻击判定、将领、地形、补给、士气、AI 回合。
 - 当前源码已包含阿登 22x14 大地图、诺曼底战役、MOVE/ATK/POS/NEXT/OBJ/THR 地图反馈、规则 smoke test 和 XCTest。
-- 当前协作规范已切换为 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 的多 Agent 工作流。
+- 当前协作规范以 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 为入口；2026-10-24 本轮人工特别要求 Agent X 直接迭代，取消 A/B/C 串行调度、不启子智能体，其他安全与云端验收边界不变。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 近期规划已进入 `v2（六角格战争界面）`：v2.0 建立连续六角格战区、具象单位视觉和拆分后的 SwiftUI 表现层基座，规则状态机保持不变。
+- 当前阶段为 `v3（战争沙盘重构）`：v3.0 原创精细资源与地图优先界面已有云端通过基线，v3.1 推进连续地貌、前线镜头和按领域拆分 UI，规则状态机保持不变。
 
 ## 历史记录
+
+### v3.1 / 连续战区、前线导航与界面领域拆分（待本轮云端验收）
+
+日期：2026-10-24（Asia/Taipei）。按人工最新指令由 Agent X 单智能体直接推进，无 A/B/C 调度、无本地项目测试。开始时已存在相关 v3.1 草稿与 UI 改动，在其上继续实现，不回滚；无关未跟踪 v2.56 prompt 保持原样并排除提交。
+
+先核对 `origin/main=60ee9a7825c70cf7260bb06580d59a9a4e7dff0f`、run `39823597384`、attempt `1`；Altman-sam114 认证后下载 exact artifact `ww2tactics-ci-v3.0-main-60ee9a7-run39823597384-attempt1`（id `12446114032`，36,443,119 bytes，digest `sha256:0b11b516c5b6e04862aa0c0bbe636d5bc4440ee3dd9b81305d98dcdfef87e634`），目录 `/private/tmp/ww2tactics-c-review-39823597384/`、36M。manifest/JUnit/日志/summary 与四图摘要一致；五阶段、131 项真实测试、四图成功。逐图发现默认镜头停后方、白色格片、等宽河道和悬空情报按钮，作为本轮纠正范围；不是把旧通过结论当新版本证据。百度搜索“将军的荣耀3 游戏截图”遇验证码，不绕过，改实看 17173 公开相册参考连续地貌、具象军械和小型贴边控制，不下载商业资产。
+
+核心变更与文件：
+
+- `BattlefieldMapLayout` / `BattlefieldMap` / `BattlefieldCommandDeck`：独立前线锚框，默认/重开按最近存活双方中点定位；镜头只滚动，不篡改初始焦点。缩放保留镜头模式，交战中点链继续有效。
+- 新 `BattlefieldNavigation`：真实六角投影小地图、圆点 AL/菱形 AX/据点与焦点；宽屏默认显示，窄屏开关。点按真实格内部只 focus，空白/非有限值/空集不误定位；底部返回前线不改变选择。
+- 新 `BattlefieldTerrainGeometry` + `BattlefieldTerrainRenderer`：共享岸点、宽度、切线的确定性变宽河岸；扩大模糊漂雪、降低草土噪声、扩大错落森林山村，普通雪区格边降权而保留战术边。
+- `ContentView` 情报按钮归入右上地图工具组，面板内有关闭标题；战役栏与动作坞分别拆为 `BattlefieldCampaignBar`、`BattlefieldActionHUD`。
+- 原 5,044 行 `BattlefieldInspector` 按单位、规划、态势、战果、敌情、回放、图例拆为七份独立领域文件，入口保留任务/地格/战报。原 80 个顶层声明文本完整保留，仅调整必要共享访问级别；不改规则/AI/寻路/战斗，不删入口。
+- `BattlefieldPresentationTests` 新增 9 项，保留原 131 项，目标真实集合 140；project 注册新源；同步 README、flow、flowchart、test 与版本实施记录。
+
+本地只 Git/text 编辑与范围审查、云端包下载/查看，没有运行任何项目测试、编译、模拟器、app 截图或语法验证命令。新 SHA/run/artifact 尚未生成，不预填通过；将 main 提交/push 后下载 exact 新包检查五阶段、140 项真实执行与四张 PNG。剩余：四图不证明触屏/VoiceOver/横屏/全字号；通用兵种资源还不是逐历史型号或实时 3D，引擎与玩法范围不扩张。
 
 ### v3.0 / 精细美术纠正与单次路线查询快照（待最新云端验收）
 

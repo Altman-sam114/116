@@ -1,4 +1,14 @@
-## 当前验收状态：技术修复通过，精细美术纠正待最新云端验证
+## 当前验收状态：v3.0 精细重构基线通过，v3.1 待最新云端验证
+
+2026-10-24（Asia/Taipei），Agent X 按人工最新指令直接实施，不走 A/B/C 串行、不启子智能体。已重新 fetch 并核对最新基线 `60ee9a7825c70cf7260bb06580d59a9a4e7dff0f` / run `39823597384` / attempt `1`；认证账号 Altman-sam114，exact artifact `ww2tactics-ci-v3.0-main-60ee9a7-run39823597384-attempt1`（id `12446114032`，36,443,119 bytes，digest `sha256:0b11b516c5b6e04862aa0c0bbe636d5bc4440ee3dd9b81305d98dcdfef87e634`）已下载到 `/private/tmp/ww2tactics-c-review-39823597384/`。manifest、failure summary、JUnit、static/smoke/build/test 日志、summary 和四图已核对；五阶段通过，131 actual / 0 failed / 0 skipped，四图逐张打开并核对 SHA-256。
+
+v3.1 不改 GameState/GameModels。已有 131 项用例全部保留，新加 9 项：最近存活双方前线的确定性、阵营缺失/非法 scale 回退、重开镜头身份、全部地图缩略投影 round-trip、空集/无效尺寸/边界拒绝、空白角与稀疏地图间隙拒绝、河岸共享点/宽/切线、河岸分叉/端点/孤立/有限性、总览导航不执行指令。目标真实 XCTest 为 140 项（116 规则 + 24 表现/资源/导航），以新 SHA 实际报告为准；不得用源函数计数代替执行。
+
+80 个旧 Inspector 顶层声明按领域拆分，文本审查确认无遗漏且除共享访问级别外无内容变更；这不是 Swift 编译或运行通过。新增源文件已加入 Xcode Sources，由云端 plist、build-for-testing 和真实 XCTest 验证。四张新图还须看到双方前线、低对比连续雪原、变宽河岸、宽屏总览、右上情报入口与完整 HIT/RET；小地图不伪造视口矩形。触屏、VoiceOver、横屏与全部 Dynamic Type 仍无运行证据。
+
+本地仅 Git/text 编辑、范围审查、下载云端包与查看参考/云端图片，不运行项目编译、smoke、XCTest、plutil/YAML/Python 语法测试、模拟器或 app 截图。所有门禁由 main push 后云端完成，历史本机命令不覆盖本轮人工限制。
+
+### v3.0 历史技术与美术纠正过程
 
 C 已下载核对 `origin/main=c3a2f6c7ea869cb4d4daeb55e4ab2ddc284bc525`，run `39813336318` / attempt `1`，artifact `ww2tactics-ci-v3.0-main-c3a2f6c-run39813336318-attempt1`（id `12442631249`，18,566,892 bytes，digest `sha256:63a306c05c048f8bc7dbafed6b904e70bf585fe0ef2fa39c281702ec0b6cd572`），目录 `/private/tmp/ww2tactics-c-review-39813336318/`，约 19M。五阶段 success，127 XCTest 全通过/0 skipped，四图逐张查看，交战中点与 HIT/RET 裁切修复通过。实际 XCTest 用时 132.994 秒；不能把 CI 等候/模拟器启动耗时都归给规则测试。
 

@@ -9,26 +9,11 @@ struct ContentView: View {
             ZStack(alignment: .trailing) {
                 VStack(spacing: 0) {
                     TopCommandBar()
-                    BattlefieldView()
+                    BattlefieldView(isInspectorExpanded: $isInspectorExpanded)
                 }
                 if isInspectorExpanded {
                     inspector(isRegular: isRegular, height: proxy.size.height)
                 }
-                Button {
-                    isInspectorExpanded.toggle()
-                } label: {
-                    Image(systemName: isInspectorExpanded ? "xmark" : "binoculars.fill")
-                        .font(.system(size: 17, weight: .bold))
-                        .frame(width: 46, height: 46)
-                        .foregroundStyle(BattlefieldTheme.ink)
-                        .background(BattlefieldTheme.commandDeckDeep, in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(BattlefieldTheme.brass.opacity(0.5)))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isInspectorExpanded ? "收起战场情报" : "展开战场情报")
-                .accessibilityValue(isInspectorExpanded ? "已展开" : "已收起")
-                .padding(.trailing, isInspectorExpanded && isRegular ? 354 : 10)
-                .offset(y: -40)
             }
             .background(BattlefieldTheme.commandDeckDeep)
         }
@@ -37,17 +22,36 @@ struct ContentView: View {
 
     @ViewBuilder private func inspector(isRegular: Bool, height: CGFloat) -> some View {
         if isRegular {
-            InspectorPanel()
+            inspectorContent
                 .frame(width: 338)
                 .padding(8)
                 .padding(.top, 58)
         } else {
             VStack(spacing: 0) {
                 Spacer(minLength: 70)
-                InspectorPanel()
+                inspectorContent
                     .frame(height: max(240, height * 0.58))
             }
             .padding(6)
+        }
+    }
+
+    private var inspectorContent: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Label("战场情报", systemImage: "binoculars.fill")
+                    .font(.system(size: 13, weight: .bold))
+                Spacer()
+                Button { isInspectorExpanded = false } label: {
+                    Image(systemName: "xmark").frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("收起战场情报")
+            }
+            .padding(.leading, 14)
+            .foregroundStyle(BattlefieldTheme.ink)
+            .background(BattlefieldTheme.commandMetal)
+            InspectorPanel()
         }
     }
 }

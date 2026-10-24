@@ -1,4 +1,4 @@
-# WW2Tactics 当前流程图（v3.0）
+# WW2Tactics 当前流程图（v3.1）
 
 ## 战争沙盘渲染与操作
 
@@ -6,7 +6,8 @@
 flowchart TD
     State[GameState 唯一规则事实源] --> Models[战役 / 地形 / 单位 / 轴向坐标]
     Models --> Layout[共享六角投影 / union bounds / 已缩放子视图 Layout 锚框]
-    Layout --> Terrain[原创底材与地貌 atlas / 柔化雪地 / 曲线河路]
+    Layout --> Terrain[降噪原创底材 / 扩大错落地貌 / 连续漂雪]
+    River[真实 river 邻接 / 共享岸点河宽切线 / 变宽闭合曲线] --> Terrain
     Layout --> Tiles[透明交互地格 / 稳定 ID / HexInputReader]
     State --> Routes[单次只读地格与 ZOC 快照 / 原 FIFO 与成本]
     Routes --> Hints[批量 mapActionHints 共享一次移动路线搜索]
@@ -22,14 +23,18 @@ flowchart TD
     Terrain --> Screen[全幅战场与边缘指挥带]
     Units --> Screen
     Feedback --> Screen
-    State --> Deck[战役资源 / 单一动作坞 / 通讯 / 按需轨道与支援]
+    State --> Deck[独立战役栏 / 单一动作坞 / 右上工具组 / 按需轨道与支援]
     Deck --> Screen
+    State --> Overview[真实地貌单位据点缩略图 / 六角内点按只聚焦]
+    Overview --> Screen
+    Layout --> Camera[最近存活双方中点 / 独立前线锚框 / 重开镜头]
+    Camera --> Screen
     Screen --> Input[点击 / 鼠标主次键 / 选择与聚焦 / 执行 / 结束回合]
     Input --> State
-    State --> Inspector[按需情报 / 原有规划态势反制后勤与回放]
+    State --> Inspector[可关闭情报 / 按单位规划态势战果敌情回放拆分]
 ```
 
-所有装饰不命中，所有规则只在 GameState。地图布局、单位、战果和输入共用坐标；绘制层不重算伤害。Inspector/支援/轨道开关与缩放是 SwiftUI 局部状态，不复制规则。
+所有装饰不命中，所有规则只在 GameState。地图布局、单位、战果和输入共用坐标；绘制层不重算伤害。Inspector/支援/轨道/总览开关与缩放是 SwiftUI 局部状态，不复制规则。前线入口仅滚动；小地图白框表示真实规则焦点，不是视口框，空白和格外点击无操作。
 
 ## 命令与回合
 
@@ -56,22 +61,22 @@ stateDiagram-v2
 
 ```mermaid
 flowchart TD
-    A[A 版本化目标与边界] --> B[B main 实现 / 测试源码 / 文档]
-    B --> Push[核对 main + origin/main + Altman-sam114 / push]
+    X[单智能体 X / 核对云端基线与公开参考] --> Implement[直接 main 实现 / 测试源码 / 文档]
+    Implement --> Push[核对 main + origin/main + Altman-sam114 / push]
     Push --> Static[云端 diff / plist / YAML / Python / 超时契约]
     Static --> Smoke[RulesSmokeTest]
     Smoke --> Build[Xcode build-for-testing]
-    Build --> XCTest[云端 iPad 全部 XCTest / 资源 alpha 与预算 / 独立路线 oracle]
+    Build --> XCTest[云端 iPad 全部 XCTest / 原 131 项加 9 项 / 不跳过]
     XCTest --> Four[同 SHA 四图 iPad + iPhone 各默认与真实战果]
     Four --> Gates[尺寸 / 500 KB / 战场亮度 / 可读比例 / 有界重试]
     Gates --> Package[always manifest + JUnit + logs + xcresult + PNG]
-    Package --> C[C 下载 exact 最新 commit / run / attempt artifact]
-    C --> Review[核对身份 / 实际测试数 / 逐图检查 / 源码边界]
+    Package --> Download[同一 X 下载 exact 最新 commit / run / attempt artifact]
+    Download --> Review[核对身份 / 实际测试数 / 逐图检查 / 源码边界]
     Review --> Decision{X 判断}
-    Decision -->|通过且仍需迭代| A
-    Decision -->|不通过| B
+    Decision -->|通过且仍需迭代| X
+    Decision -->|不通过| Implement
     Decision -->|目标完成| Done[交付本轮与剩余风险]
     Decision -->|停止条件| Stop[暂停并请求必要人工决策]
 ```
 
-JUnit 的阶段数不冒充 XCTest 数。四图不证明触屏、VoiceOver 或全部设备实测。失败也产包；不回滚远端，只追加修复。当前无子智能体，按阶段顺序在当前会话实施。
+JUnit 的阶段数不冒充 XCTest 数。四图不证明触屏、VoiceOver 或全部设备实测。失败也产包；不回滚远端，只追加修复。按人工最新指令取消本轮 A/B/C 串行角色调度，无子智能体，所有重验证仍在云端。

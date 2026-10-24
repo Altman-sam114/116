@@ -26,7 +26,18 @@
 		A30000000000000000000007 /* BattlefieldCombatFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000107 /* BattlefieldCombatFeedback.swift */; };
 		A30000000000000000000008 /* BattlefieldArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000108 /* BattlefieldArtwork.swift */; };
 		A30000000000000000000009 /* BattlefieldArt in Resources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000109 /* BattlefieldArt */; };
+		A31000000000000000000001 /* BattlefieldNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31000000000000000000101 /* BattlefieldNavigation.swift */; };
+		A31000000000000000000002 /* BattlefieldTerrainGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31000000000000000000102 /* BattlefieldTerrainGeometry.swift */; };
 		A30000000000000000000200 /* BattlefieldPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000201 /* BattlefieldPresentationTests.swift */; };
+		A31100000000000000000001 /* BattlefieldSituationInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000101 /* BattlefieldSituationInspector.swift */; };
+		A31100000000000000000002 /* BattlefieldUnitInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000102 /* BattlefieldUnitInspector.swift */; };
+		A31100000000000000000003 /* BattlefieldPlanningInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000103 /* BattlefieldPlanningInspector.swift */; };
+		A31100000000000000000004 /* BattlefieldLegend.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000104 /* BattlefieldLegend.swift */; };
+		A31100000000000000000005 /* BattlefieldResultInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000105 /* BattlefieldResultInspector.swift */; };
+		A31100000000000000000006 /* BattlefieldThreatInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000106 /* BattlefieldThreatInspector.swift */; };
+		A31100000000000000000007 /* BattlefieldReplayInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000107 /* BattlefieldReplayInspector.swift */; };
+		A31100000000000000000008 /* BattlefieldCampaignBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000108 /* BattlefieldCampaignBar.swift */; };
+		A31100000000000000000009 /* BattlefieldActionHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000109 /* BattlefieldActionHUD.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -61,7 +72,18 @@
 		A30000000000000000000107 /* BattlefieldCombatFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldCombatFeedback.swift; sourceTree = "<group>"; };
 		A30000000000000000000108 /* BattlefieldArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldArtwork.swift; sourceTree = "<group>"; };
 		A30000000000000000000109 /* BattlefieldArt */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BattlefieldArt; sourceTree = "<group>"; };
+		A31000000000000000000101 /* BattlefieldNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldNavigation.swift; sourceTree = "<group>"; };
+		A31000000000000000000102 /* BattlefieldTerrainGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldTerrainGeometry.swift; sourceTree = "<group>"; };
 		A30000000000000000000201 /* BattlefieldPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldPresentationTests.swift; sourceTree = "<group>"; };
+		A31100000000000000000101 /* BattlefieldSituationInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldSituationInspector.swift; sourceTree = "<group>"; };
+		A31100000000000000000102 /* BattlefieldUnitInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldUnitInspector.swift; sourceTree = "<group>"; };
+		A31100000000000000000103 /* BattlefieldPlanningInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldPlanningInspector.swift; sourceTree = "<group>"; };
+		A31100000000000000000104 /* BattlefieldLegend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldLegend.swift; sourceTree = "<group>"; };
+		A31100000000000000000105 /* BattlefieldResultInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldResultInspector.swift; sourceTree = "<group>"; };
+		A31100000000000000000106 /* BattlefieldThreatInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldThreatInspector.swift; sourceTree = "<group>"; };
+		A31100000000000000000107 /* BattlefieldReplayInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldReplayInspector.swift; sourceTree = "<group>"; };
+		A31100000000000000000108 /* BattlefieldCampaignBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldCampaignBar.swift; sourceTree = "<group>"; };
+		A31100000000000000000109 /* BattlefieldActionHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldActionHUD.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,11 +124,22 @@
 				A10000000000000000000016 /* BattlefieldChrome.swift */,
 				A10000000000000000000017 /* BattlefieldMap.swift */,
 				A30000000000000000000100 /* BattlefieldMapLayout.swift */,
+				A31000000000000000000101 /* BattlefieldNavigation.swift */,
+				A31000000000000000000102 /* BattlefieldTerrainGeometry.swift */,
 				A30000000000000000000101 /* BattlefieldTerrainRenderer.swift */,
 				A30000000000000000000102 /* BattlefieldUnitRenderer.swift */,
 				A30000000000000000000103 /* BattlefieldCommandDeck.swift */,
 				A30000000000000000000104 /* BattlefieldCommandPanels.swift */,
 				A30000000000000000000105 /* BattlefieldInspector.swift */,
+				A31100000000000000000101 /* BattlefieldSituationInspector.swift */,
+				A31100000000000000000102 /* BattlefieldUnitInspector.swift */,
+				A31100000000000000000103 /* BattlefieldPlanningInspector.swift */,
+				A31100000000000000000104 /* BattlefieldLegend.swift */,
+				A31100000000000000000105 /* BattlefieldResultInspector.swift */,
+				A31100000000000000000106 /* BattlefieldThreatInspector.swift */,
+				A31100000000000000000107 /* BattlefieldReplayInspector.swift */,
+				A31100000000000000000108 /* BattlefieldCampaignBar.swift */,
+				A31100000000000000000109 /* BattlefieldActionHUD.swift */,
 				A30000000000000000000106 /* BattlefieldRoadNetwork.swift */,
 				A30000000000000000000107 /* BattlefieldCombatFeedback.swift */,
 				A30000000000000000000108 /* BattlefieldArtwork.swift */,
@@ -241,11 +274,22 @@
 				A10000000000000000000006 /* BattlefieldChrome.swift in Sources */,
 				A10000000000000000000007 /* BattlefieldMap.swift in Sources */,
 				A30000000000000000000000 /* BattlefieldMapLayout.swift in Sources */,
+				A31000000000000000000001 /* BattlefieldNavigation.swift in Sources */,
+				A31000000000000000000002 /* BattlefieldTerrainGeometry.swift in Sources */,
 				A30000000000000000000001 /* BattlefieldTerrainRenderer.swift in Sources */,
 				A30000000000000000000002 /* BattlefieldUnitRenderer.swift in Sources */,
 				A30000000000000000000003 /* BattlefieldCommandDeck.swift in Sources */,
 				A30000000000000000000004 /* BattlefieldCommandPanels.swift in Sources */,
 				A30000000000000000000005 /* BattlefieldInspector.swift in Sources */,
+				A31100000000000000000001 /* BattlefieldSituationInspector.swift in Sources */,
+				A31100000000000000000002 /* BattlefieldUnitInspector.swift in Sources */,
+				A31100000000000000000003 /* BattlefieldPlanningInspector.swift in Sources */,
+				A31100000000000000000004 /* BattlefieldLegend.swift in Sources */,
+				A31100000000000000000005 /* BattlefieldResultInspector.swift in Sources */,
+				A31100000000000000000006 /* BattlefieldThreatInspector.swift in Sources */,
+				A31100000000000000000007 /* BattlefieldReplayInspector.swift in Sources */,
+				A31100000000000000000008 /* BattlefieldCampaignBar.swift in Sources */,
+				A31100000000000000000009 /* BattlefieldActionHUD.swift in Sources */,
 				A30000000000000000000006 /* BattlefieldRoadNetwork.swift in Sources */,
 				A30000000000000000000007 /* BattlefieldCombatFeedback.swift in Sources */,
 				A30000000000000000000008 /* BattlefieldArtwork.swift in Sources */,

@@ -68,6 +68,15 @@ struct HexMapView: View {
                 .frame(width: scaledSize.width, height: scaledSize.height, alignment: .topLeading)
 
             BattlefieldPositionedLayout(size: scaledSize) {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .layoutValue(key: BattlefieldPositionKey.self, value: layout.frontlineFocusPoint(
+                        units: game.units, fallback: game.scenario.initialFocus, scale: resolvedScale
+                    ))
+                    .id("battlefield-frontline")
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+
                 ForEach(mapTiles, id: \.coordinate.id) { tile in
                     let unit = game.unit(at: tile.coordinate)
                     let tileIsSelected = selected?.position == tile.coordinate

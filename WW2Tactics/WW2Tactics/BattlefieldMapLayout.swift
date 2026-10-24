@@ -59,6 +59,23 @@ struct BattlefieldMapLayout {
         return CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
     }
 
+    func frontlineFocusPoint(units: [BattleUnit], fallback: HexCoordinate, scale: CGFloat) -> CGPoint {
+        let living = units.filter { !$0.isDestroyed }.sorted {
+            $0.position.r == $1.position.r ? $0.position.q < $1.position.q : $0.position.r < $1.position.r
+        }
+        var nearest: (allied: HexCoordinate, axis: HexCoordinate, distance: Int)?
+        for allied in living where allied.faction == .allies {
+            for axis in living where axis.faction == .axis {
+                let distance = allied.position.distance(to: axis.position)
+                if distance < (nearest?.distance ?? Int.max) {
+                    nearest = (allied.position, axis.position, distance)
+                }
+            }
+        }
+        guard let pair = nearest else { return scaledCenter(for: fallback, scale: scale) }
+        return combatFocusPoint(attacker: pair.allied, defender: pair.axis, scale: scale)
+    }
+
     static func vertices(in rect: CGRect) -> [CGPoint] {
         [CGPoint(x: rect.midX, y: rect.minY),
          CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.25),
