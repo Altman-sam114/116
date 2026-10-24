@@ -57,7 +57,8 @@ struct UnitCounter: View {
                 tacticalStatus: unit.tacticalStatus,
                 isSpent: isActionComplete,
                 width: unit.kind.mapPieceWidth,
-                height: 54
+                height: 58,
+                variant: BattlefieldVehicleVariant.matching(unit)
             )
             .overlay(alignment: .topLeading) {
                 if let commander = unit.commander {
@@ -112,6 +113,7 @@ struct MapUnitPiece: View {
     let isSpent: Bool
     let width: CGFloat
     let height: CGFloat
+    var variant: BattlefieldVehicleVariant? = nil
 
     var body: some View {
         ZStack {
@@ -123,7 +125,8 @@ struct MapUnitPiece: View {
                 kind: kind,
                 faction: faction,
                 isSpent: isSpent,
-                presentation: .mapPiece
+                presentation: .mapPiece,
+                variant: variant
             )
                 .frame(width: width - 4, height: height - 4)
                 .offset(y: -2)
@@ -275,9 +278,10 @@ struct UnitModelView: View {
     let faction: Faction
     let isSpent: Bool
     var presentation: UnitModelPresentation = .compactBadge
+    var variant: BattlefieldVehicleVariant? = nil
 
     var body: some View {
-        BattlefieldUnitRenderer(kind: kind, faction: faction, isSpent: isSpent)
+        BattlefieldUnitRenderer(kind: kind, faction: faction, isSpent: isSpent, variant: variant)
     }
 }
 
@@ -306,8 +310,8 @@ struct CommanderBadge: View {
                 )
             RoundedRectangle(cornerRadius: 4)
                 .stroke(Color(red: 0.85, green: 0.66, blue: 0.30), lineWidth: 1.4)
-            Image(systemName: "person.fill")
-                .font(.system(size: 10, weight: .bold))
+            Text(String(commander.name.prefix(1)))
+                .font(.system(size: 11, weight: .black, design: .serif))
                 .foregroundStyle(Color(red: 0.32, green: 0.26, blue: 0.18))
             Circle()
                 .fill(faction.accentColor)

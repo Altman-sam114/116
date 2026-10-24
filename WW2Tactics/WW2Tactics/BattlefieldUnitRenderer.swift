@@ -4,10 +4,11 @@ struct BattlefieldUnitRenderer: View {
     let kind: UnitKind
     let faction: Faction
     let isSpent: Bool
+    var variant: BattlefieldVehicleVariant? = nil
 
     var body: some View {
         Group {
-            if let sprite = BattlefieldArtwork.unit(kind, faction: faction) {
+            if let sprite = variant.flatMap({ BattlefieldArtwork.vehicle($0) }) ?? BattlefieldArtwork.unit(kind, faction: faction) {
                 BattlefieldArtwork.image(sprite)
                     .resizable()
                     .interpolation(.high)

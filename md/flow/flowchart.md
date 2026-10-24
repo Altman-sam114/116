@@ -1,4 +1,4 @@
-# WW2Tactics 当前流程图（v3.1）
+# WW2Tactics 当前流程图（v3.2）
 
 ## 战争沙盘渲染与操作
 
@@ -7,15 +7,16 @@ flowchart TD
     State[GameState 唯一规则事实源] --> Models[战役 / 地形 / 单位 / 轴向坐标]
     Models --> Layout[共享六角投影 / union bounds / 已缩放子视图 Layout 锚框]
     Layout --> Terrain[降噪原创底材 / 扩大错落地貌 / 连续漂雪]
-    River[真实 river 邻接 / 共享岸点河宽切线 / 变宽闭合曲线] --> Terrain
+    River[真实 river 邻接 / 共享岸点河宽切线 / 城镇连续河道 / 自然端潭] --> Terrain
+    Infrastructure[canonical 道路保留 / 城镇成对接路 / 真实相对两岸桥梁] --> Terrain
     Layout --> Tiles[透明交互地格 / 稳定 ID / HexInputReader]
     State --> Routes[单次只读地格与 ZOC 快照 / 原 FIFO 与成本]
     Routes --> Hints[批量 mapActionHints 共享一次移动路线搜索]
     Hints --> Tiles
     State --> Rules[可达 / 攻击 / 控制区 / 补给 / 预判]
     Rules --> Tiles
-    Artwork[四份离线原创 PNG / ImageIO 单次解码与复用] --> Terrain
-    Artwork --> Units[八款精细兵模 / AL 实线 AX 虚线 / HP / M 与 A]
+    Artwork[六份离线原创 PNG / 20 sprite 单次解码与复用] --> Terrain
+    Artwork --> Units[八款通用及四款命名军械 / AL 实线 AX 虚线 / HP / M 与 A]
     Tiles --> Units
     State --> Result[执行时坐标与真实 CombatResultSummary]
     Layout --> Feedback[轴线 / 定宽夹紧 HIT 与 RET / HP 前后 / 交战中点焦点]
@@ -23,7 +24,7 @@ flowchart TD
     Terrain --> Screen[全幅战场与边缘指挥带]
     Units --> Screen
     Feedback --> Screen
-    State --> Deck[独立战役栏 / 单一动作坞 / 右上工具组 / 按需轨道与支援]
+    State --> Deck[独立战役栏 / 短横屏分档 / 单一动作坞 / 右上工具组 / 按需支援]
     Deck --> Screen
     State --> Overview[真实地貌单位据点缩略图 / 六角内点按只聚焦]
     Overview --> Screen
@@ -66,9 +67,9 @@ flowchart TD
     Push --> Static[云端 diff / plist / YAML / Python / 超时契约]
     Static --> Smoke[RulesSmokeTest]
     Smoke --> Build[Xcode build-for-testing]
-    Build --> XCTest[云端 iPad 全部 XCTest / 原 131 项加 9 项 / 不跳过]
-    XCTest --> Four[同 SHA 四图 iPad + iPhone 各默认与真实战果]
-    Four --> Gates[尺寸 / 500 KB / 战场亮度 / 可读比例 / 有界重试]
+    Build --> XCTest[云端 iPad 全部 XCTest / 原 140 项加 7 项 / 不跳过]
+    XCTest --> Six[同 SHA 原四张竖屏加两设备真实横屏战果 / 六图]
+    Six --> Gates[尺寸 / 500 KB / 亮度 / 方向一致 / Vision 拒绝已知系统通知 / 有界重试]
     Gates --> Package[always manifest + JUnit + logs + xcresult + PNG]
     Package --> Download[同一 X 下载 exact 最新 commit / run / attempt artifact]
     Download --> Review[核对身份 / 实际测试数 / 逐图检查 / 源码边界]
@@ -79,4 +80,4 @@ flowchart TD
     Decision -->|停止条件| Stop[暂停并请求必要人工决策]
 ```
 
-JUnit 的阶段数不冒充 XCTest 数。四图不证明触屏、VoiceOver 或全部设备实测。失败也产包；不回滚远端，只追加修复。按人工最新指令取消本轮 A/B/C 串行角色调度，无子智能体，所有重验证仍在云端。
+JUnit 阶段数不冒充 XCTest 数，六图不证明触屏、旋转交互、VoiceOver 或全部设备实测。桥梁/命名军械/地貌都不改变规则；横屏由公开 scene API 请求，不旋转像素造证据。失败也产包，不回滚远端，只追加修复。本轮取消 A/B/C 串行，无子智能体，所有重验证云端。

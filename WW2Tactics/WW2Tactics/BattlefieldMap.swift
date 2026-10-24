@@ -475,7 +475,7 @@ struct HexTileView: View {
         if !objectivePressureMarkers.isEmpty { return .pink.opacity(0.96) }
         if !focusedAIPhaseMapMarkers.isEmpty { return .white.opacity(0.96) }
         if let battlefieldSituationResponseMarker { return battlefieldSituationResponseColor(for: battlefieldSituationResponseMarker.kind).opacity(0.96) }
-        if isEnemyThreatIntentTarget { return .pink.opacity(0.92) }
+        if isEnemyThreatIntentTarget { return BattlefieldTheme.alert.opacity(0.80) }
         if isMovementRoute { return .cyan.opacity(0.88) }
         if isAttackCoverage { return .orange.opacity(0.40) }
         if isFocused { return .white.opacity(0.9) }
@@ -500,7 +500,7 @@ struct HexTileView: View {
         if !objectivePressureMarkers.isEmpty { return 3 }
         if !focusedAIPhaseMapMarkers.isEmpty { return 3 }
         if battlefieldSituationResponseMarker != nil { return 3 }
-        if isEnemyThreatIntentTarget { return 2 }
+        if isEnemyThreatIntentTarget { return 1.3 }
         if isMovementRoute { return 2 }
         if isAttackCoverage { return 1 }
         if isFocused { return 2 }
@@ -1090,10 +1090,10 @@ struct EnemyThreatIntentMarker: View {
         .foregroundStyle(.white)
         .padding(.horizontal, 5)
         .padding(.vertical, 3)
-        .background(Color.pink.opacity(0.86), in: Capsule())
+        .background(BattlefieldTheme.commandDeckDeep.opacity(0.92), in: Capsule())
         .overlay(
             Capsule()
-                .stroke(Color.white.opacity(0.36), lineWidth: 1)
+                .stroke(BattlefieldTheme.alert.opacity(0.85), lineWidth: 1)
         )
         .allowsHitTesting(false)
         .accessibilityHidden(true)

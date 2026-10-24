@@ -18,7 +18,7 @@ stages = [
     ("rules-smoke", "SMOKE_STATUS", "rules-smoke.log"),
     ("xcode-build-for-testing", "BUILD_STATUS", "xcodebuild.log"),
     ("xctest-execution", "TEST_STATUS", "xctest.log"),
-    ("four-battlefield-screenshots", "SCREENSHOT_STATUS", "battlefield-screenshot.log"),
+    ("six-battlefield-screenshots", "SCREENSHOT_STATUS", "battlefield-screenshot.log"),
 ]
 outcomes = {name: "success" if os.environ.get(key, "1") == "0" else "failure" for name, key, _ in stages}
 artwork = [{"path": str(path), "bytes": path.stat().st_size,

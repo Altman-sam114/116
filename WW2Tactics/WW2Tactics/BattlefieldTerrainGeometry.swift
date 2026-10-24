@@ -55,10 +55,20 @@ struct BattlefieldRiverRibbon {
 
 struct BattlefieldRiverGeometry {
     let ribbons: [BattlefieldRiverRibbon]
+    let townContinuations: Set<HexCoordinate>
+    let terminalPools: [CGRect]
 
     init(tiles: [TerrainTile], layout: BattlefieldMapLayout) {
-        let coordinates = Set(tiles.filter { $0.terrain == .river }.map(\.coordinate))
+        let river = Set(tiles.filter { $0.terrain == .river }.map(\.coordinate))
+        let continuations = Set(tiles.filter { tile in
+            guard tile.terrain == .city || tile.terrain == .road else { return false }
+            return (0..<3).contains { axis in
+                river.contains(tile.coordinate.neighbors[axis]) && river.contains(tile.coordinate.neighbors[axis + 3])
+            }
+        }.map(\.coordinate))
+        let coordinates = river.union(continuations)
         var ribbons: [BattlefieldRiverRibbon] = []
+        var pools: [CGRect] = []
         for coordinate in coordinates.sorted(by: Self.precedes) {
             let center = layout.center(for: coordinate)
             let neighbors = coordinate.neighbors.filter { coordinates.contains($0) }
@@ -74,6 +84,7 @@ struct BattlefieldRiverGeometry {
                     startHalfWidth: first.halfWidth, endHalfWidth: last.halfWidth
                 ))
             } else if neighbors.isEmpty {
+                pools.append(CGRect(x: center.x - 20, y: center.y - 12, width: 40, height: 24))
                 ribbons.append(BattlefieldRiverRibbon(
                     start: CGPoint(x: center.x - 17, y: center.y - 8), firstControl: CGPoint(x: center.x - 8, y: center.y - 12),
                     secondControl: CGPoint(x: center.x + 9, y: center.y + 12), end: CGPoint(x: center.x + 17, y: center.y + 8),
@@ -84,15 +95,20 @@ struct BattlefieldRiverGeometry {
                     let end = endpoints[index]
                     let direction = Self.unitVector(from: center, to: layout.center(for: neighbor))
                     let start = neighbors.count == 1 ? Self.offset(center, along: direction, by: -16) : center
+                    if neighbors.count == 1 {
+                        pools.append(CGRect(x: start.x - 7, y: start.y - 6, width: 14, height: 12))
+                    }
                     ribbons.append(BattlefieldRiverRibbon(
                         start: start, firstControl: Self.offset(start, along: direction, by: 15),
                         secondControl: Self.offset(end.point, along: direction, by: -18), end: end.point,
-                        startHalfWidth: neighbors.count == 1 ? 1.5 : 8, endHalfWidth: end.halfWidth
+                        startHalfWidth: neighbors.count == 1 ? 5.5 : 10, endHalfWidth: end.halfWidth
                     ))
                 }
             }
         }
         self.ribbons = ribbons
+        townContinuations = continuations
+        terminalPools = pools
     }
 
     static func junction(from first: HexCoordinate, to second: HexCoordinate, layout: BattlefieldMapLayout) -> BattlefieldRiverJunction {
@@ -102,11 +118,11 @@ struct BattlefieldRiverGeometry {
         let end = layout.center(for: b)
         let direction = unitVector(from: start, to: end)
         let seed = Double(a.q * 73 + a.r * 137 + b.q * 211 + b.r * 43)
-        let drift = CGFloat(sin(seed * 0.71)) * 6
+        let drift = CGFloat(sin(seed * 0.71)) * 9
         return BattlefieldRiverJunction(
             point: CGPoint(x: (start.x + end.x) / 2 - direction.y * drift,
                            y: (start.y + end.y) / 2 + direction.x * drift),
-            halfWidth: 6.5 + CGFloat((sin(seed * 0.37) + 1) / 2) * 3.5
+            halfWidth: 8 + CGFloat((sin(seed * 0.37) + 1) / 2) * 5
         )
     }
 

@@ -1,4 +1,14 @@
-## 当前验收状态：v3.0 精细重构基线通过，v3.1 待最新云端验证
+## 当前验收状态：v3.2 军械地貌与横屏战场，待最新云端包
+
+2026-10-24（Asia/Taipei），本轮不走 A/B/C、不启子智能体、不做本地测试。先同步核对最新 `origin/main=479ed12ac4ec88df4e7bce26b86cb84b1eb5c50f` / run `40056322104` / attempt `1`，exact artifact `ww2tactics-ci-v3.1-main-479ed12-run40056322104-attempt1`（id `12545409200`，digest `sha256:268f50f3688122580de2c12ad459893a0855fb2351a1a88c11ca9e69abcab5e1`）已下载缓存且本次逐项复核。140 actual / 0 failed / 0 skipped，static/smoke/build/test 成功；四张 PNG 身份匹配并逐图打开，但 iPhone 战果图有 Apple Intelligence 系统通知遮住顶栏，视觉问题不因 CI success 被掩盖；详见 `v3.1-cloud-review.md`。
+
+v3.2 保留全部 140 项，新增 7 项：命名军械与兵种边界、错误阵营/兵种回退、城镇河道相对邻接、真实两岸桥梁、城镇街道成对连接和 canonical 保留、地貌确定性/多样性、短横屏视口分档。目标实际 XCTest 147 项（116 规则 + 31 表现/资源/导航），不以源计数代替实际运行。原资源测试扩展为六 PNG/20 sprite，预算仍 24,000,000 bytes。
+
+云端 static / Rules smoke / build-for-testing / actual XCTest 门禁保持；截图阶段改为 `six-battlefield-screenshots`：原四张竖屏保留，新增 `battlefield-ipad-selected-combat-impact-steady-landscape.png`、`battlefield-iphone-selected-combat-impact-steady-landscape.png`。DEBUG 启动参数 `--ci-landscape` 用公开 UIWindowScene geometry API 请求真实横屏；元数据记录 requestedOrientation 和实际 orientation，只有一致才成功，禁止旋转 PNG 冒充。Vision OCR 检查顶部已知系统通知，命中则有界重拍；亮度/≥500 KB/连续两帧/8 次上限不减。六图不替代触屏、旋转交互、VoiceOver 和全字号实测。
+
+本地只 Git/text 范围审查与原创源图元数据/alpha 读取及复制，没有运行项目测试、diff --check、plist/YAML/Python 语法测试、Swift/Xcode/模拟器/app 截图；所有门禁由 push 后最新 SHA 的云端结果决定，不预填通过。
+
+## v3.1 历史实施与纠正过程
 
 2026-10-24（Asia/Taipei），Agent X 按人工最新指令直接实施，不走 A/B/C 串行、不启子智能体。已重新 fetch 并核对最新基线 `60ee9a7825c70cf7260bb06580d59a9a4e7dff0f` / run `39823597384` / attempt `1`；认证账号 Altman-sam114，exact artifact `ww2tactics-ci-v3.0-main-60ee9a7-run39823597384-attempt1`（id `12446114032`，36,443,119 bytes，digest `sha256:0b11b516c5b6e04862aa0c0bbe636d5bc4440ee3dd9b81305d98dcdfef87e634`）已下载到 `/private/tmp/ww2tactics-c-review-39823597384/`。manifest、failure summary、JUnit、static/smoke/build/test 日志、summary 和四图已核对；五阶段通过，131 actual / 0 failed / 0 skipped，四图逐张打开并核对 SHA-256。
 

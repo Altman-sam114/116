@@ -1,5 +1,21 @@
 import CoreGraphics
 
+struct BattlefieldViewport: Equatable {
+    let isShallow: Bool
+    let compactControls: Bool
+    let showsOverviewByDefault: Bool
+
+    init(size: CGSize) {
+        let width = size.width.isFinite ? max(0, size.width) : 0
+        let height = size.height.isFinite ? max(0, size.height) : 0
+        isShallow = width > height && height < 500
+        compactControls = width < 680 || isShallow
+        showsOverviewByDefault = width >= 760 && height >= 560
+    }
+
+    var commandBarHeight: CGFloat { isShallow ? 48 : 60 }
+}
+
 /// Point-up axial projection shared by terrain, hit targets, scrolling and combat.
 struct BattlefieldMapLayout {
     static let tileSize = CGSize(width: 86, height: 100)

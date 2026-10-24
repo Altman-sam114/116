@@ -1,4 +1,4 @@
-"""Cloud-only XCTest and four-scene visual evidence, with bounded commands."""
+"""Cloud-only XCTest and six-scene visual evidence, with bounded commands."""
 
 import hashlib
 import json
@@ -87,12 +87,15 @@ def xctest(device, log):
         REPORT["testOutcome"] = "success"
 
 
-def screenshot(category, device, scenario, log):
-    path = ROOT / f"battlefield-{category}-{scenario}.png"
+def screenshot(category, device, scenario, log, orientation="portrait"):
+    suffix = "" if orientation == "portrait" else "-landscape"
+    path = ROOT / f"battlefield-{category}-{scenario}{suffix}.png"
     record = {"category": category, "device": device[2], "udid": device[3], "runtime": device[4],
-              "orientation": "portrait", "scenario": scenario, "path": str(path), "outcome": "failure"}
+              "requestedOrientation": orientation, "scenario": scenario, "path": str(path), "outcome": "failure"}
     REPORT["screenshots"].append(record)
     arguments = [] if scenario == "default" else ["--ci-selected-combat-impact-steady"]
+    if orientation == "landscape":
+        arguments.append("--ci-landscape")
     result = run(["xcrun", "simctl", "launch", "--terminate-running-process", device[3], BUNDLE_ID, *arguments], log, seconds=90)
     if result.returncode:
         return
@@ -114,7 +117,7 @@ def screenshot(category, device, scenario, log):
                 record["error"] = "screenshot inspector output was not JSON"
                 readable_frames = 0
                 continue
-        if inspection.returncode == 0:
+        if inspection.returncode == 0 and record.get("orientation") == orientation:
             # Wait for a second readable frame, not a single transitional flash.
             readable_frames += 1
             if readable_frames < 2:
@@ -150,10 +153,11 @@ def main():
                 if inspector_ready:
                     screenshot(category, device, "default", log)
                     screenshot(category, device, "selected-combat-impact-steady", log)
+                    screenshot(category, device, "selected-combat-impact-steady", log, orientation="landscape")
                 else:
                     REPORT["error"] = "screenshot inspector did not compile; XCTest still executed independently"
                 run(["xcrun", "simctl", "shutdown", device[3]], log, seconds=45)
-            if len(REPORT["screenshots"]) == 4 and all(item["outcome"] == "success" for item in REPORT["screenshots"]):
+            if len(REPORT["screenshots"]) == 6 and all(item["outcome"] == "success" for item in REPORT["screenshots"]):
                 REPORT["screenshotOutcome"] = "success"
     except Exception as error:
         REPORT["error"] = str(error)

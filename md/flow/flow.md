@@ -1,6 +1,6 @@
 # 项目核心流程
 
-## 当前架构（v3.1 连续战区）
+## 当前架构（v3.2 军械地貌与横屏战场）
 
 规则唯一事实源是 `GameState`。地图优先界面使用共享尖顶六角投影、地图级静态 Canvas、透明交互地格、原创精细预渲染兵模和按需边缘指挥面板；没有另建简化战斗状态机。
 
@@ -8,20 +8,21 @@
 
 - `GameModels.swift`：阵营、兵种、地形、轴向坐标、战役、单位、规则预览与结果值。
 - `GameState.swift`：选择、焦点、移动、攻击、反击、AI、补给、士气、据点、命令点、增援、胜负、规划、态势与回放。`mapActionHints()` 在一次只读快照中共享移动路线搜索；单格与批量调用同一判定函数，不建立跨回合缓存。`movementRoutes` 在单次查询内建立地格/存活单位/敌 ZOC 快照；索引推进保留原 FIFO 顺序，成本与 tie-break 不变，独立旧搜索 oracle 逐路线对比。
-- `ContentView.swift`：顶部战役带、全幅战场和本地情报展开状态；情报具有独立关闭标题栏，在宽屏右缘覆盖、窄屏底部覆盖，不挤压地图。
+- `ContentView.swift`：顶部战役带、全幅战场和本地情报展开状态；宽屏右缘/窄屏底部情报可关闭；隐藏系统状态栏和非必要系统覆盖。DEBUG 云端参数经公开 scene geometry API 请求横屏，不修改规则或截图像素。
 - `BattlefieldCommandDeck.swift`：地图编排、缩放/重开、前线镜头、右上工具组、战况通讯条、编队/据点与支援开关。支援和定位轨道默认收起。`BattlefieldCampaignBar.swift` 管 60pt 战役菜单/资源/结束回合，`BattlefieldActionHUD.swift` 管单一选中单位动作坞，均只调用既有规则入口。
 - `BattlefieldNavigation.swift`：共用六角布局的小地图正反投影；显示真实地貌、AL 圆点/AX 菱形/据点与焦点。宽屏默认展开，点按须落在真实六角内部，只调用 `focus(coordinate:)`；空白不吸附远格。小地图白框是焦点，不伪造当前视口。
 - `BattlefieldChrome.swift`：AL/OBJ/AX 全量横向定位轨道、焦点滚动、紧凑行动标记和共用 HUD 小组件。
 - `BattlefieldCommandPanels.swift`：既有详细攻击预览、编队摘要、战术命令和增援面板。详细预览仍可由情报入口访问。
 - `BattlefieldInspector.swift`：情报入口、任务/胜负、地格与战报；原 5,044 行文件拆分为 `BattlefieldUnitInspector`（单位/补给/士气/经验/预测）、`BattlefieldPlanningInspector`（推进/接敌/战术命令）、`BattlefieldSituationInspector`（态势/压力）、`BattlefieldResultInspector`（战果/后勤）、`BattlefieldThreatInspector`（意图/反制）、`BattlefieldReplayInspector`（AI 时间线）与 `BattlefieldLegend`。80 个原顶层声明完整保留，只有跨文件共享类型/扩展调整访问级别，不改业务语义。
-- `BattlefieldMapLayout.swift`：统一六角顶点、中心、tile frame、全部实际地格的 union bounds、24pt 留白及缩放尺寸；另有纯值 `UnitReadinessPresentation`。前线镜头按真实存活双方的最短距离、稳定坐标顺序取双方中点，无双方时回退战役初始坐标。
-- `BattlefieldTerrainRenderer.swift`：一个静态 Canvas 组合降噪草土底材、低频田块与扩大错落的透明树丛/岩脊/村镇/雪林；真实 snow 格合成扩大且模糊的连续漂雪，普通雪区格边降权，高优先级战术边保留。道路沿 canonical 共享边连接，规则成本不变。
-- `BattlefieldTerrainGeometry.swift`：纯只读河流几何，真实 river 邻格共享确定性的岸点、河宽与切线；三次曲线采样闭合变宽河岸，覆盖端点/分叉/孤立格。渲染器合成岸影、河岸、水面和小涟漪；无随机状态、计时器或网络。
+- `BattlefieldMapLayout.swift`：统一六角顶点、中心、tile frame、全部实际地格的 union bounds、24pt 留白及缩放尺寸；纯值 `UnitReadinessPresentation` 和 `BattlefieldViewport`。宽且高度不足 500pt 时用短顶栏/紧凑动作坞，不默认展开总览；前线镜头按最近存活双方取中点，无双方时回退战役初始坐标。
+- `BattlefieldTerrainRenderer.swift`：静态 Canvas 组合降噪草土、低频明暗地形、耕地与八款疏密山林/村镇；snow 格合成连续漂雪。先画河岸/水面/自然端潭，再画道路/桥面，最后按地理 y 排序放置地貌；不改变输入或移动规则。
+- `BattlefieldTerrainGeometry.swift`：真实 river 邻格共享岸点/河宽/切线；只有 city/road 被相对 river 两邻格夹住才延续水道，plains/mountain 不凭空连河。三次曲线闭合变宽河岸，端点合成水潭，覆盖分叉/孤立格；无随机状态。
+- `BattlefieldInfrastructure.swift`：纯值街道与桥梁计划，canonical 道路边保留，城镇与相邻真实道路成对相连；river 格两侧必须都有相对 road/city 才画桥，绝不由画桥减免河流成本。地貌放置按 q/r 稳定选择三种森林剪影、疏密雪林、农庄及大小/位置。
 - `BattlefieldRoadNetwork.swift`：从真实道路邻接派生 canonical 主干及有界长回边，仅用于画路，不改变路线和移动成本。
 - `BattlefieldMap.swift`：透明战术地格、标记、单位层次、稳定 coordinate ID、UIKit 输入桥和 SwiftUI 无障碍摘要。静态地形不再嵌入每个交互 View。
 - `BattlefieldCombatFeedback.swift`：真实执行坐标上的交战轴线、HIT/RET/HP 前后、可取消反馈序列和 Reduce Motion。
-- `BattlefieldUnitRenderer.swift`：呈现八款原创透明坦克、火炮、三人步兵与轮式侦察车，统一左上光源与接地阴影；不再逐实例重画几何图标。
-- `BattlefieldArtwork.swift` / `BattlefieldArt/`：四份原创 PNG 随包离线使用，ImageIO 一次解码，三个 2×2 atlas 按固定象限裁成 12 个 CGImage 静态复用；资源读取失败由云端资源测试拒收，不关联任何 GameState。
+- `BattlefieldUnitRenderer.swift`：八款通用原创兵模加四款 M10/M7/Tiger/Panther 外观；根据只读名称/阵营/kind 选择，M10 仍是原 recon 规则。地图与选中 HUD 共用；不逐实例重画几何图标。
+- `BattlefieldArtwork.swift` / `BattlefieldArt/`：六份原创 PNG 随包离线使用，ImageIO 一次解码，五个 2×2 atlas 裁成 20 个 CGImage 静态复用；固定格位、透明度、主体和 24 MB 预算由云端测试拒收，来源与完整 prompt 在 md/art；不关联 GameState。
 - `BattlefieldUnitViews.swift`：将领/军衔/CUT/战术状态、实线 AL / 虚线 AX 阵营环与字码、五段 HP、独立移动与攻击槽。模型放大但不扩大输入六角；小实/虚线阵营环不再叠不透明棋子底座。spent 严格为 `hasMoved && hasAttacked`。
 - `BattlefieldTheme.swift`：橄榄炭灰 chrome、浅色正文与克制黄铜强调。
 
@@ -56,11 +57,11 @@ center = rawCenter + 统一 offset
 
 ## 云端验证与验收
 
-人工要求不做本地测试；本地只 Git/text 审查。`main` push → static（diff/plist/YAML/Python/timeout 契约）→ Rules smoke → Xcode build-for-testing → 已有云端 iPad 真正运行全部 XCTest → iPad/iPhone 各默认/真实选中战果两图 → always 生成结果包 → 当前单智能体下载最新 exact artifact 并逐图核对。v3.1 新增 9 项前线、重开、投影边界、河岸、导航只读测试，目标 140 项，不削减原 131 项。
+人工要求不做本地测试；本地只 Git/text 审查及原创资源原图读取。`main` push → static（diff/plist/YAML/Python/timeout 契约）→ Rules smoke → Xcode build-for-testing → 已有云端 iPad 真正运行全部 XCTest → 原四张竖屏 + 两设备横屏战果共六图 → always 结果包 → 当前单智能体下载 exact 最新 artifact 并逐图核对。v3.2 在原 140 项之上增加 7 项军械/基础设施/地貌/视口测试，目标 147 项，不削减旧集合。
 
-四图均记录 device/UDID/runtime、场景、portrait、尺寸、bytes、SHA-256、亮度与可读比例。保留至少 500 KB 初筛，新增战场中央平均亮度 ≥45/255、≥45% 采样点亮度 ≥55，并至少等待两次截图机会；最多 8 次重试，拒绝早期 launch fade。大小与采样仍不能替代人工视觉检查。
+六图均记录 device/UDID/runtime、场景、requestedOrientation/实际 orientation、尺寸、bytes、SHA-256、亮度与可读比例。保留至少 500 KB、中央平均亮度 ≥45/255、≥45% 采样点亮度 ≥55、连续两帧和最多 8 次重试；方向必须一致，Vision OCR 拒绝顶部已知 Apple Intelligence 通知，不修图消除遮挡。大小/采样/OCR 都不能替代逐图检查。
 
-资源门禁校验四图随包解码、固定格位、12 sprite 透明边缘/可见主体、静态复用和 24 MB 预算；结果包另存各资源字节与 SHA-256。manifest 分开记录 build、真实 test outcome/count/failure/skipped/result bundle 与四图。JUnit 的 CI 阶段和实际 XCTest suite 分离。没有 UI test target：拖动、触屏命令、VoiceOver、Dynamic Type、横屏与 Reduce Motion 的行为没有运行证据时只作源码审查，不宣称实测通过。
+资源门禁校验六 PNG 随包解码、固定格位、20 sprite 透明度/可见主体、静态复用和 24 MB 预算；结果包另存各资源字节与 SHA-256。manifest 分开记录 build、真实 test outcome/count/failure/skipped/result bundle 与六图，JUnit 阶段/真实 suite 分离。没有 UI test target：触屏/鼠标/拖动/VoiceOver/全字号/横竖屏切换交互/Reduce Motion 没有运行证据时不宣称实测。
 
 ## 本轮直接迭代
 

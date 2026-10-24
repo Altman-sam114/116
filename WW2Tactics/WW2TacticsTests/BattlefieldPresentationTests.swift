@@ -4,6 +4,136 @@ import XCTest
 
 @MainActor
 final class BattlefieldPresentationTests: XCTestCase {
+    func testVehicleVariantsMatchHistoricalNamesWithoutChangingArchetypes() throws {
+        let scenario = Scenario.ardennesPrototype()
+        let originals = scenario.units
+        let cases: [(String, BattlefieldVehicleVariant, UnitKind)] = [
+            ("M10坦克歼击营", .tankDestroyer, .recon), ("M7牧师炮兵", .priest, .artillery),
+            ("虎式重装连", .tiger, .tank), ("豹式预备营", .panther, .tank)
+        ]
+        for (name, expected, kind) in cases {
+            let unit = try XCTUnwrap(scenario.units.first { $0.name == name })
+            XCTAssertEqual(BattlefieldVehicleVariant.matching(unit), expected)
+            XCTAssertEqual(unit.kind, kind)
+            var spent = unit
+            spent.hasMoved = true
+            spent.hasAttacked = true
+            XCTAssertEqual(BattlefieldVehicleVariant.matching(spent), expected)
+        }
+        XCTAssertEqual(scenario.units, originals)
+    }
+
+    func testVehicleVariantsRejectWrongFactionAndKind() {
+        let coordinate = HexCoordinate(q: 0, r: 0)
+        for unit in [BattleUnit(name: "M10", kind: .recon, faction: .axis, position: coordinate, hp: 30),
+                     BattleUnit(name: "M7", kind: .infantry, faction: .allies, position: coordinate, hp: 30),
+                     BattleUnit(name: "虎式", kind: .tank, faction: .allies, position: coordinate, hp: 30),
+                     BattleUnit(name: "豹式", kind: .recon, faction: .axis, position: coordinate, hp: 30),
+                     BattleUnit(name: "装甲侦察营", kind: .recon, faction: .axis, position: coordinate, hp: 30)] {
+            XCTAssertNil(BattlefieldVehicleVariant.matching(unit))
+        }
+    }
+
+    func testTownRiverContinuationsRequireOppositeWaterNeighbors() {
+        let center = HexCoordinate(q: 0, r: 0)
+        let river = [center.neighbors[2], center.neighbors[5]].map { TerrainTile(coordinate: $0, terrain: .river) }
+        for terrain in [TerrainKind.city, .road, .plains, .mountain] {
+            let tiles = river + [TerrainTile(coordinate: center, terrain: terrain)]
+            let layout = BattlefieldMapLayout(coordinates: tiles.map(\.coordinate))
+            let geometry = BattlefieldRiverGeometry(tiles: tiles, layout: layout)
+            XCTAssertEqual(geometry.townContinuations.contains(center), terrain == .city || terrain == .road)
+        }
+        let elbow = [TerrainTile(coordinate: center, terrain: .city),
+                     TerrainTile(coordinate: center.neighbors[0], terrain: .river),
+                     TerrainTile(coordinate: center.neighbors[1], terrain: .river)]
+        let layout = BattlefieldMapLayout(coordinates: elbow.map(\.coordinate))
+        XCTAssertTrue(BattlefieldRiverGeometry(tiles: elbow, layout: layout).townContinuations.isEmpty)
+        let campaign = Scenario.ardennesPrototype()
+        let campaignLayout = BattlefieldMapLayout(coordinates: campaign.tiles.map(\.coordinate))
+        XCTAssertTrue(BattlefieldRiverGeometry(tiles: campaign.tiles, layout: campaignLayout).townContinuations.contains(HexCoordinate(q: 6, r: 9)))
+    }
+
+    func testBridgeRequiresOpposingRealRoadsAndPreservesTerrain() {
+        let center = HexCoordinate(q: 0, r: 0)
+        let tiles = [TerrainTile(coordinate: center, terrain: .river),
+                     TerrainTile(coordinate: center.neighbors[0], terrain: .road),
+                     TerrainTile(coordinate: center.neighbors[3], terrain: .city)]
+        let before = tiles
+        let first = BattlefieldInfrastructure(tiles: tiles, roadConnections: [:])
+        XCTAssertEqual(first.bridges, [BattlefieldBridge(coordinate: center, direction: 0)])
+        XCTAssertEqual(first.directionsByCoordinate[center], [0, 3])
+        XCTAssertEqual(first.directionsByCoordinate[center.neighbors[0]], [3])
+        XCTAssertEqual(first.directionsByCoordinate[center.neighbors[3]], [0])
+        XCTAssertEqual(tiles, before)
+        for partial in [Array(tiles.prefix(2)), [tiles[0], tiles[1], TerrainTile(coordinate: center.neighbors[1], terrain: .road)]] {
+            XCTAssertTrue(BattlefieldInfrastructure(tiles: partial, roadConnections: [:]).bridges.isEmpty)
+        }
+        let reversed = BattlefieldInfrastructure(tiles: Array(tiles.reversed()), roadConnections: [:])
+        XCTAssertEqual(first.bridges, reversed.bridges)
+        XCTAssertEqual(first.directionsByCoordinate, reversed.directionsByCoordinate)
+    }
+
+    func testTownStreetsKeepCanonicalRoadsAndPairedConnections() {
+        for scenario in Scenario.campaignCatalog {
+            let canonical = RoadConnectionNetwork(tiles: scenario.tiles).directionsByCoordinate
+            let plan = BattlefieldInfrastructure(tiles: scenario.tiles, roadConnections: canonical)
+            for (coordinate, directions) in canonical {
+                XCTAssertTrue(Set(directions).isSubset(of: Set(plan.directionsByCoordinate[coordinate] ?? [])))
+            }
+            for (coordinate, directions) in plan.directionsByCoordinate {
+                for direction in directions {
+                    let neighbor = coordinate.neighbors[direction]
+                    XCTAssertTrue(plan.directionsByCoordinate[neighbor]?.contains((direction + 3) % 6) == true)
+                    XCTAssertTrue(scenario.tiles.contains { $0.coordinate == neighbor })
+                }
+            }
+            let reversed = BattlefieldInfrastructure(tiles: Array(scenario.tiles.reversed()), roadConnections: canonical)
+            XCTAssertEqual(plan.directionsByCoordinate, reversed.directionsByCoordinate)
+            XCTAssertEqual(plan.bridges, reversed.bridges)
+        }
+    }
+
+    func testSceneryPlacementsAreDeterministicAndVaried() throws {
+        let scenario = Scenario.ardennesPrototype()
+        let tiles = scenario.tiles
+        let layout = BattlefieldMapLayout(coordinates: tiles.map(\.coordinate))
+        var forestVariants = Set<Int>()
+        for tile in tiles {
+            let first = BattlefieldSceneryPlacement(tile: tile, layout: layout)
+            XCTAssertEqual(first, BattlefieldSceneryPlacement(tile: tile, layout: layout))
+            if let first {
+                XCTAssertTrue(first.rect.contains(layout.center(for: tile.coordinate)))
+                XCTAssertTrue(first.rect.minX.isFinite && first.rect.minY.isFinite)
+                XCTAssertGreaterThan(first.rect.width, 0)
+                if tile.terrain == .forest { forestVariants.insert(first.kind.rawValue) }
+            } else {
+                XCTAssertFalse(tile.terrain == .forest || tile.terrain == .city || tile.terrain == .mountain)
+            }
+        }
+        XCTAssertEqual(forestVariants.count, 3)
+        XCTAssertEqual(scenario.tiles, tiles)
+    }
+
+    func testViewportSeparatesWideShortPhonesFromTablets() {
+        let phonePortrait = BattlefieldViewport(size: CGSize(width: 440, height: 900))
+        XCTAssertTrue(phonePortrait.compactControls)
+        XCTAssertFalse(phonePortrait.isShallow)
+        XCTAssertFalse(phonePortrait.showsOverviewByDefault)
+        let phoneLandscape = BattlefieldViewport(size: CGSize(width: 900, height: 370))
+        XCTAssertTrue(phoneLandscape.compactControls)
+        XCTAssertTrue(phoneLandscape.isShallow)
+        XCTAssertFalse(phoneLandscape.showsOverviewByDefault)
+        XCTAssertEqual(phoneLandscape.commandBarHeight, 48)
+        for size in [CGSize(width: 1024, height: 1300), CGSize(width: 1300, height: 900)] {
+            let tablet = BattlefieldViewport(size: size)
+            XCTAssertFalse(tablet.compactControls)
+            XCTAssertFalse(tablet.isShallow)
+            XCTAssertTrue(tablet.showsOverviewByDefault)
+            XCTAssertEqual(tablet.commandBarHeight, 60)
+        }
+        XCTAssertFalse(BattlefieldViewport(size: CGSize(width: CGFloat.infinity, height: CGFloat.nan)).showsOverviewByDefault)
+    }
+
     func testFrontlineFocusUsesClosestLivingPairDeterministically() {
         for scenario in Scenario.campaignCatalog {
             let layout = BattlefieldMapLayout(coordinates: scenario.tiles.map(\.coordinate))
@@ -209,7 +339,12 @@ final class BattlefieldPresentationTests: XCTestCase {
         for kind in BattlefieldScenery.allCases {
             images.append(try XCTUnwrap(BattlefieldArtwork.scenery(kind)))
         }
-        XCTAssertEqual(images.count, 12)
+        for variant in BattlefieldVehicleVariant.allCases {
+            let first = try XCTUnwrap(BattlefieldArtwork.vehicle(variant))
+            XCTAssertTrue(first === BattlefieldArtwork.vehicle(variant))
+            images.append(first)
+        }
+        XCTAssertEqual(images.count, 20)
         for image in images {
             XCTAssertEqual(image.width, 768)
             XCTAssertEqual(image.height, 512)

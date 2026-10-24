@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Vision
 
 guard CommandLine.arguments.count == 2,
       let imageData = try? Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1])),
@@ -26,12 +27,32 @@ for y in stride(from: image.pixelsHigh / 5, to: image.pixelsHigh * 7 / 10, by: 1
 }
 let mean = luminance / Double(max(samples, 1))
 let visibleFraction = Double(brightSamples) / Double(max(samples, 1))
+// Launch-time system banners can pass luminance checks while hiding the game's command bar.
+let recognition = VNRecognizeTextRequest()
+recognition.recognitionLevel = .accurate
+recognition.regionOfInterest = CGRect(x: 0, y: 0.66, width: 1, height: 0.34)
+var systemBanner = false
+if let cgImage = image.cgImage {
+    do {
+        try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([recognition])
+        let text = (recognition.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ").lowercased()
+        systemBanner = text.contains("apple intelligence") || text.contains("personal intelligence system")
+    } catch {
+        fputs("Cannot inspect system overlays: \(error)\n", stderr)
+        exit(1)
+    }
+} else {
+    fputs("Cannot load screenshot for system overlay inspection\n", stderr)
+    exit(1)
+}
+let readable = mean >= 45 && visibleFraction >= 0.45 && !systemBanner
 let result: [String: Any] = [
     "width": image.pixelsWide, "height": image.pixelsHigh,
     "orientation": image.pixelsHigh >= image.pixelsWide ? "portrait" : "landscape",
     "meanLuminance": mean, "visibleFraction": visibleFraction,
-    "readable": mean >= 45 && visibleFraction >= 0.45
+    "systemBannerDetected": systemBanner,
+    "readable": readable
 ]
 let jsonData = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
 print(String(decoding: jsonData, as: UTF8.self))
-exit(mean >= 45 && visibleFraction >= 0.45 ? 0 : 1)
+exit(readable ? 0 : 1)

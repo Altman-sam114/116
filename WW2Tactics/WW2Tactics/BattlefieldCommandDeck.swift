@@ -31,8 +31,9 @@ struct MapCommandCenter: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let compact = geometry.size.width < 680
-            let showsOverview = overviewVisibility ?? !compact
+            let viewport = BattlefieldViewport(size: geometry.size)
+            let compact = viewport.compactControls
+            let showsOverview = overviewVisibility ?? viewport.showsOverviewByDefault
             ScrollViewReader { proxy in
                 ZStack {
                     ScrollView([.horizontal, .vertical], showsIndicators: false) {
@@ -68,14 +69,23 @@ struct MapCommandCenter: View {
                                 }
                             }
                             Spacer(minLength: 6)
-                            VStack(spacing: 6) {
+                            if viewport.isShallow {
                                 HStack(spacing: 6) {
                                     scaleMenu
                                     mapTool("战区总览", icon: "map", selected: showsOverview) { overviewVisibility = !showsOverview }
-                                }
-                                HStack(spacing: 6) {
                                     MapRestartButton()
                                     mapTool("战场情报", icon: "binoculars.fill", selected: isInspectorExpanded) { isInspectorExpanded.toggle() }
+                                }
+                            } else {
+                                VStack(spacing: 6) {
+                                    HStack(spacing: 6) {
+                                        scaleMenu
+                                        mapTool("战区总览", icon: "map", selected: showsOverview) { overviewVisibility = !showsOverview }
+                                    }
+                                    HStack(spacing: 6) {
+                                        MapRestartButton()
+                                        mapTool("战场情报", icon: "binoculars.fill", selected: isInspectorExpanded) { isInspectorExpanded.toggle() }
+                                    }
                                 }
                             }
                         }
@@ -86,16 +96,18 @@ struct MapCommandCenter: View {
                                 supportPanel(maxHeight: geometry.size.height * 0.48)
                             }
                             if isRosterExpanded { ObjectiveJumpDock(compact: compact) }
-                            if game.selectedUnit != nil { MapActionHUD(compact: compact) }
-                            Text(game.message)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                                .padding(.horizontal, 8)
-                                .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
-                                .background(BattlefieldTheme.commandDeckDeep.opacity(0.85))
-                                .allowsHitTesting(false)
-                            bottomTools(compact: compact) { scrollToFrontline(proxy, animated: true) }
+                            if game.selectedUnit != nil { MapActionHUD(compact: compact, condensed: viewport.isShallow) }
+                            if !viewport.isShallow {
+                                Text(game.message)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                    .padding(.horizontal, 8)
+                                    .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
+                                    .background(BattlefieldTheme.commandDeckDeep.opacity(0.85))
+                                    .allowsHitTesting(false)
+                            }
+                            bottomTools(compact: compact, condensed: viewport.isShallow) { scrollToFrontline(proxy, animated: true) }
                         }
                         .padding(.horizontal, compact ? 8 : 14)
                         .padding(.bottom, 8)
@@ -154,12 +166,21 @@ struct MapCommandCenter: View {
         .accessibilityValue(selected ? "已展开" : "已收起")
     }
 
-    private func bottomTools(compact: Bool, returnToFrontline: @escaping () -> Void) -> some View {
+    private func bottomTools(compact: Bool, condensed: Bool, returnToFrontline: @escaping () -> Void) -> some View {
         HStack(spacing: 6) {
             edgeButton(compact ? "编队" : "编队 / 据点", icon: "square.grid.3x3.fill", selected: isRosterExpanded) { isRosterExpanded.toggle() }
                 .accessibilityLabel("编队与据点定位")
             edgeButton(compact ? "支援" : "战术支援", icon: "shippingbox.fill", selected: isSupportExpanded) { isSupportExpanded.toggle() }
                 .accessibilityLabel("战术支援")
+            if condensed {
+                Text(game.message)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .padding(6)
+                    .background(BattlefieldTheme.commandDeckDeep.opacity(0.85))
+                    .allowsHitTesting(false)
+            }
             Spacer(minLength: 0)
             Button(action: returnToFrontline) {
                 Image(systemName: "viewfinder")

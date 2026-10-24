@@ -2,13 +2,14 @@ import SwiftUI
 
 struct TopCommandBar: View {
     @EnvironmentObject private var game: GameState
+    var condensed = false
 
     var body: some View {
         GeometryReader { proxy in
             let compact = proxy.size.width < 600
             HStack(spacing: compact ? 8 : 18) {
-                CampaignPicker()
-                    .frame(maxWidth: compact ? 130 : 200)
+                CampaignPicker(condensed: condensed)
+                    .frame(maxWidth: compact ? 120 : 200)
                 if !compact {
                     Rectangle().fill(BattlefieldTheme.brass.opacity(0.35)).frame(width: 1, height: 30)
                 }
@@ -23,12 +24,12 @@ struct TopCommandBar: View {
                         }
                     }
                 }
-                EndTurnButton()
+                EndTurnButton(condensed: condensed)
             }
             .padding(.horizontal, compact ? 10 : 18)
-            .frame(height: 60)
+            .frame(height: condensed ? 48 : 60)
         }
-        .frame(height: 60)
+        .frame(height: condensed ? 48 : 60)
         .background(BattlefieldTheme.commandMetal)
         .overlay(alignment: .bottom) {
             Rectangle().fill(BattlefieldTheme.brass.opacity(0.45)).frame(height: 1)
@@ -48,6 +49,7 @@ struct TopCommandBar: View {
 
 struct CampaignPicker: View {
     @EnvironmentObject private var game: GameState
+    var condensed = false
 
     var body: some View {
         Menu {
@@ -69,11 +71,13 @@ struct CampaignPicker: View {
                     Text(game.scenario.name)
                         .font(.system(size: 15, weight: .bold))
                         .lineLimit(1)
-                    Text("\(game.scenario.year)  /  WESTERN FRONT")
-                        .font(.system(size: 8, weight: .bold, design: .serif))
-                        .tracking(1.2)
-                        .foregroundStyle(BattlefieldTheme.brass)
-                        .lineLimit(1)
+                    if !condensed {
+                        Text("\(game.scenario.year)  /  WESTERN FRONT")
+                            .font(.system(size: 8, weight: .bold, design: .serif))
+                            .tracking(1.2)
+                            .foregroundStyle(BattlefieldTheme.brass)
+                            .lineLimit(1)
+                    }
                 }
                 Image(systemName: "chevron.down").font(.system(size: 8, weight: .heavy))
             }
@@ -87,15 +91,18 @@ struct CampaignPicker: View {
 
 struct EndTurnButton: View {
     @EnvironmentObject private var game: GameState
+    var condensed = false
 
     var body: some View {
         Button(action: game.endTurn) {
             VStack(spacing: 3) {
-                Image(systemName: "forward.end.fill").font(.system(size: 16, weight: .bold))
+                if !condensed {
+                    Image(systemName: "forward.end.fill").font(.system(size: 16, weight: .bold))
+                }
                 Text("结束回合").font(.system(size: 10, weight: .bold))
             }
             .foregroundStyle(Color(red: 0.16, green: 0.18, blue: 0.13))
-            .frame(width: 64, height: 46)
+            .frame(width: 64, height: condensed ? 40 : 46)
             .background(BattlefieldTheme.actionBrass, in: RoundedRectangle(cornerRadius: 3))
             .overlay { RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.24), lineWidth: 0.8) }
         }

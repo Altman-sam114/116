@@ -38,6 +38,7 @@
 		A31100000000000000000007 /* BattlefieldReplayInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000107 /* BattlefieldReplayInspector.swift */; };
 		A31100000000000000000008 /* BattlefieldCampaignBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000108 /* BattlefieldCampaignBar.swift */; };
 		A31100000000000000000009 /* BattlefieldActionHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000109 /* BattlefieldActionHUD.swift */; };
+		A32000000000000000000001 /* BattlefieldInfrastructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32000000000000000000101 /* BattlefieldInfrastructure.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,6 +53,7 @@
 
 /* Begin PBXFileReference section */
 		A10000000000000000000011 /* WW2TacticsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WW2TacticsApp.swift; sourceTree = "<group>"; };
+		A32000000000000000000101 /* BattlefieldInfrastructure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldInfrastructure.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A10000000000000000000013 /* GameModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameModels.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* GameState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameState.swift; sourceTree = "<group>"; };
@@ -126,6 +128,7 @@
 				A30000000000000000000100 /* BattlefieldMapLayout.swift */,
 				A31000000000000000000101 /* BattlefieldNavigation.swift */,
 				A31000000000000000000102 /* BattlefieldTerrainGeometry.swift */,
+				A32000000000000000000101 /* BattlefieldInfrastructure.swift */,
 				A30000000000000000000101 /* BattlefieldTerrainRenderer.swift */,
 				A30000000000000000000102 /* BattlefieldUnitRenderer.swift */,
 				A30000000000000000000103 /* BattlefieldCommandDeck.swift */,
@@ -276,6 +279,7 @@
 				A30000000000000000000000 /* BattlefieldMapLayout.swift in Sources */,
 				A31000000000000000000001 /* BattlefieldNavigation.swift in Sources */,
 				A31000000000000000000002 /* BattlefieldTerrainGeometry.swift in Sources */,
+				A32000000000000000000001 /* BattlefieldInfrastructure.swift in Sources */,
 				A30000000000000000000001 /* BattlefieldTerrainRenderer.swift in Sources */,
 				A30000000000000000000002 /* BattlefieldUnitRenderer.swift in Sources */,
 				A30000000000000000000003 /* BattlefieldCommandDeck.swift in Sources */,

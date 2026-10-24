@@ -4,11 +4,28 @@ import SwiftUI
 
 enum BattlefieldScenery: Int, CaseIterable {
     case forest, mountain, village, winterForest
+    case openWoodland, mixedWoodland, sparseWinterWoodland, farmstead
+}
+
+enum BattlefieldVehicleVariant: Int, CaseIterable {
+    case tankDestroyer, tiger, priest, panther
+
+    /// Appearance only: a historical name never changes the unit's rule archetype.
+    static func matching(_ unit: BattleUnit) -> Self? {
+        if unit.faction == .allies {
+            if unit.kind == .recon && unit.name.contains("M10") { return .tankDestroyer }
+            if unit.kind == .artillery && unit.name.contains("M7") { return .priest }
+        } else {
+            if unit.kind == .tank && unit.name.contains("虎式") { return .tiger }
+            if unit.kind == .tank && unit.name.contains("豹式") { return .panther }
+        }
+        return nil
+    }
 }
 
 /// Bundled, original artwork. Decode each sheet once; all map instances share its CGImages.
 enum BattlefieldArtwork {
-    static let resourceNames = ["vehicles", "troops", "scenery", "ground"]
+    static let resourceNames = ["vehicles", "troops", "scenery", "ground", "armor-detail", "woodland-detail"]
 
     private static let sheets: [String: CGImage] = {
         var result: [String: CGImage] = [:]
@@ -23,7 +40,7 @@ enum BattlefieldArtwork {
 
     private static let sprites: [String: [CGImage]] = {
         var result: [String: [CGImage]] = [:]
-        for name in ["vehicles", "troops", "scenery"] {
+        for name in resourceNames where name != "ground" {
             guard let sheet = sheets[name] else { continue }
             let cells = (0..<4).compactMap { index in
                 sheet.cropping(to: cellRect(column: index % 2, row: index / 2,
@@ -53,7 +70,12 @@ enum BattlefieldArtwork {
     }
 
     static func scenery(_ kind: BattlefieldScenery) -> CGImage? {
-        sprites["scenery"]?[kind.rawValue]
+        let index = kind.rawValue
+        return index < 4 ? sprites["scenery"]?[index] : sprites["woodland-detail"]?[index - 4]
+    }
+
+    static func vehicle(_ variant: BattlefieldVehicleVariant) -> CGImage? {
+        sprites["armor-detail"]?[variant.rawValue]
     }
 
     static var ground: CGImage? { sheets["ground"] }

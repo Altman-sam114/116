@@ -17,9 +17,19 @@
 - 当前协作规范以 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 为入口；2026-10-24 本轮人工特别要求 Agent X 直接迭代，取消 A/B/C 串行调度、不启子智能体，其他安全与云端验收边界不变。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 当前阶段为 `v3（战争沙盘重构）`：v3.0 原创精细资源与地图优先界面已有云端通过基线，v3.1 推进连续地貌、前线镜头和按领域拆分 UI，规则状态机保持不变。
+- 当前阶段为 `v3（战争沙盘重构）`：v3.1 的 140 项测试已核对通过，但 iPhone 战果图受系统通知遮挡；v3.2 继续军械、地貌、桥梁与真实横屏界面，规则状态机保持不变。
 
 ## 历史记录
+
+### v3.2 / 军械地貌与横屏战场（实施，待最新云端验收）
+
+日期：2026-10-24（Asia/Taipei）。按人工最新要求不走 A/B/C、不启子智能体、不做本地项目测试。同步并检查 main / origin/main `479ed12ac4ec88df4e7bce26b86cb84b1eb5c50f`，run `40056322104` / attempt `1` success；exact artifact `ww2tactics-ci-v3.1-main-479ed12-run40056322104-attempt1`（id `12545409200`，34,371,804 bytes，digest `sha256:268f50f3688122580de2c12ad459893a0855fb2351a1a88c11ca9e69abcab5e1`）的已下载包在 `/private/tmp/ww2tactics-c-review-40056322104/`。本次核对 API/manifest/JUnit/summary/日志/四图 SHA 并逐张打开，140 actual / 0 failed / 0 skipped，技术门禁成功；iPhone 战果图有 Apple Intelligence 系统通知，视觉结论保留，不伪称全图通过。详见 `md/test/v3.1-cloud-review.md`。
+
+百度再次搜索“将军的荣耀3”遇验证码；公开 17173 相册本次 403，内置浏览器无可用会话，不绕过、不伪称本次重看参考，沿用前轮实看战场的连续地貌/具象军械/贴边控件原则。
+
+变更：两份内置 imagegen 原创透明 atlas，四款命名军械和四款疏林/农庄；M10 只换履带歼击车外观，不改 recon 规则。Infrastructure 纯值计划为城镇接路、真实相对两岸道路画桥；河流跨被 river 两侧夹住的 city/road 连续，增加自然端潭；低频地表、田块、疏密树种与军械细节强化。Viewport 按高度/宽度分档，短横屏不默认开总览、顶栏/动作坞压缩，隐藏非游戏状态栏；原情报/规则入口保留。新增 7 项测试，旧 140 项不删，目标 147，20 sprite/24 MB 预算。云端由四图扩为六图，新增两设备真实横屏战果，Vision 拒绝已知系统通知，不修图造证据。
+
+本地只 Git/text 编辑和范围审查、生成图原文件元数据/alpha 读取与复制，未运行任何项目测试、编译或模拟器。README、flow、flowchart、test、prompt 与 art 记录同步；无关未跟踪 v2.56 prompt 保留不提交。待 main 提交/push 后以 exact 最新包核对，不预填 commit/run/通过。触屏/VoiceOver/全部字号与旋转交互仍非本轮截图证据。
 
 ### v3.1 / 连续战区、前线导航与界面领域拆分（待本轮云端验收）
 

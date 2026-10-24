@@ -123,7 +123,7 @@ jobs:
             echo "BUILD_STATUS=$build_status"
           } >> "$GITHUB_ENV"
 
-      - name: Execute XCTest and capture four battlefield scenes
+      - name: Execute XCTest and capture six battlefield scenes
         if: always()
         shell: bash
         run: python3 .github/scripts/ci_simulator.py

@@ -3,12 +3,14 @@ import SwiftUI
 struct MapActionHUD: View {
     @EnvironmentObject private var game: GameState
     let compact: Bool
+    var condensed = false
 
     var body: some View {
         if let unit = game.selectedUnit {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
-                    UnitModelView(kind: unit.kind, faction: unit.faction, isSpent: unit.hasMoved && unit.hasAttacked)
+                    UnitModelView(kind: unit.kind, faction: unit.faction, isSpent: unit.hasMoved && unit.hasAttacked,
+                                  variant: BattlefieldVehicleVariant.matching(unit))
                         .frame(width: 58, height: 38)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(unit.name).font(.system(size: 13, weight: .bold)).lineLimit(1)
@@ -28,9 +30,11 @@ struct MapActionHUD: View {
                     .disabled(unit.hasMoved && unit.hasAttacked)
                 }
                 if unit.hasMoved && unit.hasAttacked {
-                    Label("本回合行动完毕 · 可切换下一支部队", systemImage: "checkmark.circle")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(BattlefieldTheme.mutedInk)
+                    if !condensed {
+                        Label("本回合行动完毕 · 可切换下一支部队", systemImage: "checkmark.circle")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(BattlefieldTheme.mutedInk)
+                    }
                 } else {
                     HStack(spacing: 6) {
                         quick("攻击", icon: "scope", enabled: !game.attackableUnits(for: unit).isEmpty, action: game.focusNearestAttackTarget)
@@ -55,9 +59,9 @@ struct MapActionHUD: View {
                         .lineLimit(2)
                 }
             }
-            .padding(10)
+            .padding(condensed ? 6 : 10)
             .foregroundStyle(.white)
-            .frame(maxWidth: compact ? .infinity : 520)
+            .frame(maxWidth: condensed ? 420 : compact ? .infinity : 520)
             .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 4))
             .overlay { RoundedRectangle(cornerRadius: 4).stroke(BattlefieldTheme.brass.opacity(0.34), lineWidth: 0.8) }
             .overlay(alignment: .top) { Rectangle().fill(unit.faction.accentColor).frame(height: 2) }
