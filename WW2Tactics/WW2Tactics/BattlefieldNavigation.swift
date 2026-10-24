@@ -55,46 +55,7 @@ struct BattlefieldOverviewMap: View {
                 Image(systemName: "location.north.fill").font(.system(size: 9, weight: .bold))
             }
             .foregroundStyle(BattlefieldTheme.brass)
-            GeometryReader { geometry in
-                let projection = BattlefieldOverviewProjection(coordinates: tiles.map(\.coordinate), size: geometry.size)
-                Canvas { context, _ in
-                    for tile in tiles {
-                        let point = projection.point(for: tile.coordinate)
-                        let size = BattlefieldMapLayout.tileSize
-                        let rect = CGRect(x: point.x - size.width * projection.scale / 2,
-                                          y: point.y - size.height * projection.scale / 2,
-                                          width: size.width * projection.scale, height: size.height * projection.scale)
-                        context.fill(Hexagon().path(in: rect), with: .color(terrainColor(tile.terrain)))
-                        if tile.isObjective {
-                            context.fill(Path(CGRect(x: point.x - 2, y: point.y - 2, width: 4, height: 4)),
-                                         with: .color(tile.owner?.accentColor ?? BattlefieldTheme.brass))
-                        }
-                    }
-                    for unit in units where !unit.isDestroyed {
-                        let point = projection.point(for: unit.position)
-                        let marker = unit.faction == .allies
-                            ? Path(ellipseIn: CGRect(x: point.x - 1.8, y: point.y - 1.8, width: 3.6, height: 3.6))
-                            : Path { path in
-                                path.move(to: CGPoint(x: point.x, y: point.y - 2.5))
-                                path.addLines([CGPoint(x: point.x + 2.5, y: point.y),
-                                               CGPoint(x: point.x, y: point.y + 2.5),
-                                               CGPoint(x: point.x - 2.5, y: point.y)])
-                                path.closeSubpath()
-                            }
-                        context.fill(marker, with: .color(unit.faction.accentColor))
-                        context.stroke(marker, with: .color(.black.opacity(0.65)), lineWidth: 0.5)
-                    }
-                    if let focusedCoordinate {
-                        let point = projection.point(for: focusedCoordinate)
-                        context.stroke(Path(CGRect(x: point.x - 4, y: point.y - 4, width: 8, height: 8)),
-                                       with: .color(.white), lineWidth: 1)
-                    }
-                }
-                .contentShape(Rectangle())
-                .gesture(SpatialTapGesture().onEnded { value in
-                    if let coordinate = projection.coordinate(at: value.location) { onFocus(coordinate) }
-                })
-            }
+            BattlefieldOverviewSurface(tiles: tiles, units: units, focusedCoordinate: focusedCoordinate, onFocus: onFocus)
             .frame(height: 74)
             .background(Color.black.opacity(0.20))
             HStack(spacing: 10) {
@@ -117,6 +78,67 @@ struct BattlefieldOverviewMap: View {
         .accessibilityHint("双击返回交战前线；总览只定位，不执行指令")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(onFrontline)
+    }
+}
+
+private struct BattlefieldOverviewSurface: View {
+    let tiles: [TerrainTile]
+    let units: [BattleUnit]
+    let focusedCoordinate: HexCoordinate?
+    let onFocus: (HexCoordinate) -> Void
+
+    var body: some View {
+        GeometryReader { geometry in
+            let projection = BattlefieldOverviewProjection(coordinates: tiles.map(\.coordinate), size: geometry.size)
+            Canvas { context, _ in
+                drawTerrain(context: &context, projection: projection)
+                drawUnits(context: &context, projection: projection)
+                if let focusedCoordinate {
+                    let point = projection.point(for: focusedCoordinate)
+                    let focusRect = CGRect(x: point.x - 4, y: point.y - 4, width: 8, height: 8)
+                    context.stroke(Path(focusRect), with: .color(.white), lineWidth: 1)
+                }
+            }
+            .contentShape(Rectangle())
+            .gesture(SpatialTapGesture().onEnded { value in
+                if let coordinate = projection.coordinate(at: value.location) { onFocus(coordinate) }
+            })
+        }
+    }
+
+    private func drawTerrain(context: inout GraphicsContext, projection: BattlefieldOverviewProjection) {
+        let width = BattlefieldMapLayout.tileSize.width * projection.scale
+        let height = BattlefieldMapLayout.tileSize.height * projection.scale
+        for tile in tiles {
+            let point = projection.point(for: tile.coordinate)
+            let rect = CGRect(x: point.x - width / 2, y: point.y - height / 2, width: width, height: height)
+            context.fill(Hexagon().path(in: rect), with: .color(terrainColor(tile.terrain)))
+            if tile.isObjective {
+                let objectiveRect = CGRect(x: point.x - 2, y: point.y - 2, width: 4, height: 4)
+                context.fill(Path(objectiveRect), with: .color(tile.owner?.accentColor ?? BattlefieldTheme.brass))
+            }
+        }
+    }
+
+    private func drawUnits(context: inout GraphicsContext, projection: BattlefieldOverviewProjection) {
+        for unit in units where !unit.isDestroyed {
+            let marker = unitMarker(at: projection.point(for: unit.position), faction: unit.faction)
+            context.fill(marker, with: .color(unit.faction.accentColor))
+            context.stroke(marker, with: .color(.black.opacity(0.65)), lineWidth: 0.5)
+        }
+    }
+
+    private func unitMarker(at point: CGPoint, faction: Faction) -> Path {
+        if faction == .allies {
+            return Path(ellipseIn: CGRect(x: point.x - 1.8, y: point.y - 1.8, width: 3.6, height: 3.6))
+        }
+        var marker = Path()
+        marker.move(to: CGPoint(x: point.x, y: point.y - 2.5))
+        marker.addLine(to: CGPoint(x: point.x + 2.5, y: point.y))
+        marker.addLine(to: CGPoint(x: point.x, y: point.y + 2.5))
+        marker.addLine(to: CGPoint(x: point.x - 2.5, y: point.y))
+        marker.closeSubpath()
+        return marker
     }
 
     private func terrainColor(_ terrain: TerrainKind) -> Color {
