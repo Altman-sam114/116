@@ -8,8 +8,8 @@ struct TopCommandBar: View {
         GeometryReader { proxy in
             let compact = proxy.size.width < 600
             HStack(spacing: compact ? 8 : 18) {
-                CampaignPicker(condensed: condensed)
-                    .frame(maxWidth: compact ? 120 : 200)
+                CampaignPicker(condensed: condensed, compact: compact)
+                    .frame(maxWidth: compact ? 126 : 200)
                 if !compact {
                     Rectangle().fill(BattlefieldTheme.brass.opacity(0.35)).frame(width: 1, height: 30)
                 }
@@ -50,6 +50,7 @@ struct TopCommandBar: View {
 struct CampaignPicker: View {
     @EnvironmentObject private var game: GameState
     var condensed = false
+    var compact = false
 
     var body: some View {
         Menu {
@@ -66,13 +67,14 @@ struct CampaignPicker: View {
             }
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: "map.fill").foregroundStyle(BattlefieldTheme.brass)
+                if !compact { Image(systemName: "map.fill").foregroundStyle(BattlefieldTheme.brass) }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(game.scenario.name)
                         .font(.system(size: 15, weight: .bold))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.90)
                     if !condensed {
-                        Text("\(game.scenario.year)  /  WESTERN FRONT")
+                        Text(compact ? "\(game.scenario.year) / HEX" : "\(game.scenario.year)  /  WESTERN FRONT")
                             .font(.system(size: 8, weight: .bold, design: .serif))
                             .tracking(1.2)
                             .foregroundStyle(BattlefieldTheme.brass)
@@ -108,6 +110,7 @@ struct EndTurnButton: View {
         }
         .buttonStyle(.plain)
         .disabled(game.winner != nil)
+        .accessibilityIdentifier("battlefield-end-turn")
         .accessibilityHint("结束当前阵营行动并推进战局")
     }
 }

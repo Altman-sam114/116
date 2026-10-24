@@ -1,11 +1,13 @@
 """Cloud-only XCTest and six-scene visual evidence, with bounded commands."""
 
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -15,7 +17,8 @@ ROOT = Path("ci-results")
 WRAPPER = Path(__file__).with_name("run_with_timeout.py")
 BUNDLE_ID = "com.easytech.prototype.WW2Tactics"
 REPORT = {"testOutcome": "skipped", "testCount": 0, "testFailures": 0,
-          "testSkipped": 0, "screenshots": [], "screenshotOutcome": "failure"}
+          "testSkipped": 0, "screenshots": [], "screenshotOutcome": "failure",
+          "uiTestOutcome": "failure", "visualTests": []}
 
 
 def run(command, log, seconds=120, capture=False):
@@ -65,7 +68,8 @@ def xctest(device, log):
     command = ["xcodebuild", "-project", "WW2Tactics/WW2Tactics.xcodeproj", "-scheme", "WW2Tactics",
                "-configuration", "Debug", "-destination", REPORT["testDestination"],
                "-derivedDataPath", os.environ["DERIVED_DATA"], "-resultBundlePath", "ci-results/WW2Tactics-tests.xcresult",
-               "-parallel-testing-enabled", "NO", "test-without-building", "CODE_SIGNING_ALLOWED=NO"]
+               "-parallel-testing-enabled", "NO", "-only-testing:WW2TacticsTests",
+               "test-without-building", "CODE_SIGNING_ALLOWED=NO"]
     REPORT["testCommand"] = shlex.join(command)
     REPORT["testStartedAt"] = time.time()
     result = run(command, log, seconds=900)
@@ -87,15 +91,13 @@ def xctest(device, log):
         REPORT["testOutcome"] = "success"
 
 
-def screenshot(category, device, scenario, log, orientation="portrait"):
-    suffix = "" if orientation == "portrait" else "-landscape"
-    path = ROOT / f"battlefield-{category}-{scenario}{suffix}.png"
+def screenshot(category, device, scenario, log):
+    orientation = "portrait"
+    path = ROOT / f"battlefield-{category}-{scenario}.png"
     record = {"category": category, "device": device[2], "udid": device[3], "runtime": device[4],
               "requestedOrientation": orientation, "scenario": scenario, "path": str(path), "outcome": "failure"}
     REPORT["screenshots"].append(record)
     arguments = [] if scenario == "default" else ["--ci-selected-combat-impact-steady"]
-    if orientation == "landscape":
-        arguments.append("--ci-landscape")
     result = run(["xcrun", "simctl", "launch", "--terminate-running-process", device[3], BUNDLE_ID, *arguments], log, seconds=90)
     if result.returncode:
         return
@@ -130,6 +132,90 @@ def screenshot(category, device, scenario, log, orientation="portrait"):
     run(["xcrun", "simctl", "terminate", device[3], BUNDLE_ID], log, seconds=30)
 
 
+def json_objects(value):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from json_objects(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from json_objects(child)
+
+
+def landscape_evidence(category, device, inspector_ready):
+    bundle = ROOT / f"WW2Tactics-{category}-ui.xcresult"
+    test = {"category": category, "outcome": "failure", "resultBundlePath": str(bundle)}
+    REPORT["visualTests"].append(test)
+    path = ROOT / f"battlefield-{category}-selected-combat-impact-steady-landscape.png"
+    image = {"category": category, "device": device[2], "udid": device[3], "runtime": device[4],
+             "requestedOrientation": "landscape", "scenario": "selected-combat-impact-steady",
+             "source": "XCUITest original attachment", "path": str(path), "outcome": "failure"}
+    REPORT["screenshots"].append(image)
+    with (ROOT / "landscape-ui-tests.log").open("a") as log:
+        command = ["xcodebuild", "-project", "WW2Tactics/WW2Tactics.xcodeproj", "-scheme", "WW2Tactics",
+                   "-configuration", "Debug", "-destination", f"platform=iOS Simulator,id={device[3]}",
+                   "-derivedDataPath", os.environ["DERIVED_DATA"], "-resultBundlePath", str(bundle),
+                   "-parallel-testing-enabled", "NO", "-only-testing:WW2TacticsVisualUITests",
+                   "test-without-building", "CODE_SIGNING_ALLOWED=NO"]
+        test["command"] = shlex.join(command)
+        test["startedAt"] = time.time()
+        result = run(command, log, seconds=420)
+        test["finishedAt"] = time.time()
+        test["exitCode"] = result.returncode
+        summary = run(["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", str(bundle)], log, capture=True)
+        if summary.returncode:
+            return
+        data = json.loads(summary.stdout)
+        (ROOT / f"{category}-ui-summary.json").write_text(json.dumps(data, indent=2) + "\n")
+        test.update({"testCount": data.get("totalTestCount", 0), "failures": data.get("failedTests", 0),
+                     "skipped": data.get("skippedTests", 0)})
+        if result.returncode or test["testCount"] != 1 or test["failures"] or test["skipped"]:
+            return
+        test["outcome"] = "success"
+        exports = ROOT / f"{category}-ui-attachments"
+        export = run(["xcrun", "xcresulttool", "export", "attachments", "--path", str(bundle),
+                      "--output-path", str(exports)], log, seconds=90)
+        if export.returncode or not inspector_ready:
+            return
+        manifest = exports / "manifest.json"
+        if not manifest.exists():
+            image["error"] = "XCTest attachment manifest is missing"
+            return
+        attachments = []
+        for item in json_objects(json.loads(manifest.read_text())):
+            label = item.get("suggestedHumanReadableName", item.get("name", ""))
+            filename = item.get("exportedFileName", item.get("fileName", ""))
+            if "battlefield-landscape-" in label and filename:
+                candidate = (exports / filename).resolve()
+                if candidate.is_relative_to(exports.resolve()) and candidate.is_file():
+                    attachments.append((label, candidate))
+        if len(attachments) != 2:
+            image["error"] = f"Expected two explicitly named original attachments, got {len(attachments)}"
+            log.write(manifest.read_text()[:12000])
+            return
+        image["frames"] = []
+        for label, original in sorted(attachments):
+            inspection = run([str(ROOT / "inspect-screenshot"), str(original)], log, capture=True, seconds=30)
+            frame = json.loads(inspection.stdout) if inspection.stdout else {}
+            frame.update({"attachmentName": label, "bytes": original.stat().st_size,
+                          "sha256": hashlib.sha256(original.read_bytes()).hexdigest()})
+            image["frames"].append(frame)
+            if inspection.returncode or frame.get("orientation") != "landscape" or frame["bytes"] < 500000:
+                image["error"] = "Original landscape frame failed orientation, readability, size or system overlay gate"
+                return
+            image.update(frame)
+        # Preserve the original bytes. No crop, resize, orientation transform or notification retouch.
+        shutil.copyfile(sorted(attachments)[-1][1], path)
+        image["captureAttempt"] = 2
+        image["outcome"] = "success"
+
+
+def boot_category(item):
+    category, device = item
+    with (ROOT / f"boot-{category}.log").open("w") as log:
+        boot(device, log)
+
+
 def main():
     selected = {}
     try:
@@ -141,9 +227,11 @@ def main():
             selected = devices()
             if set(selected) != {"ipad", "iphone"}:
                 raise RuntimeError("runner must provide existing iPad and iPhone simulators")
+            # Migration dominates fresh cloud runners; boot the two existing devices concurrently.
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                list(pool.map(boot_category, selected.items()))
             for category in ("ipad", "iphone"):
                 device = selected[category]
-                boot(device, log)
                 if category == "ipad":
                     with (ROOT / "xctest.log").open("w") as test_log:
                         xctest(device, test_log)
@@ -153,12 +241,14 @@ def main():
                 if inspector_ready:
                     screenshot(category, device, "default", log)
                     screenshot(category, device, "selected-combat-impact-steady", log)
-                    screenshot(category, device, "selected-combat-impact-steady", log, orientation="landscape")
                 else:
                     REPORT["error"] = "screenshot inspector did not compile; XCTest still executed independently"
+                landscape_evidence(category, device, inspector_ready)
                 run(["xcrun", "simctl", "shutdown", device[3]], log, seconds=45)
             if len(REPORT["screenshots"]) == 6 and all(item["outcome"] == "success" for item in REPORT["screenshots"]):
                 REPORT["screenshotOutcome"] = "success"
+            if len(REPORT["visualTests"]) == 2 and all(item["outcome"] == "success" for item in REPORT["visualTests"]):
+                REPORT["uiTestOutcome"] = "success"
     except Exception as error:
         REPORT["error"] = str(error)
         print(f"Cloud simulator stage failed: {error}", flush=True)
@@ -174,6 +264,7 @@ def main():
         with open(os.environ["GITHUB_ENV"], "a") as env:
             env.write(f"TEST_STATUS={0 if REPORT['testOutcome'] == 'success' else 1}\n")
             env.write(f"SCREENSHOT_STATUS={0 if REPORT['screenshotOutcome'] == 'success' else 1}\n")
+            env.write(f"UI_TEST_STATUS={0 if REPORT['uiTestOutcome'] == 'success' else 1}\n")
 
 
 if __name__ == "__main__":

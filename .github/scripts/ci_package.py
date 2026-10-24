@@ -18,6 +18,7 @@ stages = [
     ("rules-smoke", "SMOKE_STATUS", "rules-smoke.log"),
     ("xcode-build-for-testing", "BUILD_STATUS", "xcodebuild.log"),
     ("xctest-execution", "TEST_STATUS", "xctest.log"),
+    ("landscape-ui-tests", "UI_TEST_STATUS", "landscape-ui-tests.log"),
     ("six-battlefield-screenshots", "SCREENSHOT_STATUS", "battlefield-screenshot.log"),
 ]
 outcomes = {name: "success" if os.environ.get(key, "1") == "0" else "failure" for name, key, _ in stages}
@@ -55,6 +56,9 @@ if simulator.get("error"):
 for image in simulator.get("screenshots", []):
     lines.append(f"- {image['path']}: {image['outcome']}, {image.get('width')}x{image.get('height')}, "
                  f"{image.get('bytes', 0)} bytes, luminance {image.get('meanLuminance')}")
+for test in simulator.get("visualTests", []):
+    lines.append(f"- {test['category']} landscape UI test: {test['outcome']}, {test.get('testCount', 0)} actual, "
+                 f"{test.get('failures', 0)} failed, {test.get('skipped', 0)} skipped")
 (root / "ci-failure-summary.md").write_text("\n".join(lines) + "\n")
 suites = ET.Element("testsuites")
 suite = ET.SubElement(suites, "testsuite", name="CI stages (not XCTest cases)", tests=str(len(stages)),
@@ -87,5 +91,14 @@ if tree_path.exists():
             ET.SubElement(case, "failure", message="See XCTest result bundle")
         elif item.get("result") == "Skipped":
             ET.SubElement(case, "skipped")
+visual = simulator.get("visualTests", [])
+if visual:
+    ui = ET.SubElement(suites, "testsuite", name="Actual landscape UI tests", tests=str(sum(t.get("testCount", 0) for t in visual)),
+                       failures=str(sum(t.get("failures", 0) for t in visual)), errors="0", skipped=str(sum(t.get("skipped", 0) for t in visual)))
+    for test in visual:
+        if test.get("testCount", 0):
+            case = ET.SubElement(ui, "testcase", classname="BattlefieldVisualTests", name=f"{test['category']}/testLandscapeBattlefieldAndInspector")
+            if test.get("outcome") != "success":
+                ET.SubElement(case, "failure", message="See landscape-ui-tests.log and UI result bundle")
 ET.indent(suites, space="  ")
 ET.ElementTree(suites).write(root / "junit.xml", encoding="utf-8", xml_declaration=True)

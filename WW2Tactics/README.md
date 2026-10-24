@@ -1,6 +1,6 @@
 # WW2Tactics — 二战六角战棋
 
-原生 SwiftUI iOS 回合制战棋原型。v3.2 延续战争沙盘全面重构：原创具象军械、疏密林地、连续水岸和桥梁、六角战术叠层与短横屏指挥界面。视觉方向来自前轮实看的《将军的荣耀3》公开游戏画面；本轮再次百度搜索遇安全验证码，公开相册返回 403，不绕过、不宣称重新看到参考。不包含 EasyTech 图片、模型、商标、肖像或第三方库。
+原生 SwiftUI iOS 回合制战棋原型。v3.2 延续战争沙盘全面重构：原创具象军械、疏密林地、连续水岸和桥梁、六角战术叠层与短横屏指挥界面。本轮按要求百度搜索《将军的荣耀3》遇验证码，公开相册 403；没有绕过，随后通过 Apple 官方商店 API 实看该游戏冬季、夏季与横屏公开截图，仅对照风格，不保存或打包商业素材。官方来源：<https://apps.apple.com/us/app/glory-of-generals-3-ww2/id1535759278>。不包含 EasyTech 图片、模型、商标、肖像或第三方库。
 
 ## 战场
 
@@ -37,12 +37,12 @@ Xcode 工程：`WW2Tactics.xcodeproj`；共享 scheme：`WW2Tactics`；iOS 17+�
 
 ## 云端验证
 
-`WW2Tactics CI Results` 执行：静态检查、规则 smoke、Xcode build-for-testing、全部真实 XCTest，以及同一 SHA 的六张 PNG：保留 iPad/iPhone 各默认态与真实战果态的四张竖屏，增加两设备各一张横屏战果。默认态无预置战斗；战果态由公开操作生成，不写假伤害。DEBUG 云端参数用 iOS scene geometry API 请求真实横屏，不旋转 PNG 伪造运行。
+`WW2Tactics CI Results` 执行：静态检查、规则 smoke、Xcode build-for-testing、147 项真实规则/表现 XCTest，及两设备各 1 项真实横屏 UI 测试；同一 SHA 六图包含原四张竖屏和两张横屏战果。横屏由 XCUITest 的 XCUIDevice 旋转，验证结束回合按钮可点、M10 可见、情报抽屉真正开合，再导出两个相隔一秒的原始 app screenshot 附件；不旋转 PNG、不在 app 加强制方向钩子。默认态不预置战斗，战果用公开操作生成，不写假伤害。
 
-每图检查尺寸、≥500 KB、战场亮度/可读比例、请求方向与实际像素方向一致，Vision 识别并拒绝已知 Apple Intelligence 通知；不通过则有界重拍，不修图消除遮挡。记录 device/runtime/UDID、场景与 SHA-256；结果包包括 manifest、failure summary、独立阶段/实际 XCTest JUnit、日志、build/test xcresult 和六图，仍需逐图视觉检查。
+每图检查尺寸、≥500 KB、战场亮度/可读比例、请求方向与实际像素方向一致，Vision 拒绝已知 Apple Intelligence 通知；竖屏有界重拍、横屏两个原始附件均须通过，不修图消除遮挡。记录 device/runtime/UDID、场景与 SHA-256；结果包包含独立阶段/规则测试/UI 测试 JUnit、manifest、summary、日志、xcresult 和六图，仍需逐图视觉检查。云端两个现有模拟器并行启动以减少首启迁移等待，实际测试/截图顺序执行，不创建新设备。
 
-本轮单智能体直接实现并核对云端结果，不按 A/B/C 调度。最新已核对基线 `479ed12` / run `40056322104`：140 项真实测试通过，但 iPhone 战果图受系统通知遮挡，故保留视觉问题而非宣布完成。v3.2 增加 7 项测试，目标 147 项，以最新 SHA 的六图/Actions 包验收，不把基线当新版通过。测试规范见 `../md/test/test.md`，流程见 `../md/flow/flow.md`，历史见 `../update_log.md`。
+本轮单智能体直接实现并核对云端结果，不按 A/B/C 调度。首轮 `16d499d` / run `40077251421`：147 项真实测试通过、原四图通过；两张横屏仍为竖向像素画布，门禁正确失败，未宣称完成。现改为 XCUITest 真实旋转和取证，目标 147 项规则/表现 + 两设备各 1 项 UI 测试，以最新 SHA 六图/结果包验收。测试规范见 `../md/test/test.md`，流程见 `../md/flow/flow.md`，历史见 `../update_log.md`。
 
 ## 已知边界
 
-兵模与地貌是原创透明预渲染资源，不是商业游戏贴图或实时 3D 引擎；四款命名装备之外仍用通用模型，不宣称逐个还原所有历史型号。尚无专用 UI 自动化 target，六图与规则 XCTest 不证明触屏拖动、鼠标、VoiceOver、全部 Dynamic Type、横竖屏切换交互或全部缩放已实测；Vision 当前只识别已知系统通知，不代替人工检查。长期仍需提升美术、触控自动化、更多战役与存档，本轮不擅自扩展玩法。
+兵模与地貌是原创透明预渲染资源，不是商业游戏贴图或实时 3D 引擎；四款命名装备之外仍用通用模型。新 VisualUITests 只覆盖旋转、战果画面和情报开合，不证明地图触屏命令、鼠标、拖动、VoiceOver、全部字号或全部缩放实测；Vision 只识别已知系统通知，不代替人工检查。长期仍需提升美术、更多战役与存档，本轮不擅自扩展玩法。

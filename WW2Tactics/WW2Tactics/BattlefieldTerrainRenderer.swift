@@ -197,7 +197,6 @@ struct BattlefieldTerrainRenderer: View {
         context.fill(water, with: .linearGradient(
             Gradient(colors: [Color(red: 0.32, green: 0.48, blue: 0.47), Color(red: 0.19, green: 0.34, blue: 0.36)]),
             startPoint: .zero, endPoint: CGPoint(x: layout.size.width, y: layout.size.height)))
-        context.stroke(water, with: .color(Color(red: 0.67, green: 0.70, blue: 0.54).opacity(0.36)), lineWidth: 0.65)
         for ribbon in geometry.ribbons {
             for fraction in [CGFloat(0.28), 0.57, 0.82] {
                 let center = ribbon.point(at: fraction)

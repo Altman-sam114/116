@@ -8,7 +8,7 @@
 
 - `GameModels.swift`：阵营、兵种、地形、轴向坐标、战役、单位、规则预览与结果值。
 - `GameState.swift`：选择、焦点、移动、攻击、反击、AI、补给、士气、据点、命令点、增援、胜负、规划、态势与回放。`mapActionHints()` 在一次只读快照中共享移动路线搜索；单格与批量调用同一判定函数，不建立跨回合缓存。`movementRoutes` 在单次查询内建立地格/存活单位/敌 ZOC 快照；索引推进保留原 FIFO 顺序，成本与 tie-break 不变，独立旧搜索 oracle 逐路线对比。
-- `ContentView.swift`：顶部战役带、全幅战场和本地情报展开状态；宽屏右缘/窄屏底部情报可关闭；隐藏系统状态栏和非必要系统覆盖。DEBUG 云端参数经公开 scene geometry API 请求横屏，不修改规则或截图像素。
+- `ContentView.swift`：顶部战役带、全幅战场和本地情报展开状态；宽屏右缘/窄屏底部情报可关闭，隐藏系统状态栏和非必要系统覆盖。没有强制方向或截图专属布局；云端横屏由独立 XCUITest 驱动设备旋转。
 - `BattlefieldCommandDeck.swift`：地图编排、缩放/重开、前线镜头、右上工具组、战况通讯条、编队/据点与支援开关。支援和定位轨道默认收起。`BattlefieldCampaignBar.swift` 管 60pt 战役菜单/资源/结束回合，`BattlefieldActionHUD.swift` 管单一选中单位动作坞，均只调用既有规则入口。
 - `BattlefieldNavigation.swift`：共用六角布局的小地图正反投影；显示真实地貌、AL 圆点/AX 菱形/据点与焦点。宽屏默认展开，点按须落在真实六角内部，只调用 `focus(coordinate:)`；空白不吸附远格。小地图白框是焦点，不伪造当前视口。
 - `BattlefieldChrome.swift`：AL/OBJ/AX 全量横向定位轨道、焦点滚动、紧凑行动标记和共用 HUD 小组件。
@@ -57,11 +57,11 @@ center = rawCenter + 统一 offset
 
 ## 云端验证与验收
 
-人工要求不做本地测试；本地只 Git/text 审查及原创资源原图读取。`main` push → static（diff/plist/YAML/Python/timeout 契约）→ Rules smoke → Xcode build-for-testing → 已有云端 iPad 真正运行全部 XCTest → 原四张竖屏 + 两设备横屏战果共六图 → always 结果包 → 当前单智能体下载 exact 最新 artifact 并逐图核对。v3.2 在原 140 项之上增加 7 项军械/基础设施/地貌/视口测试，目标 147 项，不削减旧集合。
+人工要求不做本地测试；本地只 Git/text 审查及原创资源原图读取。`main` push → static（diff/plist/YAML/Python/timeout 契约）→ Rules smoke → Xcode build-for-testing → 两个已有云端设备并行 boot → iPad 147 项 unit/表现测试 → 原四张竖屏 + 两设备各 1 项真实横屏 UI 测试及原始附件共六图 → always 结果包 → 单智能体下载 exact 最新 artifact 并逐图核对。新增 7 项测试保留原 140 项；unit 与 UI 命令用 only-testing 明确隔离，不能拿阶段数冒充测试数。
 
-六图均记录 device/UDID/runtime、场景、requestedOrientation/实际 orientation、尺寸、bytes、SHA-256、亮度与可读比例。保留至少 500 KB、中央平均亮度 ≥45/255、≥45% 采样点亮度 ≥55、连续两帧和最多 8 次重试；方向必须一致，Vision OCR 拒绝顶部已知 Apple Intelligence 通知，不修图消除遮挡。大小/采样/OCR 都不能替代逐图检查。
+六图记录 device/UDID/runtime、场景、请求/实际方向、尺寸、bytes、SHA-256、亮度与可读比例。竖屏保留 ≥500 KB、中央 mean ≥45/255、≥45% 采样点亮度 ≥55、连续两帧、最多 8 次重拍；横屏 XCTest 验证 frame/结束回合按钮/M10/情报抽屉开合，再导出相隔一秒的两个命名原始 app screenshot，两帧均经过相同大小/亮度/方向/Vision 门禁。导出只按 attachment manifest 身份取原字节，不旋转/裁图/修通知。OCR 只拒绝已知 Apple Intelligence 通知，仍需逐图检查。
 
-资源门禁校验六 PNG 随包解码、固定格位、20 sprite 透明度/可见主体、静态复用和 24 MB 预算；结果包另存各资源字节与 SHA-256。manifest 分开记录 build、真实 test outcome/count/failure/skipped/result bundle 与六图，JUnit 阶段/真实 suite 分离。没有 UI test target：触屏/鼠标/拖动/VoiceOver/全字号/横竖屏切换交互/Reduce Motion 没有运行证据时不宣称实测。
+资源门禁校验六 PNG 随包解码、固定格位、20 sprite 透明度/可见主体、静态复用和 24 MB 预算。manifest/summary/JUnit 分开记录六阶段、147 unit、两设备各 1 UI 和六图；保留各 UI summary、日志与 xcresult。新 VisualUITests 仅覆盖明确旋转/控件/抽屉路径，不把地图触屏命令、鼠标、拖动、VoiceOver、全字号或 Reduce Motion 源码审查冒充实测。
 
 ## 本轮直接迭代
 

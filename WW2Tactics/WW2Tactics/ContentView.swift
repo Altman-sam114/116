@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct ContentView: View {
     @State private var isInspectorExpanded = false
@@ -22,9 +21,6 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
-        #if DEBUG
-        .background(CloudOrientationRequest().frame(width: 0, height: 0))
-        #endif
     }
 
     @ViewBuilder private func inspector(isRegular: Bool, height: CGFloat) -> some View {
@@ -63,27 +59,3 @@ struct ContentView: View {
     }
 }
 
-#if DEBUG
-/// Ask iOS for a real landscape scene in cloud evidence; never rotate screenshot pixels.
-private struct CloudOrientationRequest: UIViewRepresentable {
-    func makeUIView(context: Context) -> OrientationView { OrientationView() }
-    func updateUIView(_ uiView: OrientationView, context: Context) {}
-
-    final class OrientationView: UIView {
-        private var didRequest = false
-
-        override func didMoveToWindow() {
-            super.didMoveToWindow()
-            guard !didRequest, CommandLine.arguments.contains("--ci-landscape"),
-                  let scene = window?.windowScene else { return }
-            didRequest = true
-            DispatchQueue.main.async {
-                scene.windows.first?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
-                scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight)) { error in
-                    print("Cloud landscape request failed: \(error.localizedDescription)")
-                }
-            }
-        }
-    }
-}
-#endif

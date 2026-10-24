@@ -68,7 +68,10 @@ flowchart TD
     Static --> Smoke[RulesSmokeTest]
     Smoke --> Build[Xcode build-for-testing]
     Build --> XCTest[云端 iPad 全部 XCTest / 原 140 项加 7 项 / 不跳过]
-    XCTest --> Six[同 SHA 原四张竖屏加两设备真实横屏战果 / 六图]
+    Build --> Boot[两个既有云端设备并行首启 / 不创建设备]
+    Boot --> XCTest
+    XCTest --> UI[两设备各 1 项 XCUITest / 真实旋转 / 结束回合命中 / 情报开合]
+    UI --> Six[同 SHA 原四竖屏加两设备两帧命名原始附件 / 六张最终图]
     Six --> Gates[尺寸 / 500 KB / 亮度 / 方向一致 / Vision 拒绝已知系统通知 / 有界重试]
     Gates --> Package[always manifest + JUnit + logs + xcresult + PNG]
     Package --> Download[同一 X 下载 exact 最新 commit / run / attempt artifact]
@@ -80,4 +83,4 @@ flowchart TD
     Decision -->|停止条件| Stop[暂停并请求必要人工决策]
 ```
 
-JUnit 阶段数不冒充 XCTest 数，六图不证明触屏、旋转交互、VoiceOver 或全部设备实测。桥梁/命名军械/地貌都不改变规则；横屏由公开 scene API 请求，不旋转像素造证据。失败也产包，不回滚远端，只追加修复。本轮取消 A/B/C 串行，无子智能体，所有重验证云端。
+JUnit 分开六阶段、147 unit 与两设备各 1 UI。UI 证据只覆盖明确的旋转/控件/抽屉路径，不证明地图触屏命令、鼠标拖动、VoiceOver 或全字号。桥梁/命名军械/地貌不改变规则；横屏由 XCUITest 旋转设备，原附件不转像素/修通知。失败也产包，不回滚远端，只追加修复；本轮无 A/B/C 调度、无子智能体，所有重验证云端。

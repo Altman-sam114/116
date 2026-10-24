@@ -7,6 +7,9 @@
       buildImplicitDependencies = "YES"
       buildArchitectures = "Automatic">
       <BuildActionEntries>
+         <BuildActionEntry buildForTesting = "YES" buildForRunning = "NO" buildForProfiling = "NO" buildForArchiving = "NO" buildForAnalyzing = "YES">
+            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "A32100000000000000000050" BuildableName = "WW2TacticsVisualUITests.xctest" BlueprintName = "WW2TacticsVisualUITests" ReferencedContainer = "container:WW2Tactics.xcodeproj" />
+         </BuildActionEntry>
          <BuildActionEntry
             buildForTesting = "YES"
             buildForRunning = "YES"
@@ -43,6 +46,9 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
+         <TestableReference skipped = "NO" parallelizable = "NO">
+            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "A32100000000000000000050" BuildableName = "WW2TacticsVisualUITests.xctest" BlueprintName = "WW2TacticsVisualUITests" ReferencedContainer = "container:WW2Tactics.xcodeproj" />
+         </TestableReference>
          <TestableReference
             skipped = "NO"
             parallelizable = "YES">

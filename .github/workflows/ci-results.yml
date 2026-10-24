@@ -123,7 +123,7 @@ jobs:
             echo "BUILD_STATUS=$build_status"
           } >> "$GITHUB_ENV"
 
-      - name: Execute XCTest and capture six battlefield scenes
+      - name: Execute unit and landscape UI tests and capture six battlefield scenes
         if: always()
         shell: bash
         run: python3 .github/scripts/ci_simulator.py
@@ -152,6 +152,6 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [[ "${STATIC_STATUS:-1}" != "0" || "${SMOKE_STATUS:-1}" != "0" || "${BUILD_STATUS:-1}" != "0" || "${SCREENSHOT_STATUS:-1}" != "0" || "${TEST_STATUS:-1}" != "0" ]]; then
+          if [[ "${STATIC_STATUS:-1}" != "0" || "${SMOKE_STATUS:-1}" != "0" || "${BUILD_STATUS:-1}" != "0" || "${SCREENSHOT_STATUS:-1}" != "0" || "${TEST_STATUS:-1}" != "0" || "${UI_TEST_STATUS:-1}" != "0" ]]; then
             exit 1
           fi

@@ -4,7 +4,11 @@
 
 v3.2 保留全部 140 项，新增 7 项：命名军械与兵种边界、错误阵营/兵种回退、城镇河道相对邻接、真实两岸桥梁、城镇街道成对连接和 canonical 保留、地貌确定性/多样性、短横屏视口分档。目标实际 XCTest 147 项（116 规则 + 31 表现/资源/导航），不以源计数代替实际运行。原资源测试扩展为六 PNG/20 sprite，预算仍 24,000,000 bytes。
 
-云端 static / Rules smoke / build-for-testing / actual XCTest 门禁保持；截图阶段改为 `six-battlefield-screenshots`：原四张竖屏保留，新增 `battlefield-ipad-selected-combat-impact-steady-landscape.png`、`battlefield-iphone-selected-combat-impact-steady-landscape.png`。DEBUG 启动参数 `--ci-landscape` 用公开 UIWindowScene geometry API 请求真实横屏；元数据记录 requestedOrientation 和实际 orientation，只有一致才成功，禁止旋转 PNG 冒充。Vision OCR 检查顶部已知系统通知，命中则有界重拍；亮度/≥500 KB/连续两帧/8 次上限不减。六图不替代触屏、旋转交互、VoiceOver 和全字号实测。
+首轮 `16d499de0a3dc06fa4b632f3054154aaa85f9414` / run `40077251421` / attempt `1` failure。已下载 exact artifact `ww2tactics-ci-v3.2-main-16d499d-run40077251421-attempt1`（id `12553689900`，49,447,636 bytes，digest `sha256:306d453ffcfcc77ded0df516bed7a036f73289af20489b972a1dea785c1e249c`）到 `/private/tmp/ww2tactics-c-review-40077251421/`。static/smoke/build 成功，147 actual / 0 failed / 0 skipped，四张竖屏成功且无已知系统通知；横屏像素仍竖向，故六图阶段失败。iPhone 图实看为横界面侧躺在竖向设备画布，iPad 请求未生效；不能旋转 PNG 修饰通过。规则测试实际约 3 秒，整 run 17m2s 主要为首启迁移、截图等待/方向失败重拍，不归咎规则性能。
+
+纠正：新增 `WW2TacticsVisualUITests`，主 unit 命令明确 `-only-testing:WW2TacticsTests` 保留 147 actual；两设备分别 `-only-testing:WW2TacticsVisualUITests` 各跑 1 项真实 UI 测试，用 XCUIDevice 旋转、验证横向 frame、结束回合可点、M10 可见与情报开合，并保留相隔一秒的两个命名原始 app screenshot 附件。云端 `xcresulttool export attachments` 只按 manifest 明确名字取图，原字节复制，不旋转/裁剪/消除通知；两帧都经 ≥500 KB/亮度/Vision/实际方向门禁。新增独立 `landscape-ui-tests` 阶段、UI summary/result bundle 与 JUnit suite，CI 阶段/147 unit/2 UI 分开计数。原四图与 8 次有界重拍不减。云端只并行 boot 两个现有设备减首启等待，不并发测试、不创建设备。app 的 DEBUG 强制方向钩子移除。
+
+剩余：新 UI 用例不证明地图触屏命令、鼠标/拖拽、VoiceOver、全字号或全部缩放；以纠正 SHA 的云端真实结果为准。
 
 本地只 Git/text 范围审查与原创源图元数据/alpha 读取及复制，没有运行项目测试、diff --check、plist/YAML/Python 语法测试、Swift/Xcode/模拟器/app 截图；所有门禁由 push 后最新 SHA 的云端结果决定，不预填通过。
 

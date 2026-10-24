@@ -31,6 +31,12 @@
 
 本地只 Git/text 编辑和范围审查、生成图原文件元数据/alpha 读取与复制，未运行任何项目测试、编译或模拟器。README、flow、flowchart、test、prompt 与 art 记录同步；无关未跟踪 v2.56 prompt 保留不提交。待 main 提交/push 后以 exact 最新包核对，不预填 commit/run/通过。触屏/VoiceOver/全部字号与旋转交互仍非本轮截图证据。
 
+首轮已下载核对 `16d499de0a3dc06fa4b632f3054154aaa85f9414` / run `40077251421` / attempt `1` failure；exact artifact `ww2tactics-ci-v3.2-main-16d499d-run40077251421-attempt1`（id `12553689900`，49,447,636 bytes，digest `sha256:306d453ffcfcc77ded0df516bed7a036f73289af20489b972a1dea785c1e249c`）在 `/private/tmp/ww2tactics-c-review-40077251421/`。static/smoke/build、147 actual tests（0 failed/0 skipped）及四竖屏成功；横屏接口请求没有改变设备截图画布，两图失败，iPhone 实图侧躺，门禁正确拒绝。整 run 17m2s，147 测试本体约 3 秒，主要等待首启迁移/截图，不虚称规则慢。
+
+针对根因新增 VisualUITests：XCUIDevice 真实旋转、检查宽高、结束回合命中、M10 和情报开合，各设备执行 1 项、导出两帧命名原始截图；147 unit 与 2 UI 分开计数，新增独立 UI 阶段/JUnit/summary/xcresult。移除 app 强制方向钩子，不旋转或修饰 PNG；并行启动两个既有云端设备降低迁移等待，实际测试顺序执行。同时修手机战役名/英文副标题截断，移除逐河段内部描边。等待追加纠正 SHA 全套云端结果，不把首轮部分成功当验收。
+
+在等待首轮 CI 时，通过 Apple 官方商店 API 成功定位并实际查看 `Glory of Generals 3: WW2`（id `1535759278`）的冬季、夏季和横屏战场公开截图，来源 <https://apps.apple.com/us/app/glory-of-generals-3-ww2/id1535759278>。只经原始 URL 查看，未将商业媒体保存入库或作为生成输入；这是百度验证码后的合法公开替代来源，补足本轮实看参考，而不是绕过百度验证。
+
 ### v3.1 / 连续战区、前线导航与界面领域拆分（待本轮云端验收）
 
 日期：2026-10-24（Asia/Taipei）。按人工最新指令由 Agent X 单智能体直接推进，无 A/B/C 调度、无本地项目测试。开始时已存在相关 v3.1 草稿与 UI 改动，在其上继续实现，不回滚；无关未跟踪 v2.56 prompt 保持原样并排除提交。
