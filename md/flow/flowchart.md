@@ -71,10 +71,10 @@ flowchart TD
     Build --> XCTest[云端全部 XCTest / 原 147 项加 5 项 / 不跳过]
     Build --> Boot[两个既有云端设备串行首启 / 同设备一次有界恢复 / 不创建设备]
     Boot --> XCTest
-    XCTest --> UI[两设备各 1 项 XCUITest / 启动后旋转与原始屏幕像素断言 / 情报与抽屉开合 / 移动及回合]
+    XCTest --> UI[两设备各 1 项 XCUITest / 启动后旋转与原生方向解读 / 情报与抽屉开合 / 移动及回合]
     UI --> Six[同 SHA 原四竖屏加两设备两帧命名原始附件 / 六张最终图]
     UI --> Diagnostics[成功失败均保留最终原图和无障碍层级 / 不代替六图]
-    Six --> Gates[尺寸 / 500 KB / 亮度 / 方向一致 / Vision 拒绝已知系统通知 / 有界重试]
+    Six --> Gates[原始与显示尺寸 / EXIF 八向契约 / 500 KB / 定向亮度与 Vision / 方向一致]
     Gates --> Package[always manifest + JUnit + logs + xcresult + PNG]
     Diagnostics --> Package
     Package --> Download[同一 X 下载 exact 最新 commit / run / attempt artifact]

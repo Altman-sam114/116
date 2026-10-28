@@ -202,7 +202,8 @@ def landscape_evidence(category, device, inspector_ready):
                     continue
                 if "battlefield-landscape-" in label:
                     attachments.append((label, candidate))
-                for marker, suffix in [("battlefield-ui-final", "png"), ("battlefield-ui-hierarchy", "txt")]:
+                for marker, suffix in [("battlefield-ui-final", "png"), ("battlefield-ui-hierarchy", "txt"),
+                                       ("battlefield-display-metadata", "txt")]:
                     if marker in label:
                         diagnostic = ROOT / f"{category}-{marker}.{suffix}"
                         shutil.copyfile(candidate, diagnostic)
@@ -242,6 +243,9 @@ def main():
         with (ROOT / "battlefield-screenshot.log").open("w") as log:
             inspector = run(["xcrun", "swiftc", ".github/scripts/inspect_screenshot.swift", "-o", str(ROOT / "inspect-screenshot")], log, seconds=90)
             inspector_ready = inspector.returncode == 0
+            if inspector_ready:
+                contracts = run([str(ROOT / "inspect-screenshot"), "--self-test"], log, seconds=30)
+                inspector_ready = contracts.returncode == 0
             selected = devices()
             (ROOT / "selected-devices.json").write_text(json.dumps(selected, indent=2) + "\n")
             if set(selected) != {"ipad", "iphone"}:

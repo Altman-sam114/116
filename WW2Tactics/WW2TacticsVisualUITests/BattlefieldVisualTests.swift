@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 final class BattlefieldVisualTests: XCTestCase {
     @MainActor
@@ -8,26 +9,31 @@ final class BattlefieldVisualTests: XCTestCase {
         device.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments = ["--ci-selected-combat-impact-steady"]
-        app.launch()
-        defer {
-            let finalFrame = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        addTeardownBlock { @MainActor () async throws in
+            let screen = XCUIScreen.main.screenshot()
+            let finalFrame = XCTAttachment(screenshot: screen)
             finalFrame.name = "battlefield-ui-final"
             finalFrame.lifetime = .keepAlways
-            add(finalFrame)
+            self.add(finalFrame)
             let hierarchy = XCTAttachment(string: app.debugDescription)
             hierarchy.name = "battlefield-ui-hierarchy"
             hierarchy.lifetime = .keepAlways
-            add(hierarchy)
+            self.add(hierarchy)
+            let metadata = XCTAttachment(string: "appFrame=\(app.frame)\nuiImageSize=\(screen.image.size)\nuiImageOrientation=\(screen.image.imageOrientation.rawValue)\npixelWidth=\(screen.image.cgImage?.width ?? 0)\npixelHeight=\(screen.image.cgImage?.height ?? 0)")
+            metadata.name = "battlefield-display-metadata"
+            metadata.lifetime = .keepAlways
+            self.add(metadata)
             app.terminate()
             device.orientation = .portrait
         }
+        app.launch()
         let endTurn = app.buttons["battlefield-end-turn"]
         XCTAssertTrue(endTurn.waitForExistence(timeout: 15))
         // Rotate the running scene; pre-launch rotation can leave XCTest's display buffer in portrait.
         device.orientation = .landscapeRight
         let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            let pixels = XCUIScreen.main.screenshot().image.cgImage
-            return app.frame.width > app.frame.height && (pixels?.width ?? 0) > (pixels?.height ?? 0)
+            let display = self.displaySize(of: XCUIScreen.main.screenshot())
+            return app.frame.width > app.frame.height && display.width > display.height
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 15), .completed)
         XCTAssertTrue(endTurn.isHittable)
@@ -48,7 +54,8 @@ final class BattlefieldVisualTests: XCTestCase {
 
         for index in 1...2 {
             let screenshot = XCUIScreen.main.screenshot()
-            XCTAssertGreaterThan(screenshot.image.cgImage?.width ?? 0, screenshot.image.cgImage?.height ?? 0)
+            let display = displaySize(of: screenshot)
+            XCTAssertGreaterThan(display.width, display.height)
             let attachment = XCTAttachment(screenshot: screenshot)
             attachment.name = "battlefield-landscape-\(index)"
             attachment.lifetime = .keepAlways
@@ -93,5 +100,16 @@ final class BattlefieldVisualTests: XCTestCase {
             (endTurn.value as? String)?.contains("第2回合") == true
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [nextTurn], timeout: 15), .completed)
+    }
+
+    private func displaySize(of screenshot: XCUIScreenshot) -> CGSize {
+        let image = screenshot.image
+        guard let pixels = image.cgImage else { return .zero }
+        switch image.imageOrientation {
+        case .left, .right, .leftMirrored, .rightMirrored:
+            return CGSize(width: pixels.height, height: pixels.width)
+        default:
+            return CGSize(width: pixels.width, height: pixels.height)
+        }
     }
 }

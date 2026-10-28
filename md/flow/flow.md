@@ -65,6 +65,6 @@ center = rawCenter + 统一 offset
 
 ## 本轮直接迭代
 
-`XCUIScreen.main.screenshot()` 保存真实屏幕原字节；在 app 启动后旋转，UI 同时断言 app frame 与原始像素宽大于高，不依赖 app 截图裁框、不后处理方向。FieldControlButton/缩放/动作/关闭按钮在 label 内明确矩形 contentShape，保证 44pt 触控区域不因 plain 样式和不命中的装饰底板退化成图标轮廓。HUD 与情报覆盖层分别明确 zIndex；情报开关/关闭有稳定 ID。XCUITest 在 defer 保留原始最终画面和无障碍层级，即使断言失败也由云端导出诊断；它们不替代六图的合格原帧，UI 失败仍使整 run 失败。
+`XCUIScreen.main.screenshot()` 保存真实屏幕原字节；在 app 启动后旋转，UI 同时断言 app frame 与按 UIImage 方向解读的显示尺寸宽大于高；云端 ImageIO 独立读取 EXIF，明确报告原始/显示尺寸，按方向取样和检查通知，八种方向映射先过 self-test，不依赖 app 截图裁框、不后处理方向。FieldControlButton/缩放/动作/关闭按钮在 label 内明确矩形 contentShape，保证 44pt 触控区域不因 plain 样式和不命中的装饰底板退化成图标轮廓。HUD 与情报覆盖层分别明确 zIndex；情报开关/关闭有稳定 ID。XCUITest 在框架 teardown block 保留原始最终画面、方向元数据和无障碍层级（不依赖失败可能跳过的 Swift defer），即使断言失败也由云端导出诊断；它们不替代六图的合格原帧，UI 失败仍使整 run 失败。
 
 人工最新指令覆盖本轮 A/B/C 串行要求：普通任务单智能体直接核对云端基线、参考画面、实现、main 提交/push、下载 exact 最新包并视觉验收；仍保留版本化实施记录和完整证据链，不启动子智能体。旧 run、旧 screenshot、本地半成品均不得冒充最新通过。相同原因 CI 连续失败、同阻塞三轮、无有效 diff 两轮或需要账号/人工决策时停止无条件循环。

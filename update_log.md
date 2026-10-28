@@ -23,6 +23,10 @@
 
 ### v3.4 / 前线地貌、兵模与军用 HUD 重构（实施，待云端验收）
 
+首轮实现 `2b529ae2e42d6f383aef41fbcf57288d3974f5b4` 已 push；run `40699401377` / attempt `1` failure（23m35s）。exact artifact `ww2tactics-ci-v3.4-main-2b529ae-run40699401377-attempt1`，id `12821833286`，178,882,050 bytes，API digest `sha256:246e88c7ac8f970701460088eb4ad1e663ff5fa552ca89f425a6d832b6e4fb57`。root manifest/summary/JUnit/全部主日志与三张必要 PNG 经 Range + entry CRC 读到 `/private/tmp/ww2tactics-review-40699401377/`；另一个 PNG 分段连接中断，未重拉无关整包，不宣称完整下载/整包摘要。已确认 static/smoke/build、156 actual unit 零失败/零跳过，含新增布局/资源/表现覆盖；四竖屏云端门禁有效。亲自查看 iPad 默认、iPhone 战果，新地貌、兵模、徽章和 HUD 均真实显示。
+
+UI 两设备各 1 项均停在新增方向断言：XCTest 原始 PNG 有 EXIF orientation=6，裸 CGImage 宽高不能代表显示方向。旧基线原附件的 PNG eXIf 已只读确认；无修改或旋转文件。纠正为 UIImage 原生方向显示尺寸 + app frame 双断言，云端 ImageIO 独立按 EXIF 解读、报告原始与显示尺寸，并按方向采样亮度/检测系统通知；增加八向角点/边界/一一映射云端契约，不放宽字节、亮度或真实操作要求。诊断改为框架 teardown block，避免失败异常跳过 Swift defer。追加修复 SHA/run 待生成，不能预填通过。
+
 日期：2026-10-28（Asia/Taipei）。按用户要求直接单模型迭代，不走角色交接、不启子智能体、不做本机项目编译/测试/运行。
 
 先核对 main/origin/main `14f28a0` 与 latest run `40625129871` / attempt 1：static/smoke/build、152 unit 和两设备各 1 项 UI 通过，四竖屏有效；两横屏原附件仍为竖屏像素，故整 run failure。必要报告/日志/PNG 经 ZIP Range 与逐 entry CRC 下载到 `/private/tmp/ww2tactics-review-40625129871/`（41 MB），不是整包摘要核对。百度移动搜索与官方商店夏季/雪地图作为视觉参考，商业截图不进工程。

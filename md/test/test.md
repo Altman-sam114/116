@@ -512,3 +512,9 @@ CI 失败时，Agent C 写退回清单；Agent B 在 `main` 上追加修复 comm
 ### v2.60
 
 本轮为 SwiftUI 表现层改动；按用户约束不运行本地 Swift、Xcode、模拟器或截图，推送后由 GitHub Actions 执行 static checks、Rules smoke、build-for-testing 和 regular screenshot。
+
+## 原图方向契约
+
+XCTest 原始 PNG 可保留竖向物理像素并以 EXIF 表示横屏。UI 需同时验证 app frame 与 UIImage 原生方向解读的显示尺寸；云端截图检查器通过 ImageIO 独立读取方向，分别报告 `pixelWidth/pixelHeight`、`width/height` 与 `exifOrientation`，按显示坐标取样亮度，并把同一方向传给 Vision。八种 EXIF 方向的角点、尺寸、边界和一一映射先执行云端 `inspect-screenshot --self-test`；不改原字节，不用改图冒充真实旋转。
+
+尺寸/500 KB/亮度/可读比例/系统通知、两帧原附件与真实操作断言不放宽。失败诊断由 XCTest `addTeardownBlock` 保存最终屏幕、方向元数据及无障碍层级，避免 `continueAfterFailure=false` 的异常路径跳过 Swift defer；诊断不替代通过的场景图。
