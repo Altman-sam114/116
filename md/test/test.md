@@ -1,4 +1,16 @@
-## 当前验收状态：v3.2 军械地貌与横屏战场，待最新云端包
+## 当前验收状态：v3.3 全幅战场与贴边指挥，待最新云端包
+
+2026-10-28（Asia/Taipei），按人工要求普通任务直接迭代，不走 A/B/C、不启子智能体、不做任何本地项目测试或构建。已 fetch 并核对 main/origin/main `752b35972be46dd6846cc8f7d6ae92e6819868cd`，最新 run `40079663176` / attempt `1` failure；Altman-sam114 认证下载 exact 包 `ww2tactics-ci-v3.2-main-752b359-run40079663176-attempt1`（id `12554434327`，45,336 bytes，digest `sha256:e1f63178690da5a600af62a8a095be624d9ba9f0ef8451dbf56a659216bcaf58`）至 `/private/tmp/ww2tactics-c-review-40079663176/`。manifest/JUnit/summary/主日志一致：static/smoke/build 成功，iPad 首启 CoreLocation 数据迁移超时；0 actual tests，UI/六图未执行，属于模拟器环境失败，不是规则断言失败，更不是验收通过。
+
+本轮接续已有同方向 UI 草稿，不回滚；原 147 项不删，增加 5 项，目标 152 actual：道路成对连接完整性/无重复/端点/顺序确定性、单边及非法方向拒绝、静态地形 Equatable 身份、MOVE 文字牌焦点/终点过滤、攻击聚焦仅当前对象。沿用六 PNG/20 sprite/24 MB 资源门禁。
+
+两设备各 1 项真实 UI 测试保留旋转/frame/结束回合命中/M10/情报开合与双帧原图，增加“下一支第4装甲师 → 据点预览 → 执行 → 移动资源可用变已用 → 第二回合”的真实按钮链及执行后原始附件。此设计不等于已实测通过；最新 run 执行结果才是证据，不证明逐格直接触摸、拖动、鼠标、VoiceOver 或全字号。
+
+云端启动由并行改为串行，减少首启迁移争抢；单次 bootstatus 仍 240 秒，失败只 shutdown/reboot 同一既有设备一次并记录尝试/耗时。每设备独立捕获错误，后续设备仍执行诊断；如果 unit 尚未启动，下一个成功设备执行一次，不因断言失败换设备重试。总 workflow 35 分钟上限不提高。所有原静态/smoke/build/unit/UI/六图门禁保留，原附件不修图、不转像素。
+
+本地只 Git/text 审查、下载并查看云端包/既有图像，未运行 diff --check、YAML/Python/plist/Swift/smoke/XCTest/Xcode/模拟器或 app 截图。原始云端启动失败包没有图，为视觉基线另下载其紧邻前轮 `40077251421` 必要包查看四张有效竖屏；旧包明确不作 v3.3 通过证据。等待本轮 main 新 SHA 的 exact 包。
+
+## v3.2 历史实施与纠正过程
 
 2026-10-24（Asia/Taipei），本轮不走 A/B/C、不启子智能体、不做本地测试。先同步核对最新 `origin/main=479ed12ac4ec88df4e7bce26b86cb84b1eb5c50f` / run `40056322104` / attempt `1`，exact artifact `ww2tactics-ci-v3.1-main-479ed12-run40056322104-attempt1`（id `12545409200`，digest `sha256:268f50f3688122580de2c12ad459893a0855fb2351a1a88c11ca9e69abcab5e1`）已下载缓存且本次逐项复核。140 actual / 0 failed / 0 skipped，static/smoke/build/test 成功；四张 PNG 身份匹配并逐图打开，但 iPhone 战果图有 Apple Intelligence 系统通知遮住顶栏，视觉问题不因 CI success 被掩盖；详见 `v3.1-cloud-review.md`。
 

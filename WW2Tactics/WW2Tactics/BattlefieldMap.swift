@@ -64,6 +64,7 @@ struct HexMapView: View {
 
         ZStack(alignment: .topLeading) {
             BattlefieldTerrainRenderer(tiles: mapTiles, layout: layout, roadConnections: roadConnectionDirectionsByCoordinate)
+                .equatable()
                 .scaleEffect(resolvedScale, anchor: .topLeading)
                 .frame(width: scaledSize.width, height: scaledSize.height, alignment: .topLeading)
 
@@ -333,7 +334,7 @@ struct HexTileView: View {
                     Hexagon().fill(Color.red.opacity(0.06))
                 }
                 if actionHint.isMove {
-                    Hexagon().fill(Color.cyan.opacity(0.10))
+                    Hexagon().fill(BattlefieldTheme.movement.opacity(0.12))
                 }
             }
 
@@ -465,7 +466,7 @@ struct HexTileView: View {
         if isSelected { return BattlefieldTheme.selectedPiece }
         if actionHint.isAttack { return .red }
         if actionHint.isApproachAttack { return .orange.opacity(0.92) }
-        if actionHint.isMove { return .cyan }
+        if actionHint.isMove { return BattlefieldTheme.movement.opacity(0.85) }
         if isPostMoveAttackTarget { return .orange.opacity(0.9) }
         if isAttackPosition { return .orange.opacity(0.78) }
         if let fireExposurePreview { return fireExposurePreview.riskLevel.accentColor.opacity(0.95) }
@@ -490,7 +491,8 @@ struct HexTileView: View {
             return 0.45
         }
         if isSelected { return 1.5 }
-        if actionHint.isAttack || actionHint.isApproachAttack || actionHint.isMove { return 3 }
+        if actionHint.isAttack || actionHint.isApproachAttack { return 2.2 }
+        if actionHint.isMove { return 1.1 }
         if isPostMoveAttackTarget { return 3 }
         if isAttackPosition { return 3 }
         if fireExposurePreview?.riskLevel.sortRank ?? 0 >= FireRiskLevel.high.sortRank { return 3 }
@@ -517,8 +519,9 @@ struct HexTileView: View {
     }
 
     private var shouldShowActionMarker: Bool {
-        guard actionHint.isCommandable else { return false }
-        return !isAttackFocusMode || (isFocused && actionHint.isAttack)
+        BattlefieldActionMarkerPresentation.showsMarker(
+            for: actionHint, focused: isFocused, routeDestination: isRouteDestination, attackFocus: isAttackFocusMode
+        )
     }
 
     private var shouldShowUnavailableTargetMarker: Bool {

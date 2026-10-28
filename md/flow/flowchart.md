@@ -1,4 +1,4 @@
-# WW2Tactics 当前流程图（v3.2）
+# WW2Tactics 当前流程图（v3.3）
 
 ## 战争沙盘渲染与操作
 
@@ -6,13 +6,14 @@
 flowchart TD
     State[GameState 唯一规则事实源] --> Models[战役 / 地形 / 单位 / 轴向坐标]
     Models --> Layout[共享六角投影 / union bounds / 已缩放子视图 Layout 锚框]
-    Layout --> Terrain[降噪原创底材 / 扩大错落地貌 / 连续漂雪]
+    Layout --> Terrain[Equatable 静态底材 / 稳定错落镜像地貌 / 相邻雪格连续雪带]
     River[真实 river 邻接 / 共享岸点河宽切线 / 城镇连续河道 / 自然端潭] --> Terrain
-    Infrastructure[canonical 道路保留 / 城镇成对接路 / 真实相对两岸桥梁] --> Terrain
+    Infrastructure[canonical 道路保留 / 成对边单条曲线 / 真实相对两岸桥梁] --> Terrain
     Layout --> Tiles[透明交互地格 / 稳定 ID / HexInputReader]
     State --> Routes[单次只读地格与 ZOC 快照 / 原 FIFO 与成本]
     Routes --> Hints[批量 mapActionHints 共享一次移动路线搜索]
-    Hints --> Tiles
+    Hints --> Markers[范围保留 / MOVE 文字仅焦点或终点 / 攻击聚焦降噪]
+    Markers --> Tiles
     State --> Rules[可达 / 攻击 / 控制区 / 补给 / 预判]
     Rules --> Tiles
     Artwork[六份离线原创 PNG / 20 sprite 单次解码与复用] --> Terrain
@@ -24,7 +25,7 @@ flowchart TD
     Terrain --> Screen[全幅战场与边缘指挥带]
     Units --> Screen
     Feedback --> Screen
-    State --> Deck[独立战役栏 / 短横屏分档 / 单一动作坞 / 右上工具组 / 按需支援]
+    State --> Deck[左上战役资源牌 / 右下回合 / 分组件动作坞 / 互斥编队支援抽屉]
     Deck --> Screen
     State --> Overview[真实地貌单位据点缩略图 / 六角内点按只聚焦]
     Overview --> Screen
@@ -67,10 +68,10 @@ flowchart TD
     Push --> Static[云端 diff / plist / YAML / Python / 超时契约]
     Static --> Smoke[RulesSmokeTest]
     Smoke --> Build[Xcode build-for-testing]
-    Build --> XCTest[云端 iPad 全部 XCTest / 原 140 项加 7 项 / 不跳过]
-    Build --> Boot[两个既有云端设备并行首启 / 不创建设备]
+    Build --> XCTest[云端全部 XCTest / 原 147 项加 5 项 / 不跳过]
+    Build --> Boot[两个既有云端设备串行首启 / 同设备一次有界恢复 / 不创建设备]
     Boot --> XCTest
-    XCTest --> UI[两设备各 1 项 XCUITest / 真实旋转 / 结束回合命中 / 情报开合]
+    XCTest --> UI[两设备各 1 项 XCUITest / 真实旋转 / 情报开合 / 据点预览执行移动 / 推进回合]
     UI --> Six[同 SHA 原四竖屏加两设备两帧命名原始附件 / 六张最终图]
     Six --> Gates[尺寸 / 500 KB / 亮度 / 方向一致 / Vision 拒绝已知系统通知 / 有界重试]
     Gates --> Package[always manifest + JUnit + logs + xcresult + PNG]
@@ -83,4 +84,4 @@ flowchart TD
     Decision -->|停止条件| Stop[暂停并请求必要人工决策]
 ```
 
-JUnit 分开六阶段、147 unit 与两设备各 1 UI。UI 证据只覆盖明确的旋转/控件/抽屉路径，不证明地图触屏命令、鼠标拖动、VoiceOver 或全字号。桥梁/命名军械/地貌不改变规则；横屏由 XCUITest 旋转设备，原附件不转像素/修通知。失败也产包，不回滚远端，只追加修复；本轮无 A/B/C 调度、无子智能体，所有重验证云端。
+JUnit 分开六阶段、目标 152 unit 与两设备各 1 UI。UI 设计覆盖明确的旋转/控件/抽屉/动作坞移动与回合路径，不证明逐格直接触屏、鼠标拖动、VoiceOver 或全字号，实际结果仍以最新包为准。桥梁/命名军械/地貌不改变规则；横屏由 XCUITest 旋转设备，原附件不转像素/修通知。失败也产包，逐设备保留错误，不回滚远端，只追加修复；本轮无 A/B/C 调度、无子智能体，所有验证云端。

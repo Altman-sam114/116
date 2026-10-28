@@ -13,11 +13,11 @@ struct BattlefieldViewport: Equatable {
         showsOverviewByDefault = width >= 760 && height >= 560
     }
 
-    var commandBarHeight: CGFloat { isShallow ? 48 : 60 }
+    var commandBarHeight: CGFloat { isShallow ? 44 : 54 }
 }
 
 /// Point-up axial projection shared by terrain, hit targets, scrolling and combat.
-struct BattlefieldMapLayout {
+struct BattlefieldMapLayout: Equatable {
     static let tileSize = CGSize(width: 86, height: 100)
     static let margin: CGFloat = 24
 
@@ -114,4 +114,13 @@ struct UnitReadinessPresentation: Equatable {
     var isSpent: Bool { !canMove && !canAttack }
     var moveSymbol: String { canMove ? "arrow.up.right" : "checkmark" }
     var attackSymbol: String { canAttack ? "scope" : "checkmark" }
+}
+
+/// Reachability stays visible as a wash; only the inspected move needs a text chip.
+enum BattlefieldActionMarkerPresentation {
+    static func showsMarker(for hint: MapActionHint, focused: Bool, routeDestination: Bool, attackFocus: Bool) -> Bool {
+        guard hint.isCommandable else { return false }
+        if attackFocus { return focused && hint.isAttack }
+        return !hint.isMove || focused || routeDestination
+    }
 }

@@ -5,44 +5,46 @@ struct TopCommandBar: View {
     var condensed = false
 
     var body: some View {
-        GeometryReader { proxy in
-            let compact = proxy.size.width < 600
-            HStack(spacing: compact ? 8 : 18) {
-                CampaignPicker(condensed: condensed, compact: compact)
-                    .frame(maxWidth: compact ? 126 : 200)
-                if !compact {
-                    Rectangle().fill(BattlefieldTheme.brass.opacity(0.35)).frame(width: 1, height: 30)
-                }
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: compact ? 12 : 22) {
-                        resource("回合", value: "\(game.turn)/\(game.scenario.turnLimit)", color: .white)
-                        resource("据点", value: "\(game.alliedScore)/\(game.objectiveTiles.count)", color: BattlefieldTheme.brass)
-                        resource("指令", value: "\(game.activeCommandPoints)", color: BattlefieldTheme.signal)
-                        if !compact {
-                            resource("阵营", value: game.activeFaction.shortTitle, color: game.activeFaction.accentColor)
-                            resource("待命", value: "\(game.readyUnitCount)", color: .white)
-                        }
-                    }
-                }
-                EndTurnButton(condensed: condensed)
-            }
-            .padding(.horizontal, compact ? 10 : 18)
-            .frame(height: condensed ? 48 : 60)
-        }
-        .frame(height: condensed ? 48 : 60)
-        .background(BattlefieldTheme.commandMetal)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(BattlefieldTheme.brass.opacity(0.45)).frame(height: 1)
+        ViewThatFits(in: .horizontal) {
+            campaignLine(compact: false)
+            campaignLine(compact: true)
         }
         .accessibilityValue("\(game.activeFaction.title)行动，剩余\(game.remainingTurns)回合，\(game.readyUnitCount)支部队待命")
     }
 
-    private func resource(_ title: String, value: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(BattlefieldTheme.mutedInk)
-            Text(value).font(.system(size: 16, weight: .bold, design: .serif)).monospacedDigit().foregroundStyle(color)
+    private func campaignLine(compact: Bool) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            CampaignPicker(condensed: condensed, compact: compact)
+            Spacer(minLength: 0)
+            HStack(spacing: compact ? 12 : 20) {
+                CampaignResource(icon: "flag.fill", title: "据点", value: "\(game.alliedScore)/\(game.objectiveTiles.count)", color: BattlefieldTheme.brass)
+                CampaignResource(icon: "bolt.fill", title: "指令", value: "\(game.activeCommandPoints)", color: BattlefieldTheme.signal)
+                if !compact {
+                    CampaignResource(icon: "person.3.fill", title: "待命", value: "\(game.readyUnitCount)", color: BattlefieldTheme.fieldPaper)
+                }
+            }
+            .padding(.horizontal, compact ? 12 : 16)
+            .frame(height: condensed ? 44 : 54)
+            .background(FieldPlate())
+            .fixedSize()
         }
-        .fixedSize()
+    }
+}
+
+private struct CampaignResource: View {
+    let icon: String
+    let title: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).font(.system(size: 13, weight: .bold)).foregroundStyle(color)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.system(size: 8, weight: .semibold)).foregroundStyle(BattlefieldTheme.mutedInk)
+                Text(value).font(.custom("Georgia-Bold", size: 16)).monospacedDigit().foregroundStyle(color)
+            }
+        }
         .accessibilityElement(children: .combine)
     }
 }
@@ -66,25 +68,29 @@ struct CampaignPicker: View {
                 }
             }
         } label: {
-            HStack(spacing: 8) {
-                if !compact { Image(systemName: "map.fill").foregroundStyle(BattlefieldTheme.brass) }
+            HStack(spacing: compact ? 8 : 12) {
+                Image(systemName: "star.circle.fill")
+                    .font(.system(size: compact ? 25 : 30, weight: .regular))
+                    .foregroundStyle(BattlefieldTheme.brass)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(game.scenario.name)
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: compact ? 14 : 17, weight: .heavy))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.90)
                     if !condensed {
-                        Text(compact ? "\(game.scenario.year) / HEX" : "\(game.scenario.year)  /  WESTERN FRONT")
-                            .font(.system(size: 8, weight: .bold, design: .serif))
-                            .tracking(1.2)
+                        Text("\(game.scenario.year)  /  \(compact ? "西线战场" : "WESTERN FRONT")")
+                            .font(.custom("Georgia-Bold", size: compact ? 8 : 9))
+                            .tracking(compact ? 0.4 : 1.5)
                             .foregroundStyle(BattlefieldTheme.brass)
                             .lineLimit(1)
                     }
                 }
                 Image(systemName: "chevron.down").font(.system(size: 8, weight: .heavy))
             }
-            .foregroundStyle(.white)
-            .frame(minWidth: 90, maxWidth: 200, minHeight: 44, alignment: .leading)
+            .foregroundStyle(BattlefieldTheme.fieldPaper)
+            .padding(.horizontal, compact ? 10 : 14)
+            .frame(height: condensed ? 44 : 54)
+            .background(FieldPlate())
+            .fixedSize()
         }
         .accessibilityLabel("选择战役")
         .accessibilityValue(game.scenario.name)
@@ -97,19 +103,28 @@ struct EndTurnButton: View {
 
     var body: some View {
         Button(action: game.endTurn) {
-            VStack(spacing: 3) {
-                if !condensed {
-                    Image(systemName: "forward.end.fill").font(.system(size: 16, weight: .bold))
+            VStack(spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 1) {
+                    Text("\(game.turn)").font(.custom("Georgia-Bold", size: condensed ? 21 : 26))
+                    Text("/\(game.scenario.turnLimit)").font(.custom("Georgia", size: 10))
                 }
-                Text("结束回合").font(.system(size: 10, weight: .bold))
+                HStack(spacing: 3) {
+                    Text("结束回合").font(.system(size: 9, weight: .heavy))
+                    Image(systemName: "forward.end.fill").font(.system(size: 8, weight: .bold))
+                }
             }
-            .foregroundStyle(Color(red: 0.16, green: 0.18, blue: 0.13))
-            .frame(width: 64, height: condensed ? 40 : 46)
-            .background(BattlefieldTheme.actionBrass, in: RoundedRectangle(cornerRadius: 3))
-            .overlay { RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.24), lineWidth: 0.8) }
+            .foregroundStyle(Color(red: 0.17, green: 0.20, blue: 0.15))
+            .frame(width: condensed ? 70 : 80, height: condensed ? 60 : 72)
+            .background {
+                BeveledFieldShape().fill(BattlefieldTheme.actionBrass)
+                    .overlay { BeveledFieldShape().stroke(BattlefieldTheme.fieldPaper.opacity(0.65), lineWidth: 1) }
+                    .shadow(color: .black.opacity(0.35), radius: 4, y: 3)
+            }
         }
         .buttonStyle(.plain)
         .disabled(game.winner != nil)
+        .accessibilityLabel("结束回合")
+        .accessibilityValue("第\(game.turn)回合，共\(game.scenario.turnLimit)回合")
         .accessibilityIdentifier("battlefield-end-turn")
         .accessibilityHint("结束当前阵营行动并推进战局")
     }

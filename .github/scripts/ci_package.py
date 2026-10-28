@@ -53,6 +53,8 @@ lines.extend(["", f"Actual XCTest: {simulator.get('testCount', 0)} total, "
               "Stage counts are not XCTest counts. Screenshots do not prove touch/VoiceOver behavior."])
 if simulator.get("error"):
     lines.extend(["", f"Simulator error: {simulator['error']}"])
+for error in simulator.get("deviceErrors", []):
+    lines.append(f"- {error['category']} evidence error: {error['error']}")
 for image in simulator.get("screenshots", []):
     lines.append(f"- {image['path']}: {image['outcome']}, {image.get('width')}x{image.get('height')}, "
                  f"{image.get('bytes', 0)} bytes, luminance {image.get('meanLuminance')}")

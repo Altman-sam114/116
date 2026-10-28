@@ -295,7 +295,7 @@ struct CommanderBadge: View {
     let faction: Faction
 
     var body: some View {
-        // GoG3-style portrait plaque: warm parchment tile with a gold frame.
+        // A named command insignia, not a fabricated historical portrait.
         ZStack {
             RoundedRectangle(cornerRadius: 4)
                 .fill(
@@ -310,9 +310,13 @@ struct CommanderBadge: View {
                 )
             RoundedRectangle(cornerRadius: 4)
                 .stroke(Color(red: 0.85, green: 0.66, blue: 0.30), lineWidth: 1.4)
-            Text(String(commander.name.prefix(1)))
-                .font(.system(size: 11, weight: .black, design: .serif))
-                .foregroundStyle(Color(red: 0.32, green: 0.26, blue: 0.18))
+            VStack(spacing: 0) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 4, weight: .bold))
+                Text(String(commander.name.prefix(1)))
+                    .font(.system(size: 10, weight: .black, design: .serif))
+            }
+            .foregroundStyle(Color(red: 0.32, green: 0.26, blue: 0.18))
             Circle()
                 .fill(faction.accentColor)
                 .frame(width: 6, height: 6)

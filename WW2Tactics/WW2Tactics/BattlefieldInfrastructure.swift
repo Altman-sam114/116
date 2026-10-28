@@ -50,10 +50,12 @@ struct BattlefieldInfrastructure {
 struct BattlefieldSceneryPlacement: Equatable {
     let kind: BattlefieldScenery
     let rect: CGRect
+    let mirrored: Bool
 
     init?(tile: TerrainTile, layout: BattlefieldMapLayout) {
         let coordinate = tile.coordinate
         let seed = coordinate.q * 997 + coordinate.r * 131
+        mirrored = Self.noise(seed, 43) > 0.5
         let width: CGFloat
         let height: CGFloat
         switch tile.terrain {
@@ -65,7 +67,7 @@ struct BattlefieldSceneryPlacement: Equatable {
             kind = .mountain
             width = 125; height = 96
         case .city:
-            kind = tile.isObjective ? .village : .farmstead
+            kind = tile.isObjective && Self.noise(seed, 47) > 0.35 ? .village : .farmstead
             width = 101; height = 79
         case .snow:
             guard Self.noise(seed, 29) > 0.50 else { return nil }
@@ -87,5 +89,47 @@ struct BattlefieldSceneryPlacement: Equatable {
     static func noise(_ seed: Int, _ salt: Int) -> CGFloat {
         let value = sin(Double(seed) * 12.9898 + Double(salt) * 78.233) * 43758.5453
         return CGFloat(value - floor(value))
+    }
+}
+
+struct BattlefieldRoadSegment: Equatable {
+    let first: HexCoordinate
+    let second: HexCoordinate
+    let start: CGPoint
+    let firstControl: CGPoint
+    let secondControl: CGPoint
+    let end: CGPoint
+}
+
+/// One curve per real paired edge. Endpoints stay attached to towns, junctions and bridges.
+struct BattlefieldRoadGeometry {
+    let segments: [BattlefieldRoadSegment]
+
+    init(infrastructure: BattlefieldInfrastructure, layout: BattlefieldMapLayout) {
+        let connections = infrastructure.directionsByCoordinate
+        var result: [BattlefieldRoadSegment] = []
+        let coordinates = connections.keys.sorted { $0.r == $1.r ? $0.q < $1.q : $0.r < $1.r }
+        for coordinate in coordinates {
+            for direction in connections[coordinate] ?? [] where (0..<6).contains(direction) {
+                let neighbor = coordinate.neighbors[direction]
+                let isOrdered = coordinate.r == neighbor.r ? coordinate.q < neighbor.q : coordinate.r < neighbor.r
+                guard isOrdered, connections[neighbor]?.contains((direction + 3) % 6) == true else { continue }
+                let start = layout.center(for: coordinate)
+                let end = layout.center(for: neighbor)
+                let dx = end.x - start.x
+                let dy = end.y - start.y
+                let length = max(1, hypot(dx, dy))
+                let seed = coordinate.q * 997 + coordinate.r * 131 + neighbor.q * 61 + neighbor.r * 37
+                let bend = (BattlefieldSceneryPlacement.noise(seed, 53) - 0.5) * 12
+                let shift = CGPoint(x: -dy / length * bend, y: dx / length * bend)
+                result.append(BattlefieldRoadSegment(
+                    first: coordinate, second: neighbor, start: start,
+                    firstControl: CGPoint(x: start.x + dx / 3 + shift.x, y: start.y + dy / 3 + shift.y),
+                    secondControl: CGPoint(x: start.x + dx * 2 / 3 + shift.x, y: start.y + dy * 2 / 3 + shift.y),
+                    end: end
+                ))
+            }
+        }
+        segments = result
     }
 }

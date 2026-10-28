@@ -65,14 +65,10 @@ struct BattlefieldOverviewMap: View {
                 Spacer(minLength: 0)
             }
             .font(.system(size: 8, weight: .bold))
-            Text("点按定位 · 不执行指令")
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(BattlefieldTheme.mutedInk)
         }
         .padding(8)
         .frame(width: 186)
-        .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
-        .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.34), lineWidth: 0.8) }
+        .background(FieldPlate())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("战区总览，\(units.filter { !$0.isDestroyed }.count)支部队，\(tiles.filter(\.isObjective).count)个据点")
         .accessibilityHint("双击返回交战前线；总览只定位，不执行指令")

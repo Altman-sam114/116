@@ -17,9 +17,25 @@
 - 当前协作规范以 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 为入口；2026-10-24 本轮人工特别要求 Agent X 直接迭代，取消 A/B/C 串行调度、不启子智能体，其他安全与云端验收边界不变。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 当前阶段为 `v3（战争沙盘重构）`：v3.1 的 140 项测试已核对通过，但 iPhone 战果图受系统通知遮挡；v3.2 继续军械、地貌、桥梁与真实横屏界面，规则状态机保持不变。
+- 当前阶段为 `v3（战争沙盘重构）`：最新远端 v3.2 `752b359` 构建成功但模拟器首启超时，未完成验收；v3.3 全幅战场、贴边指挥与真实移动回合 UI 链直接迭代，规则状态机保持不变，等待本轮最新云端包。
 
 ## 历史记录
+
+### v3.3 / 全幅战场与贴边指挥（实施，待最新云端验收）
+
+日期：2026-10-28（Asia/Taipei）。按人工最新要求普通任务直接迭代，不走 A/B/C、不启子智能体、不做本地项目测试。工作树已有 15 份同方向 UI/CI 草稿，逐项审查后接续完善，未回滚或删除；无关未跟踪 v2.56 prompt 保留且排除提交。
+
+先 fetch 核对 main / origin/main `752b35972be46dd6846cc8f7d6ae92e6819868cd`，最新 run `40079663176` / attempt `1` failure。Altman-sam114 下载 exact artifact `ww2tactics-ci-v3.2-main-752b359-run40079663176-attempt1`（id `12554434327`，45,336 bytes，digest `sha256:e1f63178690da5a600af62a8a095be624d9ba9f0ef8451dbf56a659216bcaf58`）至 `/private/tmp/ww2tactics-c-review-40079663176/`，260K 解包。manifest/summary/JUnit/日志匹配，static/smoke/build 成功，iPad 首启 CoreLocation 迁移超过 240 秒，0 actual tests、无六图；不伪称测试失败或通过。为视觉基线下载其紧邻前轮 `40077251421` 必要包，只把有效竖屏作为旧画面参考，不冒充本轮证据。
+
+本轮百度搜索“将军的荣耀3”成功，从图片页实际打开“1944西线轴心国 不列颠战役”1536×864 大图（公开原视频 BV1Ne69BcEQA）；对照连续地貌、军械剪影、战术网格和小型贴边 HUD。只读页面，不保存商业图进仓库，不使用商业图作生成输入。
+
+变更：ContentView 只编排战场与情报；地图铺到屏边，左上独立战役/资源铭牌、右侧工具、左下通讯与定位、右下回合按钮，统一斜切金属 FieldPlate 和 Georgia 军事数字；动作坞按身份/命令/预览拆分，编队/支援以单一可选 enum 互斥且可关闭。降低草土噪声与格边，对相邻 snow 合成雪带，地貌按坐标稳定镜像/错落，村镇有差异；真实成对道路输出一条确定性曲线，非法/单边不画。静态地形 Equatable 与单位行动刷新隔离；范围仍可读但仅焦点/终点出现 MOVE 文字，攻击聚焦只强调当前对象。将领星徽保留姓名首字，不伪造历史肖像。
+
+新增 5 项表现层测试保留原 147，目标 152 actual；两设备各 1 项横屏 UI 用例新增第4装甲师据点预览/执行移动/资源变化/第二回合，保留双帧战果原图并增加移动后附件。CI 串行首启、同设备一次有界恢复、逐设备保留错误及启动尝试，单次/整 run 超时不提高，不因失败断言换设备重跑。六图、资源预算、原 unit/UI 门禁不削减。
+
+关键文件为 BattlefieldCommandDeck/CampaignBar/ActionHUD/Theme/ContentView、Infrastructure/TerrainRenderer/MapLayout/Map/Navigation/UnitViews、PresentationTests/VisualTests 与 ci_simulator/ci_package；README/flow/flowchart/test/prompt 同步。GameState/GameModels/资产/project/workflow 不修改，不引入第三方依赖。
+
+本地只 Git/text 范围审查、云端包下载/读取与既有资源查看；没有运行项目测试、编译、模拟器、app 截图或静态语法检查。待 main 提交/push 及 exact 最新云端 152 unit + 2 UI + 六图，不预填通过。精细可玩战场基座仍不等于商业游戏完整复刻，逐格触控/VoiceOver/全字号不在本轮证据范围。
 
 ### v3.2 / 军械地貌与横屏战场（实施，待最新云端验收）
 

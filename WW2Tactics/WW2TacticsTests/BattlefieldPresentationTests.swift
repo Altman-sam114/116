@@ -4,6 +4,74 @@ import XCTest
 
 @MainActor
 final class BattlefieldPresentationTests: XCTestCase {
+    func testMovementMarkerKeepsTheInspectedOrderWithoutFloodingTheMap() {
+        let move = MapActionHint.move(cost: 3, controlZonePenalty: 1)
+        XCTAssertFalse(BattlefieldActionMarkerPresentation.showsMarker(for: move, focused: false, routeDestination: false, attackFocus: false))
+        XCTAssertTrue(BattlefieldActionMarkerPresentation.showsMarker(for: move, focused: true, routeDestination: false, attackFocus: false))
+        XCTAssertTrue(BattlefieldActionMarkerPresentation.showsMarker(for: move, focused: false, routeDestination: true, attackFocus: false))
+        for hint in [MapActionHint.none, .selectedUnit, .selectableUnit, .friendlyOccupied, .enemyOutOfRange(distance: 5, range: 2)] {
+            XCTAssertFalse(BattlefieldActionMarkerPresentation.showsMarker(for: hint, focused: true, routeDestination: true, attackFocus: false))
+        }
+    }
+
+    func testAttackFocusKeepsOnlyTheFocusedAttackMarker() {
+        let attack = MapActionHint.attack(damage: 20, counterDamage: 8, willDestroy: false)
+        let approach = MapActionHint.approachAttack(cost: 2, controlZonePenalty: 0)
+        XCTAssertTrue(BattlefieldActionMarkerPresentation.showsMarker(for: attack, focused: true, routeDestination: false, attackFocus: true))
+        XCTAssertFalse(BattlefieldActionMarkerPresentation.showsMarker(for: attack, focused: false, routeDestination: false, attackFocus: true))
+        XCTAssertTrue(BattlefieldActionMarkerPresentation.showsMarker(for: approach, focused: false, routeDestination: false, attackFocus: false))
+        XCTAssertFalse(BattlefieldActionMarkerPresentation.showsMarker(for: approach, focused: true, routeDestination: false, attackFocus: true))
+        XCTAssertFalse(BattlefieldActionMarkerPresentation.showsMarker(for: .move(cost: 1, controlZonePenalty: 0), focused: true, routeDestination: true, attackFocus: true))
+    }
+
+    func testRoadCurvesPreserveEveryPairedConnectionWithoutDuplicates() {
+        for scenario in Scenario.campaignCatalog {
+            let layout = BattlefieldMapLayout(coordinates: scenario.tiles.map(\.coordinate))
+            let canonical = RoadConnectionNetwork(tiles: scenario.tiles).directionsByCoordinate
+            let plan = BattlefieldInfrastructure(tiles: scenario.tiles, roadConnections: canonical)
+            let geometry = BattlefieldRoadGeometry(infrastructure: plan, layout: layout)
+            let edgeCount = plan.directionsByCoordinate.values.reduce(0) { $0 + $1.count }
+            XCTAssertEqual(geometry.segments.count * 2, edgeCount)
+            let identities = geometry.segments.map { "\($0.first.id)/\($0.second.id)" }
+            XCTAssertEqual(Set(identities).count, identities.count)
+            for segment in geometry.segments {
+                XCTAssertEqual(segment.start, layout.center(for: segment.first))
+                XCTAssertEqual(segment.end, layout.center(for: segment.second))
+                XCTAssertTrue(segment.first.neighbors.contains(segment.second))
+                XCTAssertTrue(segment.firstControl.x.isFinite && segment.secondControl.y.isFinite)
+                let bounds = layout.frame(for: segment.first).union(layout.frame(for: segment.second))
+                XCTAssertTrue(bounds.contains(segment.firstControl))
+                XCTAssertTrue(bounds.contains(segment.secondControl))
+            }
+            let reversed = BattlefieldInfrastructure(tiles: Array(scenario.tiles.reversed()), roadConnections: canonical)
+            XCTAssertEqual(geometry.segments, BattlefieldRoadGeometry(infrastructure: reversed, layout: layout).segments)
+        }
+    }
+
+    func testRoadGeometryRejectsUnpairedAndInvalidDirections() {
+        let origin = HexCoordinate(q: 0, r: 0)
+        let neighbor = origin.neighbors[0]
+        let tiles = [origin, neighbor].map { TerrainTile(coordinate: $0, terrain: .road) }
+        let layout = BattlefieldMapLayout(coordinates: tiles.map(\.coordinate))
+        for connections in [[origin: [0]], [origin: [-1, 6, 999]], [:]] {
+            let plan = BattlefieldInfrastructure(tiles: tiles, roadConnections: connections)
+            XCTAssertTrue(BattlefieldRoadGeometry(infrastructure: plan, layout: layout).segments.isEmpty)
+        }
+    }
+
+    func testTerrainRenderIdentityTracksOnlyActualMapInputs() {
+        let scenario = Scenario.ardennesPrototype()
+        let layout = BattlefieldMapLayout(coordinates: scenario.tiles.map(\.coordinate))
+        let roads = RoadConnectionNetwork(tiles: scenario.tiles).directionsByCoordinate
+        let original = BattlefieldTerrainRenderer(tiles: scenario.tiles, layout: layout, roadConnections: roads)
+        let game = GameState(scenario: scenario)
+        game.selectNextReadyUnitFromMap()
+        game.waitSelectedUnit()
+        XCTAssertEqual(original, BattlefieldTerrainRenderer(tiles: game.tiles, layout: layout, roadConnections: roads))
+        XCTAssertNotEqual(original, BattlefieldTerrainRenderer(tiles: Array(game.tiles.dropLast()), layout: layout, roadConnections: roads))
+        XCTAssertNotEqual(original, BattlefieldTerrainRenderer(tiles: game.tiles, layout: layout, roadConnections: [:]))
+    }
+
     func testVehicleVariantsMatchHistoricalNamesWithoutChangingArchetypes() throws {
         let scenario = Scenario.ardennesPrototype()
         let originals = scenario.units
@@ -123,13 +191,13 @@ final class BattlefieldPresentationTests: XCTestCase {
         XCTAssertTrue(phoneLandscape.compactControls)
         XCTAssertTrue(phoneLandscape.isShallow)
         XCTAssertFalse(phoneLandscape.showsOverviewByDefault)
-        XCTAssertEqual(phoneLandscape.commandBarHeight, 48)
+        XCTAssertEqual(phoneLandscape.commandBarHeight, 44)
         for size in [CGSize(width: 1024, height: 1300), CGSize(width: 1300, height: 900)] {
             let tablet = BattlefieldViewport(size: size)
             XCTAssertFalse(tablet.compactControls)
             XCTAssertFalse(tablet.isShallow)
             XCTAssertTrue(tablet.showsOverviewByDefault)
-            XCTAssertEqual(tablet.commandBarHeight, 60)
+            XCTAssertEqual(tablet.commandBarHeight, 54)
         }
         XCTAssertFalse(BattlefieldViewport(size: CGSize(width: CGFloat.infinity, height: CGFloat.nan)).showsOverviewByDefault)
     }

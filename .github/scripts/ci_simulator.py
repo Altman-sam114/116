@@ -1,7 +1,6 @@
 """Cloud-only XCTest and six-scene visual evidence, with bounded commands."""
 
 import hashlib
-from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
@@ -55,9 +54,19 @@ def devices():
 
 def boot(device, log):
     udid = device[3]
-    run(["xcrun", "simctl", "boot", udid], log, seconds=30)
-    if run(["xcrun", "simctl", "bootstatus", udid, "-b"], log, seconds=240).returncode:
-        raise RuntimeError(f"Simulator boot failed: {device[2]}")
+    started = time.time()
+    attempts = []
+    REPORT.setdefault("deviceBoots", []).append({"device": device[2], "udid": udid, "attempts": attempts})
+    for attempt in range(1, 3):
+        run(["xcrun", "simctl", "boot", udid], log, seconds=30)
+        status = run(["xcrun", "simctl", "bootstatus", udid, "-b"], log, seconds=240)
+        attempts.append({"attempt": attempt, "exitCode": status.returncode, "elapsedSeconds": round(time.time() - started, 1)})
+        if status.returncode == 0:
+            break
+        if attempt == 2:
+            raise RuntimeError(f"Simulator boot failed after one recovery: {device[2]}")
+        # Restart this existing device once; preserve its completed first-boot migrations.
+        run(["xcrun", "simctl", "shutdown", udid], log, seconds=45)
     run(["xcrun", "simctl", "ui", udid, "appearance", "dark"], log, seconds=30)
     run(["xcrun", "simctl", "status_bar", udid, "override", "--time", "09:41", "--batteryState", "charged", "--batteryLevel", "100"], log, seconds=30)
 
@@ -210,12 +219,6 @@ def landscape_evidence(category, device, inspector_ready):
         image["outcome"] = "success"
 
 
-def boot_category(item):
-    category, device = item
-    with (ROOT / f"boot-{category}.log").open("w") as log:
-        boot(device, log)
-
-
 def main():
     selected = {}
     try:
@@ -225,26 +228,32 @@ def main():
             inspector = run(["xcrun", "swiftc", ".github/scripts/inspect_screenshot.swift", "-o", str(ROOT / "inspect-screenshot")], log, seconds=90)
             inspector_ready = inspector.returncode == 0
             selected = devices()
+            (ROOT / "selected-devices.json").write_text(json.dumps(selected, indent=2) + "\n")
             if set(selected) != {"ipad", "iphone"}:
                 raise RuntimeError("runner must provide existing iPad and iPhone simulators")
-            # Migration dominates fresh cloud runners; boot the two existing devices concurrently.
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                list(pool.map(boot_category, selected.items()))
             for category in ("ipad", "iphone"):
                 device = selected[category]
-                if category == "ipad":
-                    with (ROOT / "xctest.log").open("w") as test_log:
-                        xctest(device, test_log)
-                app = Path(os.environ["DERIVED_DATA"]) / "Build/Products/Debug-iphonesimulator/WW2Tactics.app"
-                if run(["xcrun", "simctl", "install", device[3], str(app)], log).returncode:
-                    raise RuntimeError("app installation failed")
-                if inspector_ready:
-                    screenshot(category, device, "default", log)
-                    screenshot(category, device, "selected-combat-impact-steady", log)
-                else:
-                    REPORT["error"] = "screenshot inspector did not compile; XCTest still executed independently"
-                landscape_evidence(category, device, inspector_ready)
-                run(["xcrun", "simctl", "shutdown", device[3]], log, seconds=45)
+                try:
+                    # Only one simulator performs first-boot migration at a time on a cloud runner.
+                    with (ROOT / f"boot-{category}.log").open("w") as boot_log:
+                        boot(device, boot_log)
+                    if "testStartedAt" not in REPORT:
+                        with (ROOT / "xctest.log").open("w") as test_log:
+                            xctest(device, test_log)
+                    app = Path(os.environ["DERIVED_DATA"]) / "Build/Products/Debug-iphonesimulator/WW2Tactics.app"
+                    if run(["xcrun", "simctl", "install", device[3], str(app)], log).returncode:
+                        raise RuntimeError("app installation failed")
+                    if inspector_ready:
+                        screenshot(category, device, "default", log)
+                        screenshot(category, device, "selected-combat-impact-steady", log)
+                    else:
+                        REPORT["error"] = "screenshot inspector did not compile; XCTest still executed independently"
+                    landscape_evidence(category, device, inspector_ready)
+                except Exception as error:
+                    REPORT.setdefault("deviceErrors", []).append({"category": category, "error": str(error)})
+                    log.write(f"\n{category} evidence failed: {error}\n")
+                finally:
+                    run(["xcrun", "simctl", "shutdown", device[3]], log, seconds=45)
             if len(REPORT["screenshots"]) == 6 and all(item["outcome"] == "success" for item in REPORT["screenshots"]):
                 REPORT["screenshotOutcome"] = "success"
             if len(REPORT["visualTests"]) == 2 and all(item["outcome"] == "success" for item in REPORT["visualTests"]):

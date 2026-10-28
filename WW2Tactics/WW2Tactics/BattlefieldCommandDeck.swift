@@ -14,33 +14,34 @@ enum MapScaleMode: String, CaseIterable, Identifiable {
 struct BattlefieldView: View {
     @Binding var isInspectorExpanded: Bool
     @State private var mapScaleMode: MapScaleMode = .campaign
+
     var body: some View {
         MapCommandCenter(mapScaleMode: $mapScaleMode, isInspectorExpanded: $isInspectorExpanded)
     }
 }
+
+private enum BattlefieldDrawer { case roster, support }
 
 struct MapCommandCenter: View {
     @EnvironmentObject private var game: GameState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var mapScaleMode: MapScaleMode
     @Binding var isInspectorExpanded: Bool
-    @State private var isRosterExpanded = false
-    @State private var isSupportExpanded = false
+    @State private var drawer: BattlefieldDrawer?
     @State private var overviewVisibility: Bool?
     @State private var isFrontlineCamera = true
 
     var body: some View {
         GeometryReader { geometry in
             let viewport = BattlefieldViewport(size: geometry.size)
-            let compact = viewport.compactControls
             let showsOverview = overviewVisibility ?? viewport.showsOverviewByDefault
             ScrollViewReader { proxy in
                 ZStack {
                     ScrollView([.horizontal, .vertical], showsIndicators: false) {
                         HexMapView(scaleMultiplier: mapScaleMode.scaleMultiplier, viewportHeight: geometry.size.height)
                     }
+                    .ignoresSafeArea()
                     .task(id: game.scenario.units.first?.id) {
-                        // A reload gives the opening roster fresh IDs; ordinary movement retains them.
                         await Task.yield()
                         guard !Task.isCancelled else { return }
                         scrollToOpening(proxy)
@@ -53,185 +54,49 @@ struct MapCommandCenter: View {
                     .onChange(of: mapScaleMode) { _, _ in scrollToCurrentCamera(proxy) }
                     .onChange(of: geometry.size) { _, _ in scrollToCurrentCamera(proxy) }
 
-                    VStack(spacing: 0) {
+                    VStack(spacing: 8) {
+                        TopCommandBar(condensed: viewport.isShallow)
                         HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                objectiveBrief
-                                if showsOverview {
-                                    BattlefieldOverviewMap(
-                                        tiles: game.tiles, units: game.units, focusedCoordinate: game.focusedCoordinate,
-                                        onFocus: {
-                                            game.focus(coordinate: $0)
-                                            scrollToFocus(proxy, animated: true)
-                                        },
-                                        onFrontline: { scrollToFrontline(proxy, animated: true) }
-                                    )
-                                }
+                            if showsOverview {
+                                BattlefieldOverviewMap(
+                                    tiles: game.tiles, units: game.units, focusedCoordinate: game.focusedCoordinate,
+                                    onFocus: { game.focus(coordinate: $0); scrollToFocus(proxy, animated: true) },
+                                    onFrontline: { scrollToFrontline(proxy, animated: true) }
+                                )
                             }
-                            Spacer(minLength: 6)
-                            if viewport.isShallow {
-                                HStack(spacing: 6) {
-                                    scaleMenu
-                                    mapTool("战区总览", icon: "map", selected: showsOverview) { overviewVisibility = !showsOverview }
-                                    MapRestartButton()
-                                    mapTool("战场情报", icon: "binoculars.fill", selected: isInspectorExpanded) { isInspectorExpanded.toggle() }
-                                }
-                            } else {
-                                VStack(spacing: 6) {
-                                    HStack(spacing: 6) {
-                                        scaleMenu
-                                        mapTool("战区总览", icon: "map", selected: showsOverview) { overviewVisibility = !showsOverview }
-                                    }
-                                    HStack(spacing: 6) {
-                                        MapRestartButton()
-                                        mapTool("战场情报", icon: "binoculars.fill", selected: isInspectorExpanded) { isInspectorExpanded.toggle() }
-                                    }
-                                }
-                            }
+                            Spacer(minLength: 4)
+                            BattlefieldMapTools(
+                                scaleMode: $mapScaleMode, showsOverview: showsOverview,
+                                condensed: viewport.isShallow,
+                                isInspectorExpanded: $isInspectorExpanded,
+                                toggleOverview: { overviewVisibility = !showsOverview }
+                            )
                         }
-                        .padding(10)
-                        Spacer(minLength: 8)
-                        VStack(spacing: 6) {
-                            if isSupportExpanded {
-                                supportPanel(maxHeight: geometry.size.height * 0.48)
-                            }
-                            if isRosterExpanded { ObjectiveJumpDock(compact: compact) }
-                            if game.selectedUnit != nil { MapActionHUD(compact: compact, condensed: viewport.isShallow) }
-                            if !viewport.isShallow {
-                                Text(game.message)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(.white)
-                                    .lineLimit(1)
-                                    .padding(.horizontal, 8)
-                                    .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
-                                    .background(BattlefieldTheme.commandDeckDeep.opacity(0.85))
-                                    .allowsHitTesting(false)
-                            }
-                            bottomTools(compact: compact, condensed: viewport.isShallow) { scrollToFrontline(proxy, animated: true) }
+                        Spacer(minLength: 0)
+                        if let drawer {
+                            BattlefieldDrawerPanel(drawer: drawer, maxHeight: geometry.size.height * 0.45,
+                                                   close: { self.drawer = nil })
                         }
-                        .padding(.horizontal, compact ? 8 : 14)
-                        .padding(.bottom, 8)
+                        if game.selectedUnit != nil {
+                            MapActionHUD(compact: viewport.compactControls, condensed: viewport.isShallow)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        BattlefieldBottomEdge(
+                            condensed: viewport.isShallow, drawer: drawer,
+                            toggleRoster: { toggleDrawer(.roster) }, toggleSupport: { toggleDrawer(.support) },
+                            returnToFrontline: { scrollToFrontline(proxy, animated: true) }
+                        )
                     }
+                    .padding(.horizontal, viewport.isShallow ? 8 : 12)
+                    .padding(.vertical, viewport.isShallow ? 6 : 10)
                 }
+                .background(Color(red: 0.46, green: 0.52, blue: 0.34).ignoresSafeArea())
             }
-            .background(Color(red: 0.46, green: 0.52, blue: 0.34))
         }
     }
 
-    private var objectiveBrief: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "flag.fill").foregroundStyle(BattlefieldTheme.brass)
-                Text("夺取战区据点").foregroundStyle(.white)
-                Text("\(game.alliedScore)/\(game.objectiveTiles.count)").foregroundStyle(BattlefieldTheme.brass).monospacedDigit()
-            }
-            .font(.system(size: 12, weight: .bold))
-            ProgressView(value: game.objectiveProgress).tint(BattlefieldTheme.brass)
-        }
-        .padding(10)
-        .frame(width: 186)
-        .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
-        .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.34), lineWidth: 0.8) }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var scaleMenu: some View {
-        Menu {
-            Picker("地图缩放", selection: $mapScaleMode) {
-                ForEach(MapScaleMode.allCases) { mode in Text(mode.title).tag(mode) }
-            }
-        } label: {
-            Image(systemName: "plus.magnifyingglass")
-                .font(.system(size: 17, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
-                .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.34), lineWidth: 0.8) }
-        }
-        .accessibilityLabel("地图缩放")
-        .accessibilityValue(mapScaleMode.title)
-    }
-
-    private func mapTool(_ title: String, icon: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 17, weight: .bold))
-                .foregroundStyle(selected ? BattlefieldTheme.brass : .white)
-                .frame(width: 44, height: 44)
-                .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
-                .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.34), lineWidth: 0.8) }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityValue(selected ? "已展开" : "已收起")
-    }
-
-    private func bottomTools(compact: Bool, condensed: Bool, returnToFrontline: @escaping () -> Void) -> some View {
-        HStack(spacing: 6) {
-            edgeButton(compact ? "编队" : "编队 / 据点", icon: "square.grid.3x3.fill", selected: isRosterExpanded) { isRosterExpanded.toggle() }
-                .accessibilityLabel("编队与据点定位")
-            edgeButton(compact ? "支援" : "战术支援", icon: "shippingbox.fill", selected: isSupportExpanded) { isSupportExpanded.toggle() }
-                .accessibilityLabel("战术支援")
-            if condensed {
-                Text(game.message)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .padding(6)
-                    .background(BattlefieldTheme.commandDeckDeep.opacity(0.85))
-                    .allowsHitTesting(false)
-            }
-            Spacer(minLength: 0)
-            Button(action: returnToFrontline) {
-                Image(systemName: "viewfinder")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(BattlefieldTheme.brass)
-                    .frame(width: 44, height: 44)
-                    .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("返回交战前线")
-            .accessibilityHint("只移动镜头，不改变选择或执行指令")
-            Button(action: game.selectNextReadyUnitFromMap) {
-                Label(compact ? "下一支" : "下一支待命部队", systemImage: "forward.fill")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(BattlefieldTheme.brass)
-                    .padding(.horizontal, 10)
-                    .frame(minHeight: 44)
-                    .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
-                    .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.32), lineWidth: 0.8) }
-            }
-            .buttonStyle(.plain)
-            .disabled(game.readyUnits.isEmpty)
-        }
-    }
-
-    private func edgeButton(_ title: String, icon: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: icon)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(selected ? BattlefieldTheme.brass : .white)
-                .padding(.horizontal, 10)
-                .frame(minHeight: 44)
-                .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
-                .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.26), lineWidth: 0.8) }
-        }
-        .buttonStyle(.plain)
-        .accessibilityValue(selected ? "已展开" : "已收起")
-    }
-
-    private func supportPanel(maxHeight: CGFloat) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                ForceRibbon()
-                TacticalOrderStrip()
-                ReinforcementDock()
-                MapLegendView()
-            }
-            .padding(12)
-        }
-        .frame(maxHeight: maxHeight)
-        .background(BattlefieldTheme.commandDeckDeep, in: RoundedRectangle(cornerRadius: 4))
+    private func toggleDrawer(_ requested: BattlefieldDrawer) {
+        drawer = drawer == requested ? nil : requested
     }
 
     private func scrollToFocus(_ proxy: ScrollViewProxy, animated: Bool) {
@@ -261,11 +126,8 @@ struct MapCommandCenter: View {
     }
 
     private func scrollToCurrentCamera(_ proxy: ScrollViewProxy) {
-        if isFrontlineCamera {
-            scrollToFrontline(proxy, animated: false)
-        } else {
-            scrollToFocus(proxy, animated: false)
-        }
+        if isFrontlineCamera { scrollToFrontline(proxy, animated: false) }
+        else { scrollToFocus(proxy, animated: false) }
     }
 
     private func scroll(to targetID: String, proxy: ScrollViewProxy, animated: Bool) {
@@ -277,18 +139,107 @@ struct MapCommandCenter: View {
     }
 }
 
+private struct BattlefieldMapTools: View {
+    @Binding var scaleMode: MapScaleMode
+    let showsOverview: Bool
+    let condensed: Bool
+    @Binding var isInspectorExpanded: Bool
+    let toggleOverview: () -> Void
+
+    var body: some View {
+        let layout = condensed ? AnyLayout(HStackLayout(spacing: 4)) : AnyLayout(VStackLayout(spacing: 4))
+        layout {
+            Menu {
+                Picker("地图缩放", selection: $scaleMode) {
+                    ForEach(MapScaleMode.allCases) { mode in Text(mode.title).tag(mode) }
+                }
+            } label: {
+                Image(systemName: "plus.magnifyingglass")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(BattlefieldTheme.fieldPaper)
+                    .frame(width: 44, height: 44)
+                    .background(FieldPlate())
+            }
+            .accessibilityLabel("地图缩放")
+            .accessibilityValue(scaleMode.title)
+            FieldControlButton(title: "战区总览", icon: "map", selected: showsOverview, action: toggleOverview)
+            FieldControlButton(title: "战场情报", icon: "binoculars.fill", selected: isInspectorExpanded) { isInspectorExpanded.toggle() }
+            MapRestartButton()
+        }
+    }
+}
+
+private struct BattlefieldBottomEdge: View {
+    @EnvironmentObject private var game: GameState
+    let condensed: Bool
+    let drawer: BattlefieldDrawer?
+    let toggleRoster: () -> Void
+    let toggleSupport: () -> Void
+    let returnToFrontline: () -> Void
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 5) {
+                    Circle().fill(BattlefieldTheme.signal).frame(width: 4, height: 4)
+                    Text(game.message).font(.system(size: 10, weight: .medium)).lineLimit(1)
+                }
+                .foregroundStyle(BattlefieldTheme.fieldPaper)
+                .padding(.horizontal, 9).padding(.vertical, condensed ? 3 : 6)
+                .background(BattlefieldTheme.commandDeckDeep.opacity(0.82), in: BeveledFieldShape())
+                .allowsHitTesting(false)
+                HStack(spacing: 5) {
+                    FieldControlButton(title: "编队与据点定位", icon: "square.grid.3x3.fill", selected: drawer == .roster, action: toggleRoster)
+                    FieldControlButton(title: "战术支援", icon: "shippingbox.fill", selected: drawer == .support, action: toggleSupport)
+                    FieldControlButton(title: "返回交战前线", icon: "viewfinder", isToggle: false, action: returnToFrontline)
+                        .accessibilityHint("只移动镜头，不改变选择或执行指令")
+                    FieldControlButton(title: "下一支待命部队", icon: "forward.fill", isToggle: false, action: game.selectNextReadyUnitFromMap)
+                        .disabled(game.readyUnits.isEmpty)
+                }
+            }
+            .frame(maxWidth: condensed ? 240 : 450, alignment: .leading)
+            Spacer(minLength: 0)
+            EndTurnButton(condensed: condensed)
+        }
+    }
+}
+
+private struct BattlefieldDrawerPanel: View {
+    let drawer: BattlefieldDrawer
+    let maxHeight: CGFloat
+    let close: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(drawer == .roster ? "编队 / 据点" : "战术支援").font(.system(size: 12, weight: .bold))
+                Spacer()
+                Button(action: close) { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                    .buttonStyle(.plain).accessibilityLabel("收起地图面板")
+            }
+            .foregroundStyle(BattlefieldTheme.fieldPaper)
+            .padding(.leading, 12)
+            ScrollView {
+                if drawer == .roster {
+                    ObjectiveJumpDock(compact: false)
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForceRibbon()
+                        TacticalOrderStrip()
+                        ReinforcementDock()
+                        MapLegendView()
+                    }.padding(12)
+                }
+            }
+        }
+        .frame(maxHeight: maxHeight)
+        .background(FieldPlate(emphasized: true))
+    }
+}
+
 struct MapRestartButton: View {
     @EnvironmentObject private var game: GameState
     var body: some View {
-        Button(action: game.restart) {
-            Image(systemName: "arrow.clockwise")
-                .font(.system(size: 17, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(BattlefieldTheme.commandMetal, in: RoundedRectangle(cornerRadius: 3))
-                .overlay { RoundedRectangle(cornerRadius: 3).stroke(BattlefieldTheme.brass.opacity(0.34), lineWidth: 0.8) }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("重新开始当前战役")
+        FieldControlButton(title: "重新开始当前战役", icon: "arrow.clockwise", isToggle: false, action: game.restart)
     }
 }

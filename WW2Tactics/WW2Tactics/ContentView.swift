@@ -5,18 +5,14 @@ struct ContentView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let viewport = BattlefieldViewport(size: proxy.size)
             let isRegular = proxy.size.width >= 760
             ZStack(alignment: .trailing) {
-                VStack(spacing: 0) {
-                    TopCommandBar(condensed: viewport.isShallow)
-                    BattlefieldView(isInspectorExpanded: $isInspectorExpanded)
-                }
+                BattlefieldView(isInspectorExpanded: $isInspectorExpanded)
                 if isInspectorExpanded {
                     inspector(isRegular: isRegular, height: proxy.size.height)
                 }
             }
-            .background(BattlefieldTheme.commandDeckDeep)
+            .background(BattlefieldTheme.commandDeckDeep.ignoresSafeArea())
         }
         .preferredColorScheme(.dark)
         .statusBarHidden(true)
@@ -41,9 +37,13 @@ struct ContentView: View {
 
     private var inspectorContent: some View {
         VStack(spacing: 0) {
-            HStack {
+            HStack(spacing: 10) {
                 Label("战场情报", systemImage: "binoculars.fill")
                     .font(.system(size: 13, weight: .bold))
+                Text("INTELLIGENCE")
+                    .font(.custom("Georgia-Bold", size: 9))
+                    .tracking(1.4)
+                    .foregroundStyle(BattlefieldTheme.brass)
                 Spacer()
                 Button { isInspectorExpanded = false } label: {
                     Image(systemName: "xmark").frame(width: 44, height: 44)

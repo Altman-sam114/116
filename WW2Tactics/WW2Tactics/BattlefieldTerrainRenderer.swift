@@ -1,10 +1,14 @@
 import SwiftUI
 
 /// Continuous materials and shared original scenery are below all tactical input and unit layers.
-struct BattlefieldTerrainRenderer: View {
+struct BattlefieldTerrainRenderer: View, Equatable {
     let tiles: [TerrainTile]
     let layout: BattlefieldMapLayout
     let roadConnections: [HexCoordinate: [Int]]
+
+    static func == (left: Self, right: Self) -> Bool {
+        left.tiles == right.tiles && left.layout == right.layout && left.roadConnections == right.roadConnections
+    }
 
     var body: some View {
         Canvas { context, size in
@@ -24,8 +28,8 @@ struct BattlefieldTerrainRenderer: View {
             }
             for tile in tiles {
                 context.stroke(Hexagon().path(in: layout.frame(for: tile.coordinate)),
-                               with: .color(Color(red: 0.12, green: 0.20, blue: 0.12).opacity(tile.terrain == .snow ? 0.07 : 0.14)),
-                               lineWidth: 0.55)
+                               with: .color(Color(red: 0.12, green: 0.20, blue: 0.12).opacity(tile.terrain == .snow ? 0.055 : 0.10)),
+                               lineWidth: 0.45)
             }
         }
         .frame(width: layout.size.width, height: layout.size.height)
@@ -39,7 +43,7 @@ struct BattlefieldTerrainRenderer: View {
         guard let ground = BattlefieldArtwork.ground else { return }
         let image = context.resolve(BattlefieldArtwork.image(ground))
         var material = context
-        material.opacity = 0.56
+        material.opacity = 0.36
         let step: CGFloat = 512
         for y in stride(from: CGFloat.zero, to: size.height, by: step) {
             for x in stride(from: CGFloat.zero, to: size.width, by: step) {
@@ -70,22 +74,16 @@ struct BattlefieldTerrainRenderer: View {
     private func paintSnow(context: inout GraphicsContext) {
         var drifts = Path()
         for tile in tiles where tile.terrain == .snow {
-            let point = layout.center(for: tile.coordinate)
-            let seed = seed(for: tile)
-            let width = 126 + noise(seed, 7) * 18
-            let height = 102 + noise(seed, 11) * 14
-            drifts.addEllipse(in: CGRect(x: point.x - width / 2 + (noise(seed, 2) - 0.5) * 14,
-                                        y: point.y - height / 2 + (noise(seed, 5) - 0.5) * 12,
-                                        width: width, height: height))
+            drifts.addPath(Hexagon().path(in: layout.frame(for: tile.coordinate).insetBy(dx: -9, dy: -9)))
         }
         guard !drifts.isEmpty else { return }
         context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 19))
-            layer.fill(drifts, with: .color(Color(red: 0.76, green: 0.81, blue: 0.74).opacity(0.68)))
+            layer.addFilter(.blur(radius: 15))
+            layer.fill(drifts, with: .color(Color(red: 0.79, green: 0.83, blue: 0.77).opacity(0.76)))
         }
         context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 10))
-            layer.fill(drifts, with: .color(Color(red: 0.87, green: 0.89, blue: 0.83).opacity(0.20)))
+            layer.addFilter(.blur(radius: 6))
+            layer.fill(drifts, with: .color(Color(red: 0.87, green: 0.89, blue: 0.83).opacity(0.16)))
         }
     }
 
@@ -117,15 +115,16 @@ struct BattlefieldTerrainRenderer: View {
         let infrastructure = BattlefieldInfrastructure(tiles: tiles, roadConnections: roadConnections)
         paintRivers(context: &context)
         var roads = Path()
-        for tile in tiles where infrastructure.directionsByCoordinate[tile.coordinate] != nil {
-            roads.addPath(connectionPath(at: tile.coordinate, directions: infrastructure.directionsByCoordinate[tile.coordinate] ?? []))
+        for segment in BattlefieldRoadGeometry(infrastructure: infrastructure, layout: layout).segments {
+            var path = Path()
+            path.move(to: segment.start)
+            path.addCurve(to: segment.end, control1: segment.firstControl, control2: segment.secondControl)
+            roads.addPath(path)
         }
         context.stroke(roads, with: .color(Color(red: 0.22, green: 0.26, blue: 0.16).opacity(0.35)),
-                       style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .round))
-        context.stroke(roads, with: .color(Color(red: 0.64, green: 0.59, blue: 0.44)),
-                       style: StrokeStyle(lineWidth: 4.5, lineCap: .round, lineJoin: .round))
-        context.stroke(roads, with: .color(Color(red: 0.80, green: 0.75, blue: 0.57).opacity(0.38)),
-                       style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
+                       style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+        context.stroke(roads, with: .color(Color(red: 0.65, green: 0.60, blue: 0.45).opacity(0.88)),
+                       style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
         for bridge in infrastructure.bridges { paintBridge(bridge, context: &context) }
     }
 
@@ -149,28 +148,6 @@ struct BattlefieldTerrainRenderer: View {
         }
         for x in [CGFloat(-30), 25] {
             deck.fill(Path(CGRect(x: x, y: -9, width: 5, height: 17)), with: .color(Color(red: 0.45, green: 0.45, blue: 0.37)))
-        }
-    }
-
-    private func connectionPath(at coordinate: HexCoordinate, directions: [Int]) -> Path {
-        let center = layout.center(for: coordinate)
-        let points = directions.map { direction -> CGPoint in
-            let neighbor = layout.center(for: coordinate.neighbors[direction])
-            return CGPoint(x: (center.x + neighbor.x) / 2, y: (center.y + neighbor.y) / 2)
-        }
-        return Path { path in
-            if points.count == 2 {
-                path.move(to: points[0])
-                path.addQuadCurve(to: points[1], control: center)
-            } else if points.isEmpty {
-                path.move(to: CGPoint(x: center.x - 15, y: center.y - 6))
-                path.addQuadCurve(to: CGPoint(x: center.x + 15, y: center.y + 6), control: center)
-            } else {
-                for point in points {
-                    path.move(to: center)
-                    path.addLine(to: point)
-                }
-            }
         }
     }
 
@@ -213,7 +190,12 @@ struct BattlefieldTerrainRenderer: View {
     private func paintScenery(_ tile: TerrainTile, context: inout GraphicsContext) {
         guard let placement = BattlefieldSceneryPlacement(tile: tile, layout: layout),
               let sprite = BattlefieldArtwork.scenery(placement.kind) else { return }
-        context.draw(BattlefieldArtwork.image(sprite), in: placement.rect)
+        var scenery = context
+        if placement.mirrored {
+            scenery.translateBy(x: placement.rect.midX * 2, y: 0)
+            scenery.scaleBy(x: -1, y: 1)
+        }
+        scenery.draw(BattlefieldArtwork.image(sprite), in: placement.rect)
     }
 
     private func seed(for tile: TerrainTile) -> Int { tile.coordinate.q * 997 + tile.coordinate.r * 131 }
