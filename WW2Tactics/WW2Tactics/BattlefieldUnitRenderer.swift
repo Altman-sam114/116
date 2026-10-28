@@ -13,6 +13,7 @@ struct BattlefieldUnitRenderer: View {
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fit)
+                    .scaleEffect(x: faction == .axis ? -1 : 1, y: 1)
                     .saturation(isSpent ? 0.6 : 1)
                     .opacity(isSpent ? 0.88 : 1)
             } else {

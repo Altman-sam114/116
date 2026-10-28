@@ -5,12 +5,12 @@ final class BattlefieldVisualTests: XCTestCase {
     func testLandscapeBattlefieldAndInspector() {
         continueAfterFailure = false
         let device = XCUIDevice.shared
-        device.orientation = .landscapeRight
+        device.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments = ["--ci-selected-combat-impact-steady"]
         app.launch()
         defer {
-            let finalFrame = XCTAttachment(screenshot: app.screenshot())
+            let finalFrame = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
             finalFrame.name = "battlefield-ui-final"
             finalFrame.lifetime = .keepAlways
             add(finalFrame)
@@ -21,12 +21,15 @@ final class BattlefieldVisualTests: XCTestCase {
             app.terminate()
             device.orientation = .portrait
         }
-        let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            app.frame.width > app.frame.height
-        }, object: nil)
-        XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 15), .completed)
         let endTurn = app.buttons["battlefield-end-turn"]
         XCTAssertTrue(endTurn.waitForExistence(timeout: 15))
+        // Rotate the running scene; pre-launch rotation can leave XCTest's display buffer in portrait.
+        device.orientation = .landscapeRight
+        let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let pixels = XCUIScreen.main.screenshot().image.cgImage
+            return app.frame.width > app.frame.height && (pixels?.width ?? 0) > (pixels?.height ?? 0)
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 15), .completed)
         XCTAssertTrue(endTurn.isHittable)
         XCTAssertTrue(app.staticTexts["M10坦克歼击营"].firstMatch.waitForExistence(timeout: 10))
 
@@ -37,16 +40,31 @@ final class BattlefieldVisualTests: XCTestCase {
         let close = app.buttons["battlefield-intelligence-close"]
         XCTAssertTrue(close.waitForExistence(timeout: 10))
         XCTAssertTrue(close.isHittable)
+        XCTAssertLessThanOrEqual(close.frame.maxX, app.frame.maxX)
+        XCTAssertLessThanOrEqual(close.frame.maxY, app.frame.maxY)
         close.tap()
         XCTAssertFalse(close.exists)
         XCTAssertTrue(endTurn.isHittable)
 
         for index in 1...2 {
-            let attachment = XCTAttachment(screenshot: app.screenshot())
+            let screenshot = XCUIScreen.main.screenshot()
+            XCTAssertGreaterThan(screenshot.image.cgImage?.width ?? 0, screenshot.image.cgImage?.height ?? 0)
+            let attachment = XCTAttachment(screenshot: screenshot)
             attachment.name = "battlefield-landscape-\(index)"
             attachment.lifetime = .keepAlways
             add(attachment)
             if index == 1 { Thread.sleep(forTimeInterval: 1) }
+        }
+
+        for title in ["编队与据点定位", "战术支援"] {
+            let toggle = app.buttons[title]
+            XCTAssertTrue(toggle.isHittable)
+            toggle.tap()
+            let dismiss = app.buttons["收起地图面板"]
+            XCTAssertTrue(dismiss.waitForExistence(timeout: 10))
+            XCTAssertTrue(dismiss.isHittable)
+            dismiss.tap()
+            XCTAssertFalse(dismiss.exists)
         }
 
         app.buttons["下一支待命部队"].tap()
@@ -66,7 +84,7 @@ final class BattlefieldVisualTests: XCTestCase {
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [moved], timeout: 10), .completed)
         XCTAssertNotEqual(selected.value as? String, beforeMove)
-        let movedFrame = XCTAttachment(screenshot: app.screenshot())
+        let movedFrame = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         movedFrame.name = "battlefield-order-executed"
         movedFrame.lifetime = .keepAlways
         add(movedFrame)

@@ -11,12 +11,12 @@ struct MiniHealthBar: View {
             let clampedRatio = max(0, min(ratio, 1))
 
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.black.opacity(0.52))
-                Capsule()
+                Rectangle().fill(Color.black.opacity(0.72))
+                Rectangle()
                     .fill(fillColor(for: clampedRatio))
                     .frame(width: proxy.size.width * clampedRatio)
             }
-            .clipShape(Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: 1))
             .overlay {
                 Path { path in
                     for index in 1..<5 {
@@ -28,8 +28,8 @@ struct MiniHealthBar: View {
                 .stroke(Color.black.opacity(0.34), lineWidth: 0.6)
             }
             .overlay {
-                Capsule()
-                    .stroke(Color.white.opacity(0.30), lineWidth: 0.6)
+                RoundedRectangle(cornerRadius: 1)
+                    .stroke(Color.black.opacity(0.75), lineWidth: 0.8)
             }
         }
         .accessibilityHidden(true)
@@ -40,157 +40,6 @@ struct MiniHealthBar: View {
             return clampedRatio > 0.3 ? factionTint : Color.red
         }
         return clampedRatio > 0.45 ? Color.green : Color.red
-    }
-}
-
-struct UnitCounter: View {
-    @EnvironmentObject private var game: GameState
-    let unit: BattleUnit
-
-    var body: some View {
-        VStack(spacing: 3) {
-            MapUnitPiece(
-                kind: unit.kind,
-                faction: unit.faction,
-                rank: unit.rank,
-                supplyState: game.supplyState(for: unit),
-                tacticalStatus: unit.tacticalStatus,
-                isSpent: isActionComplete,
-                width: unit.kind.mapPieceWidth,
-                height: 58,
-                variant: BattlefieldVehicleVariant.matching(unit)
-            )
-            .overlay(alignment: .topLeading) {
-                if let commander = unit.commander {
-                    CommanderBadge(commander: commander, faction: unit.faction)
-                        .offset(x: -6, y: -7)
-                }
-            }
-            .opacity(isActionComplete ? 0.9 : 1)
-
-            HStack(spacing: 3) {
-                readinessSlot(symbol: readiness.moveSymbol, available: readiness.canMove)
-                MiniHealthBar(ratio: unit.hpRatio, factionTint: unit.faction.accentColor)
-                    .frame(width: 38, height: 5)
-                readinessSlot(symbol: readiness.attackSymbol, available: readiness.canAttack)
-            }
-            .frame(width: 65, height: 12)
-            .accessibilityHidden(true)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilitySummary)
-    }
-
-    private var isActionComplete: Bool {
-        unit.hasMoved && unit.hasAttacked
-    }
-
-    private var readiness: UnitReadinessPresentation {
-        UnitReadinessPresentation(hasMoved: unit.hasMoved, hasAttacked: unit.hasAttacked)
-    }
-
-    private func readinessSlot(symbol: String, available: Bool) -> some View {
-        Image(systemName: symbol)
-            .font(.system(size: 6, weight: .heavy))
-            .foregroundStyle(available ? Color.white : Color.white.opacity(0.48))
-            .frame(width: 10, height: 10)
-            .background(available ? unit.faction.accentColor.opacity(0.85) : Color.black.opacity(0.55), in: Circle())
-    }
-
-    private var accessibilitySummary: String {
-        let commanderText = unit.commander.map { "，将领\($0.name)" } ?? ""
-        let supplyText = game.supplyState(for: unit).title
-        return "\(unit.name)，\(unit.kind.title)，\(unit.faction.title)，生命 \(unit.hp) / \(unit.maxHP)\(commanderText)，\(unit.rank.title)，\(supplyText)，\(unit.tacticalStatus.title)，\(unit.actionStateText)"
-    }
-}
-
-struct MapUnitPiece: View {
-    let kind: UnitKind
-    let faction: Faction
-    let rank: UnitRank
-    let supplyState: SupplyState
-    let tacticalStatus: UnitTacticalStatus
-    let isSpent: Bool
-    let width: CGFloat
-    let height: CGFloat
-    var variant: BattlefieldVehicleVariant? = nil
-
-    var body: some View {
-        ZStack {
-            MapUnitGrounding(faction: faction, isSpent: isSpent)
-                .frame(width: width * 0.98, height: height * 0.58)
-                .offset(y: height * 0.12)
-
-            UnitModelView(
-                kind: kind,
-                faction: faction,
-                isSpent: isSpent,
-                presentation: .mapPiece,
-                variant: variant
-            )
-                .frame(width: width - 4, height: height - 4)
-                .offset(y: -2)
-
-            // Faction ring + tinted HP bar carry allegiance; rank shows as a
-            // bare gold insignia (GoG3-style chevron) without a dark capsule.
-            Text(faction.shortTitle + " " + rank.insignia)
-                .font(.system(size: 7, weight: .black, design: .rounded))
-                .foregroundStyle(Color(red: 0.98, green: 0.83, blue: 0.36))
-                .shadow(color: .black.opacity(0.85), radius: 0.6, x: 0.5, y: 0.8)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-
-            if supplyState == .isolated {
-                Text("CUT")
-                    .font(.system(size: 6, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 3)
-                    .padding(.vertical, 1)
-                    .background(Color.red.opacity(0.82), in: Capsule())
-                    .overlay {
-                        Capsule()
-                            .stroke(BattlefieldTheme.mapUnitStatusBackdrop, lineWidth: 0.6)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
-
-            if tacticalStatus != .normal {
-                Text(tacticalStatus.shortTitle)
-                    .font(.system(size: 6, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 3)
-                    .padding(.vertical, 1)
-                    .background(tacticalStatus.mapColor.opacity(0.82), in: Capsule())
-                    .overlay {
-                        Capsule()
-                            .stroke(BattlefieldTheme.mapUnitStatusBackdrop, lineWidth: 0.6)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            }
-        }
-        .frame(width: width, height: height)
-        .accessibilityHidden(true)
-    }
-}
-
-private struct MapUnitGrounding: View {
-    let faction: Faction
-    let isSpent: Bool
-
-    var body: some View {
-        GeometryReader { proxy in
-            Ellipse()
-                .fill(faction.accentColor.opacity(isSpent ? 0.06 : 0.12))
-                .overlay {
-                    Ellipse().stroke(
-                        faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing,
-                        style: StrokeStyle(lineWidth: isSpent ? 1 : 1.6, dash: faction == .allies ? [] : [4, 2])
-                    )
-                }
-                .frame(width: proxy.size.width * 0.94, height: proxy.size.height * 0.61)
-                .position(x: proxy.size.width / 2, y: proxy.size.height * 0.66)
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }
 
@@ -392,13 +241,13 @@ extension UnitKind {
     var mapPieceWidth: CGFloat {
         switch self {
         case .infantry:
-            77
+            88
         case .tank:
-            82
+            98
         case .artillery:
-            82
+            98
         case .recon:
-            78
+            94
         }
     }
 }

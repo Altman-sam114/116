@@ -9,14 +9,14 @@ flowchart TD
     Layout --> Terrain[Equatable 静态底材 / 稳定错落镜像地貌 / 相邻雪格连续雪带]
     River[真实 river 邻接 / 共享岸点河宽切线 / 城镇连续河道 / 自然端潭] --> Terrain
     Infrastructure[canonical 道路保留 / 成对边单条曲线 / 真实相对两岸桥梁] --> Terrain
-    Layout --> Tiles[透明交互地格 / 稳定 ID / HexInputReader]
+    Layout --> Tiles[HexTile / 独立 MapInput / 稳定 ID / 无障碍摘要]
     State --> Routes[单次只读地格与 ZOC 快照 / 原 FIFO 与成本]
     Routes --> Hints[批量 mapActionHints 共享一次移动路线搜索]
     Hints --> Markers[范围保留 / MOVE 文字仅焦点或终点 / 攻击聚焦降噪]
     Markers --> Tiles
     State --> Rules[可达 / 攻击 / 控制区 / 补给 / 预判]
     Rules --> Tiles
-    Artwork[六份离线原创 PNG / 20 sprite 单次解码与复用] --> Terrain
+    Artwork[七份离线原创 PNG / 20 在用 sprite 静态复用] --> Terrain
     Artwork --> Units[八款通用及四款命名军械 / AL 实线 AX 虚线 / HP / M 与 A]
     Tiles --> Units
     State --> Result[执行时坐标与真实 CombatResultSummary]
@@ -29,7 +29,7 @@ flowchart TD
     Deck --> Screen
     State --> Overview[真实地貌单位据点缩略图 / 六角内点按只聚焦]
     Overview --> Screen
-    Layout --> Camera[最近存活双方中点 / 独立前线锚框 / 重开镜头]
+    Layout --> Camera[短边战术密度 / 最近存活双方中点 / 独立前线锚框]
     Camera --> Screen
     Screen --> Input[点击 / 鼠标主次键 / 选择与聚焦 / 执行 / 结束回合]
     Input --> State
@@ -71,7 +71,7 @@ flowchart TD
     Build --> XCTest[云端全部 XCTest / 原 147 项加 5 项 / 不跳过]
     Build --> Boot[两个既有云端设备串行首启 / 同设备一次有界恢复 / 不创建设备]
     Boot --> XCTest
-    XCTest --> UI[两设备各 1 项 XCUITest / 真实旋转 / 情报开合 / 据点预览执行移动 / 推进回合]
+    XCTest --> UI[两设备各 1 项 XCUITest / 启动后旋转与原始屏幕像素断言 / 情报与抽屉开合 / 移动及回合]
     UI --> Six[同 SHA 原四竖屏加两设备两帧命名原始附件 / 六张最终图]
     UI --> Diagnostics[成功失败均保留最终原图和无障碍层级 / 不代替六图]
     Six --> Gates[尺寸 / 500 KB / 亮度 / 方向一致 / Vision 拒绝已知系统通知 / 有界重试]

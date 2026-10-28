@@ -14,10 +14,8 @@ struct BattlefieldTerrainRenderer: View, Equatable {
         Canvas { context, size in
             paintGround(context: &context, size: size)
             paintRelief(context: &context)
+            BattlefieldGroundDetails(tiles: tiles, layout: layout).paint(context: &context)
             paintSnow(context: &context)
-            for tile in tiles where tile.terrain == .plains && !tile.isObjective {
-                if abs(seed(for: tile) % 5) == 0 { paintField(tile, context: &context) }
-            }
             paintConnections(context: &context)
             for tile in tiles.sorted(by: { left, right in
                 let a = layout.center(for: left.coordinate)
@@ -28,8 +26,8 @@ struct BattlefieldTerrainRenderer: View, Equatable {
             }
             for tile in tiles {
                 context.stroke(Hexagon().path(in: layout.frame(for: tile.coordinate)),
-                               with: .color(Color(red: 0.12, green: 0.20, blue: 0.12).opacity(tile.terrain == .snow ? 0.055 : 0.10)),
-                               lineWidth: 0.45)
+                               with: .color(Color(red: 0.15, green: 0.20, blue: 0.13).opacity(tile.terrain == .snow ? 0.24 : 0.18)),
+                               lineWidth: 0.55)
             }
         }
         .frame(width: layout.size.width, height: layout.size.height)
@@ -39,24 +37,25 @@ struct BattlefieldTerrainRenderer: View, Equatable {
 
     private func paintGround(context: inout GraphicsContext, size: CGSize) {
         context.fill(Path(CGRect(origin: .zero, size: size)),
-                     with: .color(Color(red: 0.43, green: 0.49, blue: 0.31)))
+                     with: .color(BattlefieldTheme.mapGround))
         guard let ground = BattlefieldArtwork.ground else { return }
         let image = context.resolve(BattlefieldArtwork.image(ground))
         var material = context
-        material.opacity = 0.36
-        let step: CGFloat = 512
+        material.opacity = 0.64
+        let step: CGFloat = 384
         for y in stride(from: CGFloat.zero, to: size.height, by: step) {
             for x in stride(from: CGFloat.zero, to: size.width, by: step) {
                 material.draw(image, in: CGRect(x: x, y: y, width: step, height: step))
             }
         }
         context.fill(Path(CGRect(origin: .zero, size: size)),
-                     with: .color(Color(red: 0.60, green: 0.65, blue: 0.45).opacity(0.12)))
+                     with: .linearGradient(Gradient(colors: [.yellow.opacity(0.035), .black.opacity(0.06)]),
+                                           startPoint: .zero, endPoint: CGPoint(x: size.width, y: size.height)))
     }
 
     private func paintRelief(context: inout GraphicsContext) {
         context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 27))
+            layer.addFilter(.blur(radius: 18))
             for tile in tiles where tile.terrain != .river {
                 let seed = seed(for: tile)
                 guard noise(seed, 41) > 0.60 else { continue }
@@ -64,8 +63,8 @@ struct BattlefieldTerrainRenderer: View, Equatable {
                 let rect = CGRect(x: center.x - 95, y: center.y - 46, width: 190, height: 92)
                 let shade = tile.terrain == .forest || tile.terrain == .mountain
                 layer.fill(Path(ellipseIn: rect), with: .color(
-                    shade ? Color(red: 0.24, green: 0.31, blue: 0.18).opacity(0.20)
-                          : Color(red: 0.72, green: 0.68, blue: 0.43).opacity(0.16)
+                    shade ? Color(red: 0.17, green: 0.24, blue: 0.11).opacity(0.30)
+                          : Color(red: 0.72, green: 0.68, blue: 0.43).opacity(0.20)
                 ))
             }
         }
@@ -74,41 +73,13 @@ struct BattlefieldTerrainRenderer: View, Equatable {
     private func paintSnow(context: inout GraphicsContext) {
         var drifts = Path()
         for tile in tiles where tile.terrain == .snow {
-            drifts.addPath(Hexagon().path(in: layout.frame(for: tile.coordinate).insetBy(dx: -9, dy: -9)))
+            drifts.addPath(Hexagon().path(in: layout.frame(for: tile.coordinate).insetBy(dx: -1, dy: -1)))
         }
         guard !drifts.isEmpty else { return }
         context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 15))
-            layer.fill(drifts, with: .color(Color(red: 0.79, green: 0.83, blue: 0.77).opacity(0.76)))
+            layer.addFilter(.blur(radius: 8))
+            layer.fill(drifts, with: .color(Color(red: 0.84, green: 0.87, blue: 0.82).opacity(0.84)))
         }
-        context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 6))
-            layer.fill(drifts, with: .color(Color(red: 0.87, green: 0.89, blue: 0.83).opacity(0.16)))
-        }
-    }
-
-    private func paintField(_ tile: TerrainTile, context: inout GraphicsContext) {
-        let point = layout.center(for: tile.coordinate)
-        let phase = noise(seed(for: tile), 17)
-        let frame = CGRect(x: point.x - 42, y: point.y - 22, width: 80, height: 49)
-        let field = Path { path in
-            path.move(to: CGPoint(x: frame.minX, y: frame.minY + 5))
-            path.addLine(to: CGPoint(x: frame.maxX - 5, y: frame.minY))
-            path.addLine(to: CGPoint(x: frame.maxX, y: frame.maxY - 4))
-            path.addLine(to: CGPoint(x: frame.minX + 2, y: frame.maxY))
-            path.closeSubpath()
-        }
-        var paint = context
-        paint.clip(to: field)
-        paint.fill(field, with: .color(Color(red: 0.64, green: 0.58, blue: 0.35).opacity(0.25)))
-        var furrows = Path()
-        for index in 0..<13 {
-            let y = frame.minY + CGFloat(index) * 4 + phase
-            furrows.move(to: CGPoint(x: frame.minX, y: y))
-            furrows.addLine(to: CGPoint(x: frame.maxX, y: y - 5))
-        }
-        paint.stroke(furrows, with: .color(Color(red: 0.25, green: 0.31, blue: 0.16).opacity(0.16)), lineWidth: 0.7)
-        context.stroke(field, with: .color(Color(red: 0.29, green: 0.35, blue: 0.20).opacity(0.24)), lineWidth: 1.2)
     }
 
     private func paintConnections(context: inout GraphicsContext) {
@@ -122,9 +93,11 @@ struct BattlefieldTerrainRenderer: View, Equatable {
             roads.addPath(path)
         }
         context.stroke(roads, with: .color(Color(red: 0.22, green: 0.26, blue: 0.16).opacity(0.35)),
-                       style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
-        context.stroke(roads, with: .color(Color(red: 0.65, green: 0.60, blue: 0.45).opacity(0.88)),
-                       style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
+                       style: StrokeStyle(lineWidth: 6.2, lineCap: .round, lineJoin: .round))
+        context.stroke(roads, with: .color(Color(red: 0.70, green: 0.64, blue: 0.47).opacity(0.94)),
+                       style: StrokeStyle(lineWidth: 4.5, lineCap: .round, lineJoin: .round))
+        context.stroke(roads, with: .color(Color(red: 0.36, green: 0.32, blue: 0.22).opacity(0.32)),
+                       style: StrokeStyle(lineWidth: 0.8, lineCap: .round, lineJoin: .round, dash: [3, 2]))
         for bridge in infrastructure.bridges { paintBridge(bridge, context: &context) }
     }
 
@@ -170,9 +143,9 @@ struct BattlefieldTerrainRenderer: View, Equatable {
             layer.addFilter(.blur(radius: 3.5))
             layer.fill(shore, with: .color(Color(red: 0.18, green: 0.24, blue: 0.16).opacity(0.42)))
         }
-        context.fill(bank, with: .color(Color(red: 0.46, green: 0.46, blue: 0.32)))
+        context.fill(bank, with: .color(Color(red: 0.62, green: 0.60, blue: 0.41)))
         context.fill(water, with: .linearGradient(
-            Gradient(colors: [Color(red: 0.32, green: 0.48, blue: 0.47), Color(red: 0.19, green: 0.34, blue: 0.36)]),
+            Gradient(colors: [Color(red: 0.32, green: 0.49, blue: 0.51), Color(red: 0.15, green: 0.30, blue: 0.34)]),
             startPoint: .zero, endPoint: CGPoint(x: layout.size.width, y: layout.size.height)))
         for ribbon in geometry.ribbons {
             for fraction in [CGFloat(0.28), 0.57, 0.82] {
@@ -203,5 +176,151 @@ struct BattlefieldTerrainRenderer: View, Equatable {
     private func noise(_ seed: Int, _ salt: Int) -> CGFloat {
         let value = sin(Double(seed) * 12.9898 + Double(salt) * 78.233) * 43758.5453
         return CGFloat(value - floor(value))
+    }
+}
+
+extension TerrainKind {
+    var showsMapConnections: Bool {
+        switch self {
+        case .river, .road, .forest:
+            true
+        case .plains, .city, .mountain, .snow:
+            false
+        }
+    }
+
+    var connectionColor: Color {
+        switch self {
+        case .river:
+            Color(red: 0.26, green: 0.50, blue: 0.68).opacity(0.90)
+        case .road:
+            // Dirt-tan road band; slimmer + softer so clustered road hexes
+            // read as winding paths instead of a heavy triangle lattice.
+            Color(red: 0.55, green: 0.46, blue: 0.30).opacity(0.64)
+        case .forest:
+            Color(red: 0.30, green: 0.44, blue: 0.26).opacity(0.20)
+        case .city:
+            Color.black.opacity(0.10)
+        case .mountain:
+            Color.white.opacity(0.08)
+        case .snow:
+            Color.white.opacity(0.12)
+        case .plains:
+            Color.yellow.opacity(0.06)
+        }
+    }
+
+    var connectionWidth: CGFloat {
+        switch self {
+        case .river: 11
+        case .road: 4.5
+        case .forest: 8
+        case .city: 12
+        case .mountain, .snow, .plains: 7
+        }
+    }
+
+    var mapGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                mapHighlightColor,
+                mapColor,
+                mapShadowColor
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    // EasyTech GoG3-style continuous ground: neighbours share one pale
+    // field tone so the battlefield reads as a single painted landscape,
+    // with terrain identity carried mostly by the painted texture layer.
+    var mapColor: Color {
+        switch self {
+        case .plains:
+            Color(red: 0.66, green: 0.68, blue: 0.50)
+        case .forest:
+            Color(red: 0.58, green: 0.65, blue: 0.46)
+        case .city:
+            Color(red: 0.67, green: 0.67, blue: 0.57)
+        case .mountain:
+            Color(red: 0.64, green: 0.64, blue: 0.55)
+        case .snow:
+            Color(red: 0.90, green: 0.92, blue: 0.92)
+        case .river:
+            // Land-toned fill: the winding blue connection band carries the
+            // water so rivers read as a channel, not a solid blue hex.
+            Color(red: 0.62, green: 0.68, blue: 0.56)
+        case .road:
+            Color(red: 0.67, green: 0.68, blue: 0.50)
+        }
+    }
+
+    private var mapHighlightColor: Color {
+        switch self {
+        case .plains:
+            Color(red: 0.70, green: 0.72, blue: 0.54)
+        case .forest:
+            Color(red: 0.63, green: 0.70, blue: 0.50)
+        case .city:
+            Color(red: 0.71, green: 0.72, blue: 0.62)
+        case .mountain:
+            Color(red: 0.68, green: 0.68, blue: 0.59)
+        case .snow:
+            Color(red: 0.94, green: 0.96, blue: 0.96)
+        case .river:
+            Color(red: 0.67, green: 0.72, blue: 0.61)
+        case .road:
+            Color(red: 0.71, green: 0.72, blue: 0.54)
+        }
+    }
+
+    private var mapShadowColor: Color {
+        switch self {
+        case .plains:
+            Color(red: 0.61, green: 0.64, blue: 0.46)
+        case .forest:
+            Color(red: 0.53, green: 0.60, blue: 0.42)
+        case .city:
+            Color(red: 0.62, green: 0.63, blue: 0.52)
+        case .mountain:
+            Color(red: 0.59, green: 0.60, blue: 0.50)
+        case .snow:
+            Color(red: 0.87, green: 0.89, blue: 0.89)
+        case .river:
+            Color(red: 0.58, green: 0.64, blue: 0.52)
+        case .road:
+            Color(red: 0.62, green: 0.63, blue: 0.46)
+        }
+    }
+
+    var mapSymbol: String {
+        switch self {
+        case .plains:
+            "·"
+        case .forest:
+            "♣"
+        case .city:
+            "▦"
+        case .mountain:
+            "△"
+        case .snow:
+            "*"
+        case .river:
+            "≈"
+        case .road:
+            "="
+        }
+    }
+
+    var symbolColor: Color {
+        switch self {
+        case .forest, .mountain, .river:
+            Color.white.opacity(0.38)
+        case .snow:
+            Color.black.opacity(0.32)
+        default:
+            Color.black.opacity(0.28)
+        }
     }
 }

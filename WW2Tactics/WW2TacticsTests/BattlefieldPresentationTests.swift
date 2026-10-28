@@ -4,6 +4,73 @@ import XCTest
 
 @MainActor
 final class BattlefieldPresentationTests: XCTestCase {
+    func testTacticalCameraKeepsModelsReadableInBothOrientations() {
+        for size in [CGSize(width: 440, height: 900), CGSize(width: 900, height: 370),
+                     CGSize(width: 1024, height: 1300), CGSize(width: 1300, height: 900)] {
+            let campaign = BattlefieldMapCamera.scale(viewport: size, zoom: MapScaleMode.campaign.scaleMultiplier)
+            let tactical = BattlefieldMapCamera.scale(viewport: size, zoom: MapScaleMode.tactical.scaleMultiplier)
+            let detail = BattlefieldMapCamera.scale(viewport: size, zoom: MapScaleMode.detail.scaleMultiplier)
+            XCTAssertLessThan(campaign, tactical)
+            XCTAssertLessThan(tactical, detail)
+            XCTAssertGreaterThanOrEqual(UnitKind.tank.mapPieceWidth * tactical, 75)
+            XCTAssertLessThanOrEqual(tactical, 1.32)
+            XCTAssertEqual(detail / tactical, 1.25, accuracy: 0.0001)
+        }
+        let invalid = BattlefieldMapCamera.scale(viewport: CGSize(width: CGFloat.nan, height: CGFloat.infinity), zoom: .nan)
+        XCTAssertTrue(invalid.isFinite)
+        XCTAssertGreaterThan(invalid, 0)
+        XCTAssertLessThanOrEqual(BattlefieldMapCamera.scale(viewport: .zero, zoom: 999), 2.64)
+    }
+
+    func testInspectorAndOrderLayoutsRespectShortAndNarrowViewports() {
+        for size in [CGSize(width: 320, height: 568), CGSize(width: 440, height: 900),
+                     CGSize(width: 900, height: 370), CGSize(width: 1300, height: 900)] {
+            let layout = BattlefieldHUDLayout(size: size)
+            XCTAssertGreaterThan(layout.inspectorSize.width, 0)
+            XCTAssertGreaterThan(layout.inspectorSize.height, 0)
+            XCTAssertLessThanOrEqual(layout.inspectorSize.width + 24, size.width)
+            XCTAssertLessThanOrEqual(layout.inspectorSize.height + 24, size.height)
+            XCTAssertEqual(layout.inlineOrders, size.width >= 680 && size.width > size.height)
+        }
+        XCTAssertEqual(BattlefieldHUDLayout(size: .zero).inspectorSize, .zero)
+        XCTAssertEqual(BattlefieldHUDLayout(size: CGSize(width: CGFloat.nan, height: CGFloat.infinity)).inspectorSize, .zero)
+    }
+
+    func testSurfacePlotsAreDeterministicAndNeverInventTerrainRules() {
+        for scenario in Scenario.campaignCatalog {
+            let original = scenario.tiles
+            let layout = BattlefieldMapLayout(coordinates: scenario.tiles.map(\.coordinate))
+            var count = 0
+            for tile in scenario.tiles {
+                let plot = BattlefieldFieldPlot(tile: tile, layout: layout)
+                XCTAssertEqual(plot, BattlefieldFieldPlot(tile: tile, layout: layout))
+                if let plot {
+                    count += 1
+                    XCTAssertEqual(tile.terrain, .plains)
+                    XCTAssertFalse(tile.isObjective)
+                    XCTAssertTrue(plot.center.x.isFinite && plot.center.y.isFinite && plot.angle.isFinite)
+                    XCTAssertGreaterThan(plot.size.width, 0)
+                    XCTAssertGreaterThan(plot.size.height, 0)
+                }
+            }
+            XCTAssertGreaterThan(count, 0)
+            XCTAssertEqual(scenario.tiles, original)
+        }
+    }
+
+    func testMapDetailsStayQuietUntilInspectedOrReplayIsExplicit() {
+        for focused in [false, true] {
+            for selected in [false, true] {
+                XCTAssertEqual(BattlefieldActionMarkerPresentation.showsTacticalDetails(focused: focused, selected: selected), focused || selected)
+                XCTAssertEqual(BattlefieldActionMarkerPresentation.showsReplay(focused: focused, explicitReplay: selected), focused || selected)
+            }
+        }
+        XCTAssertTrue(BattlefieldArtwork.resourceNames.contains("scenery-frontline"))
+        for kind in BattlefieldScenery.allCases {
+            XCTAssertTrue(BattlefieldArtwork.scenery(kind) === BattlefieldArtwork.scenery(kind))
+        }
+    }
+
     func testMovementMarkerKeepsTheInspectedOrderWithoutFloodingTheMap() {
         let move = MapActionHint.move(cost: 3, controlZonePenalty: 1)
         XCTAssertFalse(BattlefieldActionMarkerPresentation.showsMarker(for: move, focused: false, routeDestination: false, attackFocus: false))

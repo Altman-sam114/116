@@ -21,6 +21,18 @@
 
 ## 历史记录
 
+### v3.4 / 前线地貌、兵模与军用 HUD 重构（实施，待云端验收）
+
+日期：2026-10-28（Asia/Taipei）。按用户要求直接单模型迭代，不走角色交接、不启子智能体、不做本机项目编译/测试/运行。
+
+先核对 main/origin/main `14f28a0` 与 latest run `40625129871` / attempt 1：static/smoke/build、152 unit 和两设备各 1 项 UI 通过，四竖屏有效；两横屏原附件仍为竖屏像素，故整 run failure。必要报告/日志/PNG 经 ZIP Range 与逐 entry CRC 下载到 `/private/tmp/ww2tactics-review-40625129871/`（41 MB），不是整包摘要核对。百度移动搜索与官方商店夏季/雪地图作为视觉参考，商业截图不进工程。
+
+核心改动：新增内置 ImageGen 原创山林/村镇透明 atlas；确定性田块/草丛/林地接壤/镇区地基、道路路肩和更清楚的河岸；默认按视口短边保持战术密度。兵模放大、双方对置朝向、圆形兵种章、分段 HP/独立行动槽；铆接金属小牌、圆形回合表、短横屏横排指令、受视口约束的右缘情报。1719 行地图按编排/地格/输入/无障碍/领域标记拆分，兵模与贴边控件独立；GameState/GameModels/战役与 workflow 未改。
+
+验证准备：新增 4 项表现测试，保留原资源固定格位/透明度/主体/静态复用/24 MB 门槛；UI 在 app 启动后旋转，用 XCUIScreen 原始屏幕截图并断言原始像素方向，增加情报边界及编队/支援开合，保留真实移动/回合链。已做 `git diff --check` 和规则/CI 零改动范围审查；本机未执行项目验证。README/flow 仅暂存本轮增量，既有规范文档/历史未跟踪文件保留且排除。美术来源、完整提示词和边界见 `md/art/frontline-rebuild.md`。
+
+本轮实现 SHA / run / attempt / artifact：待提交 push 后生成；不以旧基线或静态审查冒充新实现通过。工作台保留进行中任务，下一步核对精确新 SHA 的云端编译、156 unit、两设备 UI 和六图，按真实根因有界修复。
+
 ### v3.3 / 全幅战场与贴边指挥（实施，待最新云端验收）
 
 首轮云端：已提交/push `5f51cac6bc2040829100633aa574b4a73550bbf3`，run `40618452705` / attempt `1` failure，23m45s。exact artifact `ww2tactics-ci-v3.3-main-5f51cac-run40618452705-attempt1`（id `12786923387`，177,812,112 bytes，API digest `sha256:4a1e68a1383e5cb7a753ebd35e2914f785ac54846b3a94e709c5050ae853e743`）。全包下载过慢中止；同一已认证 artifact 的 manifest/summary/JUnit/全部关键日志/unit 与 UI summary 以显式 Range 下载并逐 entry CRC 校验，存于 `/private/tmp/ww2tactics-c-review-40618452705/`，不伪称完整 archive digest 或本机 xcresult 解析通过。152 actual unit/0 failed/0 skipped、static/smoke/build、四竖屏门禁成功；两设备 UI 均在第 29 行“收起战场情报出现”断言失败，横屏未导出。启动有界恢复有效：iPad 第二次成功累计 335.6 秒，iPhone 首次 90.9 秒。不是前轮纯启动失败，也不是规则回归。

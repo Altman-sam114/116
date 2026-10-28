@@ -16,6 +16,30 @@ struct BattlefieldViewport: Equatable {
     var commandBarHeight: CGFloat { isShallow ? 44 : 54 }
 }
 
+/// Camera density is based on the usable short edge, not the full campaign height.
+enum BattlefieldMapCamera {
+    static func scale(viewport: CGSize, zoom: CGFloat) -> CGFloat {
+        let width = viewport.width.isFinite ? max(1, viewport.width) : 440
+        let height = viewport.height.isFinite ? max(1, viewport.height) : 800
+        let tileWidth = min(width / 5.2, height / 5.2)
+        let base = min(1.32, max(0.82, tileWidth / BattlefieldMapLayout.tileSize.width))
+        let safeZoom = zoom.isFinite && zoom > 0 ? min(2, zoom) : 1
+        return base * safeZoom
+    }
+}
+
+struct BattlefieldHUDLayout: Equatable {
+    let inspectorSize: CGSize
+    let inlineOrders: Bool
+
+    init(size: CGSize) {
+        let width = size.width.isFinite ? max(0, size.width) : 0
+        let height = size.height.isFinite ? max(0, size.height) : 0
+        inspectorSize = CGSize(width: min(356, max(0, width - 24)), height: max(0, height - 24))
+        inlineOrders = width >= 680 && width > height
+    }
+}
+
 /// Point-up axial projection shared by terrain, hit targets, scrolling and combat.
 struct BattlefieldMapLayout: Equatable {
     static let tileSize = CGSize(width: 86, height: 100)
@@ -118,6 +142,10 @@ struct UnitReadinessPresentation: Equatable {
 
 /// Reachability stays visible as a wash; only the inspected move needs a text chip.
 enum BattlefieldActionMarkerPresentation {
+    static func showsTacticalDetails(focused: Bool, selected: Bool) -> Bool { focused || selected }
+
+    static func showsReplay(focused: Bool, explicitReplay: Bool) -> Bool { focused || explicitReplay }
+
     static func showsMarker(for hint: MapActionHint, focused: Bool, routeDestination: Bool, attackFocus: Bool) -> Bool {
         guard hint.isCommandable else { return false }
         if attackFocus { return focused && hint.isAttack }

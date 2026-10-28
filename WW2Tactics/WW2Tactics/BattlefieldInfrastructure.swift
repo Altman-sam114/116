@@ -62,17 +62,17 @@ struct BattlefieldSceneryPlacement: Equatable {
         case .forest:
             let variants: [BattlefieldScenery] = [.forest, .openWoodland, .mixedWoodland]
             kind = variants[Int(Self.noise(seed, 31) * 3) % 3]
-            width = 103; height = 84
+            width = 115; height = 83
         case .mountain:
             kind = .mountain
-            width = 125; height = 96
+            width = 146; height = 112
         case .city:
-            kind = tile.isObjective && Self.noise(seed, 47) > 0.35 ? .village : .farmstead
-            width = 101; height = 79
+            kind = tile.isObjective ? .village : .farmstead
+            width = 119; height = 86
         case .snow:
             guard Self.noise(seed, 29) > 0.50 else { return nil }
             kind = Self.noise(seed, 37) > 0.30 ? .sparseWinterWoodland : .winterForest
-            width = 104; height = 82
+            width = 109; height = 81
         default:
             guard tile.isObjective else { return nil }
             kind = .farmstead

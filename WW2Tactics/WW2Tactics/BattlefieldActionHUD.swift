@@ -4,47 +4,32 @@ struct MapActionHUD: View {
     @EnvironmentObject private var game: GameState
     let compact: Bool
     var condensed = false
+    var inlineOrders = false
 
     var body: some View {
         if let unit = game.selectedUnit {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 10) {
-                    UnitModelView(kind: unit.kind, faction: unit.faction, isSpent: unit.hasMoved && unit.hasAttacked,
-                                  variant: BattlefieldVehicleVariant.matching(unit))
-                        .frame(width: condensed ? 60 : 76, height: condensed ? 36 : 49)
-                        .background {
-                            Ellipse().fill(unit.faction.accentColor.opacity(0.14)).frame(height: 16).offset(y: 12)
-                        }
+            VStack(alignment: .leading, spacing: 7) {
+                let layout = inlineOrders ? AnyLayout(HStackLayout(spacing: 14)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 7))
+                layout {
                     UnitCommandIdentity(unit: unit, condensed: condensed)
-                    Spacer(minLength: 0)
-                    Button(action: game.waitSelectedUnit) {
-                        Image(systemName: "shield.lefthalf.filled")
-                            .font(.system(size: 17))
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                            .background(Color.white.opacity(0.05), in: BeveledFieldShape())
+                    if unit.hasMoved && unit.hasAttacked {
+                        Label("行动完毕", systemImage: "checkmark.circle.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(BattlefieldTheme.mutedInk)
+                    } else {
+                        UnitCommandActions(unit: unit)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("待命防御")
-                    .disabled(unit.hasMoved && unit.hasAttacked)
                 }
-                if unit.hasMoved && unit.hasAttacked {
-                    Label("行动完毕 · 选择下一支部队", systemImage: "checkmark.circle.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(BattlefieldTheme.mutedInk)
-                } else {
-                    UnitCommandActions(unit: unit, condensed: condensed)
-                }
-                if !condensed, let preview = game.focusedCommandPreview, preview.isExecutable {
+                if let preview = game.focusedCommandPreview, preview.isExecutable {
                     CommandOrderLine(preview: preview)
                 }
             }
-            .padding(condensed ? 8 : 11)
+            .padding(.horizontal, 11).padding(.vertical, condensed ? 7 : 10)
             .foregroundStyle(BattlefieldTheme.fieldPaper)
-            .frame(maxWidth: condensed ? 360 : compact ? .infinity : 440)
+            .frame(maxWidth: inlineOrders ? 570 : compact ? .infinity : 460, alignment: .leading)
             .background(FieldPlate(emphasized: true))
             .overlay(alignment: .leading) {
-                Rectangle().fill(unit.faction.accentColor).frame(width: 3).padding(.vertical, 8)
+                Rectangle().fill(unit.faction.accentColor).frame(width: 3).padding(.vertical, 4)
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("battlefield-selected-unit")
@@ -58,48 +43,65 @@ private struct UnitCommandIdentity: View {
     let condensed: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 5) {
-                Text(unit.kind.title).foregroundStyle(BattlefieldTheme.brass)
-                Text(unit.rank.title).foregroundStyle(BattlefieldTheme.mutedInk)
-                if let commander = unit.commander { Text(commander.name).foregroundStyle(BattlefieldTheme.brass) }
+        HStack(spacing: 9) {
+            UnitModelView(kind: unit.kind, faction: unit.faction, isSpent: unit.hasMoved && unit.hasAttacked,
+                          variant: BattlefieldVehicleVariant.matching(unit))
+                .frame(width: condensed ? 62 : 84, height: condensed ? 44 : 55)
+                .background {
+                    Ellipse().fill(.black.opacity(0.28)).frame(height: 13).offset(y: 16)
+                }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 5) {
+                    Text(unit.kind.title).foregroundStyle(BattlefieldTheme.brass)
+                    Text(unit.rank.title).foregroundStyle(BattlefieldTheme.mutedInk)
+                    if let commander = unit.commander { Text(commander.name).foregroundStyle(BattlefieldTheme.brass) }
+                }
+                .font(.system(size: 8, weight: .bold)).lineLimit(1)
+                Text(unit.name).font(.system(size: condensed ? 12 : 14, weight: .heavy)).lineLimit(1)
+                HStack(spacing: 6) {
+                    MiniHealthBar(ratio: unit.hpRatio, factionTint: unit.faction.accentColor)
+                        .frame(width: condensed ? 38 : 48, height: 5)
+                    Text("\(unit.hp)/\(unit.maxHP)").font(BattlefieldTheme.militaryFont(13)).monospacedDigit()
+                    Image(systemName: unit.hasMoved ? "checkmark" : "arrow.up.right")
+                        .foregroundStyle(unit.hasMoved ? BattlefieldTheme.mutedInk : BattlefieldTheme.movement)
+                    Image(systemName: unit.hasAttacked ? "checkmark" : "scope")
+                        .foregroundStyle(unit.hasAttacked ? BattlefieldTheme.mutedInk : BattlefieldTheme.brass)
+                }
+                .font(.system(size: 8, weight: .heavy))
             }
-            .font(.system(size: 8, weight: .bold))
-            .lineLimit(1)
-            Text(unit.name).font(.system(size: condensed ? 12 : 14, weight: .heavy)).lineLimit(1)
-            HStack(spacing: 7) {
-                Text("HP \(unit.hp)/\(unit.maxHP)").monospacedDigit().foregroundStyle(.white)
-                Label(unit.hasMoved ? "已用" : "移动", systemImage: unit.hasMoved ? "checkmark" : "arrow.up.right")
-                    .foregroundStyle(unit.hasMoved ? BattlefieldTheme.mutedInk : BattlefieldTheme.movement)
-                Label(unit.hasAttacked ? "已用" : "攻击", systemImage: unit.hasAttacked ? "checkmark" : "scope")
-                    .foregroundStyle(unit.hasAttacked ? BattlefieldTheme.mutedInk : BattlefieldTheme.brass)
-            }
-            .font(.system(size: 9, weight: .semibold))
-            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(minWidth: condensed ? 190 : 220, alignment: .leading)
     }
 }
 
 private struct UnitCommandActions: View {
     @EnvironmentObject private var game: GameState
     let unit: BattleUnit
-    let condensed: Bool
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             command("攻击", icon: "scope", enabled: !game.attackableUnits(for: unit).isEmpty, action: game.focusNearestAttackTarget)
             command("接敌", icon: "arrow.up.right", enabled: game.nearestApproachTarget(for: unit) != nil, action: game.focusNearestApproachTarget)
             command("据点", icon: "flag.fill", enabled: game.nearestObjectiveTarget(for: unit) != nil, action: game.focusNearestObjectiveTarget)
+            Button(action: game.waitSelectedUnit) {
+                Image(systemName: "shield.lefthalf.filled")
+                    .font(.system(size: 16)).frame(width: 44, height: 44)
+                    .contentShape(Rectangle()).background(.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 2))
+            }
+            .buttonStyle(.plain).accessibilityLabel("待命防御")
             if game.focusedCommandPreview?.isExecutable == true {
                 Button(action: game.executeFocusedCommand) {
-                    Label("执行", systemImage: "play.fill")
-                        .font(.system(size: 11, weight: .heavy))
-                        .foregroundStyle(BattlefieldTheme.commandDeckDeep)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .contentShape(Rectangle())
-                        .background(BattlefieldTheme.actionBrass, in: BeveledFieldShape())
+                    VStack(spacing: 3) {
+                        Image(systemName: "checkmark").font(.system(size: 14, weight: .heavy))
+                        Text("执行").font(.system(size: 8, weight: .heavy))
+                    }
+                    .foregroundStyle(BattlefieldTheme.commandDeckDeep)
+                    .frame(minWidth: 44, maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle()).background(BattlefieldTheme.actionBrass, in: RoundedRectangle(cornerRadius: 2))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("执行")
                 .accessibilityIdentifier("battlefield-execute-order")
             }
         }
@@ -107,16 +109,16 @@ private struct UnitCommandActions: View {
 
     private func command(_ title: String, icon: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: icon)
-                .font(.system(size: 11, weight: .bold))
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .contentShape(Rectangle())
-                .background(Color.white.opacity(0.06), in: BeveledFieldShape())
+            VStack(spacing: 3) {
+                Image(systemName: icon).font(.system(size: 14, weight: .semibold))
+                Text(title).font(.system(size: 8, weight: .bold))
+            }
+            .frame(minWidth: 44, maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle()).background(.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 2))
+            .overlay { RoundedRectangle(cornerRadius: 2).stroke(BattlefieldTheme.brass.opacity(0.22), lineWidth: 0.7) }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .opacity(enabled ? 1 : 0.38)
-        .disabled(!enabled)
+        .buttonStyle(.plain).accessibilityLabel(title)
+        .opacity(enabled ? 1 : 0.35).disabled(!enabled)
     }
 }
 
@@ -124,11 +126,10 @@ private struct CommandOrderLine: View {
     let preview: MapCommandPreview
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 6) {
             Image(systemName: "arrow.turn.down.right").font(.system(size: 10, weight: .bold))
             Text(MapCommandPreviewChrome.compactTitle(for: preview) + " · " + detail)
-                .font(.system(size: 10, weight: .semibold))
-                .lineLimit(2)
+                .font(.system(size: 10, weight: .semibold)).lineLimit(2)
         }
         .foregroundStyle(BattlefieldTheme.brass)
     }

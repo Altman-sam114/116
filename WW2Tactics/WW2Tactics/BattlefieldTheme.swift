@@ -3,29 +3,35 @@ import SwiftUI
 enum BattlefieldTheme {
     static let backdropTop = Color(red: 0.055, green: 0.064, blue: 0.056)
     static let backdropBottom = Color(red: 0.115, green: 0.105, blue: 0.082)
-    static let commandDeck = Color(red: 0.16, green: 0.19, blue: 0.16)
-    static let commandDeckDeep = Color(red: 0.09, green: 0.12, blue: 0.11)
-    static let fieldGlass = Color(red: 0.18, green: 0.21, blue: 0.17)
-    static let brass = Color(red: 0.88, green: 0.74, blue: 0.43)
-    static let selectedPiece = Color(red: 0.94, green: 0.78, blue: 0.38)
+    static let commandDeck = Color(red: 0.23, green: 0.22, blue: 0.17)
+    static let commandDeckDeep = Color(red: 0.105, green: 0.11, blue: 0.09)
+    static let fieldGlass = Color(red: 0.26, green: 0.27, blue: 0.21)
+    static let brass = Color(red: 0.83, green: 0.69, blue: 0.42)
+    static let selectedPiece = Color(red: 1, green: 0.84, blue: 0.40)
     static let supplyLine = Color(red: 0.24, green: 0.48, blue: 0.30)
-    static let signal = Color(red: 0.38, green: 0.75, blue: 0.62)
+    static let signal = Color(red: 0.65, green: 0.77, blue: 0.48)
     static let alert = Color(red: 0.84, green: 0.33, blue: 0.22)
     static let ink = Color.white.opacity(0.90)
     static let mutedInk = Color.white.opacity(0.62)
     static let hairline = Color.white.opacity(0.12)
-    static let movement = Color(red: 0.36, green: 0.66, blue: 0.88)
-    static let fieldPaper = Color(red: 0.93, green: 0.88, blue: 0.73)
+    static let movement = Color(red: 0.36, green: 0.70, blue: 0.90)
+    static let fieldPaper = Color(red: 0.95, green: 0.91, blue: 0.79)
+    static let mapGround = Color(red: 0.43, green: 0.47, blue: 0.30)
+    static let steelEdge = Color(red: 0.51, green: 0.48, blue: 0.36)
+
+    static func militaryFont(_ size: CGFloat) -> Font {
+        .custom("DINCondensed-Bold", size: size)
+    }
 
     static var commandMetal: LinearGradient {
-        LinearGradient(colors: [Color(red: 0.21, green: 0.24, blue: 0.20),
-                                commandDeckDeep, Color(red: 0.11, green: 0.14, blue: 0.12)],
+        LinearGradient(colors: [Color(red: 0.32, green: 0.31, blue: 0.24),
+                                commandDeck, commandDeckDeep],
                        startPoint: .top, endPoint: .bottom)
     }
 
     static var actionBrass: LinearGradient {
-        LinearGradient(colors: [Color(red: 0.95, green: 0.84, blue: 0.59), brass,
-                                Color(red: 0.68, green: 0.53, blue: 0.29)],
+        LinearGradient(colors: [Color(red: 0.94, green: 0.83, blue: 0.57), brass,
+                                Color(red: 0.52, green: 0.37, blue: 0.18)],
                        startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
@@ -108,69 +114,6 @@ enum BattlefieldTheme {
     static let mapUnitModelShadow = Color.black.opacity(0.42)
     static let mapUnitTopHighlight = Color.white.opacity(0.18)
     static let mapUnitStatusBackdrop = Color.black.opacity(0.38)
-}
-
-/// Shared metal edge treatment keeps all map controls in one visual language.
-struct FieldPlate: View {
-    var emphasized = false
-
-    var body: some View {
-        BeveledFieldShape()
-            .fill(BattlefieldTheme.commandMetal)
-            .overlay {
-                BeveledFieldShape().stroke(
-                    emphasized ? BattlefieldTheme.brass.opacity(0.85) : BattlefieldTheme.brass.opacity(0.38),
-                    lineWidth: emphasized ? 1.2 : 0.8
-                )
-            }
-            .overlay(alignment: .top) {
-                Rectangle().fill(Color.white.opacity(0.13)).frame(height: 1).padding(.horizontal, 7)
-            }
-            .shadow(color: .black.opacity(0.24), radius: 3, y: 2)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-    }
-}
-
-struct BeveledFieldShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        let cut = min(6, min(rect.width, rect.height) / 4)
-        return Path { path in
-            path.move(to: CGPoint(x: rect.minX + cut, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - cut))
-            path.addLine(to: CGPoint(x: rect.maxX - cut, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + cut))
-            path.closeSubpath()
-        }
-    }
-}
-
-struct FieldControlButton: View {
-    let title: String
-    let icon: String
-    var selected = false
-    var showsTitle = false
-    var isToggle = true
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: icon).font(.system(size: 16, weight: .semibold))
-                if showsTitle { Text(title).font(.system(size: 11, weight: .bold)) }
-            }
-            .foregroundStyle(selected ? BattlefieldTheme.brass : BattlefieldTheme.fieldPaper)
-            .frame(minWidth: 44, minHeight: 44)
-            .padding(.horizontal, showsTitle ? 10 : 0)
-            .contentShape(Rectangle())
-            .background(FieldPlate(emphasized: selected))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityValue(isToggle ? (selected ? "已展开" : "已收起") : "")
-    }
 }
 
 struct WarLedgerSurface: View {
