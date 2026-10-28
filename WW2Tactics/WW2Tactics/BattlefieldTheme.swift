@@ -164,6 +164,7 @@ struct FieldControlButton: View {
             .foregroundStyle(selected ? BattlefieldTheme.brass : BattlefieldTheme.fieldPaper)
             .frame(minWidth: 44, minHeight: 44)
             .padding(.horizontal, showsTitle ? 10 : 0)
+            .contentShape(Rectangle())
             .background(FieldPlate(emphasized: selected))
         }
         .buttonStyle(.plain)

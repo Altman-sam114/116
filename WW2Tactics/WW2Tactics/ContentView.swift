@@ -10,6 +10,7 @@ struct ContentView: View {
                 BattlefieldView(isInspectorExpanded: $isInspectorExpanded)
                 if isInspectorExpanded {
                     inspector(isRegular: isRegular, height: proxy.size.height)
+                        .zIndex(2)
                 }
             }
             .background(BattlefieldTheme.commandDeckDeep.ignoresSafeArea())
@@ -46,10 +47,11 @@ struct ContentView: View {
                     .foregroundStyle(BattlefieldTheme.brass)
                 Spacer()
                 Button { isInspectorExpanded = false } label: {
-                    Image(systemName: "xmark").frame(width: 44, height: 44)
+                    Image(systemName: "xmark").frame(width: 44, height: 44).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("收起战场情报")
+                .accessibilityIdentifier("battlefield-intelligence-close")
             }
             .padding(.leading, 14)
             .foregroundStyle(BattlefieldTheme.ink)

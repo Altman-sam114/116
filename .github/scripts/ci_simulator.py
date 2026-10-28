@@ -173,18 +173,20 @@ def landscape_evidence(category, device, inspector_ready):
         test["exitCode"] = result.returncode
         summary = run(["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", str(bundle)], log, capture=True)
         if summary.returncode:
+            test["error"] = "Cannot read UI test summary; preserving failure diagnostics"
+        else:
+            data = json.loads(summary.stdout)
+            (ROOT / f"{category}-ui-summary.json").write_text(json.dumps(data, indent=2) + "\n")
+            test.update({"testCount": data.get("totalTestCount", 0), "failures": data.get("failedTests", 0),
+                         "skipped": data.get("skippedTests", 0)})
+            if result.returncode == 0 and test["testCount"] == 1 and not test["failures"] and not test["skipped"]:
+                test["outcome"] = "success"
+        if not bundle.is_dir():
             return
-        data = json.loads(summary.stdout)
-        (ROOT / f"{category}-ui-summary.json").write_text(json.dumps(data, indent=2) + "\n")
-        test.update({"testCount": data.get("totalTestCount", 0), "failures": data.get("failedTests", 0),
-                     "skipped": data.get("skippedTests", 0)})
-        if result.returncode or test["testCount"] != 1 or test["failures"] or test["skipped"]:
-            return
-        test["outcome"] = "success"
         exports = ROOT / f"{category}-ui-attachments"
         export = run(["xcrun", "xcresulttool", "export", "attachments", "--path", str(bundle),
                       "--output-path", str(exports)], log, seconds=90)
-        if export.returncode or not inspector_ready:
+        if export.returncode:
             return
         manifest = exports / "manifest.json"
         if not manifest.exists():
@@ -194,13 +196,26 @@ def landscape_evidence(category, device, inspector_ready):
         for item in json_objects(json.loads(manifest.read_text())):
             label = item.get("suggestedHumanReadableName", item.get("name", ""))
             filename = item.get("exportedFileName", item.get("fileName", ""))
-            if "battlefield-landscape-" in label and filename:
+            if filename:
                 candidate = (exports / filename).resolve()
-                if candidate.is_relative_to(exports.resolve()) and candidate.is_file():
+                if not candidate.is_relative_to(exports.resolve()) or not candidate.is_file():
+                    continue
+                if "battlefield-landscape-" in label:
                     attachments.append((label, candidate))
+                for marker, suffix in [("battlefield-ui-final", "png"), ("battlefield-ui-hierarchy", "txt")]:
+                    if marker in label:
+                        diagnostic = ROOT / f"{category}-{marker}.{suffix}"
+                        shutil.copyfile(candidate, diagnostic)
+                        test.setdefault("diagnosticAttachments", []).append({
+                            "name": label, "path": str(diagnostic),
+                            "sha256": hashlib.sha256(diagnostic.read_bytes()).hexdigest()
+                        })
         if len(attachments) != 2:
             image["error"] = f"Expected two explicitly named original attachments, got {len(attachments)}"
             log.write(manifest.read_text()[:12000])
+            return
+        if not inspector_ready:
+            image["error"] = "Cannot inspect original UI screenshots"
             return
         image["frames"] = []
         for label, original in sorted(attachments):

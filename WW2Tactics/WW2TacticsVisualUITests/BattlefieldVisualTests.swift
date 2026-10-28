@@ -10,6 +10,14 @@ final class BattlefieldVisualTests: XCTestCase {
         app.launchArguments = ["--ci-selected-combat-impact-steady"]
         app.launch()
         defer {
+            let finalFrame = XCTAttachment(screenshot: app.screenshot())
+            finalFrame.name = "battlefield-ui-final"
+            finalFrame.lifetime = .keepAlways
+            add(finalFrame)
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "battlefield-ui-hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
             app.terminate()
             device.orientation = .portrait
         }
@@ -22,11 +30,13 @@ final class BattlefieldVisualTests: XCTestCase {
         XCTAssertTrue(endTurn.isHittable)
         XCTAssertTrue(app.staticTexts["M10坦克歼击营"].firstMatch.waitForExistence(timeout: 10))
 
-        let inspector = app.buttons["战场情报"]
+        let inspector = app.buttons["battlefield-intelligence-toggle"]
         XCTAssertTrue(inspector.waitForExistence(timeout: 10))
+        XCTAssertTrue(inspector.isHittable)
         inspector.tap()
-        let close = app.buttons["收起战场情报"]
+        let close = app.buttons["battlefield-intelligence-close"]
         XCTAssertTrue(close.waitForExistence(timeout: 10))
+        XCTAssertTrue(close.isHittable)
         close.tap()
         XCTAssertFalse(close.exists)
         XCTAssertTrue(endTurn.isHittable)

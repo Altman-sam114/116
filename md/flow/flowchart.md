@@ -73,8 +73,10 @@ flowchart TD
     Boot --> XCTest
     XCTest --> UI[两设备各 1 项 XCUITest / 真实旋转 / 情报开合 / 据点预览执行移动 / 推进回合]
     UI --> Six[同 SHA 原四竖屏加两设备两帧命名原始附件 / 六张最终图]
+    UI --> Diagnostics[成功失败均保留最终原图和无障碍层级 / 不代替六图]
     Six --> Gates[尺寸 / 500 KB / 亮度 / 方向一致 / Vision 拒绝已知系统通知 / 有界重试]
     Gates --> Package[always manifest + JUnit + logs + xcresult + PNG]
+    Diagnostics --> Package
     Package --> Download[同一 X 下载 exact 最新 commit / run / attempt artifact]
     Download --> Review[核对身份 / 实际测试数 / 逐图检查 / 源码边界]
     Review --> Decision{X 判断}

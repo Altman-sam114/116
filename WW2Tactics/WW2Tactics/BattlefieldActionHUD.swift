@@ -21,6 +21,7 @@ struct MapActionHUD: View {
                         Image(systemName: "shield.lefthalf.filled")
                             .font(.system(size: 17))
                             .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                             .background(Color.white.opacity(0.05), in: BeveledFieldShape())
                     }
                     .buttonStyle(.plain)
@@ -95,6 +96,7 @@ private struct UnitCommandActions: View {
                         .font(.system(size: 11, weight: .heavy))
                         .foregroundStyle(BattlefieldTheme.commandDeckDeep)
                         .frame(maxWidth: .infinity, minHeight: 44)
+                        .contentShape(Rectangle())
                         .background(BattlefieldTheme.actionBrass, in: BeveledFieldShape())
                 }
                 .buttonStyle(.plain)
@@ -108,10 +110,12 @@ private struct UnitCommandActions: View {
             Label(title, systemImage: icon)
                 .font(.system(size: 11, weight: .bold))
                 .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
                 .background(Color.white.opacity(0.06), in: BeveledFieldShape())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
+        .opacity(enabled ? 1 : 0.38)
         .disabled(!enabled)
     }
 }

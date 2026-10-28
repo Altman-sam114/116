@@ -1,5 +1,11 @@
 ## 当前验收状态：v3.3 全幅战场与贴边指挥，待最新云端包
 
+首轮最新提交 `5f51cac6bc2040829100633aa574b4a73550bbf3` / run `40618452705` / attempt `1` failure。exact artifact `ww2tactics-ci-v3.3-main-5f51cac-run40618452705-attempt1`（id `12786923387`，177,812,112 bytes，API digest `sha256:4a1e68a1383e5cb7a753ebd35e2914f785ac54846b3a94e709c5050ae853e743`）。完整包下载过慢而中止；从同一已认证 artifact 使用显式 HTTP 范围下载 manifest/summary/JUnit/全部主日志/真实 unit 和 UI summary，逐 ZIP entry 校验 CRC；目录 `/private/tmp/ww2tactics-c-review-40618452705/`，没有宣称完整 archive SHA 校验或全套 xcresult 本地读取通过。
+
+已确认 static/smoke/build/152 actual unit（0 failed / 0 skipped）成功，四张竖屏门禁成功；两设备各 1 项 UI 在 VisualTests 第 29 行“情报关闭按钮出现”断言失败，横屏六图阶段失败。首启恢复确实工作：iPad 第一次 240 秒超时、第二次成功，累计 335.6 秒；iPhone 90.9 秒成功。失败与前轮纯启动超时不同，不以 unit 通过掩盖 UI 问题。
+
+纠正为 plain 图标和命令明确 label contentShape、HUD/情报显式覆盖层级、情报开关/关闭稳定 ID；保留并增加 hittable 断言，不删情报/移动/回合链。defer 始终保留最终原图和界面层级，云端 UI 失败也导出诊断、按原断言结论失败；诊断不冒充六张合格图，workflow 仅增加 txt 原附件上传。仍不运行本地测试/语法检查/构建/模拟器。详情见 `v3.3-cloud-review.md`，等待追加修正 SHA 的全套云端结果。
+
 2026-10-28（Asia/Taipei），按人工要求普通任务直接迭代，不走 A/B/C、不启子智能体、不做任何本地项目测试或构建。已 fetch 并核对 main/origin/main `752b35972be46dd6846cc8f7d6ae92e6819868cd`，最新 run `40079663176` / attempt `1` failure；Altman-sam114 认证下载 exact 包 `ww2tactics-ci-v3.2-main-752b359-run40079663176-attempt1`（id `12554434327`，45,336 bytes，digest `sha256:e1f63178690da5a600af62a8a095be624d9ba9f0ef8451dbf56a659216bcaf58`）至 `/private/tmp/ww2tactics-c-review-40079663176/`。manifest/JUnit/summary/主日志一致：static/smoke/build 成功，iPad 首启 CoreLocation 数据迁移超时；0 actual tests，UI/六图未执行，属于模拟器环境失败，不是规则断言失败，更不是验收通过。
 
 本轮接续已有同方向 UI 草稿，不回滚；原 147 项不删，增加 5 项，目标 152 actual：道路成对连接完整性/无重复/端点/顺序确定性、单边及非法方向拒绝、静态地形 Equatable 身份、MOVE 文字牌焦点/终点过滤、攻击聚焦仅当前对象。沿用六 PNG/20 sprite/24 MB 资源门禁。

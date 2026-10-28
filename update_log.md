@@ -17,11 +17,15 @@
 - 当前协作规范以 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 为入口；2026-10-24 本轮人工特别要求 Agent X 直接迭代，取消 A/B/C 串行调度、不启子智能体，其他安全与云端验收边界不变。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 当前阶段为 `v3（战争沙盘重构）`：最新远端 v3.2 `752b359` 构建成功但模拟器首启超时，未完成验收；v3.3 全幅战场、贴边指挥与真实移动回合 UI 链直接迭代，规则状态机保持不变，等待本轮最新云端包。
+- 当前阶段为 `v3（战争沙盘重构）`：v3.3 `5f51cac` / run `40618452705` 的 static/smoke/build/152 unit 与四竖屏成功，两设备横屏情报开合断言失败；规则状态机保持不变，追加触控/层级和失败诊断纠正后等待最新云端包，不宣称验收完成。
 
 ## 历史记录
 
 ### v3.3 / 全幅战场与贴边指挥（实施，待最新云端验收）
+
+首轮云端：已提交/push `5f51cac6bc2040829100633aa574b4a73550bbf3`，run `40618452705` / attempt `1` failure，23m45s。exact artifact `ww2tactics-ci-v3.3-main-5f51cac-run40618452705-attempt1`（id `12786923387`，177,812,112 bytes，API digest `sha256:4a1e68a1383e5cb7a753ebd35e2914f785ac54846b3a94e709c5050ae853e743`）。全包下载过慢中止；同一已认证 artifact 的 manifest/summary/JUnit/全部关键日志/unit 与 UI summary 以显式 Range 下载并逐 entry CRC 校验，存于 `/private/tmp/ww2tactics-c-review-40618452705/`，不伪称完整 archive digest 或本机 xcresult 解析通过。152 actual unit/0 failed/0 skipped、static/smoke/build、四竖屏门禁成功；两设备 UI 均在第 29 行“收起战场情报出现”断言失败，横屏未导出。启动有界恢复有效：iPad 第二次成功累计 335.6 秒，iPhone 首次 90.9 秒。不是前轮纯启动失败，也不是规则回归。
+
+有界纠正：图标/缩放/动作/关闭按钮明确 label 内 contentShape，保证完整矩形触控；HUD/情报明确层级和稳定 ID，UI 增加实际 hittable 断言。defer 保存最终原始截图/无障碍层级，失败也导出根目录诊断；不削弱 UI 结论，不把诊断图当六图。workflow 仅加 txt 原附件上传。README/flow/test/prompt 同步，等待追加 main 修正的真实云端结果。
 
 日期：2026-10-28（Asia/Taipei）。按人工最新要求普通任务直接迭代，不走 A/B/C、不启子智能体、不做本地项目测试。工作树已有 15 份同方向 UI/CI 草稿，逐项审查后接续完善，未回滚或删除；无关未跟踪 v2.56 prompt 保留且排除提交。
 

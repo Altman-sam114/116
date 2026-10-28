@@ -89,6 +89,7 @@ struct MapCommandCenter: View {
                     }
                     .padding(.horizontal, viewport.isShallow ? 8 : 12)
                     .padding(.vertical, viewport.isShallow ? 6 : 10)
+                    .zIndex(1)
                 }
                 .background(Color(red: 0.46, green: 0.52, blue: 0.34).ignoresSafeArea())
             }
@@ -158,12 +159,14 @@ private struct BattlefieldMapTools: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(BattlefieldTheme.fieldPaper)
                     .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
                     .background(FieldPlate())
             }
             .accessibilityLabel("地图缩放")
             .accessibilityValue(scaleMode.title)
             FieldControlButton(title: "战区总览", icon: "map", selected: showsOverview, action: toggleOverview)
             FieldControlButton(title: "战场情报", icon: "binoculars.fill", selected: isInspectorExpanded) { isInspectorExpanded.toggle() }
+                .accessibilityIdentifier("battlefield-intelligence-toggle")
             MapRestartButton()
         }
     }
@@ -214,7 +217,7 @@ private struct BattlefieldDrawerPanel: View {
             HStack {
                 Text(drawer == .roster ? "编队 / 据点" : "战术支援").font(.system(size: 12, weight: .bold))
                 Spacer()
-                Button(action: close) { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                Button(action: close) { Image(systemName: "xmark").frame(width: 44, height: 44).contentShape(Rectangle()) }
                     .buttonStyle(.plain).accessibilityLabel("收起地图面板")
             }
             .foregroundStyle(BattlefieldTheme.fieldPaper)

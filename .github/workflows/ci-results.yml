@@ -143,6 +143,7 @@ jobs:
             ci-results/*.md
             ci-results/*.xml
             ci-results/*.log
+            ci-results/*.txt
             ci-results/*.png
             ci-results/*.xcresult
           if-no-files-found: error
