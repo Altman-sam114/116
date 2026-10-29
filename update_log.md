@@ -17,11 +17,15 @@
 - 当前协作规范以 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 为入口；2026-10-24 本轮人工特别要求 Agent X 直接迭代，取消 A/B/C 串行调度、不启子智能体，其他安全与云端验收边界不变。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 当前阶段为 `v3（战争沙盘重构）`：v3.4 `0228400` / run `40710253682` 的 static/smoke/build/156 unit、两设备真实横屏 UI 与四竖屏成功；剩余截图检查器的解码方向二次应用待最小纠正与云端复验。规则状态机保持不变，不宣称整轮验收完成。
+- 当前阶段为 `v3（战争沙盘重构）`：`75b03c2` / run `40800239125` 的 static/smoke/build/156 unit 与两设备真实横屏 UI 成功；新增 PNG 采样契约失败，六图未放行，正在将设备相关颜色夹具与采样统一为 sRGB。规则状态机保持不变，不宣称整轮验收完成。
 
 ## 历史记录
 
 ### v3.4 / 原始 PNG 解码与六图验收纠正（进行中）
+
+追加修复 `75b03c2a4aadd1fb3f0d04bdd2595f86e4f646d2` / run `40800239125` / attempt `1` failure（24m53s）：static/smoke/build、156 unit、两设备各 1 项 UI 仍全部成功、零失败/零跳过。检查器编译成功、PNG 原始尺寸/方向契约通过至逐点颜色断言，但新颜色采样契约失败，四竖屏被正确阻止，六图不能验收。报告的通用“did not compile”错误不精确，真实日志明确是 self-test 采样失败，不把它当成游戏编译失败或方向二次应用再现。
+
+exact artifact `ww2tactics-ci-unversioned-main-75b03c2-run40800239125-attempt1`，id `12867150784`，73,462,729 bytes，API digest `sha256:0a358e5679d6c04f27b6bc73e4ea5cb235ae0d09bbc711fceb8492926a0ebc58`。必要 manifest/summary/模拟器报告/截图日志经 Range + entry CRC 局部下载至 `/private/tmp/ww2tactics-review-40800239125/`；未拉整包、未作整包摘要验证。新增夹具用了设备相关 DeviceRGB，PNG 配置往返不构成固定颜色字节契约；本次把夹具与实际采样同时固定为 sRGB，增加方向/坐标/期望/实际颜色诊断，不扩大原 2/255 精度。仅改检查器与必要文档，若此采样根因再次失败停止，不无限 push 重试。新 SHA/run 待生成。
 
 日期：2026-10-29（Asia/Taipei）。恢复后核对 main/origin/main `0228400bd3f96db43ea29c16622ad1dd696e0059` 与 exact run `40710253682` / attempt `1`：static/smoke/build、156 actual unit、iPad/iPhone 各 1 项真实 UI 全部成功、零失败/零跳过；旋转、情报/编队/支援开合、真实移动和第 2 回合断言均执行。四竖屏成功，整 run 因两横屏检查失败而 failure，不能写成全通过。
 

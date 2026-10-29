@@ -36,3 +36,5 @@ Use case: stylized-concept. Asset type: original offline terrain sprite atlas fo
 横屏 UI 在 app 启动后旋转，以 `XCUIScreen.main.screenshot()` 保存真实屏幕原字节，同时断言 app frame 与按 UIImage 原生方向解读的显示尺寸均宽大于高；云端 ImageIO 独立读取 EXIF 方向，分别报告显示尺寸、原始像素尺寸和方向值，按方向取样亮度并传给 Vision。八种 EXIF 方向的角点、尺寸、坐标边界与一一映射先在云端 self-test。保留一秒间隔两帧、不旋转/裁剪/修图；面板开合、移动、回合必须实测。具体实现 SHA/run/attempt、结果和遗留风险写入更新日志，本文件不预填通过。
 
 检查器从 `CGImageSourceCreateImageAtIndex` 的原始像素建立 bitmap，避免 `NSBitmapImageRep(data:)` 已自动转正后再应用 EXIF。八向 self-test 同时覆盖带方向 PNG 的编码/解码、原始宽高和逐点颜色，不能只验证脱离解码链的坐标公式。
+
+颜色夹具和实际亮度采样均使用固定 sRGB，不依赖 runner 的设备 RGB 配置；报告记录采样色彩空间，契约失败输出方向、坐标、期望与实际颜色，保持原断言精度。

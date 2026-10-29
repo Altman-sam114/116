@@ -243,9 +243,13 @@ def main():
         with (ROOT / "battlefield-screenshot.log").open("w") as log:
             inspector = run(["xcrun", "swiftc", ".github/scripts/inspect_screenshot.swift", "-o", str(ROOT / "inspect-screenshot")], log, seconds=90)
             inspector_ready = inspector.returncode == 0
+            REPORT["screenshotInspector"] = {"compileExitCode": inspector.returncode}
             if inspector_ready:
                 contracts = run([str(ROOT / "inspect-screenshot"), "--self-test"], log, seconds=30)
                 inspector_ready = contracts.returncode == 0
+                REPORT["screenshotInspector"]["selfTestExitCode"] = contracts.returncode
+                if not inspector_ready:
+                    REPORT["error"] = "screenshot inspector PNG/orientation self-test failed; XCTest still executed independently"
             selected = devices()
             (ROOT / "selected-devices.json").write_text(json.dumps(selected, indent=2) + "\n")
             if set(selected) != {"ipad", "iphone"}:
@@ -266,7 +270,7 @@ def main():
                         screenshot(category, device, "default", log)
                         screenshot(category, device, "selected-combat-impact-steady", log)
                     else:
-                        REPORT["error"] = "screenshot inspector did not compile; XCTest still executed independently"
+                        REPORT.setdefault("error", "screenshot inspector did not compile; XCTest still executed independently")
                     landscape_evidence(category, device, inspector_ready)
                 except Exception as error:
                     REPORT.setdefault("deviceErrors", []).append({"category": category, "error": str(error)})

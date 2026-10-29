@@ -54,7 +54,7 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
                            255, 255, 0, 255, 255, 0, 255, 255, 0, 255, 255, 255]
     let provider = CGDataProvider(data: Data(colors) as CFData)!
     let fixture = CGImage(width: 3, height: 2, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: 12,
-                          space: CGColorSpaceCreateDeviceRGB(),
+                          space: CGColorSpace(name: CGColorSpace.sRGB)!,
                           bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
                           provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)!
     let corners = [(0, 0, 2, 1), (2, 0, 0, 1), (2, 1, 0, 0), (0, 1, 2, 0),
@@ -84,11 +84,11 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
             for x in 0..<geometry.width {
                 let point = geometry.rawPoint(x: x, y: y)
                 guard (0..<3).contains(point.x), (0..<2).contains(point.y) else { exit(1) }
-                guard let color = decoded.bitmap.colorAt(x: point.x, y: point.y)?.usingColorSpace(.deviceRGB) else { exit(1) }
+                guard let color = decoded.bitmap.colorAt(x: point.x, y: point.y)?.usingColorSpace(.sRGB) else { exit(1) }
                 let index = (point.y * 3 + point.x) * 4
                 let actual = [color.redComponent, color.greenComponent, color.blueComponent]
                 guard actual.enumerated().allSatisfy({ abs($0.element * 255 - CGFloat(colors[index + $0.offset])) < 2 }) else {
-                    fputs("Screenshot PNG sampling contract failed\n", stderr)
+                    fputs("Screenshot PNG sampling contract failed: EXIF=\(value), raw=(\(point.x),\(point.y)), expected=\(Array(colors[index..<(index + 3)])), sRGB=\(actual.map { $0 * 255 })\n", stderr)
                     exit(1)
                 }
                 samples.insert("\(point.x),\(point.y)")
@@ -117,7 +117,7 @@ var brightSamples = 0
 for y in stride(from: display.height / 5, to: display.height * 7 / 10, by: 12) {
     for x in stride(from: display.width / 10, to: display.width * 9 / 10, by: 12) {
         let point = display.rawPoint(x: x, y: y)
-        guard let color = image.colorAt(x: point.x, y: point.y)?.usingColorSpace(NSColorSpace.deviceRGB) else { continue }
+        guard let color = image.colorAt(x: point.x, y: point.y)?.usingColorSpace(NSColorSpace.sRGB) else { continue }
         let red = Double(color.redComponent) * 0.2126
         let green = Double(color.greenComponent) * 0.7152
         let blue = Double(color.blueComponent) * 0.0722
@@ -147,6 +147,7 @@ let result: [String: Any] = [
     "width": display.width, "height": display.height,
     "pixelWidth": image.pixelsWide, "pixelHeight": image.pixelsHigh,
     "exifOrientation": display.orientation.rawValue,
+    "samplingColorSpace": "sRGB",
     "orientation": display.height >= display.width ? "portrait" : "landscape",
     "meanLuminance": mean, "visibleFraction": visibleFraction,
     "systemBannerDetected": systemBanner,
