@@ -14,6 +14,7 @@ simulator = json.loads(report_path.read_text()) if report_path.exists() else {
     "testOutcome": "skipped", "testCount": 0, "screenshots": [], "screenshotOutcome": "failure"
 }
 stages = [
+    ("screenshot-inspector-contracts", "INSPECTOR_STATUS", "screenshot-inspector.log"),
     ("static-checks", "STATIC_STATUS", "static-checks.log"),
     ("rules-smoke", "SMOKE_STATUS", "rules-smoke.log"),
     ("xcode-build-for-testing", "BUILD_STATUS", "xcodebuild.log"),
@@ -21,7 +22,7 @@ stages = [
     ("landscape-ui-tests", "UI_TEST_STATUS", "landscape-ui-tests.log"),
     ("six-battlefield-screenshots", "SCREENSHOT_STATUS", "battlefield-screenshot.log"),
 ]
-outcomes = {name: "success" if os.environ.get(key, "1") == "0" else "failure" for name, key, _ in stages}
+outcomes = {name: {"0": "success", "1": "failure"}.get(os.environ.get(key), "skipped") for name, key, _ in stages}
 artwork = [{"path": str(path), "bytes": path.stat().st_size,
             "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
            for path in sorted(Path("WW2Tactics/WW2Tactics/BattlefieldArt").glob("*.png"))]
@@ -39,6 +40,7 @@ manifest = {
     "junitPath": "ci-results/junit.xml", "buildLogPath": "ci-results/xcodebuild.log",
     "failureSummaryPath": "ci-results/ci-failure-summary.md",
     "staticChecksOutcome": outcomes["static-checks"], "smokeTestOutcome": outcomes["rules-smoke"],
+    "screenshotInspectorOutcome": outcomes["screenshot-inspector-contracts"],
     "buildOutcome": outcomes["xcode-build-for-testing"],
     "artworkResources": artwork,
     **simulator,
@@ -64,11 +66,14 @@ for test in simulator.get("visualTests", []):
 (root / "ci-failure-summary.md").write_text("\n".join(lines) + "\n")
 suites = ET.Element("testsuites")
 suite = ET.SubElement(suites, "testsuite", name="CI stages (not XCTest cases)", tests=str(len(stages)),
-                      failures=str(sum(value != "success" for value in outcomes.values())), errors="0", skipped="0")
+                      failures=str(sum(value == "failure" for value in outcomes.values())), errors="0",
+                      skipped=str(sum(value == "skipped" for value in outcomes.values())))
 for name, _, log in stages:
     case = ET.SubElement(suite, "testcase", classname="WW2TacticsCI", name=name)
-    if outcomes[name] != "success":
+    if outcomes[name] == "failure":
         ET.SubElement(case, "failure", message=f"See {log}")
+    elif outcomes[name] == "skipped":
+        ET.SubElement(case, "skipped", message="Prerequisite did not pass; stage was not executed")
 tree_path = root / "xctest-test-tree.json"
 if tree_path.exists():
     cases = []

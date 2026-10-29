@@ -1,4 +1,4 @@
-import AppKit
+import CoreGraphics
 import Foundation
 import ImageIO
 import Vision
@@ -32,7 +32,7 @@ struct ScreenshotDisplayGeometry {
 
 struct ScreenshotImage {
     let pixels: CGImage
-    let bitmap: NSBitmapImageRep
+    let rgba: [UInt8]
     let display: ScreenshotDisplayGeometry
 
     init?(data: Data) {
@@ -41,11 +41,30 @@ struct ScreenshotImage {
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] ?? [:]
         let value = (properties[kCGImagePropertyOrientation as String] as? NSNumber)?.uint32Value ?? 1
         guard let orientation = CGImagePropertyOrientation(rawValue: value) else { return nil }
+        var rgba = [UInt8](repeating: 0, count: pixels.width * pixels.height * 4)
+        let rendered = rgba.withUnsafeMutableBytes { (buffer: UnsafeMutableRawBufferPointer) -> Bool in
+            guard let context = CGContext(
+                data: buffer.baseAddress, width: pixels.width, height: pixels.height,
+                bitsPerComponent: 8, bytesPerRow: pixels.width * 4,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return false }
+            context.setBlendMode(.copy)
+            context.interpolationQuality = .none
+            context.draw(pixels, in: CGRect(x: 0, y: 0, width: pixels.width, height: pixels.height))
+            return true
+        }
+        guard rendered else { return nil }
         self.pixels = pixels
-        // AppKit's data initializer normalizes EXIF; raw ImageIO pixels must only be oriented once.
-        bitmap = NSBitmapImageRep(cgImage: pixels)
+        self.rgba = rgba
+        // Normalize color bytes explicitly, but apply EXIF only when mapping display coordinates.
         display = ScreenshotDisplayGeometry(pixelWidth: pixels.width, pixelHeight: pixels.height,
                                             orientation: orientation)
+    }
+
+    func rgb(x: Int, y: Int) -> [UInt8] {
+        let index = (y * pixels.width + x) * 4
+        return Array(rgba[index..<(index + 3)])
     }
 }
 
@@ -65,7 +84,7 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
         CGImageDestinationAddImage(destination, fixture, [kCGImagePropertyOrientation: value] as CFDictionary)
         guard CGImageDestinationFinalize(destination), let decoded = ScreenshotImage(data: encoded as Data),
               decoded.pixels.width == 3, decoded.pixels.height == 2,
-              decoded.bitmap.pixelsWide == 3, decoded.bitmap.pixelsHigh == 2,
+              decoded.rgba.count == colors.count,
               decoded.display.orientation.rawValue == value else {
             fputs("Screenshot PNG raw decode/orientation contract failed\n", stderr)
             exit(1)
@@ -84,17 +103,17 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
             for x in 0..<geometry.width {
                 let point = geometry.rawPoint(x: x, y: y)
                 guard (0..<3).contains(point.x), (0..<2).contains(point.y) else { exit(1) }
-                guard let color = decoded.bitmap.colorAt(x: point.x, y: point.y)?.usingColorSpace(.sRGB) else { exit(1) }
                 let index = (point.y * 3 + point.x) * 4
-                let actual = [color.redComponent, color.greenComponent, color.blueComponent]
-                guard actual.enumerated().allSatisfy({ abs($0.element * 255 - CGFloat(colors[index + $0.offset])) < 2 }) else {
-                    fputs("Screenshot PNG sampling contract failed: EXIF=\(value), raw=(\(point.x),\(point.y)), expected=\(Array(colors[index..<(index + 3)])), sRGB=\(actual.map { $0 * 255 })\n", stderr)
+                let actual = decoded.rgb(x: point.x, y: point.y)
+                guard actual.enumerated().allSatisfy({ abs(Int($0.element) - Int(colors[index + $0.offset])) < 2 }) else {
+                    fputs("Screenshot PNG sampling contract failed: EXIF=\(value), raw=(\(point.x),\(point.y)), expected=\(Array(colors[index..<(index + 3)])), RGBA8=\(actual), sourceSpace=\(String(describing: decoded.pixels.colorSpace)), sourceInfo=\(decoded.pixels.bitmapInfo.rawValue), normalized=\(decoded.rgba)\n", stderr)
                     exit(1)
                 }
                 samples.insert("\(point.x),\(point.y)")
             }
         }
         guard samples.count == 6 else { exit(1) }
+        print("PNG contract EXIF=\(value): raw 3x2, display \(geometry.width)x\(geometry.height), 6 exact sRGB samples")
     }
     print("Screenshot orientation contracts passed: 8 PNG decodes/transforms, original pixels unchanged")
     exit(0)
@@ -107,7 +126,6 @@ guard CommandLine.arguments.count == 2,
     exit(1)
 }
 
-let image = screenshot.bitmap
 let display = screenshot.display
 
 // Exclude status bars and HUD: detect a readable battlefield, not just a white clock.
@@ -117,11 +135,8 @@ var brightSamples = 0
 for y in stride(from: display.height / 5, to: display.height * 7 / 10, by: 12) {
     for x in stride(from: display.width / 10, to: display.width * 9 / 10, by: 12) {
         let point = display.rawPoint(x: x, y: y)
-        guard let color = image.colorAt(x: point.x, y: point.y)?.usingColorSpace(NSColorSpace.sRGB) else { continue }
-        let red = Double(color.redComponent) * 0.2126
-        let green = Double(color.greenComponent) * 0.7152
-        let blue = Double(color.blueComponent) * 0.0722
-        let value = (red + green + blue) * 255
+        let color = screenshot.rgb(x: point.x, y: point.y)
+        let value = Double(color[0]) * 0.2126 + Double(color[1]) * 0.7152 + Double(color[2]) * 0.0722
         samples += 1
         luminance += value
         if value >= 55 { brightSamples += 1 }
@@ -145,9 +160,10 @@ do {
 let readable = mean >= 45 && visibleFraction >= 0.45 && !systemBanner
 let result: [String: Any] = [
     "width": display.width, "height": display.height,
-    "pixelWidth": image.pixelsWide, "pixelHeight": image.pixelsHigh,
+    "pixelWidth": screenshot.pixels.width, "pixelHeight": screenshot.pixels.height,
     "exifOrientation": display.orientation.rawValue,
     "samplingColorSpace": "sRGB",
+    "samplingFormat": "CoreGraphics RGBA8",
     "orientation": display.height >= display.width ? "portrait" : "landscape",
     "meanLuminance": mean, "visibleFraction": visibleFraction,
     "systemBannerDetected": systemBanner,

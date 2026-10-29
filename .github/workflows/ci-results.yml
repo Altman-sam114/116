@@ -42,7 +42,31 @@ jobs:
             echo "SCREENSHOT_SCENARIO=selected-combat-impact-steady"
           } >> "$GITHUB_ENV"
 
+      - name: Validate screenshot inspector before building or booting simulators
+        shell: bash
+        run: |
+          set +e
+          python3 .github/scripts/run_with_timeout.py 90 xcrun swiftc \
+            .github/scripts/inspect_screenshot.swift -o ci-results/inspect-screenshot \
+            > ci-results/screenshot-inspector.log 2>&1
+          compile_status=$?
+          contract_status=1
+          if [[ $compile_status -eq 0 ]]; then
+            python3 .github/scripts/run_with_timeout.py 30 ci-results/inspect-screenshot --self-test \
+              >> ci-results/screenshot-inspector.log 2>&1
+            contract_status=$?
+          fi
+          printf '{"compileExitCode":%s,"selfTestExitCode":%s}\n' \
+            "$compile_status" "$contract_status" > ci-results/screenshot-inspector-report.json
+          inspector_status=1
+          if [[ $compile_status -eq 0 && $contract_status -eq 0 ]]; then
+            inspector_status=0
+          fi
+          echo "INSPECTOR_STATUS=$inspector_status" >> "$GITHUB_ENV"
+          cat ci-results/screenshot-inspector.log
+
       - name: Run checks and build
+        if: env.INSPECTOR_STATUS == '0'
         shell: bash
         run: |
           set +e
@@ -153,6 +177,6 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [[ "${STATIC_STATUS:-1}" != "0" || "${SMOKE_STATUS:-1}" != "0" || "${BUILD_STATUS:-1}" != "0" || "${SCREENSHOT_STATUS:-1}" != "0" || "${TEST_STATUS:-1}" != "0" || "${UI_TEST_STATUS:-1}" != "0" ]]; then
+          if [[ "${INSPECTOR_STATUS:-1}" != "0" || "${STATIC_STATUS:-1}" != "0" || "${SMOKE_STATUS:-1}" != "0" || "${BUILD_STATUS:-1}" != "0" || "${SCREENSHOT_STATUS:-1}" != "0" || "${TEST_STATUS:-1}" != "0" || "${UI_TEST_STATUS:-1}" != "0" ]]; then
             exit 1
           fi

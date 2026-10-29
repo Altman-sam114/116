@@ -16,8 +16,8 @@ ROOT = Path("ci-results")
 WRAPPER = Path(__file__).with_name("run_with_timeout.py")
 BUNDLE_ID = "com.easytech.prototype.WW2Tactics"
 REPORT = {"testOutcome": "skipped", "testCount": 0, "testFailures": 0,
-          "testSkipped": 0, "screenshots": [], "screenshotOutcome": "failure",
-          "uiTestOutcome": "failure", "visualTests": []}
+          "testSkipped": 0, "screenshots": [], "screenshotOutcome": "skipped",
+          "uiTestOutcome": "skipped", "visualTests": []}
 
 
 def run(command, log, seconds=120, capture=False):
@@ -238,18 +238,17 @@ def landscape_evidence(category, device, inspector_ready):
 def main():
     selected = {}
     try:
+        inspector_report = ROOT / "screenshot-inspector-report.json"
+        if inspector_report.exists():
+            REPORT["screenshotInspector"] = json.loads(inspector_report.read_text())
+        if os.environ.get("INSPECTOR_STATUS") != "0" or not (ROOT / "inspect-screenshot").is_file():
+            raise RuntimeError("screenshot inspector preflight failed; build and simulator stages not run, see screenshot-inspector.log")
         if os.environ.get("BUILD_STATUS") != "0":
             raise RuntimeError("build-for-testing failed; test/screenshot stages not run")
+        REPORT["screenshotOutcome"] = "failure"
+        REPORT["uiTestOutcome"] = "failure"
         with (ROOT / "battlefield-screenshot.log").open("w") as log:
-            inspector = run(["xcrun", "swiftc", ".github/scripts/inspect_screenshot.swift", "-o", str(ROOT / "inspect-screenshot")], log, seconds=90)
-            inspector_ready = inspector.returncode == 0
-            REPORT["screenshotInspector"] = {"compileExitCode": inspector.returncode}
-            if inspector_ready:
-                contracts = run([str(ROOT / "inspect-screenshot"), "--self-test"], log, seconds=30)
-                inspector_ready = contracts.returncode == 0
-                REPORT["screenshotInspector"]["selfTestExitCode"] = contracts.returncode
-                if not inspector_ready:
-                    REPORT["error"] = "screenshot inspector PNG/orientation self-test failed; XCTest still executed independently"
+            log.write("Using screenshot inspector validated by cloud preflight; see screenshot-inspector.log\n")
             selected = devices()
             (ROOT / "selected-devices.json").write_text(json.dumps(selected, indent=2) + "\n")
             if set(selected) != {"ipad", "iphone"}:
@@ -266,12 +265,9 @@ def main():
                     app = Path(os.environ["DERIVED_DATA"]) / "Build/Products/Debug-iphonesimulator/WW2Tactics.app"
                     if run(["xcrun", "simctl", "install", device[3], str(app)], log).returncode:
                         raise RuntimeError("app installation failed")
-                    if inspector_ready:
-                        screenshot(category, device, "default", log)
-                        screenshot(category, device, "selected-combat-impact-steady", log)
-                    else:
-                        REPORT.setdefault("error", "screenshot inspector did not compile; XCTest still executed independently")
-                    landscape_evidence(category, device, inspector_ready)
+                    screenshot(category, device, "default", log)
+                    screenshot(category, device, "selected-combat-impact-steady", log)
+                    landscape_evidence(category, device, inspector_ready=True)
                 except Exception as error:
                     REPORT.setdefault("deviceErrors", []).append({"category": category, "error": str(error)})
                     log.write(f"\n{category} evidence failed: {error}\n")
@@ -294,9 +290,10 @@ def main():
                 REPORT["shutdownWarning"] = "Simulator shutdown timed out; runner cleanup required"
         (ROOT / "simulator-report.json").write_text(json.dumps(REPORT, indent=2) + "\n")
         with open(os.environ["GITHUB_ENV"], "a") as env:
-            env.write(f"TEST_STATUS={0 if REPORT['testOutcome'] == 'success' else 1}\n")
-            env.write(f"SCREENSHOT_STATUS={0 if REPORT['screenshotOutcome'] == 'success' else 1}\n")
-            env.write(f"UI_TEST_STATUS={0 if REPORT['uiTestOutcome'] == 'success' else 1}\n")
+            for key, outcome in [("TEST_STATUS", "testOutcome"), ("SCREENSHOT_STATUS", "screenshotOutcome"),
+                                 ("UI_TEST_STATUS", "uiTestOutcome")]:
+                value = "skipped" if REPORT[outcome] == "skipped" else "0" if REPORT[outcome] == "success" else "1"
+                env.write(f"{key}={value}\n")
 
 
 if __name__ == "__main__":
