@@ -60,6 +60,11 @@ for error in simulator.get("deviceErrors", []):
 for image in simulator.get("screenshots", []):
     lines.append(f"- {image['path']}: {image['outcome']}, {image.get('width')}x{image.get('height')}, "
                  f"{image.get('bytes', 0)} bytes, luminance {image.get('meanLuminance')}")
+    if image.get("launchAttempts"):
+        exits = [attempt["exitCode"] for attempt in image["launchAttempts"]]
+        lines.append(f"  launch attempts: {len(exits)}, exit codes: {exits}")
+    if image.get("error"):
+        lines.append(f"  error: {image['error']}")
 for test in simulator.get("visualTests", []):
     lines.append(f"- {test['category']} landscape UI test: {test['outcome']}, {test.get('testCount', 0)} actual, "
                  f"{test.get('failures', 0)} failed, {test.get('skipped', 0)} skipped")

@@ -96,8 +96,11 @@ jobs:
             timeout_contract_status=$?
             python3 -m py_compile .github/scripts/ci_simulator.py .github/scripts/ci_package.py
             python_status=$?
+            python3 .github/scripts/ci_simulator.py --self-test > ci-results/launch-contracts.log 2>&1
+            launch_contract_status=$?
             cat ci-results/timeout-contracts.log
-            if [[ $diff_status -ne 0 || $plutil_status -ne 0 || $yaml_status -ne 0 || $timeout_contract_status -ne 0 || $python_status -ne 0 ]]; then
+            cat ci-results/launch-contracts.log
+            if [[ $diff_status -ne 0 || $plutil_status -ne 0 || $yaml_status -ne 0 || $timeout_contract_status -ne 0 || $python_status -ne 0 || $launch_contract_status -ne 0 ]]; then
               static_status=1
             fi
           } > ci-results/static-checks.log 2>&1

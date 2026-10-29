@@ -524,3 +524,5 @@ XCTest 原始 PNG 可保留竖向物理像素并以 EXIF 表示横屏。UI 需�
 PNG 夹具和亮度采样使用固定 sRGB，不能以设备相关 DeviceRGB 作为可复现颜色字节的基准；报告保留 `samplingColorSpace`，采样断言失败要记录 EXIF、原始坐标、期望与实际值，不通过扩大容差绕过失败。
 
 固定 workflow 在游戏构建和模拟器 boot 前先编译检查器并执行八向 PNG 契约；日志为 `screenshot-inspector.log`，独立报告为 `screenshot-inspector-report.json`。失败时仍打包，manifest/JUnit 区分失败与未执行 skipped，零测试不算通过；成功继续原全套 smoke/build/unit/UI/六图并复用检查器，不新增 profile、设备或无关工作流。该前置门禁不改变六图、交互和资源预算要求。
+
+竖屏场景的 `simctl launch` 仅在命令超时 exit=124 时允许同设备、同 bundle、同场景参数的一次终止/重启恢复；每次 launch 仍限90秒、最多两次，普通启动错误、崩溃或 UI 断言失败不重跑。manifest/summary 保留所有启动尝试与退出码，恢复成功也不隐藏首次超时；每场景仍须完整通过原两帧、尺寸、亮度、方向与通知门禁。云端 static 执行 `ci_simulator.py --self-test` 的12组 mocked启动契约，日志 `launch-contracts.log`；不依赖设备，不改变独立 unit/UI 执行次数。

@@ -70,3 +70,5 @@ center = rawCenter + 统一 offset
 `XCUIScreen.main.screenshot()` 保存真实屏幕原字节；在 app 启动后旋转，UI 同时断言 app frame 与按 UIImage 方向解读的显示尺寸宽大于高；云端 ImageIO 独立读取 EXIF，以原始 CGImage 建明确 sRGB RGBA8 的 CoreGraphics 缓冲区（不使用 AppKit/NSColor 隐式解码或色域解读），明确报告原始/显示尺寸，按方向取样和检查通知。八向 self-test 覆盖带方向 PNG 编码/解码、原始宽高、颜色采样与坐标映射，不依赖 app 截图裁框、不后处理方向。FieldControlButton/缩放/动作/关闭按钮在 label 内明确矩形 contentShape，保证 44pt 触控区域不因 plain 样式和不命中的装饰底板退化成图标轮廓。HUD 与情报覆盖层分别明确 zIndex；情报开关/关闭有稳定 ID。XCUITest 在框架 teardown block 保留原始最终画面、方向元数据和无障碍层级（不依赖失败可能跳过的 Swift defer），即使断言失败也由云端导出诊断；它们不替代六图的合格原帧，UI 失败仍使整 run 失败。
 
 人工最新指令覆盖本轮 A/B/C 串行要求：普通任务单智能体直接核对云端基线、参考画面、实现、main 提交/push、下载 exact 最新包并视觉验收；仍保留版本化实施记录和完整证据链，不启动子智能体。旧 run、旧 screenshot、本地半成品均不得冒充最新通过。相同原因 CI 连续失败、同阻塞三轮、无有效 diff 两轮或需要账号/人工决策时停止无条件循环。
+
+竖屏截图启动经 `launch_scenario`：命令90秒内正常完成才进入取证；仅 exit=124 可在同设备、同参数终止后恢复一次，不换设备、不增加单次超时、不重跑普通错误或 UI 断言。所有启动退出码保留到截图记录和 summary；恢复后的场景仍执行原完整截图门禁。云端 static 的 mocked契约覆盖成功、普通错误、超时恢复、再次超时和恢复后错误，独立 unit/UI 不因取证启动失败而重复运行。

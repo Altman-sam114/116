@@ -100,6 +100,24 @@ def xctest(device, log):
         REPORT["testOutcome"] = "success"
 
 
+def launch_scenario(device, arguments, log, record):
+    command = ["xcrun", "simctl", "launch", "--terminate-running-process", device[3], BUNDLE_ID, *arguments]
+    record["launchArguments"] = list(arguments)
+    record["launchAttempts"] = []
+    for attempt in range(1, 3):
+        result = run(command, log, seconds=90)
+        record["launchAttempts"].append({"attempt": attempt, "exitCode": result.returncode})
+        if result.returncode == 0:
+            return True
+        # Recover a hung simctl transport once, never an app crash or failed UI assertion.
+        if result.returncode != 124 or attempt == 2:
+            record["error"] = f"simctl launch failed: exit={result.returncode}, attempts={attempt}"
+            return False
+        log.write("\nLaunch transport timed out; one recovery on the same device with identical arguments.\n")
+        run(["xcrun", "simctl", "terminate", device[3], BUNDLE_ID], log, seconds=30)
+    return False
+
+
 def screenshot(category, device, scenario, log):
     orientation = "portrait"
     path = ROOT / f"battlefield-{category}-{scenario}.png"
@@ -107,8 +125,7 @@ def screenshot(category, device, scenario, log):
               "requestedOrientation": orientation, "scenario": scenario, "path": str(path), "outcome": "failure"}
     REPORT["screenshots"].append(record)
     arguments = [] if scenario == "default" else ["--ci-selected-combat-impact-steady"]
-    result = run(["xcrun", "simctl", "launch", "--terminate-running-process", device[3], BUNDLE_ID, *arguments], log, seconds=90)
-    if result.returncode:
+    if not launch_scenario(device, arguments, log, record):
         return
     # Retry readability as well as size: an early launch fade can exceed 500 KB.
     readable_frames = 0
@@ -296,5 +313,43 @@ def main():
                 env.write(f"{key}={value}\n")
 
 
+def launch_contracts():
+    import io
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    device = ((), 0, "Cloud contract fixture", "same-device", "fixture-runtime")
+    for arguments in [[], ["--ci-selected-combat-impact-steady"]]:
+        for codes, expected in [([0], True), ([124, 0], True), ([124, 124], False),
+                                ([7], False), ([1], False), ([124, 7], False)]:
+            launches = []
+            terminations = []
+
+            def fake_run(command, log, seconds=120, capture=False):
+                if command[2] == "launch":
+                    assert seconds == 90
+                    assert command[3:] == ["--terminate-running-process", device[3], BUNDLE_ID, *arguments]
+                    launches.append(command)
+                    return SimpleNamespace(returncode=codes[len(launches) - 1])
+                assert command == ["xcrun", "simctl", "terminate", device[3], BUNDLE_ID]
+                assert seconds == 30
+                terminations.append(command)
+                return SimpleNamespace(returncode=0)
+
+            record = {}
+            with patch(__name__ + ".run", side_effect=fake_run):
+                assert launch_scenario(device, arguments, io.StringIO(), record) == expected
+            assert len(launches) == len(codes) <= 2
+            assert len(terminations) == (1 if codes[0] == 124 else 0)
+            assert [item["exitCode"] for item in record["launchAttempts"]] == codes
+            assert record["launchArguments"] == arguments
+            assert ("error" not in record) == expected
+            print(f"launch contract: arguments={arguments}, exits={codes}, success={expected}")
+    print("Launch recovery contracts passed: identical device/scenario, timeout-only, two launches maximum")
+
+
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:] == ["--self-test"]:
+        launch_contracts()
+    else:
+        main()
