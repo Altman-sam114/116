@@ -30,12 +30,47 @@ struct ScreenshotDisplayGeometry {
     }
 }
 
+struct ScreenshotImage {
+    let pixels: CGImage
+    let bitmap: NSBitmapImageRep
+    let display: ScreenshotDisplayGeometry
+
+    init?(data: Data) {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let pixels = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] ?? [:]
+        let value = (properties[kCGImagePropertyOrientation as String] as? NSNumber)?.uint32Value ?? 1
+        guard let orientation = CGImagePropertyOrientation(rawValue: value) else { return nil }
+        self.pixels = pixels
+        // AppKit's data initializer normalizes EXIF; raw ImageIO pixels must only be oriented once.
+        bitmap = NSBitmapImageRep(cgImage: pixels)
+        display = ScreenshotDisplayGeometry(pixelWidth: pixels.width, pixelHeight: pixels.height,
+                                            orientation: orientation)
+    }
+}
+
 if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
+    let colors: [UInt8] = [255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255,
+                           255, 255, 0, 255, 255, 0, 255, 255, 0, 255, 255, 255]
+    let provider = CGDataProvider(data: Data(colors) as CFData)!
+    let fixture = CGImage(width: 3, height: 2, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: 12,
+                          space: CGColorSpaceCreateDeviceRGB(),
+                          bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                          provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)!
     let corners = [(0, 0, 2, 1), (2, 0, 0, 1), (2, 1, 0, 0), (0, 1, 2, 0),
                    (0, 0, 2, 1), (0, 1, 2, 0), (2, 1, 0, 0), (2, 0, 0, 1)]
     for value in UInt32(1)...8 {
-        let geometry = ScreenshotDisplayGeometry(pixelWidth: 3, pixelHeight: 2,
-                                                 orientation: CGImagePropertyOrientation(rawValue: value)!)
+        let encoded = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(encoded, "public.png" as CFString, 1, nil) else { exit(1) }
+        CGImageDestinationAddImage(destination, fixture, [kCGImagePropertyOrientation: value] as CFDictionary)
+        guard CGImageDestinationFinalize(destination), let decoded = ScreenshotImage(data: encoded as Data),
+              decoded.pixels.width == 3, decoded.pixels.height == 2,
+              decoded.bitmap.pixelsWide == 3, decoded.bitmap.pixelsHigh == 2,
+              decoded.display.orientation.rawValue == value else {
+            fputs("Screenshot PNG raw decode/orientation contract failed\n", stderr)
+            exit(1)
+        }
+        let geometry = decoded.display
         let first = geometry.rawPoint(x: 0, y: 0)
         let last = geometry.rawPoint(x: geometry.width - 1, y: geometry.height - 1)
         let expected = corners[Int(value) - 1]
@@ -49,28 +84,31 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
             for x in 0..<geometry.width {
                 let point = geometry.rawPoint(x: x, y: y)
                 guard (0..<3).contains(point.x), (0..<2).contains(point.y) else { exit(1) }
+                guard let color = decoded.bitmap.colorAt(x: point.x, y: point.y)?.usingColorSpace(.deviceRGB) else { exit(1) }
+                let index = (point.y * 3 + point.x) * 4
+                let actual = [color.redComponent, color.greenComponent, color.blueComponent]
+                guard actual.enumerated().allSatisfy({ abs($0.element * 255 - CGFloat(colors[index + $0.offset])) < 2 }) else {
+                    fputs("Screenshot PNG sampling contract failed\n", stderr)
+                    exit(1)
+                }
                 samples.insert("\(point.x),\(point.y)")
             }
         }
         guard samples.count == 6 else { exit(1) }
     }
-    print("Screenshot orientation contracts passed: 8 transforms, original pixels unchanged")
+    print("Screenshot orientation contracts passed: 8 PNG decodes/transforms, original pixels unchanged")
     exit(0)
 }
 
 guard CommandLine.arguments.count == 2,
       let imageData = try? Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1])),
-      let image = NSBitmapImageRep(data: imageData),
-      let source = CGImageSourceCreateWithData(imageData as CFData, nil) else {
+      let screenshot = ScreenshotImage(data: imageData) else {
     fputs("Cannot decode screenshot\n", stderr)
     exit(1)
 }
 
-let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] ?? [:]
-let orientationValue = (properties[kCGImagePropertyOrientation as String] as? NSNumber)?.uint32Value ?? 1
-let orientation = CGImagePropertyOrientation(rawValue: orientationValue) ?? .up
-let display = ScreenshotDisplayGeometry(pixelWidth: image.pixelsWide, pixelHeight: image.pixelsHigh,
-                                        orientation: orientation)
+let image = screenshot.bitmap
+let display = screenshot.display
 
 // Exclude status bars and HUD: detect a readable battlefield, not just a white clock.
 var samples = 0
@@ -96,24 +134,19 @@ let recognition = VNRecognizeTextRequest()
 recognition.recognitionLevel = .accurate
 recognition.regionOfInterest = CGRect(x: 0, y: 0.66, width: 1, height: 0.34)
 var systemBanner = false
-if let cgImage = image.cgImage {
-    do {
-        try VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:]).perform([recognition])
-        let text = (recognition.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ").lowercased()
-        systemBanner = text.contains("apple intelligence") || text.contains("personal intelligence system")
-    } catch {
-        fputs("Cannot inspect system overlays: \(error)\n", stderr)
-        exit(1)
-    }
-} else {
-    fputs("Cannot load screenshot for system overlay inspection\n", stderr)
+do {
+    try VNImageRequestHandler(cgImage: screenshot.pixels, orientation: display.orientation, options: [:]).perform([recognition])
+    let text = (recognition.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ").lowercased()
+    systemBanner = text.contains("apple intelligence") || text.contains("personal intelligence system")
+} catch {
+    fputs("Cannot inspect system overlays: \(error)\n", stderr)
     exit(1)
 }
 let readable = mean >= 45 && visibleFraction >= 0.45 && !systemBanner
 let result: [String: Any] = [
     "width": display.width, "height": display.height,
     "pixelWidth": image.pixelsWide, "pixelHeight": image.pixelsHigh,
-    "exifOrientation": orientation.rawValue,
+    "exifOrientation": display.orientation.rawValue,
     "orientation": display.height >= display.width ? "portrait" : "landscape",
     "meanLuminance": mean, "visibleFraction": visibleFraction,
     "systemBannerDetected": systemBanner,

@@ -17,9 +17,17 @@
 - 当前协作规范以 `AGENTS.md + update_log.md + md/prompt + md/test + md/flow` 为入口；2026-10-24 本轮人工特别要求 Agent X 直接迭代，取消 A/B/C 串行调度、不启子智能体，其他安全与云端验收边界不变。
 - 当前默认协作流程已升级为 `main` 直推、GitHub Actions 云端重验证、未加密 CI 结果包、Agent C 下载核对结果包后验收。
 - 当前文档已支持未来 `agentx:` 主控循环：Agent X 接收总目标、拆分轮次并调度 Agent A -> Agent B -> Agent C，不跳过云端 artifact 验收。
-- 当前阶段为 `v3（战争沙盘重构）`：v3.3 `5f51cac` / run `40618452705` 的 static/smoke/build/152 unit 与四竖屏成功，两设备横屏情报开合断言失败；规则状态机保持不变，追加触控/层级和失败诊断纠正后等待最新云端包，不宣称验收完成。
+- 当前阶段为 `v3（战争沙盘重构）`：v3.4 `0228400` / run `40710253682` 的 static/smoke/build/156 unit、两设备真实横屏 UI 与四竖屏成功；剩余截图检查器的解码方向二次应用待最小纠正与云端复验。规则状态机保持不变，不宣称整轮验收完成。
 
 ## 历史记录
+
+### v3.4 / 原始 PNG 解码与六图验收纠正（进行中）
+
+日期：2026-10-29（Asia/Taipei）。恢复后核对 main/origin/main `0228400bd3f96db43ea29c16622ad1dd696e0059` 与 exact run `40710253682` / attempt `1`：static/smoke/build、156 actual unit、iPad/iPhone 各 1 项真实 UI 全部成功、零失败/零跳过；旋转、情报/编队/支援开合、真实移动和第 2 回合断言均执行。四竖屏成功，整 run 因两横屏检查失败而 failure，不能写成全通过。
+
+artifact `ww2tactics-ci-v3.4-main-0228400-run40710253682-attempt1`，id `12827179532`，119,274,217 bytes，API digest `sha256:bd3bdaf5635a1f7c242d380f70af26169e1c851edf34a4bdc427792aac347826`。root 报告/日志、iPad 默认、iPhone 战果与 iPad 原始横屏经 ZIP Range + entry CRC 局部下载至 `/private/tmp/ww2tactics-review-40710253682/`；不是整包摘要核对。原始横屏从 xcresult 数据原字节复制，SHA 与 manifest 帧 `981ac435...315c5` 一致；IHDR 确为 2064x2752，UIImage 显示横向。亲看三幅真实画面，新地貌、兵模、徽章、金属 HUD 和完整横向战场已显示，未修图。
+
+剩余根因与首次 UI 等待不同：macOS `NSBitmapImageRep(data:)` 已按 EXIF=6 自动转成 2752x2064，检查器又交换宽高，误判为竖屏。最小修复只改检查器：从 ImageIO 原始 CGImage 建 bitmap，采样与 Vision 只应用一次方向；原八向坐标 self-test 增加真实带方向 PNG 编码/解码、原始宽高及逐点颜色契约。游戏源码、资源、UI 断言、尺寸/亮度/字节门槛与超时均不变。不做本机项目验证、不启子智能体，新增修复 SHA/run/attempt 待 push 后生成。
 
 ### v3.4 / 前线地貌、兵模与军用 HUD 重构（实施，待云端验收）
 

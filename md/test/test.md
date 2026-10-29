@@ -518,3 +518,5 @@ CI 失败时，Agent C 写退回清单；Agent B 在 `main` 上追加修复 comm
 XCTest 原始 PNG 可保留竖向物理像素并以 EXIF 表示横屏。UI 需同时验证 app frame 与 UIImage 原生方向解读的显示尺寸；云端截图检查器通过 ImageIO 独立读取方向，分别报告 `pixelWidth/pixelHeight`、`width/height` 与 `exifOrientation`，按显示坐标取样亮度，并把同一方向传给 Vision。八种 EXIF 方向的角点、尺寸、边界和一一映射先执行云端 `inspect-screenshot --self-test`；不改原字节，不用改图冒充真实旋转。
 
 尺寸/500 KB/亮度/可读比例/系统通知、两帧原附件与真实操作断言不放宽。失败诊断由 XCTest `addTeardownBlock` 保存最终屏幕、方向元数据及无障碍层级，避免 `continueAfterFailure=false` 的异常路径跳过 Swift defer；诊断不替代通过的场景图。
+
+解码必须从 ImageIO 原始 CGImage 建 bitmap，再应用一次 EXIF；不能把 `NSBitmapImageRep(data:)` 已自动转正的宽高当作原始像素。云端八向 self-test 要通过同一解码入口，验证带方向 PNG 的原始宽高、EXIF、逐点颜色及显示坐标映射，防止纯几何测试通过而真实图片被二次旋转。
