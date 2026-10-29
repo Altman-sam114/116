@@ -41,11 +41,16 @@ struct BattlefieldTerrainRenderer: View, Equatable {
         guard let ground = BattlefieldArtwork.ground else { return }
         let image = context.resolve(BattlefieldArtwork.image(ground))
         var material = context
-        material.opacity = 0.64
-        let step: CGFloat = 384
-        for y in stride(from: CGFloat.zero, to: size.height, by: step) {
-            for x in stride(from: CGFloat.zero, to: size.width, by: step) {
-                material.draw(image, in: CGRect(x: x, y: y, width: step, height: step))
+        material.opacity = 0.56
+        material.addFilter(.blur(radius: 0.45))
+        let step: CGFloat = 512
+        for (row, y) in stride(from: CGFloat.zero, to: size.height, by: step).enumerated() {
+            for (column, x) in stride(from: CGFloat.zero, to: size.width, by: step).enumerated() {
+                var patch = material
+                patch.translateBy(x: x + step / 2, y: y + step / 2)
+                // Mirror tiling joins identical texture edges, including non-periodic painted details.
+                patch.scaleBy(x: column.isMultiple(of: 2) ? 1 : -1, y: row.isMultiple(of: 2) ? 1 : -1)
+                patch.draw(image, in: CGRect(x: -step / 2, y: -step / 2, width: step, height: step))
             }
         }
         context.fill(Path(CGRect(origin: .zero, size: size)),
@@ -140,23 +145,44 @@ struct BattlefieldTerrainRenderer: View, Equatable {
             water.addEllipse(in: pool)
         }
         context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 3.5))
-            layer.fill(shore, with: .color(Color(red: 0.18, green: 0.24, blue: 0.16).opacity(0.42)))
+            layer.addFilter(.blur(radius: 4))
+            layer.fill(shore, with: .color(Color(red: 0.16, green: 0.27, blue: 0.14).opacity(0.50)))
         }
-        context.fill(bank, with: .color(Color(red: 0.62, green: 0.60, blue: 0.41)))
+        context.fill(bank, with: .color(Color(red: 0.56, green: 0.54, blue: 0.35)))
         context.fill(water, with: .linearGradient(
-            Gradient(colors: [Color(red: 0.32, green: 0.49, blue: 0.51), Color(red: 0.15, green: 0.30, blue: 0.34)]),
+            Gradient(colors: [Color(red: 0.29, green: 0.46, blue: 0.46), Color(red: 0.12, green: 0.27, blue: 0.30)]),
             startPoint: .zero, endPoint: CGPoint(x: layout.size.width, y: layout.size.height)))
         for ribbon in geometry.ribbons {
-            for fraction in [CGFloat(0.28), 0.57, 0.82] {
-                let center = ribbon.point(at: fraction)
-                let normal = ribbon.normal(at: fraction)
-                var ripple = Path()
-                ripple.move(to: CGPoint(x: center.x - normal.x * 2, y: center.y - normal.y * 2))
-                ripple.addQuadCurve(to: CGPoint(x: center.x + normal.x * 3, y: center.y + normal.y * 3),
-                                    control: CGPoint(x: center.x + 1.3, y: center.y - 1.3))
-                context.stroke(ripple, with: .color(Color.white.opacity(0.14)), lineWidth: 0.65)
+            context.stroke(Path(ribbon.surfaceTrace(lane: -1)),
+                           with: .color(Color(red: 0.80, green: 0.78, blue: 0.56).opacity(0.46)), lineWidth: 0.9)
+            context.stroke(Path(ribbon.surfaceTrace(lane: 1)), with: .color(.black.opacity(0.25)), lineWidth: 1.1)
+            var surface = context
+            surface.clip(to: water)
+            for lane in [CGFloat(-0.55), 0.12, 0.56] {
+                surface.stroke(Path(ribbon.surfaceTrace(lane: lane, from: 0.13, to: 0.82)),
+                               with: .color(Color(red: 0.67, green: 0.78, blue: 0.70).opacity(0.13)),
+                               style: StrokeStyle(lineWidth: 0.6, lineCap: .round, dash: [7, 4, 2, 6]))
             }
+            for detail in ribbon.bankDetails { paintBankDetail(detail, context: &context) }
+        }
+    }
+
+    private func paintBankDetail(_ detail: BattlefieldRiverBankDetail, context: inout GraphicsContext) {
+        let center = detail.center
+        let radius = detail.radius
+        if detail.isStone {
+            let rect = CGRect(x: center.x - radius, y: center.y - radius * 0.5, width: radius * 2, height: radius)
+            context.fill(Path(ellipseIn: rect.offsetBy(dx: 0.6, dy: 0.6)), with: .color(.black.opacity(0.22)))
+            context.fill(Path(ellipseIn: rect), with: .color(Color(red: 0.65, green: 0.64, blue: 0.50).opacity(0.76)))
+        } else {
+            var reeds = Path()
+            for lean in [CGFloat(-1), 0, 1] {
+                reeds.move(to: center)
+                reeds.addQuadCurve(to: CGPoint(x: center.x + lean * radius, y: center.y - radius * 2.4),
+                                   control: CGPoint(x: center.x + lean * radius * 0.2, y: center.y - radius))
+            }
+            context.stroke(reeds, with: .color(Color(red: 0.23, green: 0.32, blue: 0.17).opacity(0.70)),
+                           style: StrokeStyle(lineWidth: 0.65, lineCap: .round))
         }
     }
 

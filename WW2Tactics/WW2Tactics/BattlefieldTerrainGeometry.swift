@@ -1,6 +1,14 @@
 import CoreGraphics
 import Foundation
 
+struct BattlefieldRiverBankDetail: Equatable {
+    let fraction: CGFloat
+    let side: CGFloat
+    let center: CGPoint
+    let radius: CGFloat
+    let isStone: Bool
+}
+
 struct BattlefieldRiverJunction: Equatable {
     let point: CGPoint
     let halfWidth: CGFloat
@@ -33,6 +41,43 @@ struct BattlefieldRiverRibbon {
     func halfWidth(at fraction: CGFloat) -> CGFloat {
         let t = min(1, max(0, fraction))
         return startHalfWidth + (endHalfWidth - startHalfWidth) * t + sin(t * .pi) * 1.4
+    }
+
+    func surfaceTrace(lane: CGFloat, from lower: CGFloat = 0, to upper: CGFloat = 1) -> CGPath {
+        let path = CGMutablePath()
+        let lower = min(1, max(0, lower))
+        let upper = max(lower, min(1, upper))
+        let lane = min(1, max(-1, lane))
+        let points = (0...24).map { index in
+            let fraction = lower + (upper - lower) * CGFloat(index) / 24
+            let center = point(at: fraction)
+            let normal = normal(at: fraction)
+            return CGPoint(x: center.x + normal.x * halfWidth(at: fraction) * lane,
+                           y: center.y + normal.y * halfWidth(at: fraction) * lane)
+        }
+        path.addLines(between: points)
+        return path
+    }
+
+    /// Decorative reeds and stones follow actual banks; they never add terrain or cover rules.
+    var bankDetails: [BattlefieldRiverBankDetail] {
+        var details: [BattlefieldRiverBankDetail] = []
+        for index in 1...6 {
+            let fraction = CGFloat(index) / 7
+            let center = point(at: fraction)
+            let normal = normal(at: fraction)
+            for side in [CGFloat(-1), 1] {
+                let variation = CGFloat(abs(sin(Double(start.x * 0.17 + end.y * 0.29) + Double(index) * 13.7 + Double(side))))
+                let offset = halfWidth(at: fraction) + 2.2 + variation * 3
+                details.append(BattlefieldRiverBankDetail(
+                    fraction: fraction, side: side,
+                    center: CGPoint(x: center.x + normal.x * offset * side,
+                                    y: center.y + normal.y * offset * side),
+                    radius: 0.8 + variation * 0.9, isStone: variation > 0.72
+                ))
+            }
+        }
+        return details
     }
 
     func outline(expansion: CGFloat = 0) -> CGPath {

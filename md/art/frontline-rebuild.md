@@ -38,3 +38,23 @@ Use case: stylized-concept. Asset type: original offline terrain sprite atlas fo
 检查器从 `CGImageSourceCreateImageAtIndex` 的原始像素建立 bitmap，避免 `NSBitmapImageRep(data:)` 已自动转正后再应用 EXIF。八向 self-test 同时覆盖带方向 PNG 的编码/解码、原始宽高和逐点颜色，不能只验证脱离解码链的坐标公式。
 
 颜色夹具和实际亮度采样均使用固定 sRGB，不依赖 runner 的设备 RGB 配置；报告记录采样色彩空间，契约失败输出方向、坐标、期望与实际颜色，保持原断言精度。
+
+## 乡野底材与水面层次
+
+`WW2Tactics/WW2Tactics/BattlefieldArt/ground-frontline.png` 是内置 ImageGen 新生成的原创不透明草土底材，实际输出 1254x1254、3,767,054 bytes。原字节复制入工程，不做本机图像后处理。旧 `ground.png` 用 `trash` 可恢复移出随包目录，Git 历史仍保留；不是把两份大底材一起塞进包或仅从预算名单隐藏旧文件。仍为七份随包 PNG，固定 24,000,000 bytes 总预算和原 20 sprite 契约不变。
+
+源文件：`/Users/a114514/.codex/generated_images/01a185ca-3943-7fa3-87f5-97da519a93de/call_whZC4oKUZJmnb5SMmx0Lhfsm.png`。工具为内置 ImageGen，`transparent_background=false`，未传任何商业参考图。提示词请求 1024x1024，但工具实际输出 1254x1254，按实际尺寸记录，不改图凑尺寸。
+
+完整提示词：
+
+```text
+Use case: stylized-concept. Asset type: original seamless square ground albedo texture for an offline iOS WWII hex strategy battlefield. Generate exactly one 1024 x 1024 square image, a flat orthographic straight-down hand-painted texture of temperate Western European meadow ground. This is a tiling material, NOT a scene, NOT an isometric diorama, NOT a UI mockup. Broad, softly blended irregular patches of muted sage green grass, mossy olive and warm beige dry earth, very subtle grass stippling, low-frequency terrain coloration, a few faint worn earth traces. Designed to sit UNDER detailed tanks and village sprites: calm, light-mid value, low contrast, beautiful premium 2D strategy-game painterly quality, soft consistent ambient lighting, no visible directional cast shadows, no white speckle noise, no large stones. All four edges must tile seamlessly, no obvious square border and no central focal point. Keep the entire image fully opaque. No trees, buildings, vehicles, roads, rivers, lakes, mountains, craters, sky, symbols, text, grid, hexagons, logos, watermarks, frames, or camera perspective. Original artwork only, not a copy of any existing game texture.
+```
+
+底材使用相邻镜像铺排和轻微低通，不把大纹理四角接缝留在战场上。田块改为稳定不规则四边形，低对比耕垄被裁在田界内；水面沿实际河带绘制纵向流纹、亮暗双岸、芦苇与石滩，不增加河格、掩体或移动规则。新增表现纯值测试检查田界、河面流纹与岸边装饰位置；资源复用/透明度/预算仍交云端执行。
+
+## 云端取证前置
+
+ImageIO 原始 CGImage 进入明确 big-endian sRGB RGBA8 的 CoreGraphics 缓冲区，不再经 `NSBitmapImageRep`/`NSColor` 隐式色域解读。只在采样坐标上应用 EXIF，不修改原图字节；八向六色 PNG 往返保持小于 2/255 的逐通道误差要求，原尺寸/亮度/系统通知门槛不变。
+
+同一固定 workflow 先编译检查器并执行八向 PNG self-test，记录 `screenshot-inspector-report.json` 与日志；失败即停止昂贵构建和 boot，包内把未执行阶段标为 skipped 而不是通过。成功继续原 smoke/build/unit/UI/六图全套，复用本次已验证检查器；不是 changed-files/profile 分流，也没有新增工作流或设备。

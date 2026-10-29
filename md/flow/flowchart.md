@@ -65,10 +65,12 @@ stateDiagram-v2
 flowchart TD
     X[单智能体 X / 核对云端基线与公开参考] --> Implement[直接 main 实现 / 测试源码 / 文档]
     Implement --> Push[核对 main + origin/main + Altman-sam114 / push]
-    Push --> Static[云端 diff / plist / YAML / Python / 超时契约]
+    Push --> Inspector[云端检查器编译 / sRGB RGBA8 / 八向 PNG 契约]
+    Inspector -->|通过| Static[云端 diff / plist / YAML / Python / 超时契约]
+    Inspector -->|失败且其余未运行| Package
     Static --> Smoke[RulesSmokeTest]
     Smoke --> Build[Xcode build-for-testing]
-    Build --> XCTest[云端全部 XCTest / 原 147 项加 5 项 / 不跳过]
+    Build --> XCTest[云端 unit 与表现 XCTest / 实际集合按源码核对 / 不跳过]
     Build --> Boot[两个既有云端设备串行首启 / 同设备一次有界恢复 / 不创建设备]
     Boot --> XCTest
     XCTest --> UI[两设备各 1 项 XCUITest / 启动后旋转与原生方向解读 / 情报与抽屉开合 / 移动及回合]
@@ -86,4 +88,4 @@ flowchart TD
     Decision -->|停止条件| Stop[暂停并请求必要人工决策]
 ```
 
-JUnit 分开六阶段、目标 152 unit 与两设备各 1 UI。UI 设计覆盖明确的旋转/控件/抽屉/动作坞移动与回合路径，不证明逐格直接触屏、鼠标拖动、VoiceOver 或全字号，实际结果仍以最新包为准。桥梁/命名军械/地貌不改变规则；横屏由 XCUITest 旋转设备，原附件不转像素/修通知。失败也产包，逐设备保留错误，不回滚远端，只追加修复；本轮无 A/B/C 调度、无子智能体，所有验证云端。
+JUnit 分开检查器前置与原六阶段、实际 unit 与两设备各 1 UI。UI 设计覆盖明确的旋转/控件/抽屉/动作坞移动与回合路径，不证明逐格直接触屏、鼠标拖动、VoiceOver 或全字号，实际结果仍以最新包为准。桥梁/命名军械/地貌不改变规则；横屏由 XCUITest 旋转设备，原附件不转像素/修通知。失败也产包，逐设备保留错误，不回滚远端，只追加修复；本轮无 A/B/C 调度、无子智能体，所有验证云端。

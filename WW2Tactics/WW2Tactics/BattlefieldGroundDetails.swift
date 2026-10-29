@@ -5,6 +5,7 @@ struct BattlefieldFieldPlot: Equatable {
     let size: CGSize
     let angle: Double
     let isHarvested: Bool
+    let corners: [CGPoint]
 
     init?(tile: TerrainTile, layout: BattlefieldMapLayout) {
         let seed = tile.coordinate.q * 997 + tile.coordinate.r * 131
@@ -17,6 +18,14 @@ struct BattlefieldFieldPlot: Equatable {
                       height: 28 + BattlefieldSceneryPlacement.noise(seed, 83) * 20)
         angle = (Double(BattlefieldSceneryPlacement.noise(seed, 89)) - 0.5) * 44
         isHarvested = BattlefieldSceneryPlacement.noise(seed, 97) > 0.5
+        let x = size.width / 2
+        let y = size.height / 2
+        corners = [
+            CGPoint(x: -x + BattlefieldSceneryPlacement.noise(seed, 103) * 5, y: -y + 2),
+            CGPoint(x: x - 2, y: -y + BattlefieldSceneryPlacement.noise(seed, 107) * 5),
+            CGPoint(x: x - BattlefieldSceneryPlacement.noise(seed, 109) * 5, y: y - 1),
+            CGPoint(x: -x + 1, y: y - BattlefieldSceneryPlacement.noise(seed, 113) * 5)
+        ]
     }
 }
 
@@ -58,17 +67,20 @@ struct BattlefieldGroundDetails {
         field.rotate(by: .degrees(plot.angle))
         let rect = CGRect(x: -plot.size.width / 2, y: -plot.size.height / 2,
                           width: plot.size.width, height: plot.size.height)
-        let boundary = Path(roundedRect: rect, cornerRadius: 1)
+        var boundary = Path()
+        boundary.addLines(plot.corners)
+        boundary.closeSubpath()
         field.fill(boundary, with: .color(plot.isHarvested
-            ? Color(red: 0.57, green: 0.47, blue: 0.27).opacity(0.42)
-            : Color(red: 0.30, green: 0.37, blue: 0.16).opacity(0.40)))
+            ? Color(red: 0.60, green: 0.49, blue: 0.29).opacity(0.30)
+            : Color(red: 0.29, green: 0.38, blue: 0.18).opacity(0.32)))
+        field.stroke(boundary, with: .color(Color(red: 0.24, green: 0.31, blue: 0.16).opacity(0.40)), lineWidth: 1.4)
+        field.clip(to: boundary)
         var furrows = Path()
         for y in stride(from: rect.minY + 2, to: rect.maxY, by: 3) {
             furrows.move(to: CGPoint(x: rect.minX + 1, y: y))
             furrows.addLine(to: CGPoint(x: rect.maxX - 1, y: y))
         }
-        field.stroke(furrows, with: .color(BattlefieldTheme.fieldPaper.opacity(0.18)), lineWidth: 0.6)
-        field.stroke(boundary, with: .color(.black.opacity(0.14)), lineWidth: 1.5)
+        field.stroke(furrows, with: .color(BattlefieldTheme.fieldPaper.opacity(0.11)), lineWidth: 0.6)
     }
 
     private func paintScrub(_ tile: TerrainTile, context: inout GraphicsContext) {

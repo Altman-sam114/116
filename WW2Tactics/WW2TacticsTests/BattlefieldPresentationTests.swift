@@ -58,6 +58,58 @@ final class BattlefieldPresentationTests: XCTestCase {
         }
     }
 
+    func testPaintedFieldEdgesStayInsideTheirDeterministicPlot() throws {
+        for scenario in Scenario.campaignCatalog {
+            let layout = BattlefieldMapLayout(coordinates: scenario.tiles.map(\.coordinate))
+            for tile in scenario.tiles {
+                guard let plot = BattlefieldFieldPlot(tile: tile, layout: layout) else { continue }
+                let repeated = try XCTUnwrap(BattlefieldFieldPlot(tile: tile, layout: layout))
+                XCTAssertEqual(plot.corners, repeated.corners)
+                XCTAssertEqual(plot.corners.count, 4)
+                let bounds = CGRect(x: -plot.size.width / 2, y: -plot.size.height / 2,
+                                    width: plot.size.width, height: plot.size.height)
+                for corner in plot.corners {
+                    XCTAssertTrue(corner.x.isFinite && corner.y.isFinite)
+                    XCTAssertTrue(bounds.contains(corner))
+                }
+                let twiceArea = zip(plot.corners, Array(plot.corners.dropFirst()) + [plot.corners[0]])
+                    .reduce(CGFloat.zero) { $0 + $1.0.x * $1.1.y - $1.1.x * $1.0.y }
+                XCTAssertGreaterThan(twiceArea, plot.size.width * plot.size.height)
+            }
+        }
+    }
+
+    func testRiverSurfaceAndBankDetailsStayAttachedToRealWater() {
+        for scenario in Scenario.campaignCatalog {
+            let original = scenario.tiles
+            let layout = BattlefieldMapLayout(coordinates: original.map(\.coordinate))
+            let geometry = BattlefieldRiverGeometry(tiles: original, layout: layout)
+            let reversed = BattlefieldRiverGeometry(tiles: Array(original.reversed()), layout: layout)
+            XCTAssertFalse(geometry.ribbons.isEmpty)
+            for (ribbon, repeated) in zip(geometry.ribbons, reversed.ribbons) {
+                XCTAssertEqual(ribbon.bankDetails, repeated.bankDetails)
+                XCTAssertEqual(ribbon.bankDetails.count, 12)
+                for lane in [CGFloat(-0.55), 0.12, 0.56] {
+                    let bounds = ribbon.outline().boundingBoxOfPath.insetBy(dx: -0.1, dy: -0.1)
+                    XCTAssertTrue(bounds.contains(ribbon.surfaceTrace(lane: lane, from: 0.13, to: 0.82).boundingBoxOfPath))
+                }
+                for detail in ribbon.bankDetails {
+                    let center = ribbon.point(at: detail.fraction)
+                    let normal = ribbon.normal(at: detail.fraction)
+                    let dx = detail.center.x - center.x
+                    let dy = detail.center.y - center.y
+                    XCTAssertEqual(hypot(dx, dy), (dx * normal.x + dy * normal.y) * detail.side, accuracy: 0.0001)
+                    XCTAssertGreaterThan(hypot(dx, dy), ribbon.halfWidth(at: detail.fraction) + 2)
+                    XCTAssertLessThan(hypot(dx, dy), ribbon.halfWidth(at: detail.fraction) + 5.3)
+                    XCTAssertGreaterThan(detail.radius, 0)
+                }
+            }
+            let dry = original.filter { $0.terrain == .plains }
+            XCTAssertTrue(BattlefieldRiverGeometry(tiles: dry, layout: layout).ribbons.isEmpty)
+            XCTAssertEqual(scenario.tiles, original)
+        }
+    }
+
     func testMapDetailsStayQuietUntilInspectedOrReplayIsExplicit() {
         for focused in [false, true] {
             for selected in [false, true] {
@@ -457,6 +509,8 @@ final class BattlefieldPresentationTests: XCTestCase {
         XCTAssertGreaterThan(totalBytes, 1_000_000)
         XCTAssertLessThanOrEqual(totalBytes, 24_000_000)
         let ground = try XCTUnwrap(BattlefieldArtwork.ground)
+        XCTAssertEqual(BattlefieldArtwork.groundResourceName, "ground-frontline")
+        XCTAssertTrue(ground === BattlefieldArtwork.ground)
         XCTAssertGreaterThanOrEqual(ground.width, 512)
         XCTAssertEqual(ground.width, ground.height)
     }

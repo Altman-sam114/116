@@ -16,13 +16,13 @@
 - `BattlefieldInspector.swift`：情报入口、任务/胜负、地格与战报；原 5,044 行文件拆分为 `BattlefieldUnitInspector`（单位/补给/士气/经验/预测）、`BattlefieldPlanningInspector`（推进/接敌/战术命令）、`BattlefieldSituationInspector`（态势/压力）、`BattlefieldResultInspector`（战果/后勤）、`BattlefieldThreatInspector`（意图/反制）、`BattlefieldReplayInspector`（AI 时间线）与 `BattlefieldLegend`。80 个原顶层声明完整保留，只有跨文件共享类型/扩展调整访问级别，不改业务语义。
 - `BattlefieldMapLayout.swift`：统一六角顶点、中心、tile frame、全部实际地格的 union bounds、24pt 留白及缩放尺寸；纯值 `UnitReadinessPresentation`、`BattlefieldViewport`、短边密度 `BattlefieldMapCamera` 与情报/指令布局 `BattlefieldHUDLayout`。默认战术缩放，不按整张战役高度压小兵模。宽且高度不足 500pt 时用短顶栏/紧凑动作坞，不默认展开总览；前线镜头按最近存活双方取中点，无双方时回退战役初始坐标。
 - `BattlefieldTerrainRenderer.swift`：Equatable 输入隔离静态 Canvas 与单位选择/行动刷新，仍由真实 tile/layout/road 变化失效。组合高细节草土、低频明暗地形、耕地与八款疏密山林/村镇；`BattlefieldGroundDetails` 负责稳定耕地、林地接壤与村镇地基，相邻 snow 合成较收敛的连续雪带。先画河岸/水面/自然端潭，再画道路/桥面，最后按地理 y 排序放置稳定镜像/偏移/尺度的地貌；不改变输入或移动规则。
-- `BattlefieldTerrainGeometry.swift`：真实 river 邻格共享岸点/河宽/切线；只有 city/road 被相对 river 两邻格夹住才延续水道，plains/mountain 不凭空连河。三次曲线闭合变宽河岸，端点合成水潭，覆盖分叉/孤立格；无随机状态。
+- `BattlefieldTerrainGeometry.swift`：真实 river 邻格共享岸点/河宽/切线；只有 city/road 被相对 river 两邻格夹住才延续水道，plains/mountain 不凭空连河。三次曲线闭合变宽河岸，端点合成水潭，覆盖分叉/孤立格；纯值流纹沿实际水面、芦苇石滩沿真实岸线，不增加地形或掩体；无随机状态。
 - `BattlefieldInfrastructure.swift`：纯值街道与桥梁计划，canonical 道路边保留，城镇与相邻真实道路成对相连；river 格两侧必须都有相对 road/city 才画桥，绝不由画桥减免河流成本。RoadGeometry 对有效成对边只输出一条确定性三次曲线，端点固定于真实格中心，不画单边/非法方向。地貌放置按 q/r 稳定选择三种森林剪影、疏密雪林、农庄及大小/位置/镜像。
 - `BattlefieldRoadNetwork.swift`：从真实道路邻接派生 canonical 主干及有界长回边，仅用于画路，不改变路线和移动成本。
 - `BattlefieldMap.swift`：仅负责地图投影、静态层/交互格/战果编排与稳定锚框。`BattlefieldHexTile` 管透明格叠层，`BattlefieldMapInput` 保留原 UIKit 输入桥，`BattlefieldHexAccessibility` 管只读摘要；Objective/Tactical/Replay/RouteMarkers 按职责拆分。静态地形不再嵌入每个交互 View。ActionMarkerPresentation 只压低环境 MOVE 文字噪声：范围 wash/边界保留，焦点或路线终点显示移动牌；攻击聚焦只显示当前攻击牌，不改可执行性。
 - `BattlefieldCombatFeedback.swift`：真实执行坐标上的交战轴线、HIT/RET/HP 前后、可取消反馈序列和 Reduce Motion。
 - `BattlefieldUnitRenderer.swift`：八款通用原创兵模加四款 M10/M7/Tiger/Panther 外观；根据只读名称/阵营/kind 选择，M10 仍是原 recon 规则。地图与选中 HUD 共用；不逐实例重画几何图标。
-- `BattlefieldArtwork.swift` / `BattlefieldArt/`：七份原创 PNG 随包离线使用，ImageIO 一次解码；新增 frontline atlas 替换四款在用地貌、原文件保留，20 个在用 sprite 静态复用；固定格位、透明度、主体和 24 MB 预算由云端测试拒收，来源与完整 prompt 在 md/art；不关联 GameState。
+- `BattlefieldArtwork.swift` / `BattlefieldArt/`：七份原创 PNG 随包离线使用，ImageIO 一次解码；frontline atlas 替换四款在用地貌、旧 atlas 保留，20 个在用 sprite 静态复用；原创 ground-frontline 替换旧草土地材，镜像铺排/轻微低通，不按 atlas 裁格；固定格位、透明度、主体和 24 MB 预算由云端测试拒收，来源与完整 prompt 在 md/art；不关联 GameState。
 - `BattlefieldMapUnits.swift`：放大的地图兵模、圆形兵种章、将领/军衔/CUT/战术状态、实线 AL / 虚线 AX 阵营环与字码、五段 HP、独立移动与攻击槽。模型放大但不扩大输入六角；小实/虚线阵营环不叠不透明棋子底座；轴心模型镜像朝向盟军。`BattlefieldUnitViews` 保留共享血条/徽章与只读值扩展。spent 严格为 `hasMoved && hasAttacked`。
 - `BattlefieldTheme.swift`：橄榄炭灰 chrome、浅色正文与克制黄铜强调。
 
@@ -57,14 +57,16 @@ center = rawCenter + 统一 offset
 
 ## 云端验证与验收
 
-人工要求不做本地测试；本地只 Git/text 审查及已有资源查看。`main` push → static（diff/plist/YAML/Python/timeout 契约）→ Rules smoke → Xcode build-for-testing → 两个已有云端设备串行 boot → 目标 152 项 unit/表现测试 → 原四张竖屏 + 两设备各 1 项真实横屏 UI 测试及原始附件共六图 → always 结果包 → 单智能体下载 exact 最新 artifact 并逐图核对。新增 5 项测试保留原 147 项；unit 与 UI 命令用 only-testing 明确隔离，不能拿阶段数冒充测试数。启动失败恢复同设备一次，保持单次 240 秒上限；错误逐设备保留，尚未启动 unit 时可由下一个成功启动设备执行，不重跑失败断言掩盖问题。
+人工要求不做本地测试；本地只 Git/text 审查及已有资源查看。`main` push → 检查器编译与八向 PNG 契约前置 → static（diff/plist/YAML/Python/timeout 契约）→ Rules smoke → Xcode build-for-testing → 两个已有云端设备串行 boot → unit/表现 XCTest（实际集合按源码核对） → 原四张竖屏 + 两设备各 1 项真实横屏 UI 测试及原始附件共六图 → always 结果包 → 单智能体下载 exact 最新 artifact 并逐图核对。保留全部规则与资源回归；unit 与 UI 命令用 only-testing 明确隔离，不能拿阶段数冒充测试数。启动失败恢复同设备一次，保持单次 240 秒上限；错误逐设备保留，尚未启动 unit 时可由下一个成功启动设备执行，不重跑失败断言掩盖问题。
+
+前置检查记录 screenshot-inspector.log 与 screenshot-inspector-report.json；失败时不构建或 boot，always 结果包把未执行阶段标为 skipped，不把零测试当通过。前置成功继续原完整门禁，并复用本次已验证的检查器；不新增 profile 或设备。
 
 六图记录 device/UDID/runtime、场景、请求/实际方向、尺寸、bytes、SHA-256、亮度与可读比例。竖屏保留 ≥500 KB、中央 mean ≥45/255、≥45% 采样点亮度 ≥55、连续两帧、最多 8 次重拍；横屏 XCTest 验证 frame/结束回合按钮/M10/情报抽屉开合，再真实操作下一支、据点预览、执行移动和推进第二回合；保留相隔一秒的两个命名原始战果 screenshot 与执行移动附件，两张战果帧均经过相同大小/亮度/方向/Vision 门禁。导出只按 attachment manifest 身份取原字节，不旋转/裁图/修通知。OCR 只拒绝已知 Apple Intelligence 通知，仍需逐图检查。
 
-资源门禁校验六 PNG 随包解码、固定格位、20 sprite 透明度/可见主体、静态复用和 24 MB 预算。manifest/summary/JUnit 分开记录六阶段、目标 152 unit、两设备各 1 UI 和六图；保留各 UI summary、日志与 xcresult。VisualUITests 仅覆盖明确旋转/控件/抽屉/动作坞移动回合路径，不把逐格直接触屏、鼠标、拖动、VoiceOver、全字号或 Reduce Motion 源码审查冒充实测。
+资源门禁校验七 PNG 随包解码、固定格位、20 sprite 透明度/可见主体、静态复用和 24 MB 预算。manifest/summary/JUnit 分开记录检查器前置与原六阶段、实际 unit、两设备各 1 UI 和六图；保留各 UI summary、日志与 xcresult。VisualUITests 仅覆盖明确旋转/控件/抽屉/动作坞移动回合路径，不把逐格直接触屏、鼠标、拖动、VoiceOver、全字号或 Reduce Motion 源码审查冒充实测。
 
 ## 本轮直接迭代
 
-`XCUIScreen.main.screenshot()` 保存真实屏幕原字节；在 app 启动后旋转，UI 同时断言 app frame 与按 UIImage 方向解读的显示尺寸宽大于高；云端 ImageIO 独立读取 EXIF，以原始 CGImage 建 bitmap（不使用会自动转正的 AppKit data 解码），明确报告原始/显示尺寸，按方向取样和检查通知。八向 self-test 覆盖带方向 PNG 编码/解码、原始宽高、颜色采样与坐标映射，不依赖 app 截图裁框、不后处理方向。FieldControlButton/缩放/动作/关闭按钮在 label 内明确矩形 contentShape，保证 44pt 触控区域不因 plain 样式和不命中的装饰底板退化成图标轮廓。HUD 与情报覆盖层分别明确 zIndex；情报开关/关闭有稳定 ID。XCUITest 在框架 teardown block 保留原始最终画面、方向元数据和无障碍层级（不依赖失败可能跳过的 Swift defer），即使断言失败也由云端导出诊断；它们不替代六图的合格原帧，UI 失败仍使整 run 失败。
+`XCUIScreen.main.screenshot()` 保存真实屏幕原字节；在 app 启动后旋转，UI 同时断言 app frame 与按 UIImage 方向解读的显示尺寸宽大于高；云端 ImageIO 独立读取 EXIF，以原始 CGImage 建明确 sRGB RGBA8 的 CoreGraphics 缓冲区（不使用 AppKit/NSColor 隐式解码或色域解读），明确报告原始/显示尺寸，按方向取样和检查通知。八向 self-test 覆盖带方向 PNG 编码/解码、原始宽高、颜色采样与坐标映射，不依赖 app 截图裁框、不后处理方向。FieldControlButton/缩放/动作/关闭按钮在 label 内明确矩形 contentShape，保证 44pt 触控区域不因 plain 样式和不命中的装饰底板退化成图标轮廓。HUD 与情报覆盖层分别明确 zIndex；情报开关/关闭有稳定 ID。XCUITest 在框架 teardown block 保留原始最终画面、方向元数据和无障碍层级（不依赖失败可能跳过的 Swift defer），即使断言失败也由云端导出诊断；它们不替代六图的合格原帧，UI 失败仍使整 run 失败。
 
 人工最新指令覆盖本轮 A/B/C 串行要求：普通任务单智能体直接核对云端基线、参考画面、实现、main 提交/push、下载 exact 最新包并视觉验收；仍保留版本化实施记录和完整证据链，不启动子智能体。旧 run、旧 screenshot、本地半成品均不得冒充最新通过。相同原因 CI 连续失败、同阻塞三轮、无有效 diff 两轮或需要账号/人工决策时停止无条件循环。

@@ -519,6 +519,8 @@ XCTest 原始 PNG 可保留竖向物理像素并以 EXIF 表示横屏。UI 需�
 
 尺寸/500 KB/亮度/可读比例/系统通知、两帧原附件与真实操作断言不放宽。失败诊断由 XCTest `addTeardownBlock` 保存最终屏幕、方向元数据及无障碍层级，避免 `continueAfterFailure=false` 的异常路径跳过 Swift defer；诊断不替代通过的场景图。
 
-解码必须从 ImageIO 原始 CGImage 建 bitmap，再应用一次 EXIF；不能把 `NSBitmapImageRep(data:)` 已自动转正的宽高当作原始像素。云端八向 self-test 要通过同一解码入口，验证带方向 PNG 的原始宽高、EXIF、逐点颜色及显示坐标映射，防止纯几何测试通过而真实图片被二次旋转。
+解码必须从 ImageIO 原始 CGImage 进入明确 big-endian sRGB RGBA8 的 CoreGraphics 缓冲区，再在采样坐标应用一次 EXIF；不经 AppKit/NSColor 隐式色域转换，不能把 `NSBitmapImageRep(data:)` 已自动转正的宽高当作原始像素。云端八向 self-test 要通过同一解码入口，验证带方向 PNG 的原始宽高、EXIF、逐点颜色及显示坐标映射，防止纯几何测试通过而真实图片被二次旋转。
 
 PNG 夹具和亮度采样使用固定 sRGB，不能以设备相关 DeviceRGB 作为可复现颜色字节的基准；报告保留 `samplingColorSpace`，采样断言失败要记录 EXIF、原始坐标、期望与实际值，不通过扩大容差绕过失败。
+
+固定 workflow 在游戏构建和模拟器 boot 前先编译检查器并执行八向 PNG 契约；日志为 `screenshot-inspector.log`，独立报告为 `screenshot-inspector-report.json`。失败时仍打包，manifest/JUnit 区分失败与未执行 skipped，零测试不算通过；成功继续原全套 smoke/build/unit/UI/六图并复用检查器，不新增 profile、设备或无关工作流。该前置门禁不改变六图、交互和资源预算要求。
