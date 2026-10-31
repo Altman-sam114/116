@@ -642,8 +642,27 @@ final class BattlefieldPresentationTests: XCTestCase {
                 XCTAssertEqual(value.isSpent, hasMoved && hasAttacked)
                 XCTAssertEqual(value.moveSymbol == "checkmark", hasMoved)
                 XCTAssertEqual(value.attackSymbol == "checkmark", hasAttacked)
+                XCTAssertEqual(value.moveTitle, hasMoved ? "已移动" : "可移动")
+                XCTAssertEqual(value.attackTitle, hasAttacked ? "已攻击" : "可攻击")
             }
         }
+    }
+
+    func testEdgeToolsKeepFullAccessibilityNamesAndShortCaptions() {
+        // VisualUITests tap these exact labels; captions are display-only.
+        XCTAssertEqual(BattlefieldEdgeTool.allCases.map(\.title),
+                       ["编队与据点定位", "战术支援", "返回交战前线", "下一支待命部队"])
+        XCTAssertEqual(Set(BattlefieldEdgeTool.allCases.map(\.caption)).count, BattlefieldEdgeTool.allCases.count)
+        XCTAssertEqual(Set(BattlefieldEdgeTool.allCases.map(\.icon)).count, BattlefieldEdgeTool.allCases.count)
+        for tool in BattlefieldEdgeTool.allCases {
+            XCTAssertFalse(tool.caption.isEmpty)
+            XCTAssertLessThanOrEqual(tool.caption.count, 3)
+            XCTAssertNotEqual(tool.caption, tool.title)
+        }
+        XCTAssertEqual(BattlefieldEdgeTool.roster.drawer, .roster)
+        XCTAssertEqual(BattlefieldEdgeTool.support.drawer, .support)
+        XCTAssertNil(BattlefieldEdgeTool.frontline.drawer)
+        XCTAssertNil(BattlefieldEdgeTool.nextReady.drawer)
     }
 
     func testScaledScrollAnchorsAndCombatMidpointMatchVisibleGeometry() {

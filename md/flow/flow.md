@@ -44,7 +44,7 @@ center = rawCenter + 统一 offset
 
 ## 操作与规则状态流
 
-1. 战役菜单调用 `selectScenario(id:)`；重开调用 `restart()`。
+1. 战役菜单调用 `selectScenario(id:)`；重开按钮先弹出确认，确认后才调用 `restart()`。
 2. 直接点击、鼠标主键、次键分别转发 `handleTap`、`handlePrimaryAction`、`handleSecondaryAction`，没有 Canvas 私有点击规则。
 3. 友军轨道 `select(unitID:)`，敌军 `focus(unitID:)`，据点 `focus(coordinate:)`；完整数组、既有排序不截断。焦点变化使地图与轨道按稳定 ID 滚动，不执行命令。
    默认和重开镜头用独立 `battlefield-frontline` 的真实 1pt 锚框；战役装载会生成新的首单位 ID，`.task(id:)` 在布局让步后定位。普通移动/选择保持该 ID，不反复抢镜。返回前线只滚动；缩放/尺寸变化保留当前镜头模式，选中或聚焦后恢复既有焦点/交战中点定位。

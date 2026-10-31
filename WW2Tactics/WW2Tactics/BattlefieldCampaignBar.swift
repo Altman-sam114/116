@@ -38,7 +38,7 @@ private struct CampaignResource: View {
         HStack(spacing: 6) {
             Image(systemName: icon).font(.system(size: 12, weight: .medium)).foregroundStyle(color)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 8, weight: .medium)).foregroundStyle(BattlefieldTheme.mutedInk)
+                Text(title).font(BattlefieldTheme.hudCaption).foregroundStyle(BattlefieldTheme.mutedInk)
                 Text(value).font(BattlefieldTheme.militaryFont(22)).monospacedDigit().foregroundStyle(BattlefieldTheme.fieldPaper)
             }
         }

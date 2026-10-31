@@ -138,6 +138,8 @@ struct UnitReadinessPresentation: Equatable {
     var isSpent: Bool { !canMove && !canAttack }
     var moveSymbol: String { canMove ? "arrow.up.right" : "checkmark" }
     var attackSymbol: String { canAttack ? "scope" : "checkmark" }
+    var moveTitle: String { canMove ? "可移动" : "已移动" }
+    var attackTitle: String { canAttack ? "可攻击" : "已攻击" }
 }
 
 /// Reachability stays visible as a wash; only the inspected move needs a text chip.

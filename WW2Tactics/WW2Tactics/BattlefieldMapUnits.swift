@@ -19,25 +19,28 @@ struct UnitCounter: View {
             }
             HStack(alignment: .center, spacing: 2) {
                 UnitBranchMedallion(kind: unit.kind, faction: unit.faction)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(alignment: .bottom, spacing: 2) {
-                        Text(unit.faction.shortTitle).font(BattlefieldTheme.militaryFont(7))
-                            .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 3) {
+                        Text(unit.faction.shortTitle).font(BattlefieldTheme.militaryFont(9))
+                            .foregroundStyle(.white).shadow(color: .black, radius: 1)
+                        MiniHealthBar(ratio: unit.hpRatio, factionTint: unit.faction.accentColor)
+                            .frame(height: 6)
+                    }
+                    .frame(height: 10)
+                    HStack(spacing: 2) {
+                        UnitReadinessPip(symbol: readiness.moveSymbol, available: readiness.canMove,
+                                         tint: BattlefieldTheme.movement)
+                        UnitReadinessPip(symbol: readiness.attackSymbol, available: readiness.canAttack,
+                                         tint: BattlefieldTheme.brass)
                         Spacer(minLength: 0)
-                        Text(unit.rank.insignia).font(.system(size: 7, weight: .black))
-                            .foregroundStyle(BattlefieldTheme.selectedPiece)
+                        Text(unit.rank.insignia).font(BattlefieldTheme.militaryFont(9))
+                            .foregroundStyle(BattlefieldTheme.selectedPiece).shadow(color: .black, radius: 1)
                     }
-                    .shadow(color: .black, radius: 1)
-                    MiniHealthBar(ratio: unit.hpRatio, factionTint: unit.faction.accentColor)
-                        .frame(width: 43, height: 6)
-                    HStack(spacing: 4) {
-                        readinessSlot(symbol: readiness.moveSymbol, available: readiness.canMove)
-                        readinessSlot(symbol: readiness.attackSymbol, available: readiness.canAttack)
-                    }
+                    .frame(height: 10)
                 }
-                .frame(width: 43)
+                .frame(width: 45)
             }
-            .frame(width: 69, height: 21)
+            .frame(width: 70, height: 21)
             .accessibilityHidden(true)
         }
         .opacity(readiness.isSpent ? 0.83 : 1)
@@ -49,18 +52,47 @@ struct UnitCounter: View {
         UnitReadinessPresentation(hasMoved: unit.hasMoved, hasAttacked: unit.hasAttacked)
     }
 
-    private func readinessSlot(symbol: String, available: Bool) -> some View {
-        HStack(spacing: 2) {
-            Image(systemName: symbol).font(.system(size: 5, weight: .heavy))
-            Rectangle().fill(available ? BattlefieldTheme.fieldPaper : .black.opacity(0.5))
-                .frame(width: 9, height: 2)
-        }
-        .foregroundStyle(available ? BattlefieldTheme.fieldPaper : .white.opacity(0.55))
-    }
-
     private var accessibilitySummary: String {
         let commanderText = unit.commander.map { "，将领\($0.name)" } ?? ""
         return "\(unit.name)，\(unit.kind.title)，\(unit.faction.title)，生命 \(unit.hp) / \(unit.maxHP)\(commanderText)，\(unit.rank.title)，\(game.supplyState(for: unit).title)，\(unit.tacticalStatus.title)，\(unit.actionStateText)"
+    }
+}
+
+/// Tinted pip = action available, dark pip with a check = spent; move sits left of attack.
+struct UnitReadinessPip: View {
+    let symbol: String
+    let available: Bool
+    let tint: Color
+
+    var body: some View {
+        Image(systemName: symbol).font(.system(size: 7, weight: .heavy))
+            .foregroundStyle(available ? BattlefieldTheme.commandDeckDeep : Color.white.opacity(0.62))
+            .frame(width: 14, height: 9)
+            .background(available ? tint : Color.black.opacity(0.55), in: Capsule())
+            .overlay { Capsule().stroke(Color.white.opacity(available ? 0.38 : 0.26), lineWidth: 0.6) }
+            .accessibilityHidden(true)
+    }
+}
+
+/// Dock-sized readiness tag; the title keeps state readable without relying on colour.
+struct UnitReadinessTag: View {
+    let symbol: String
+    let title: String
+    let available: Bool
+    let tint: Color
+    var showsTitle = true
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: symbol).font(.system(size: 8, weight: .heavy))
+            if showsTitle { Text(title).font(BattlefieldTheme.hudCaption) }
+        }
+        .lineLimit(1).fixedSize()
+        .foregroundStyle(available ? tint : BattlefieldTheme.mutedInk)
+        .padding(.horizontal, 5).frame(height: 16)
+        .background((available ? tint : Color.white).opacity(available ? 0.16 : 0.06), in: Capsule())
+        .overlay { Capsule().stroke((available ? tint : Color.white).opacity(0.30), lineWidth: 0.6) }
+        .accessibilityHidden(true)
     }
 }
 

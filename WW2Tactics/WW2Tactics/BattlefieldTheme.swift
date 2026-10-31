@@ -23,6 +23,11 @@ enum BattlefieldTheme {
         .custom("DINCondensed-Bold", size: size)
     }
 
+    // HUD type scale: chrome copy stays at 9pt or larger; numerals use militaryFont.
+    static let hudCaption = Font.system(size: 9, weight: .bold)
+    static let hudLabel = Font.system(size: 10, weight: .bold)
+    static let hudBody = Font.system(size: 11, weight: .semibold)
+
     static var commandMetal: LinearGradient {
         LinearGradient(colors: [Color(red: 0.32, green: 0.31, blue: 0.24),
                                 commandDeck, commandDeckDeep],

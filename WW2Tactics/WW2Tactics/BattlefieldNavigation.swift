@@ -64,7 +64,7 @@ struct BattlefieldOverviewMap: View {
                 Label("据点", systemImage: "square").foregroundStyle(BattlefieldTheme.brass)
                 Spacer(minLength: 0)
             }
-            .font(.system(size: 8, weight: .bold))
+            .font(BattlefieldTheme.hudCaption)
         }
         .padding(8)
         .frame(width: 186)

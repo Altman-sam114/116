@@ -146,12 +146,20 @@ struct MapCommandCenter: View {
 
 private struct BattlefieldEdgeShade: View {
     var body: some View {
-        VStack(spacing: 0) {
-            LinearGradient(colors: [.black.opacity(0.19), .clear], startPoint: .top, endPoint: .bottom)
-                .frame(height: 100)
-            Spacer(minLength: 0)
-            LinearGradient(colors: [.clear, .black.opacity(0.24)], startPoint: .top, endPoint: .bottom)
-                .frame(height: 100)
+        GeometryReader { geometry in
+            let radius = (geometry.size.width * geometry.size.width + geometry.size.height * geometry.size.height).squareRoot() / 2
+            ZStack {
+                // Lens falloff keeps the centre untouched and settles the corners under the HUD plates.
+                RadialGradient(colors: [.clear, .clear, BattlefieldTheme.mapVignette],
+                               center: .center, startRadius: 0, endRadius: max(1, radius))
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.black.opacity(0.19), .clear], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 100)
+                    Spacer(minLength: 0)
+                    LinearGradient(colors: [.clear, .black.opacity(0.24)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 100)
+                }
+            }
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
