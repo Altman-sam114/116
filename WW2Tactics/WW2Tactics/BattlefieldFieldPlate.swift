@@ -1,37 +1,24 @@
 import SwiftUI
 
-/// Shared metal edge treatment keeps all map controls in one visual language.
+/// One restrained material for battle chrome, drawers and orders.
 struct FieldPlate: View {
     var emphasized = false
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 3)
+        BeveledFieldShape()
             .fill(BattlefieldTheme.commandMetal)
-            .overlay {
-                RoundedRectangle(cornerRadius: 2).inset(by: 3)
-                    .stroke(Color.black.opacity(0.45), lineWidth: 1)
+            .overlay(alignment: .top) {
+                Rectangle().fill(BattlefieldTheme.fieldPaper.opacity(0.15)).frame(height: 1)
+                    .padding(.horizontal, 7)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 3)
-                    .stroke(emphasized ? BattlefieldTheme.brass : BattlefieldTheme.steelEdge, lineWidth: 1)
+                BeveledFieldShape()
+                    .stroke(emphasized ? BattlefieldTheme.brass.opacity(0.85) : BattlefieldTheme.steelEdge.opacity(0.75), lineWidth: 1)
             }
-            .overlay {
-                Canvas { context, size in
-                    var grain = Path()
-                    for y in stride(from: CGFloat(5), to: size.height - 4, by: 3) {
-                        grain.move(to: CGPoint(x: 5, y: y))
-                        grain.addLine(to: CGPoint(x: size.width - 5, y: y))
-                    }
-                    context.stroke(grain, with: .color(.white.opacity(0.022)), lineWidth: 0.5)
-                    for x in [CGFloat(5), size.width - 5] {
-                        for y in [CGFloat(5), size.height - 5] {
-                            context.fill(Path(ellipseIn: CGRect(x: x - 1, y: y - 1, width: 2, height: 2)),
-                                         with: .color(BattlefieldTheme.brass.opacity(0.55)))
-                        }
-                    }
-                }
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(.black.opacity(0.28)).frame(height: 2).padding(.horizontal, 7)
             }
-            .shadow(color: .black.opacity(0.38), radius: 3, y: 3)
+            .shadow(color: .black.opacity(0.28), radius: 5, y: 3)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
@@ -39,7 +26,7 @@ struct FieldPlate: View {
 
 struct BeveledFieldShape: Shape {
     func path(in rect: CGRect) -> Path {
-        let cut = min(6, min(rect.width, rect.height) / 4)
+        let cut = min(5, min(rect.width, rect.height) / 4)
         return Path { path in
             path.move(to: CGPoint(x: rect.minX + cut, y: rect.minY))
             path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
@@ -79,17 +66,19 @@ struct FieldControlLabel: View {
     var selected = false
 
     var body: some View {
-        VStack(spacing: 2) {
-            Image(systemName: icon).font(.system(size: caption == nil ? 17 : 15, weight: .medium))
+        VStack(spacing: 4) {
+            Image(systemName: icon).font(.system(size: caption == nil ? 18 : 17, weight: .regular))
             if let caption {
                 Text(caption).font(BattlefieldTheme.hudCaption).lineLimit(1).fixedSize()
             }
         }
         .foregroundStyle(selected ? BattlefieldTheme.brass : BattlefieldTheme.fieldPaper)
         .frame(minWidth: 44, minHeight: 44)
-        .padding(.horizontal, caption == nil ? 0 : 3)
         .background {
-            if selected { RoundedRectangle(cornerRadius: 2).fill(BattlefieldTheme.brass.opacity(0.14)) }
+            if selected { Rectangle().fill(BattlefieldTheme.brass.opacity(0.10)) }
+        }
+        .overlay(alignment: .bottom) {
+            if selected { Rectangle().fill(BattlefieldTheme.brass).frame(height: 2).padding(.horizontal, 8) }
         }
         .contentShape(Rectangle())
     }
@@ -98,13 +87,14 @@ struct FieldControlLabel: View {
 /// Groups related edge tools on one metal plate instead of a row of separate tiles.
 struct FieldToolRail<Content: View>: View {
     var axis: Axis = .vertical
+    var plated = true
     @ViewBuilder let content: Content
 
     var body: some View {
         let layout = axis == .vertical ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
         layout { content }
             .padding(2)
-            .background(FieldPlate())
+            .background { if plated { FieldPlate() } }
     }
 }
 

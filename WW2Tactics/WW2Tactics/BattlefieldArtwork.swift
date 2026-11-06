@@ -25,8 +25,8 @@ enum BattlefieldVehicleVariant: Int, CaseIterable {
 
 /// Bundled, original artwork. Decode each sheet once; all map instances share its CGImages.
 enum BattlefieldArtwork {
-    static let groundResourceName = "ground-frontline"
-    static let resourceNames = ["vehicles", "troops", "scenery", groundResourceName, "armor-detail", "woodland-detail", "scenery-frontline"]
+    static let groundResourceName = "ground-campaign"
+    static let resourceNames = ["vehicles", "troops", groundResourceName, "armor-detail", "woodland-campaign", "scenery-campaign", "commanders"]
 
     private static let sheets: [String: CGImage] = {
         var result: [String: CGImage] = [:]
@@ -72,11 +72,16 @@ enum BattlefieldArtwork {
 
     static func scenery(_ kind: BattlefieldScenery) -> CGImage? {
         let index = kind.rawValue
-        return index < 4 ? sprites["scenery-frontline"]?[index] : sprites["woodland-detail"]?[index - 4]
+        return index < 4 ? sprites["scenery-campaign"]?[index] : sprites["woodland-campaign"]?[index - 4]
     }
 
     static func vehicle(_ variant: BattlefieldVehicleVariant) -> CGImage? {
         sprites["armor-detail"]?[variant.rawValue]
+    }
+
+    static func commander(_ commander: Commander) -> CGImage? {
+        guard let index = ["巴顿", "蒙哥马利", "古德里安", "曼施坦因"].firstIndex(of: commander.name) else { return nil }
+        return sprites["commanders"]?[index]
     }
 
     static var ground: CGImage? { sheets[groundResourceName] }

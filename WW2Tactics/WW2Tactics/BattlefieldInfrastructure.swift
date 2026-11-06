@@ -65,7 +65,7 @@ struct BattlefieldSceneryPlacement: Equatable {
             width = 115; height = 83
         case .mountain:
             kind = .mountain
-            width = 146; height = 112
+            width = 137; height = 103
         case .city:
             kind = tile.isObjective ? .village : .farmstead
             width = 119; height = 86
@@ -120,7 +120,7 @@ struct BattlefieldRoadGeometry {
                 let dy = end.y - start.y
                 let length = max(1, hypot(dx, dy))
                 let seed = coordinate.q * 997 + coordinate.r * 131 + neighbor.q * 61 + neighbor.r * 37
-                let bend = (BattlefieldSceneryPlacement.noise(seed, 53) - 0.5) * 12
+                let bend = (BattlefieldSceneryPlacement.noise(seed, 53) - 0.5) * 22
                 let shift = CGPoint(x: -dy / length * bend, y: dx / length * bend)
                 result.append(BattlefieldRoadSegment(
                     first: coordinate, second: neighbor, start: start,

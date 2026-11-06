@@ -71,9 +71,9 @@ struct BattlefieldGroundDetails {
         boundary.addLines(plot.corners)
         boundary.closeSubpath()
         field.fill(boundary, with: .color(plot.isHarvested
-            ? Color(red: 0.60, green: 0.49, blue: 0.29).opacity(0.30)
-            : Color(red: 0.29, green: 0.38, blue: 0.18).opacity(0.32)))
-        field.stroke(boundary, with: .color(Color(red: 0.24, green: 0.31, blue: 0.16).opacity(0.40)), lineWidth: 1.4)
+            ? Color(red: 0.65, green: 0.55, blue: 0.34).opacity(0.19)
+            : Color(red: 0.34, green: 0.44, blue: 0.22).opacity(0.21)))
+        field.stroke(boundary, with: .color(Color(red: 0.32, green: 0.39, blue: 0.22).opacity(0.24)), lineWidth: 1)
         field.clip(to: boundary)
         var furrows = Path()
         for y in stride(from: rect.minY + 2, to: rect.maxY, by: 3) {
@@ -90,10 +90,8 @@ struct BattlefieldGroundDetails {
             let x = center.x + (BattlefieldSceneryPlacement.noise(seed, index + 101) - 0.5) * 72
             let y = center.y + (BattlefieldSceneryPlacement.noise(seed, index + 151) - 0.5) * 60
             let width: CGFloat = index.isMultiple(of: 3) ? 3.5 : 1.8
-            context.fill(Path(ellipseIn: CGRect(x: x + 0.7, y: y + 1, width: width + 1, height: 1.7)),
-                         with: .color(.black.opacity(0.12)))
             context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: width, height: width * 0.6)),
-                         with: .color(Color(red: 0.32, green: 0.38, blue: 0.20).opacity(0.55)))
+                         with: .color(Color(red: 0.35, green: 0.43, blue: 0.25).opacity(0.24)))
         }
     }
 

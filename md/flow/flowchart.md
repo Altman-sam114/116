@@ -16,8 +16,8 @@ flowchart TD
     Markers --> Tiles
     State --> Rules[可达 / 攻击 / 控制区 / 补给 / 预判]
     Rules --> Tiles
-    Artwork[七份离线原创 PNG / 20 在用 sprite 静态复用] --> Terrain
-    Artwork --> Units[八款通用及四款命名军械 / AL 实线 AX 虚线 / HP / M 与 A]
+    Artwork[七份离线原创 PNG / 24 个 sprite 静态复用] --> Terrain
+    Artwork --> Units[通用及命名军械 / 将领肖像 / 阵营环 / HP / 行动状态]
     Tiles --> Units
     State --> Result[执行时坐标与真实 CombatResultSummary]
     Layout --> Feedback[轴线 / 定宽夹紧 HIT 与 RET / HP 前后 / 交战中点焦点]
@@ -25,7 +25,7 @@ flowchart TD
     Terrain --> Screen[全幅战场与边缘指挥带]
     Units --> Screen
     Feedback --> Screen
-    State --> Deck[左上战役资源牌 / 右下回合 / 分组件动作坞 / 互斥编队支援抽屉]
+    State --> Deck[战役资源栏 / 指挥底栏 / 分组件动作坞 / 互斥编队支援抽屉]
     Deck --> Screen
     State --> Overview[真实地貌单位据点缩略图 / 六角内点按只聚焦]
     Overview --> Screen

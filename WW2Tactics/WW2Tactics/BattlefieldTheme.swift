@@ -3,11 +3,11 @@ import SwiftUI
 enum BattlefieldTheme {
     static let backdropTop = Color(red: 0.055, green: 0.064, blue: 0.056)
     static let backdropBottom = Color(red: 0.115, green: 0.105, blue: 0.082)
-    static let commandDeck = Color(red: 0.23, green: 0.22, blue: 0.17)
-    static let commandDeckDeep = Color(red: 0.105, green: 0.11, blue: 0.09)
-    static let fieldGlass = Color(red: 0.26, green: 0.27, blue: 0.21)
-    static let brass = Color(red: 0.83, green: 0.69, blue: 0.42)
-    static let selectedPiece = Color(red: 1, green: 0.84, blue: 0.40)
+    static let commandDeck = Color(red: 0.16, green: 0.19, blue: 0.18)
+    static let commandDeckDeep = Color(red: 0.065, green: 0.085, blue: 0.080)
+    static let fieldGlass = Color(red: 0.23, green: 0.27, blue: 0.24)
+    static let brass = Color(red: 0.82, green: 0.70, blue: 0.46)
+    static let selectedPiece = Color(red: 1, green: 0.86, blue: 0.48)
     static let supplyLine = Color(red: 0.24, green: 0.48, blue: 0.30)
     static let signal = Color(red: 0.65, green: 0.77, blue: 0.48)
     static let alert = Color(red: 0.84, green: 0.33, blue: 0.22)
@@ -15,28 +15,28 @@ enum BattlefieldTheme {
     static let mutedInk = Color.white.opacity(0.62)
     static let hairline = Color.white.opacity(0.12)
     static let movement = Color(red: 0.36, green: 0.70, blue: 0.90)
-    static let fieldPaper = Color(red: 0.95, green: 0.91, blue: 0.79)
-    static let mapGround = Color(red: 0.43, green: 0.47, blue: 0.30)
-    static let steelEdge = Color(red: 0.51, green: 0.48, blue: 0.36)
+    static let fieldPaper = Color(red: 0.96, green: 0.94, blue: 0.86)
+    static let mapGround = Color(red: 0.52, green: 0.59, blue: 0.41)
+    static let steelEdge = Color(red: 0.43, green: 0.47, blue: 0.39)
 
     static func militaryFont(_ size: CGFloat) -> Font {
         .custom("DINCondensed-Bold", size: size)
     }
 
     // HUD type scale: chrome copy stays at 9pt or larger; numerals use militaryFont.
-    static let hudCaption = Font.system(size: 9, weight: .bold)
-    static let hudLabel = Font.system(size: 10, weight: .bold)
-    static let hudBody = Font.system(size: 11, weight: .semibold)
+    static let hudCaption = Font.system(size: 10, weight: .semibold)
+    static let hudLabel = Font.system(size: 11, weight: .semibold)
+    static let hudBody = Font.system(size: 12, weight: .medium)
 
     static var commandMetal: LinearGradient {
-        LinearGradient(colors: [Color(red: 0.32, green: 0.31, blue: 0.24),
+        LinearGradient(colors: [Color(red: 0.23, green: 0.27, blue: 0.24),
                                 commandDeck, commandDeckDeep],
                        startPoint: .top, endPoint: .bottom)
     }
 
     static var actionBrass: LinearGradient {
-        LinearGradient(colors: [Color(red: 0.94, green: 0.83, blue: 0.57), brass,
-                                Color(red: 0.52, green: 0.37, blue: 0.18)],
+        LinearGradient(colors: [Color(red: 0.96, green: 0.87, blue: 0.65), brass,
+                                Color(red: 0.65, green: 0.49, blue: 0.27)],
                        startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
@@ -45,9 +45,9 @@ enum BattlefieldTheme {
     static let warLedgerOlive = Color(red: 0.16, green: 0.19, blue: 0.13)
     static let mapSurveyLine = Color(red: 0.89, green: 0.79, blue: 0.51).opacity(0.09)
     static let mapSurveyContour = Color(red: 0.26, green: 0.31, blue: 0.18).opacity(0.16)
-    static let mapVignette = Color.black.opacity(0.22)
-    static let alliesRing = Color(red: 0.25, green: 0.65, blue: 0.98)
-    static let axisRing = Color(red: 0.93, green: 0.28, blue: 0.22)
+    static let mapVignette = Color.black.opacity(0.12)
+    static let alliesRing = Color(red: 0.37, green: 0.72, blue: 0.93)
+    static let axisRing = Color(red: 0.90, green: 0.36, blue: 0.28)
 
     // War Ledger is deliberately scoped to the command bar and map overlays.
     // It shares the existing palette without changing the wider TacticalSurface language.

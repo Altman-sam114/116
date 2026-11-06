@@ -24,13 +24,15 @@ final class BattlefieldPresentationTests: XCTestCase {
 
     func testInspectorAndOrderLayoutsRespectShortAndNarrowViewports() {
         for size in [CGSize(width: 320, height: 568), CGSize(width: 440, height: 900),
-                     CGSize(width: 900, height: 370), CGSize(width: 1300, height: 900)] {
+                     CGSize(width: 680, height: 360), CGSize(width: 719, height: 1000),
+                     CGSize(width: 720, height: 1000), CGSize(width: 900, height: 370),
+                     CGSize(width: 1300, height: 900)] {
             let layout = BattlefieldHUDLayout(size: size)
             XCTAssertGreaterThan(layout.inspectorSize.width, 0)
             XCTAssertGreaterThan(layout.inspectorSize.height, 0)
             XCTAssertLessThanOrEqual(layout.inspectorSize.width + 24, size.width)
             XCTAssertLessThanOrEqual(layout.inspectorSize.height + 24, size.height)
-            XCTAssertEqual(layout.inlineOrders, size.width >= 680 && size.width > size.height)
+            XCTAssertEqual(layout.inlineOrders, size.width >= 720)
         }
         XCTAssertEqual(BattlefieldHUDLayout(size: .zero).inspectorSize, .zero)
         XCTAssertEqual(BattlefieldHUDLayout(size: CGSize(width: CGFloat.nan, height: CGFloat.infinity)).inspectorSize, .zero)
@@ -110,6 +112,42 @@ final class BattlefieldPresentationTests: XCTestCase {
         }
     }
 
+    func testSnowfieldJoinsNeighborsPreservesHolesAndIsDeterministic() {
+        let origin = HexCoordinate(q: 0, r: 0)
+        let distant = HexCoordinate(q: 5, r: 0)
+        let coordinates = [origin, distant] + origin.neighbors
+        let layout = BattlefieldMapLayout(coordinates: coordinates)
+        func snow(_ coordinate: HexCoordinate) -> TerrainTile {
+            TerrainTile(coordinate: coordinate, terrain: .snow, objectiveName: nil, owner: nil)
+        }
+
+        let joinedTiles = [snow(origin), snow(origin.neighbors[0])]
+        let joined = BattlefieldSnowfield(tiles: joinedTiles, layout: layout)
+        XCTAssertEqual(joined.contours.count, 1)
+        XCTAssertEqual(joined.contours.first?.count, 10)
+        XCTAssertEqual(joined, BattlefieldSnowfield(tiles: Array(joinedTiles.reversed()), layout: layout))
+        XCTAssertEqual(joined, BattlefieldSnowfield(tiles: joinedTiles + [joinedTiles[0]], layout: layout))
+        XCTAssertTrue(joined.outline.contains(layout.center(for: origin)))
+        XCTAssertTrue(joined.outline.contains(layout.center(for: origin.neighbors[0])))
+
+        let islands = BattlefieldSnowfield(tiles: [snow(origin), snow(distant)], layout: layout)
+        XCTAssertEqual(islands.contours.count, 2)
+        XCTAssertFalse(islands.outline.contains(layout.center(for: origin.neighbors[0])))
+
+        let ring = BattlefieldSnowfield(tiles: origin.neighbors.map(snow), layout: layout)
+        XCTAssertEqual(ring.contours.count, 2)
+        XCTAssertFalse(ring.outline.contains(layout.center(for: origin)))
+        for coordinate in origin.neighbors {
+            XCTAssertTrue(ring.outline.contains(layout.center(for: coordinate)))
+        }
+        XCTAssertTrue(BattlefieldSnowfield(tiles: [], layout: layout).contours.isEmpty)
+        for scenario in Scenario.campaignCatalog {
+            let scenarioLayout = BattlefieldMapLayout(coordinates: scenario.tiles.map(\.coordinate))
+            XCTAssertEqual(BattlefieldSnowfield(tiles: scenario.tiles, layout: scenarioLayout),
+                           BattlefieldSnowfield(tiles: Array(scenario.tiles.reversed()), layout: scenarioLayout))
+        }
+    }
+
     func testMapDetailsStayQuietUntilInspectedOrReplayIsExplicit() {
         for focused in [false, true] {
             for selected in [false, true] {
@@ -117,7 +155,7 @@ final class BattlefieldPresentationTests: XCTestCase {
                 XCTAssertEqual(BattlefieldActionMarkerPresentation.showsReplay(focused: focused, explicitReplay: selected), focused || selected)
             }
         }
-        XCTAssertTrue(BattlefieldArtwork.resourceNames.contains("scenery-frontline"))
+        XCTAssertTrue(BattlefieldArtwork.resourceNames.contains("scenery-campaign"))
         for kind in BattlefieldScenery.allCases {
             XCTAssertTrue(BattlefieldArtwork.scenery(kind) === BattlefieldArtwork.scenery(kind))
         }
@@ -310,13 +348,13 @@ final class BattlefieldPresentationTests: XCTestCase {
         XCTAssertTrue(phoneLandscape.compactControls)
         XCTAssertTrue(phoneLandscape.isShallow)
         XCTAssertFalse(phoneLandscape.showsOverviewByDefault)
-        XCTAssertEqual(phoneLandscape.commandBarHeight, 44)
+        XCTAssertEqual(phoneLandscape.commandBarHeight, 50)
         for size in [CGSize(width: 1024, height: 1300), CGSize(width: 1300, height: 900)] {
             let tablet = BattlefieldViewport(size: size)
             XCTAssertFalse(tablet.compactControls)
             XCTAssertFalse(tablet.isShallow)
-            XCTAssertTrue(tablet.showsOverviewByDefault)
-            XCTAssertEqual(tablet.commandBarHeight, 54)
+            XCTAssertFalse(tablet.showsOverviewByDefault)
+            XCTAssertEqual(tablet.commandBarHeight, 60)
         }
         XCTAssertFalse(BattlefieldViewport(size: CGSize(width: CGFloat.infinity, height: CGFloat.nan)).showsOverviewByDefault)
     }
@@ -509,13 +547,13 @@ final class BattlefieldPresentationTests: XCTestCase {
         XCTAssertGreaterThan(totalBytes, 1_000_000)
         XCTAssertLessThanOrEqual(totalBytes, 24_000_000)
         let ground = try XCTUnwrap(BattlefieldArtwork.ground)
-        XCTAssertEqual(BattlefieldArtwork.groundResourceName, "ground-frontline")
+        XCTAssertEqual(BattlefieldArtwork.groundResourceName, "ground-campaign")
         XCTAssertTrue(ground === BattlefieldArtwork.ground)
         XCTAssertGreaterThanOrEqual(ground.width, 512)
         XCTAssertEqual(ground.width, ground.height)
     }
 
-    func testEveryUnitAndScenerySpriteHasTransparencyAndVisibleArtwork() throws {
+    func testEveryUnitSceneryAndCommanderSpriteHasTransparencyAndVisibleArtwork() throws {
         var images: [CGImage] = []
         for faction in Faction.allCases {
             for kind in UnitKind.allCases {
@@ -533,7 +571,17 @@ final class BattlefieldPresentationTests: XCTestCase {
             XCTAssertTrue(first === BattlefieldArtwork.vehicle(variant))
             images.append(first)
         }
-        XCTAssertEqual(images.count, 20)
+        var portraits: [CGImage] = []
+        for commander in [Commander.patton, .montgomery, .guderian, .manstein] {
+            let first = try XCTUnwrap(BattlefieldArtwork.commander(commander))
+            XCTAssertTrue(first === BattlefieldArtwork.commander(commander))
+            XCTAssertFalse(portraits.contains { $0 === first })
+            portraits.append(first)
+            images.append(first)
+        }
+        let unknown = Commander(name: "无名", nation: "", rank: "", armor: 0, tactics: 0, morale: 0, trait: "")
+        XCTAssertNil(BattlefieldArtwork.commander(unknown))
+        XCTAssertEqual(images.count, 24)
         for image in images {
             XCTAssertEqual(image.width, 768)
             XCTAssertEqual(image.height, 512)

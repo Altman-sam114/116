@@ -1,6 +1,79 @@
 import CoreGraphics
 import Foundation
 
+/// Trace only exposed snow edges, then round the joined contours. Adjacent snow
+/// tiles share one surface instead of drawing a separate pale hexagon each.
+struct BattlefieldSnowfield: Equatable {
+    let contours: [[CGPoint]]
+
+    init(tiles: [TerrainTile], layout: BattlefieldMapLayout) {
+        var edges: [SnowEdge: (SnowVertex, SnowVertex)] = [:]
+        let snowCoordinates = Set(tiles.lazy.filter { $0.terrain == .snow }.map(\.coordinate))
+        for coordinate in snowCoordinates {
+            let vertices = BattlefieldMapLayout.vertices(in: layout.frame(for: coordinate)).map(SnowVertex.init)
+            for index in vertices.indices {
+                let start = vertices[index]
+                let end = vertices[(index + 1) % vertices.count]
+                let edge = SnowEdge(start, end)
+                if edges[edge] != nil { edges.removeValue(forKey: edge) }
+                else { edges[edge] = (start, end) }
+            }
+        }
+        let next = Dictionary(uniqueKeysWithValues: edges.values.map { ($0.0, $0.1) })
+        var remaining = Set(next.keys)
+        var loops: [[CGPoint]] = []
+        while let start = remaining.min() {
+            var current = start
+            var points: [CGPoint] = []
+            repeat {
+                guard remaining.remove(current) != nil, let destination = next[current] else { break }
+                points.append(current.point)
+                current = destination
+            } while current != start && points.count <= next.count
+            if current == start && points.count >= 3 { loops.append(points) }
+        }
+        contours = loops
+    }
+
+    var outline: CGPath {
+        let path = CGMutablePath()
+        for points in contours {
+            guard let last = points.last, let first = points.first else { continue }
+            path.move(to: midpoint(last, first))
+            for index in points.indices {
+                let vertex = points[index]
+                let next = points[(index + 1) % points.count]
+                path.addQuadCurve(to: midpoint(vertex, next), control: vertex)
+            }
+            path.closeSubpath()
+        }
+        return path
+    }
+
+    private func midpoint(_ a: CGPoint, _ b: CGPoint) -> CGPoint {
+        CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+    }
+}
+
+private struct SnowVertex: Hashable, Comparable {
+    let x: Int
+    let y: Int
+
+    init(_ point: CGPoint) {
+        x = Int((point.x * 2).rounded())
+        y = Int((point.y * 2).rounded())
+    }
+
+    var point: CGPoint { CGPoint(x: CGFloat(x) / 2, y: CGFloat(y) / 2) }
+    static func < (left: Self, right: Self) -> Bool { left.y == right.y ? left.x < right.x : left.y < right.y }
+}
+
+private struct SnowEdge: Hashable {
+    let first: SnowVertex
+    let second: SnowVertex
+    init(_ a: SnowVertex, _ b: SnowVertex) { first = min(a, b); second = max(a, b) }
+}
+
 struct BattlefieldRiverBankDetail: Equatable {
     let fraction: CGFloat
     let side: CGFloat

@@ -126,8 +126,8 @@ struct CombatResolutionOverlay: View {
 
                 CombatDamagePlate(
                     systemImage: "burst.fill",
-                    title: "HIT -\(summary.damage)",
-                    hpText: "\(summary.defender.startingHP) -> \(summary.defender.endingHP)",
+                    title: "命中 −\(summary.damage)",
+                    hpText: "\(summary.defender.startingHP) → \(summary.defender.endingHP)",
                     color: summary.didDestroyDefender ? BattlefieldTheme.alert : BattlefieldTheme.brass
                 )
                 .position(layout.hitPlatePoint)
@@ -138,8 +138,8 @@ struct CombatResolutionOverlay: View {
                 if summary.hasCounterAttack {
                     CombatDamagePlate(
                         systemImage: "arrow.uturn.backward.circle.fill",
-                        title: "RET -\(summary.counterDamage)",
-                        hpText: "\(summary.attacker.startingHP) -> \(summary.attacker.endingHP)",
+                        title: "反击 −\(summary.counterDamage)",
+                        hpText: "\(summary.attacker.startingHP) → \(summary.attacker.endingHP)",
                         color: summary.didDestroyAttacker ? BattlefieldTheme.alert : .orange
                     )
                     .position(layout.retPlatePoint)
@@ -352,11 +352,11 @@ private struct CombatResolutionConclusionView: View {
         .padding(.vertical, 3)
         .background(
             BattlefieldTheme.commandDeckDeep.opacity(0.88),
-            in: RoundedRectangle(cornerRadius: 5)
+            in: BeveledFieldShape()
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 5)
-                .stroke(color.opacity(0.78), lineWidth: 1)
+            BeveledFieldShape()
+                .stroke(color.opacity(0.60), lineWidth: 0.7)
         )
         .shadow(color: .black.opacity(0.22), radius: 1, y: 1)
         .allowsHitTesting(false)
@@ -365,8 +365,8 @@ private struct CombatResolutionConclusionView: View {
 }
 
 struct CombatResolutionLayout {
-    static let damagePlateWidth: CGFloat = 140
-    static let conclusionWidth: CGFloat = 174
+    static let damagePlateWidth: CGFloat = 112
+    static let conclusionWidth: CGFloat = 140
     let trimmedStart: CGPoint
     let trimmedEnd: CGPoint
     let hitPlatePoint: CGPoint
@@ -530,7 +530,7 @@ struct CombatDamagePlate: View {
                 .foregroundStyle(color)
 
             Text(title)
-                .font(.system(size: titleFontSize, weight: .black, design: .rounded))
+                .font(.system(size: titleFontSize, weight: .bold))
                 .allowsTightening(true)
                 .lineLimit(1)
                 .minimumScaleFactor(0.70)
@@ -540,7 +540,7 @@ struct CombatDamagePlate: View {
                 .frame(width: 1, height: 10)
 
             Text(hpText)
-                .font(.system(size: hpFontSize, weight: .bold, design: .rounded))
+                .font(.system(size: hpFontSize, weight: .medium))
                 .monospacedDigit()
                 .allowsTightening(true)
                 .lineLimit(1)
@@ -560,11 +560,11 @@ struct CombatDamagePlate: View {
                 startPoint: .top,
                 endPoint: .bottom
             ),
-            in: RoundedRectangle(cornerRadius: 4)
+            in: BeveledFieldShape()
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(color.opacity(0.76), lineWidth: 1)
+            BeveledFieldShape()
+                .stroke(color.opacity(0.55), lineWidth: 0.7)
         )
         .shadow(color: .black.opacity(0.26), radius: 1.5, y: 1)
         .allowsHitTesting(false)

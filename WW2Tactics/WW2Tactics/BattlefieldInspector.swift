@@ -6,18 +6,18 @@ struct InspectorSectionHeader: View {
     let color: Color
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.caption.weight(.black))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(color)
                 .frame(width: 18, height: 18)
             Text(title)
-                .font(.caption.weight(.black))
+                .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(BattlefieldTheme.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             Rectangle()
-                .fill(color.opacity(0.28))
+                .fill(BattlefieldTheme.brass.opacity(0.22))
                 .frame(height: 1)
         }
         .padding(.top, 2)
@@ -31,7 +31,7 @@ struct InspectorPanel: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 let enemyThreatIntents = game.visibleEnemyThreatIntentPreviews
                 let enemyThreatCountermeasures = game.visibleEnemyThreatCountermeasurePreviews
                 let hasPrimaryResult =
@@ -107,27 +107,7 @@ struct InspectorPanel: View {
         }
         .padding(14)
         .foregroundStyle(BattlefieldTheme.ink)
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(BattlefieldTheme.commandDeck.opacity(0.94))
-                LinearGradient(
-                    colors: [
-                        BattlefieldTheme.brass.opacity(0.08),
-                        .clear,
-                        BattlefieldTheme.signal.opacity(0.06)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(BattlefieldTheme.hairline, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.20), radius: 12, x: 0, y: 6)
+        .background(BattlefieldTheme.commandDeckDeep.opacity(0.32))
     }
 }
 

@@ -9,27 +9,25 @@ struct BattlefieldMapTools: View {
 
     var body: some View {
         let axis: Axis = condensed ? .horizontal : .vertical
-        let layout = condensed ? AnyLayout(HStackLayout(spacing: 6)) : AnyLayout(VStackLayout(spacing: 8))
-        layout {
-            FieldToolRail(axis: axis) {
-                Menu {
-                    Picker("地图缩放", selection: $scaleMode) {
-                        ForEach(MapScaleMode.allCases) { mode in Text(mode.title).tag(mode) }
-                    }
-                } label: {
-                    FieldControlLabel(icon: "plus.magnifyingglass", caption: scaleMode.title)
+        FieldToolRail(axis: axis) {
+            Menu {
+                Picker("地图缩放", selection: $scaleMode) {
+                    ForEach(MapScaleMode.allCases) { mode in Text(mode.title).tag(mode) }
                 }
-                .accessibilityLabel("地图缩放")
-                .accessibilityValue(scaleMode.title)
-                FieldToolDivider(axis: axis)
-                FieldControlButton(title: "战区总览", icon: "map", caption: "总览", selected: showsOverview,
-                                   plated: false, action: toggleOverview)
-                FieldToolDivider(axis: axis)
-                FieldControlButton(title: "战场情报", icon: "binoculars.fill", caption: "情报", selected: isInspectorExpanded,
-                                   plated: false) { isInspectorExpanded.toggle() }
-                    .accessibilityIdentifier("battlefield-intelligence-toggle")
+            } label: {
+                FieldControlLabel(icon: "plus.magnifyingglass", caption: scaleMode.title)
             }
-            MapRestartButton()
+            .accessibilityLabel("地图缩放")
+            .accessibilityValue(scaleMode.title)
+            FieldToolDivider(axis: axis)
+            FieldControlButton(title: "战区总览", icon: "map", caption: "总览", selected: showsOverview,
+                               plated: false, action: toggleOverview)
+            FieldToolDivider(axis: axis)
+            FieldControlButton(title: "战场情报", icon: "binoculars.fill", caption: "情报", selected: isInspectorExpanded,
+                               plated: false) { isInspectorExpanded.toggle() }
+                .accessibilityIdentifier("battlefield-intelligence-toggle")
+            FieldToolDivider(axis: axis)
+            MapRestartButton(plated: false)
         }
     }
 }
@@ -83,24 +81,31 @@ struct BattlefieldBottomEdge: View {
     let returnToFrontline: () -> Void
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            VStack(alignment: .leading, spacing: 6) {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
                 BattlefieldDispatch(message: game.message, condensed: condensed)
-                FieldToolRail(axis: .horizontal) {
-                    toolButton(.roster, action: toggleRoster)
-                    toolButton(.support, action: toggleSupport)
-                    FieldToolDivider(axis: .horizontal)
-                    toolButton(.frontline, action: returnToFrontline)
-                        .accessibilityHint("只移动镜头，不改变选择或执行指令")
-                    toolButton(.nextReady, action: game.selectNextReadyUnitFromMap)
-                        .disabled(game.readyUnits.isEmpty)
-                        .opacity(game.readyUnits.isEmpty ? 0.4 : 1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                Rectangle().fill(BattlefieldTheme.brass.opacity(0.18)).frame(height: 1)
+                HStack(spacing: 6) {
+                    FieldToolRail(axis: .horizontal, plated: false) {
+                        toolButton(.roster, action: toggleRoster)
+                        toolButton(.support, action: toggleSupport)
+                        FieldToolDivider(axis: .horizontal)
+                        toolButton(.frontline, action: returnToFrontline)
+                            .accessibilityHint("只移动镜头，不改变选择或执行指令")
+                        toolButton(.nextReady, action: game.selectNextReadyUnitFromMap)
+                            .disabled(game.readyUnits.isEmpty)
+                            .opacity(game.readyUnits.isEmpty ? 0.4 : 1)
+                    }
+                    Spacer(minLength: 0)
+                    EndTurnButton(condensed: condensed, compact: geometry.size.width < 540)
                 }
+                .padding(.horizontal, 6).padding(.vertical, 4)
             }
-            .frame(maxWidth: condensed ? 330 : 480, alignment: .leading)
-            Spacer(minLength: 0)
-            EndTurnButton(condensed: condensed)
+            .background(FieldPlate())
         }
+        .frame(height: condensed ? 80 : 96)
     }
 
     private func toolButton(_ tool: BattlefieldEdgeTool, action: @escaping () -> Void) -> some View {
@@ -115,17 +120,15 @@ private struct BattlefieldDispatch: View {
     let condensed: Bool
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Image(systemName: "waveform.path").font(.system(size: 10, weight: .bold))
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: "antenna.radiowaves.left.and.right").font(.system(size: 11, weight: .regular))
                 .foregroundStyle(BattlefieldTheme.brass)
             Text(message).font(condensed ? BattlefieldTheme.hudLabel : BattlefieldTheme.hudBody)
                 .lineLimit(condensed ? 1 : 2)
-                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .foregroundStyle(BattlefieldTheme.fieldPaper)
-        .padding(.leading, 9).padding(.trailing, 10).padding(.vertical, 5)
-        .background(BattlefieldTheme.commandDeckDeep.opacity(0.90), in: RoundedRectangle(cornerRadius: 2))
-        .overlay(alignment: .leading) { Rectangle().fill(BattlefieldTheme.brass).frame(width: 2) }
+        .frame(height: condensed ? 23 : 37)
         .allowsHitTesting(false)
     }
 }
@@ -170,9 +173,10 @@ struct BattlefieldDrawerPanel: View {
 struct MapRestartButton: View {
     @EnvironmentObject private var game: GameState
     @State private var isConfirming = false
+    var plated = true
 
     var body: some View {
-        FieldControlButton(title: "重新开始当前战役", icon: "arrow.counterclockwise", caption: "重开", isToggle: false) {
+        FieldControlButton(title: "重新开始当前战役", icon: "arrow.counterclockwise", caption: "重开", isToggle: false, plated: plated) {
             isConfirming = true
         }
         .accessibilityHint("需要再次确认，当前进度会丢失")

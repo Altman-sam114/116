@@ -26,8 +26,8 @@ struct BattlefieldTerrainRenderer: View, Equatable {
             }
             for tile in tiles {
                 context.stroke(Hexagon().path(in: layout.frame(for: tile.coordinate)),
-                               with: .color(Color(red: 0.15, green: 0.20, blue: 0.13).opacity(tile.terrain == .snow ? 0.24 : 0.18)),
-                               lineWidth: 0.55)
+                               with: .color(Color(red: 0.16, green: 0.23, blue: 0.15).opacity(tile.terrain == .snow ? 0.13 : 0.095)),
+                               lineWidth: 0.50)
             }
         }
         .frame(width: layout.size.width, height: layout.size.height)
@@ -41,8 +41,7 @@ struct BattlefieldTerrainRenderer: View, Equatable {
         guard let ground = BattlefieldArtwork.ground else { return }
         let image = context.resolve(BattlefieldArtwork.image(ground))
         var material = context
-        material.opacity = 0.56
-        material.addFilter(.blur(radius: 0.45))
+        material.opacity = 0.72
         let step: CGFloat = 512
         for (row, y) in stride(from: CGFloat.zero, to: size.height, by: step).enumerated() {
             for (column, x) in stride(from: CGFloat.zero, to: size.width, by: step).enumerated() {
@@ -54,7 +53,7 @@ struct BattlefieldTerrainRenderer: View, Equatable {
             }
         }
         context.fill(Path(CGRect(origin: .zero, size: size)),
-                     with: .linearGradient(Gradient(colors: [.yellow.opacity(0.035), .black.opacity(0.06)]),
+                     with: .linearGradient(Gradient(colors: [.white.opacity(0.045), .black.opacity(0.025)]),
                                            startPoint: .zero, endPoint: CGPoint(x: size.width, y: size.height)))
     }
 
@@ -68,22 +67,26 @@ struct BattlefieldTerrainRenderer: View, Equatable {
                 let rect = CGRect(x: center.x - 95, y: center.y - 46, width: 190, height: 92)
                 let shade = tile.terrain == .forest || tile.terrain == .mountain
                 layer.fill(Path(ellipseIn: rect), with: .color(
-                    shade ? Color(red: 0.17, green: 0.24, blue: 0.11).opacity(0.30)
-                          : Color(red: 0.72, green: 0.68, blue: 0.43).opacity(0.20)
+                    shade ? Color(red: 0.21, green: 0.31, blue: 0.17).opacity(0.20)
+                          : Color(red: 0.79, green: 0.76, blue: 0.55).opacity(0.15)
                 ))
             }
         }
     }
 
     private func paintSnow(context: inout GraphicsContext) {
-        var drifts = Path()
-        for tile in tiles where tile.terrain == .snow {
-            drifts.addPath(Hexagon().path(in: layout.frame(for: tile.coordinate).insetBy(dx: -1, dy: -1)))
-        }
+        let drifts = Path(BattlefieldSnowfield(tiles: tiles, layout: layout).outline)
         guard !drifts.isEmpty else { return }
         context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 8))
-            layer.fill(drifts, with: .color(Color(red: 0.84, green: 0.87, blue: 0.82).opacity(0.84)))
+            layer.addFilter(.blur(radius: 18))
+            layer.fill(drifts, with: .color(Color(red: 0.87, green: 0.90, blue: 0.85).opacity(0.85)))
+        }
+        context.drawLayer { layer in
+            layer.addFilter(.blur(radius: 3))
+            layer.fill(drifts, with: .linearGradient(
+                Gradient(colors: [Color(red: 0.91, green: 0.93, blue: 0.88).opacity(0.82),
+                                  Color(red: 0.78, green: 0.83, blue: 0.78).opacity(0.72)]),
+                startPoint: .zero, endPoint: CGPoint(x: layout.size.width, y: layout.size.height)))
         }
     }
 
@@ -97,12 +100,12 @@ struct BattlefieldTerrainRenderer: View, Equatable {
             path.addCurve(to: segment.end, control1: segment.firstControl, control2: segment.secondControl)
             roads.addPath(path)
         }
-        context.stroke(roads, with: .color(Color(red: 0.22, green: 0.26, blue: 0.16).opacity(0.35)),
-                       style: StrokeStyle(lineWidth: 6.2, lineCap: .round, lineJoin: .round))
-        context.stroke(roads, with: .color(Color(red: 0.70, green: 0.64, blue: 0.47).opacity(0.94)),
-                       style: StrokeStyle(lineWidth: 4.5, lineCap: .round, lineJoin: .round))
-        context.stroke(roads, with: .color(Color(red: 0.36, green: 0.32, blue: 0.22).opacity(0.32)),
-                       style: StrokeStyle(lineWidth: 0.8, lineCap: .round, lineJoin: .round, dash: [3, 2]))
+        context.stroke(roads, with: .color(Color(red: 0.29, green: 0.34, blue: 0.21).opacity(0.28)),
+                       style: StrokeStyle(lineWidth: 5.4, lineCap: .round, lineJoin: .round))
+        context.stroke(roads, with: .color(Color(red: 0.70, green: 0.65, blue: 0.49).opacity(0.86)),
+                       style: StrokeStyle(lineWidth: 3.6, lineCap: .round, lineJoin: .round))
+        context.stroke(roads, with: .color(Color(red: 0.86, green: 0.81, blue: 0.63).opacity(0.33)),
+                       style: StrokeStyle(lineWidth: 1, lineCap: .round, lineJoin: .round))
         for bridge in infrastructure.bridges { paintBridge(bridge, context: &context) }
     }
 
@@ -150,7 +153,7 @@ struct BattlefieldTerrainRenderer: View, Equatable {
         }
         context.fill(bank, with: .color(Color(red: 0.56, green: 0.54, blue: 0.35)))
         context.fill(water, with: .linearGradient(
-            Gradient(colors: [Color(red: 0.29, green: 0.46, blue: 0.46), Color(red: 0.12, green: 0.27, blue: 0.30)]),
+            Gradient(colors: [Color(red: 0.38, green: 0.56, blue: 0.56), Color(red: 0.20, green: 0.38, blue: 0.41)]),
             startPoint: .zero, endPoint: CGPoint(x: layout.size.width, y: layout.size.height)))
         for ribbon in geometry.ribbons {
             context.stroke(Path(ribbon.surfaceTrace(lane: -1)),

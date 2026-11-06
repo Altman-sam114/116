@@ -91,7 +91,7 @@ struct TerrainCodeBadge: View {
 }
 
 struct ObjectiveNamePlate: View {
-    @ScaledMetric(relativeTo: .caption) private var nameFontSize: CGFloat = 8
+    @ScaledMetric(relativeTo: .caption) private var nameFontSize: CGFloat = 9
 
     let name: String
     let owner: Faction?
@@ -100,11 +100,11 @@ struct ObjectiveNamePlate: View {
     var body: some View {
         // Parchment nameplate under objective settlements, GoG3 city-label style.
         Text(name)
-            .font(.system(size: nameFontSize, weight: .black, design: .rounded))
+            .font(.system(size: nameFontSize, weight: .semibold))
             .foregroundStyle(Color(red: 0.24, green: 0.20, blue: 0.13))
             .lineLimit(1)
             .allowsTightening(true)
-            .minimumScaleFactor(compact ? 0.46 : 0.52)
+            .minimumScaleFactor(0.8)
             .padding(.horizontal, compact ? 3 : 5)
             .padding(.vertical, compact ? 1.5 : 2.5)
             .frame(maxWidth: .infinity)
@@ -117,11 +117,11 @@ struct ObjectiveNamePlate: View {
                     startPoint: .top,
                     endPoint: .bottom
                 ),
-                in: RoundedRectangle(cornerRadius: 4)
+                in: BeveledFieldShape()
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke((owner?.accentColor ?? BattlefieldTheme.brass).opacity(0.78), lineWidth: 1)
+                BeveledFieldShape()
+                    .stroke((owner?.accentColor ?? BattlefieldTheme.brass).opacity(0.55), lineWidth: 0.7)
             )
             .shadow(color: .black.opacity(compact ? 0.20 : 0.28), radius: compact ? 1 : 2, x: 0, y: 1)
             .allowsHitTesting(false)

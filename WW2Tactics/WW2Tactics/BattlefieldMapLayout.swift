@@ -10,10 +10,10 @@ struct BattlefieldViewport: Equatable {
         let height = size.height.isFinite ? max(0, size.height) : 0
         isShallow = width > height && height < 500
         compactControls = width < 680 || isShallow
-        showsOverviewByDefault = width >= 760 && height >= 560
+        showsOverviewByDefault = false
     }
 
-    var commandBarHeight: CGFloat { isShallow ? 44 : 54 }
+    var commandBarHeight: CGFloat { isShallow ? 50 : 60 }
 }
 
 /// Camera density is based on the usable short edge, not the full campaign height.
@@ -36,7 +36,7 @@ struct BattlefieldHUDLayout: Equatable {
         let width = size.width.isFinite ? max(0, size.width) : 0
         let height = size.height.isFinite ? max(0, size.height) : 0
         inspectorSize = CGSize(width: min(356, max(0, width - 24)), height: max(0, height - 24))
-        inlineOrders = width >= 680 && width > height
+        inlineOrders = width >= 720
     }
 }
 

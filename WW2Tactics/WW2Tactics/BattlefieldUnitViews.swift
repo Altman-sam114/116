@@ -144,35 +144,37 @@ struct CommanderBadge: View {
     let faction: Faction
 
     var body: some View {
-        // A named command insignia, not a fabricated historical portrait.
-        ZStack {
-            RoundedRectangle(cornerRadius: 4)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.93, green: 0.87, blue: 0.72),
-                            Color(red: 0.78, green: 0.70, blue: 0.54)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(Color(red: 0.85, green: 0.66, blue: 0.30), lineWidth: 1.4)
-            VStack(spacing: 0) {
-                Image(systemName: "star.fill")
-                    .font(.system(size: 4, weight: .bold))
-                Text(String(commander.name.prefix(1)))
-                    .font(.system(size: 10, weight: .black, design: .serif))
+        CommanderPortrait(commander: commander, faction: faction)
+            .frame(width: 25, height: 29)
+            .shadow(color: .black.opacity(0.32), radius: 1, y: 1)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Original painted portrait; unknown commanders keep an honest initial fallback.
+struct CommanderPortrait: View {
+    let commander: Commander
+    let faction: Faction
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                BattlefieldTheme.commandMetal
+                if let portrait = BattlefieldArtwork.commander(commander) {
+                    BattlefieldArtwork.image(portrait).resizable().scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                } else {
+                    Text(String(commander.name.prefix(1))).font(.system(size: 16, weight: .bold, design: .serif))
+                        .foregroundStyle(BattlefieldTheme.fieldPaper)
+                }
             }
-            .foregroundStyle(Color(red: 0.32, green: 0.26, blue: 0.18))
-            Circle()
-                .fill(faction.accentColor)
-                .frame(width: 6, height: 6)
-                .offset(x: 7, y: 7)
+            .clipShape(BeveledFieldShape())
+            .overlay { BeveledFieldShape().stroke(BattlefieldTheme.brass, lineWidth: 1) }
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing)
+                    .frame(height: 2).padding(.horizontal, 3)
+            }
         }
-        .frame(width: 20, height: 20)
-        .shadow(color: .black.opacity(0.4), radius: 1.5, y: 1)
         .accessibilityHidden(true)
     }
 }

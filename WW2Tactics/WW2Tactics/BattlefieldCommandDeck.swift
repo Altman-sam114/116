@@ -40,28 +40,34 @@ struct MapCommandCenter: View {
                     battlefield(proxy: proxy, size: geometry.size)
                     BattlefieldEdgeShade()
                     VStack(spacing: viewport.isShallow ? 5 : 9) {
-                        TopCommandBar(condensed: viewport.isShallow)
-                        HStack(alignment: .top) {
-                            if showsOverview {
-                                BattlefieldOverviewMap(
-                                    tiles: game.tiles, units: game.units, focusedCoordinate: game.focusedCoordinate,
-                                    onFocus: { game.focus(coordinate: $0); scrollToFocus(proxy, animated: true) },
-                                    onFrontline: { scrollToFrontline(proxy, animated: true) }
-                                )
+                        HStack(spacing: 8) {
+                            TopCommandBar(condensed: viewport.isShallow)
+                            if viewport.isShallow {
+                                mapTools(showsOverview: showsOverview, condensed: true)
                             }
-                            Spacer(minLength: 4)
-                            BattlefieldMapTools(
-                                scaleMode: $mapScaleMode, showsOverview: showsOverview,
-                                condensed: viewport.isShallow, isInspectorExpanded: $isInspectorExpanded,
-                                toggleOverview: { overviewVisibility = !showsOverview }
-                            )
                         }
                         Spacer(minLength: 0)
+                            .overlay(alignment: .top) {
+                                if drawer == nil {
+                                    HStack(alignment: .top) {
+                                        if showsOverview {
+                                            BattlefieldOverviewMap(
+                                                tiles: game.tiles, units: game.units, focusedCoordinate: game.focusedCoordinate,
+                                                onFocus: { game.focus(coordinate: $0); scrollToFocus(proxy, animated: true) },
+                                                onFrontline: { scrollToFrontline(proxy, animated: true) }
+                                            )
+                                        }
+                                        Spacer(minLength: 4)
+                                        if !viewport.isShallow {
+                                            mapTools(showsOverview: showsOverview, condensed: false)
+                                        }
+                                    }
+                                }
+                            }
                         if let drawer {
                             BattlefieldDrawerPanel(drawer: drawer, maxHeight: geometry.size.height * 0.45,
                                                    close: { self.drawer = nil })
-                        }
-                        if game.selectedUnit != nil {
+                        } else if game.selectedUnit != nil {
                             MapActionHUD(compact: viewport.compactControls, condensed: viewport.isShallow,
                                          inlineOrders: BattlefieldHUDLayout(size: geometry.size).inlineOrders)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -72,13 +78,21 @@ struct MapCommandCenter: View {
                             returnToFrontline: { scrollToFrontline(proxy, animated: true) }
                         )
                     }
-                    .padding(.horizontal, viewport.isShallow ? 8 : 12)
+                    .padding(.horizontal, viewport.isShallow ? 6 : 10)
                     .padding(.vertical, viewport.isShallow ? 4 : 8)
                     .zIndex(1)
                 }
                 .background(BattlefieldTheme.mapGround.ignoresSafeArea())
             }
         }
+    }
+
+    private func mapTools(showsOverview: Bool, condensed: Bool) -> some View {
+        BattlefieldMapTools(
+            scaleMode: $mapScaleMode, showsOverview: showsOverview,
+            condensed: condensed, isInspectorExpanded: $isInspectorExpanded,
+            toggleOverview: { overviewVisibility = !showsOverview }
+        )
     }
 
     private func battlefield(proxy: ScrollViewProxy, size: CGSize) -> some View {
@@ -153,11 +167,11 @@ private struct BattlefieldEdgeShade: View {
                 RadialGradient(colors: [.clear, .clear, BattlefieldTheme.mapVignette],
                                center: .center, startRadius: 0, endRadius: max(1, radius))
                 VStack(spacing: 0) {
-                    LinearGradient(colors: [.black.opacity(0.19), .clear], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 100)
+                    LinearGradient(colors: [.black.opacity(0.10), .clear], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 80)
                     Spacer(minLength: 0)
-                    LinearGradient(colors: [.clear, .black.opacity(0.24)], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 100)
+                    LinearGradient(colors: [.clear, .black.opacity(0.13)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 80)
                 }
             }
         }

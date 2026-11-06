@@ -9,7 +9,7 @@ struct BattlefieldInspectorOverlay: View {
             HStack(spacing: 9) {
                 Image(systemName: "binoculars.fill").foregroundStyle(BattlefieldTheme.brass)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("战场情报").font(.system(size: 13, weight: .heavy))
+                    Text("战场情报").font(.system(size: 14, weight: .bold, design: .serif))
                     Text("FIELD INTELLIGENCE").font(BattlefieldTheme.militaryFont(10)).tracking(1.8)
                         .foregroundStyle(BattlefieldTheme.brass)
                 }
@@ -25,12 +25,12 @@ struct BattlefieldInspectorOverlay: View {
             .padding(.leading, 14)
             .foregroundStyle(BattlefieldTheme.fieldPaper)
             .frame(height: 54)
-            Rectangle().fill(BattlefieldTheme.brass.opacity(0.5)).frame(height: 1)
+            Rectangle().fill(BattlefieldTheme.brass.opacity(0.3)).frame(height: 1)
             InspectorPanel()
         }
         .frame(width: size.width, height: size.height)
         .background(FieldPlate(emphasized: true))
-        .clipShape(RoundedRectangle(cornerRadius: 3))
+        .clipShape(BeveledFieldShape())
         .accessibilityElement(children: .contain)
         .accessibilityAction(.escape) { close() }
     }

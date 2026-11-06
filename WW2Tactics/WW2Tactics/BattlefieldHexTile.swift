@@ -35,10 +35,10 @@ struct HexTileView: View {
 
             if let owner = tile.owner {
                 Hexagon()
-                    .fill(owner.accentColor.opacity(tile.isObjective ? 0.10 : 0.035))
+                    .fill(owner.accentColor.opacity(tile.isObjective ? 0.055 : 0.02))
                     .overlay(
                         Hexagon()
-                            .stroke(owner.accentColor.opacity(0.10), lineWidth: 0.8)
+                            .stroke(owner.accentColor.opacity(0.055), lineWidth: 0.6)
                     )
             }
 
@@ -206,11 +206,11 @@ struct HexTileView: View {
             if isFocused && actionHint.isAttack { return 3 }
             return 0.45
         }
-        if isSelected { return 1.5 }
+        if isSelected { return 1.2 }
         if actionHint.isAttack || actionHint.isApproachAttack { return 2.2 }
         if actionHint.isMove { return isFocused || isRouteDestination ? 1.6 : 0.65 }
-        if isPostMoveAttackTarget { return 3 }
-        if isAttackPosition { return 3 }
+        if isPostMoveAttackTarget { return 1.8 }
+        if isAttackPosition { return 1.8 }
         if fireExposurePreview?.riskLevel.sortRank ?? 0 >= FireRiskLevel.high.sortRank { return 3 }
         if isLatestObjectiveCapture { return 3 }
         if isGuidedObjective { return 3 }

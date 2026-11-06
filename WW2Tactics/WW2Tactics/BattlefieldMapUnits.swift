@@ -5,42 +5,45 @@ struct UnitCounter: View {
     let unit: BattleUnit
 
     var body: some View {
-        VStack(spacing: -2) {
+        VStack(spacing: -3) {
             MapUnitPiece(
                 kind: unit.kind, faction: unit.faction, rank: unit.rank,
                 supplyState: game.supplyState(for: unit), tacticalStatus: unit.tacticalStatus,
-                isSpent: readiness.isSpent, width: unit.kind.mapPieceWidth, height: 64,
+                isSpent: readiness.isSpent, width: unit.kind.mapPieceWidth, height: 62,
                 variant: BattlefieldVehicleVariant.matching(unit)
             )
             .overlay(alignment: .topLeading) {
                 if let commander = unit.commander {
-                    CommanderBadge(commander: commander, faction: unit.faction).offset(x: 2, y: -3)
+                    CommanderBadge(commander: commander, faction: unit.faction).offset(x: 3, y: -4)
                 }
             }
-            HStack(alignment: .center, spacing: 2) {
+            HStack(alignment: .center, spacing: 3) {
                 UnitBranchMedallion(kind: unit.kind, faction: unit.faction)
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 3) {
-                        Text(unit.faction.shortTitle).font(BattlefieldTheme.militaryFont(9))
-                            .foregroundStyle(.white).shadow(color: .black, radius: 1)
-                        MiniHealthBar(ratio: unit.hpRatio, factionTint: unit.faction.accentColor)
-                            .frame(height: 6)
+                        MiniHealthBar(ratio: unit.hpRatio, factionTint: unit.faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing)
+                            .frame(width: 30, height: 4)
+                        Text("\(unit.hp)").font(BattlefieldTheme.militaryFont(10)).foregroundStyle(BattlefieldTheme.fieldPaper)
                     }
-                    .frame(height: 10)
+                    .frame(height: 7)
                     HStack(spacing: 2) {
+                        Text(unit.faction.shortTitle).font(BattlefieldTheme.militaryFont(8))
+                            .foregroundStyle(BattlefieldTheme.fieldPaper.opacity(0.8))
                         UnitReadinessPip(symbol: readiness.moveSymbol, available: readiness.canMove,
                                          tint: BattlefieldTheme.movement)
                         UnitReadinessPip(symbol: readiness.attackSymbol, available: readiness.canAttack,
                                          tint: BattlefieldTheme.brass)
                         Spacer(minLength: 0)
-                        Text(unit.rank.insignia).font(BattlefieldTheme.militaryFont(9))
+                        Text(unit.rank.insignia).font(BattlefieldTheme.militaryFont(8))
                             .foregroundStyle(BattlefieldTheme.selectedPiece).shadow(color: .black, radius: 1)
                     }
-                    .frame(height: 10)
+                    .frame(height: 8)
                 }
-                .frame(width: 45)
+                .frame(width: 48)
             }
-            .frame(width: 70, height: 21)
+            .padding(.horizontal, 3).padding(.vertical, 2)
+            .background(BattlefieldTheme.commandDeckDeep.opacity(0.88), in: BeveledFieldShape())
+            .overlay { BeveledFieldShape().stroke(.white.opacity(0.16), lineWidth: 0.5) }
             .accessibilityHidden(true)
         }
         .opacity(readiness.isSpent ? 0.83 : 1)
@@ -66,10 +69,8 @@ struct UnitReadinessPip: View {
 
     var body: some View {
         Image(systemName: symbol).font(.system(size: 7, weight: .heavy))
-            .foregroundStyle(available ? BattlefieldTheme.commandDeckDeep : Color.white.opacity(0.62))
-            .frame(width: 14, height: 9)
-            .background(available ? tint : Color.black.opacity(0.55), in: Capsule())
-            .overlay { Capsule().stroke(Color.white.opacity(available ? 0.38 : 0.26), lineWidth: 0.6) }
+            .foregroundStyle(available ? tint : Color.white.opacity(0.38))
+            .frame(width: 10, height: 8)
             .accessibilityHidden(true)
     }
 }
@@ -109,16 +110,16 @@ struct MapUnitPiece: View {
 
     var body: some View {
         ZStack {
-            Ellipse().fill(.black.opacity(0.26))
+            Ellipse().fill(.black.opacity(0.21))
                 .frame(width: width * 0.82, height: height * 0.30)
-                .blur(radius: 2).offset(y: height * 0.26)
+                .blur(radius: 1.5).offset(y: height * 0.26)
             Ellipse()
-                .fill(faction.accentColor.opacity(isSpent ? 0.04 : 0.16))
+                .fill(faction.accentColor.opacity(isSpent ? 0.02 : 0.06))
                 .overlay {
                     Ellipse().stroke(faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing,
-                                     style: StrokeStyle(lineWidth: 1.5, dash: faction == .allies ? [] : [4, 2]))
+                                     style: StrokeStyle(lineWidth: 1, dash: faction == .allies ? [] : [4, 2]))
                 }
-                .frame(width: width * 0.92, height: height * 0.38)
+                .frame(width: width * 0.86, height: height * 0.31)
                 .offset(y: height * 0.25)
             UnitModelView(kind: kind, faction: faction, isSpent: isSpent,
                           presentation: .mapPiece, variant: variant)
@@ -152,10 +153,10 @@ struct UnitBranchMedallion: View {
         ZStack {
             Circle().fill(BattlefieldTheme.commandDeckDeep)
             Circle().stroke(faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing,
-                            style: StrokeStyle(lineWidth: 2, dash: faction == .axis ? [3, 1] : []))
-            UnitBranchGlyph(kind: kind).fill(BattlefieldTheme.fieldPaper).padding(5)
+                            style: StrokeStyle(lineWidth: 1, dash: faction == .axis ? [3, 1] : []))
+            UnitBranchGlyph(kind: kind).fill(BattlefieldTheme.fieldPaper).padding(4)
         }
-        .frame(width: 23, height: 23)
+        .frame(width: 18, height: 18)
         .shadow(color: .black.opacity(0.65), radius: 0.5, y: 1)
         .accessibilityHidden(true)
     }
