@@ -100,6 +100,34 @@ final class BattlefieldVisualTests: XCTestCase {
             (endTurn.value as? String)?.contains("第2回合") == true
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [nextTurn], timeout: 15), .completed)
+
+        // Reopen a real post-move attack preview in portrait and exercise the same
+        // action strip rather than inferring that its attack control is reachable.
+        app.terminate()
+        device.orientation = .portrait
+        app.launchArguments = ["--ci-selected-attack-preview"]
+        app.launch()
+        let portrait = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let display = self.displaySize(of: XCUIScreen.main.screenshot())
+            return app.frame.height > app.frame.width && display.height > display.width
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [portrait], timeout: 15), .completed)
+        let attackSelection = app.descendants(matching: .any)["battlefield-selected-unit"].firstMatch
+        XCTAssertTrue(attackSelection.waitForExistence(timeout: 15))
+        XCTAssertTrue((attackSelection.value as? String)?.contains("攻击可用") == true)
+        let attack = app.buttons["攻击"]
+        XCTAssertTrue(attack.isHittable)
+        XCTAssertTrue(attack.isEnabled)
+        attack.tap()
+        let executeAttack = app.buttons["battlefield-execute-order"]
+        XCTAssertTrue(executeAttack.waitForExistence(timeout: 10))
+        XCTAssertTrue(executeAttack.isHittable)
+        let combatMessage = app.staticTexts.matching(NSPredicate(
+            format: "label BEGINSWITH %@ AND label CONTAINS %@", "M10坦克歼击营 攻击 ", "伤害"
+        )).firstMatch
+        XCTAssertFalse(combatMessage.exists)
+        executeAttack.tap()
+        XCTAssertTrue(combatMessage.waitForExistence(timeout: 10))
     }
 
     private func displaySize(of screenshot: XCUIScreenshot) -> CGSize {

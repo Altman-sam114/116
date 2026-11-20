@@ -547,7 +547,7 @@ final class BattlefieldPresentationTests: XCTestCase {
         XCTAssertGreaterThan(totalBytes, 1_000_000)
         XCTAssertLessThanOrEqual(totalBytes, 24_000_000)
         let ground = try XCTUnwrap(BattlefieldArtwork.ground)
-        XCTAssertEqual(BattlefieldArtwork.groundResourceName, "ground-campaign")
+        XCTAssertEqual(BattlefieldArtwork.groundResourceName, "ground-field-v2")
         XCTAssertTrue(ground === BattlefieldArtwork.ground)
         XCTAssertGreaterThanOrEqual(ground.width, 512)
         XCTAssertEqual(ground.width, ground.height)

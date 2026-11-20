@@ -5,7 +5,7 @@ struct UnitDetail: View {
     let unit: BattleUnit
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        LazyVStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 8) {
                 UnitShapeBadge(
                     kind: unit.kind,

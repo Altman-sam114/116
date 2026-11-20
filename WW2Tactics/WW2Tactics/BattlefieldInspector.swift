@@ -31,9 +31,7 @@ struct InspectorPanel: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                let enemyThreatIntents = game.visibleEnemyThreatIntentPreviews
-                let enemyThreatCountermeasures = game.visibleEnemyThreatCountermeasurePreviews
+            LazyVStack(alignment: .leading, spacing: 12) {
                 let hasPrimaryResult =
                     game.latestCombatResult != nil ||
                     game.latestTacticalCommandResult != nil ||
@@ -44,7 +42,6 @@ struct InspectorPanel: View {
                     game.latestEnemyThreatCountermeasureExecutionResult != nil ||
                     game.latestEnemyThreatCountermeasureFollowUpResult != nil
                 let hasAIPhase = game.latestAIPhaseSummary != nil
-                let hasIntel = !enemyThreatIntents.isEmpty
 
                 InspectorSectionHeader(title: "主操作", icon: "person.crop.rectangle", color: BattlefieldTheme.brass)
 
@@ -60,8 +57,7 @@ struct InspectorPanel: View {
                     TileDetail(tile: tile, unit: game.focusedUnit)
                 }
 
-                InspectorSectionHeader(title: "战线态势", icon: "map.fill", color: .cyan)
-                BattlefieldSituationSummaryView(summary: game.battlefieldSituationSummary)
+                InspectorSituationSection()
 
                 if hasPrimaryResult || hasCountermeasureResult || hasAIPhase {
                     InspectorSectionHeader(title: "执行结果", icon: "doc.text.fill", color: .orange)
@@ -91,14 +87,7 @@ struct InspectorPanel: View {
                     }
                 }
 
-                if hasIntel {
-                    InspectorSectionHeader(title: "敌情与反制", icon: "eye.trianglebadge.exclamationmark.fill", color: .pink)
-                    EnemyThreatIntentPanel(previews: enemyThreatIntents)
-
-                    if !enemyThreatCountermeasures.isEmpty {
-                        EnemyThreatCountermeasurePanel(previews: enemyThreatCountermeasures)
-                    }
-                }
+                InspectorThreatSection()
 
                 InspectorSectionHeader(title: "战报", icon: "text.alignleft", color: BattlefieldTheme.mutedInk)
                 BattleLogView()
@@ -108,6 +97,36 @@ struct InspectorPanel: View {
         .padding(14)
         .foregroundStyle(BattlefieldTheme.ink)
         .background(BattlefieldTheme.commandDeckDeep.opacity(0.32))
+    }
+}
+
+/// Expensive rule projections are requested when the corresponding section is reached.
+private struct InspectorSituationSection: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            InspectorSectionHeader(title: "战线态势", icon: "map.fill", color: .cyan)
+            BattlefieldSituationSummaryView(summary: game.battlefieldSituationSummary)
+        }
+    }
+}
+
+private struct InspectorThreatSection: View {
+    @EnvironmentObject private var game: GameState
+
+    var body: some View {
+        let intents = game.visibleEnemyThreatIntentPreviews
+        let countermeasures = game.enemyThreatCountermeasurePreviews(for: intents)
+        if !intents.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                InspectorSectionHeader(title: "敌情与反制", icon: "eye.trianglebadge.exclamationmark.fill", color: .pink)
+                EnemyThreatIntentPanel(previews: intents)
+                if !countermeasures.isEmpty {
+                    EnemyThreatCountermeasurePanel(previews: countermeasures)
+                }
+            }
+        }
     }
 }
 

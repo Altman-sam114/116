@@ -47,6 +47,7 @@ struct MapCommandCenter: View {
                             }
                         }
                         Spacer(minLength: 0)
+                            .frame(maxWidth: .infinity)
                             .overlay(alignment: .top) {
                                 if drawer == nil {
                                     HStack(alignment: .top) {

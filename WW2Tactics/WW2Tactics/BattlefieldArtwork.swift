@@ -25,8 +25,8 @@ enum BattlefieldVehicleVariant: Int, CaseIterable {
 
 /// Bundled, original artwork. Decode each sheet once; all map instances share its CGImages.
 enum BattlefieldArtwork {
-    static let groundResourceName = "ground-campaign"
-    static let resourceNames = ["vehicles", "troops", groundResourceName, "armor-detail", "woodland-campaign", "scenery-campaign", "commanders"]
+    static let groundResourceName = "ground-field-v2"
+    static let resourceNames = ["vehicles-field-v2", "troops", groundResourceName, "armor-detail", "woodland-campaign", "scenery-campaign", "commanders"]
 
     private static let sheets: [String: CGImage] = {
         var result: [String: CGImage] = [:]
@@ -63,8 +63,8 @@ enum BattlefieldArtwork {
     static func unit(_ kind: UnitKind, faction: Faction) -> CGImage? {
         let column = faction == .allies ? 0 : 1
         switch kind {
-        case .tank: return sprites["vehicles"]?[column]
-        case .recon: return sprites["vehicles"]?[2 + column]
+        case .tank: return sprites["vehicles-field-v2"]?[column]
+        case .recon: return sprites["vehicles-field-v2"]?[2 + column]
         case .infantry: return sprites["troops"]?[column]
         case .artillery: return sprites["troops"]?[2 + column]
         }
