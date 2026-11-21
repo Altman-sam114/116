@@ -67,7 +67,13 @@ struct BattlefieldSceneryPlacement: Equatable {
             kind = .mountain
             width = 137; height = 103
         case .city:
-            kind = tile.isObjective ? .village : .farmstead
+            if tile.objectiveName?.contains("工业") == true || tile.objectiveName?.contains("工厂") == true {
+                kind = .industrialCity
+            } else if tile.objectiveName?.contains("补给") == true {
+                kind = .supplyDepot
+            } else {
+                kind = tile.isObjective ? .village : .farmstead
+            }
             width = 119; height = 86
         case .snow:
             guard Self.noise(seed, 29) > 0.50 else { return nil }

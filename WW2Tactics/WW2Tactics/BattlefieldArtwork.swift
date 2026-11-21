@@ -4,7 +4,7 @@ import SwiftUI
 
 enum BattlefieldScenery: Int, CaseIterable {
     case forest, mountain, village, winterForest
-    case openWoodland, mixedWoodland, sparseWinterWoodland, farmstead
+    case openWoodland, mixedWoodland, sparseWinterWoodland, farmstead, industrialCity, supplyDepot
 }
 
 enum BattlefieldVehicleVariant: Int, CaseIterable {
@@ -26,7 +26,7 @@ enum BattlefieldVehicleVariant: Int, CaseIterable {
 /// Bundled, original artwork. Decode each sheet once; all map instances share its CGImages.
 enum BattlefieldArtwork {
     static let groundResourceName = "ground-field-v2"
-    static let resourceNames = ["vehicles-field-v2", "troops", groundResourceName, "armor-detail", "woodland-campaign", "scenery-campaign", "commanders"]
+    static let resourceNames = ["vehicles-field-v2", "troops", groundResourceName, "armor-detail", "woodland-campaign", "scenery-campaign", "commanders", "industrial-city", "supply-depot"]
 
     private static let sheets: [String: CGImage] = {
         var result: [String: CGImage] = [:]
@@ -41,7 +41,7 @@ enum BattlefieldArtwork {
 
     private static let sprites: [String: [CGImage]] = {
         var result: [String: [CGImage]] = [:]
-        for name in resourceNames where name != groundResourceName {
+        for name in resourceNames where name != groundResourceName && name != "industrial-city" && name != "supply-depot" {
             guard let sheet = sheets[name] else { continue }
             let cells = (0..<4).compactMap { index in
                 sheet.cropping(to: cellRect(column: index % 2, row: index / 2,
@@ -71,6 +71,8 @@ enum BattlefieldArtwork {
     }
 
     static func scenery(_ kind: BattlefieldScenery) -> CGImage? {
+        if kind == .industrialCity { return sheets["industrial-city"] }
+        if kind == .supplyDepot { return sheets["supply-depot"] }
         let index = kind.rawValue
         return index < 4 ? sprites["scenery-campaign"]?[index] : sprites["woodland-campaign"]?[index - 4]
     }

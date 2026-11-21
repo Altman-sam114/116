@@ -6,7 +6,7 @@ final class BattlefieldVisualTests: XCTestCase {
     func testLandscapeBattlefieldAndInspector() {
         continueAfterFailure = false
         let device = XCUIDevice.shared
-        device.orientation = .portrait
+        device.orientation = .landscapeRight
         let app = XCUIApplication()
         app.launchArguments = ["--ci-selected-combat-impact-steady"]
         addTeardownBlock { @MainActor () async throws in
@@ -24,12 +24,12 @@ final class BattlefieldVisualTests: XCTestCase {
             metadata.lifetime = .keepAlways
             self.add(metadata)
             app.terminate()
-            device.orientation = .portrait
+            device.orientation = .landscapeRight
         }
         app.launch()
         let endTurn = app.buttons["battlefield-end-turn"]
         XCTAssertTrue(endTurn.waitForExistence(timeout: 15))
-        // Rotate the running scene; pre-launch rotation can leave XCTest's display buffer in portrait.
+        // Verify that both the app and captured display are landscape.
         device.orientation = .landscapeRight
         let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             let display = self.displaySize(of: XCUIScreen.main.screenshot())
@@ -101,17 +101,17 @@ final class BattlefieldVisualTests: XCTestCase {
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [nextTurn], timeout: 15), .completed)
 
-        // Reopen a real post-move attack preview in portrait and exercise the same
+        // Reopen a real post-move attack preview in landscape and exercise the same
         // action strip rather than inferring that its attack control is reachable.
         app.terminate()
-        device.orientation = .portrait
+        device.orientation = .landscapeRight
         app.launchArguments = ["--ci-selected-attack-preview"]
         app.launch()
-        let portrait = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+        let attackLandscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             let display = self.displaySize(of: XCUIScreen.main.screenshot())
-            return app.frame.height > app.frame.width && display.height > display.width
+            return app.frame.width > app.frame.height && display.width > display.height
         }, object: nil)
-        XCTAssertEqual(XCTWaiter.wait(for: [portrait], timeout: 15), .completed)
+        XCTAssertEqual(XCTWaiter.wait(for: [attackLandscape], timeout: 15), .completed)
         let attackSelection = app.descendants(matching: .any)["battlefield-selected-unit"].firstMatch
         XCTAssertTrue(attackSelection.waitForExistence(timeout: 15))
         XCTAssertTrue((attackSelection.value as? String)?.contains("攻击可用") == true)

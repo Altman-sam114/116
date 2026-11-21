@@ -336,6 +336,12 @@ final class BattlefieldPresentationTests: XCTestCase {
             }
         }
         XCTAssertEqual(forestVariants.count, 3)
+        let industrialTile = try XCTUnwrap(tiles.first { $0.objectiveName == "鲁尔工业区" })
+        XCTAssertEqual(BattlefieldSceneryPlacement(tile: industrialTile, layout: layout)?.kind, .industrialCity)
+        let depot = try XCTUnwrap(tiles.first { $0.objectiveName == "补给站" })
+        XCTAssertEqual(BattlefieldSceneryPlacement(tile: depot, layout: layout)?.kind, .supplyDepot)
+        let town = try XCTUnwrap(tiles.first { $0.objectiveName == "巴斯托涅" })
+        XCTAssertEqual(BattlefieldSceneryPlacement(tile: town, layout: layout)?.kind, .village)
         XCTAssertEqual(scenario.tiles, tiles)
     }
 
@@ -581,10 +587,11 @@ final class BattlefieldPresentationTests: XCTestCase {
         }
         let unknown = Commander(name: "无名", nation: "", rank: "", armor: 0, tactics: 0, morale: 0, trait: "")
         XCTAssertNil(BattlefieldArtwork.commander(unknown))
-        XCTAssertEqual(images.count, 24)
+        XCTAssertEqual(images.count, 26)
         for image in images {
-            XCTAssertEqual(image.width, 768)
-            XCTAssertEqual(image.height, 512)
+            let standalone = image === BattlefieldArtwork.scenery(.industrialCity) || image === BattlefieldArtwork.scenery(.supplyDepot)
+            XCTAssertEqual(image.width, standalone ? 1536 : 768)
+            XCTAssertEqual(image.height, standalone ? 1024 : 512)
             var pixels = [UInt8](repeating: 0, count: 64 * 64 * 4)
             try pixels.withUnsafeMutableBytes { buffer in
                 let context = try XCTUnwrap(CGContext(

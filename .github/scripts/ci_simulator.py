@@ -119,7 +119,7 @@ def launch_scenario(device, arguments, log, record):
 
 
 def screenshot(category, device, scenario, log):
-    orientation = "portrait"
+    orientation = "landscape"
     path = ROOT / f"battlefield-{category}-{scenario}.png"
     record = {"category": category, "device": device[2], "udid": device[3], "runtime": device[4],
               "requestedOrientation": orientation, "scenario": scenario, "path": str(path), "outcome": "failure"}
