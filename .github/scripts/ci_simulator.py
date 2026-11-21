@@ -118,46 +118,6 @@ def launch_scenario(device, arguments, log, record):
     return False
 
 
-def screenshot(category, device, scenario, log):
-    orientation = "landscape"
-    path = ROOT / f"battlefield-{category}-{scenario}.png"
-    record = {"category": category, "device": device[2], "udid": device[3], "runtime": device[4],
-              "requestedOrientation": orientation, "scenario": scenario, "path": str(path), "outcome": "failure"}
-    REPORT["screenshots"].append(record)
-    arguments = [] if scenario == "default" else ["--ci-selected-combat-impact-steady"]
-    if not launch_scenario(device, arguments, log, record):
-        return
-    # Retry readability as well as size: an early launch fade can exceed 500 KB.
-    readable_frames = 0
-    for attempt in range(1, 9):
-        time.sleep(6)
-        result = run(["xcrun", "simctl", "io", device[3], "screenshot", str(path)], log, seconds=30)
-        record["captureAttempt"] = attempt
-        record["bytes"] = path.stat().st_size if path.exists() else 0
-        if result.returncode or record["bytes"] < 500000:
-            readable_frames = 0
-            continue
-        inspection = run([str(ROOT / "inspect-screenshot"), str(path)], log, capture=True, seconds=30)
-        if inspection.stdout:
-            try:
-                record.update(json.loads(inspection.stdout))
-            except json.JSONDecodeError:
-                record["error"] = "screenshot inspector output was not JSON"
-                readable_frames = 0
-                continue
-        if inspection.returncode == 0 and record.get("orientation") == orientation:
-            # Wait for a second readable frame, not a single transitional flash.
-            readable_frames += 1
-            if readable_frames < 2:
-                continue
-            record["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
-            record["outcome"] = "success"
-            break
-        else:
-            readable_frames = 0
-    run(["xcrun", "simctl", "terminate", device[3], BUNDLE_ID], log, seconds=30)
-
-
 def json_objects(value):
     if isinstance(value, dict):
         yield value
@@ -172,11 +132,16 @@ def landscape_evidence(category, device, inspector_ready):
     bundle = ROOT / f"WW2Tactics-{category}-ui.xcresult"
     test = {"category": category, "outcome": "failure", "resultBundlePath": str(bundle)}
     REPORT["visualTests"].append(test)
-    path = ROOT / f"battlefield-{category}-selected-combat-impact-steady-landscape.png"
-    image = {"category": category, "device": device[2], "udid": device[3], "runtime": device[4],
-             "requestedOrientation": "landscape", "scenario": "selected-combat-impact-steady",
-             "source": "XCUITest original attachment", "path": str(path), "outcome": "failure"}
-    REPORT["screenshots"].append(image)
+    images = []
+    for scenario, suffix in [("default", "default"),
+                             ("selected-combat-impact-steady", "selected-combat-impact-steady"),
+                             ("selected-combat-impact-steady", "selected-combat-impact-steady-landscape")]:
+        image = {"category": category, "device": device[2], "udid": device[3], "runtime": device[4],
+                 "requestedOrientation": "landscape", "scenario": scenario,
+                 "source": "XCUITest original attachment", "path": str(ROOT / f"battlefield-{category}-{suffix}.png"),
+                 "outcome": "failure"}
+        images.append(image)
+        REPORT["screenshots"].append(image)
     with (ROOT / "landscape-ui-tests.log").open("a") as log:
         command = ["xcodebuild", "-project", "WW2Tactics/WW2Tactics.xcodeproj", "-scheme", "WW2Tactics",
                    "-configuration", "Debug", "-destination", f"platform=iOS Simulator,id={device[3]}",
@@ -207,9 +172,9 @@ def landscape_evidence(category, device, inspector_ready):
             return
         manifest = exports / "manifest.json"
         if not manifest.exists():
-            image["error"] = "XCTest attachment manifest is missing"
+            for image in images: image["error"] = "XCTest attachment manifest is missing"
             return
-        attachments = []
+        attachments = {"default": [], "selected": []}
         for item in json_objects(json.loads(manifest.read_text())):
             label = item.get("suggestedHumanReadableName", item.get("name", ""))
             filename = item.get("exportedFileName", item.get("fileName", ""))
@@ -217,8 +182,10 @@ def landscape_evidence(category, device, inspector_ready):
                 candidate = (exports / filename).resolve()
                 if not candidate.is_relative_to(exports.resolve()) or not candidate.is_file():
                     continue
-                if "battlefield-landscape-" in label:
-                    attachments.append((label, candidate))
+                if "battlefield-default-landscape-" in label:
+                    attachments["default"].append((label, candidate))
+                elif "battlefield-landscape-" in label:
+                    attachments["selected"].append((label, candidate))
                 for marker, suffix in [("battlefield-ui-final", "png"), ("battlefield-ui-hierarchy", "txt"),
                                        ("battlefield-display-metadata", "txt")]:
                     if marker in label:
@@ -228,28 +195,36 @@ def landscape_evidence(category, device, inspector_ready):
                             "name": label, "path": str(diagnostic),
                             "sha256": hashlib.sha256(diagnostic.read_bytes()).hexdigest()
                         })
-        if len(attachments) != 2:
-            image["error"] = f"Expected two explicitly named original attachments, got {len(attachments)}"
+        if any(len(attachments[key]) != 2 for key in ("default", "selected")):
+            for image in images:
+                image["error"] = f"Expected two original frames per scenario; got { {key: len(value) for key, value in attachments.items()} }"
             log.write(manifest.read_text()[:12000])
             return
         if not inspector_ready:
-            image["error"] = "Cannot inspect original UI screenshots"
+            for image in images: image["error"] = "Cannot inspect original UI screenshots"
             return
-        image["frames"] = []
-        for label, original in sorted(attachments):
-            inspection = run([str(ROOT / "inspect-screenshot"), str(original)], log, capture=True, seconds=30)
-            frame = json.loads(inspection.stdout) if inspection.stdout else {}
-            frame.update({"attachmentName": label, "bytes": original.stat().st_size,
-                          "sha256": hashlib.sha256(original.read_bytes()).hexdigest()})
-            image["frames"].append(frame)
-            if inspection.returncode or frame.get("orientation") != "landscape" or frame["bytes"] < 500000:
-                image["error"] = "Original landscape frame failed orientation, readability, size or system overlay gate"
-                return
-            image.update(frame)
-        # Preserve the original bytes. No crop, resize, orientation transform or notification retouch.
-        shutil.copyfile(sorted(attachments)[-1][1], path)
-        image["captureAttempt"] = 2
-        image["outcome"] = "success"
+        for key, targets in [("default", [images[0]]), ("selected", images[1:])]:
+            frames = []
+            originals = sorted(attachments[key])
+            for label, original in originals:
+                inspection = run([str(ROOT / "inspect-screenshot"), str(original)], log, capture=True, seconds=30)
+                frame = json.loads(inspection.stdout) if inspection.stdout else {}
+                frame.update({"attachmentName": label, "bytes": original.stat().st_size,
+                              "sha256": hashlib.sha256(original.read_bytes()).hexdigest()})
+                frames.append(frame)
+                if inspection.returncode or frame.get("orientation") != "landscape" or frame["bytes"] < 500000:
+                    for image in targets:
+                        image["frames"] = frames
+                        image["error"] = "Original landscape frame failed orientation, readability, size or system overlay gate"
+                    break
+            else:
+                for index, image in enumerate(targets):
+                    original = originals[index if len(targets) > 1 else -1][1]
+                    image["frames"] = frames
+                    image.update(frames[index if len(targets) > 1 else -1])
+                    shutil.copyfile(original, image["path"])
+                    image["captureAttempt"] = 2
+                    image["outcome"] = "success"
 
 
 def main():
@@ -282,8 +257,6 @@ def main():
                     app = Path(os.environ["DERIVED_DATA"]) / "Build/Products/Debug-iphonesimulator/WW2Tactics.app"
                     if run(["xcrun", "simctl", "install", device[3], str(app)], log).returncode:
                         raise RuntimeError("app installation failed")
-                    screenshot(category, device, "default", log)
-                    screenshot(category, device, "selected-combat-impact-steady", log)
                     landscape_evidence(category, device, inspector_ready=True)
                 except Exception as error:
                     REPORT.setdefault("deviceErrors", []).append({"category": category, "error": str(error)})

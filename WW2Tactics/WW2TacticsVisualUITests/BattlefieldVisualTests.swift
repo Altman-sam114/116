@@ -8,7 +8,7 @@ final class BattlefieldVisualTests: XCTestCase {
         let device = XCUIDevice.shared
         device.orientation = .landscapeRight
         let app = XCUIApplication()
-        app.launchArguments = ["--ci-selected-combat-impact-steady"]
+        app.launchArguments = []
         addTeardownBlock { @MainActor () async throws in
             let screen = XCUIScreen.main.screenshot()
             let finalFrame = XCTAttachment(screenshot: screen)
@@ -26,6 +26,18 @@ final class BattlefieldVisualTests: XCTestCase {
             app.terminate()
             device.orientation = .landscapeRight
         }
+        app.launch()
+        XCTAssertTrue(app.buttons["battlefield-end-turn"].waitForExistence(timeout: 15))
+        Thread.sleep(forTimeInterval: 2)
+        for index in 1...2 {
+            let frame = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            frame.name = "battlefield-default-landscape-\(index)"
+            frame.lifetime = .keepAlways
+            add(frame)
+            if index == 1 { Thread.sleep(forTimeInterval: 1) }
+        }
+        app.terminate()
+        app.launchArguments = ["--ci-selected-combat-impact-steady"]
         app.launch()
         let endTurn = app.buttons["battlefield-end-turn"]
         XCTAssertTrue(endTurn.waitForExistence(timeout: 15))
