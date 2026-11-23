@@ -19,9 +19,20 @@ struct FieldPlate: View {
             let bevel = BeveledFieldShape().path(in: rect)
 
             // 1. Base gunmetal / antique bronze substrate
+            let baseColors: [Color] = material == .brassDossier
+                ? [Color(red: 0.27, green: 0.22, blue: 0.14),
+                   Color(red: 0.17, green: 0.14, blue: 0.095),
+                   Color(red: 0.09, green: 0.075, blue: 0.055)]
+                : [Color(red: 0.21, green: 0.25, blue: 0.23),
+                   Color(red: 0.13, green: 0.16, blue: 0.15),
+                   Color(red: 0.06, green: 0.08, blue: 0.075)]
             context.fill(
                 bevel,
-                with: .color(material == .brassDossier ? BattlefieldTheme.brassDeck : BattlefieldTheme.commandMetal)
+                with: .linearGradient(
+                    Gradient(colors: baseColors),
+                    startPoint: CGPoint(x: rect.midX, y: rect.minY),
+                    endPoint: CGPoint(x: rect.midX, y: rect.maxY)
+                )
             )
 
             // 2. Clipped tiled brushed-metal or hammered-brass texture
