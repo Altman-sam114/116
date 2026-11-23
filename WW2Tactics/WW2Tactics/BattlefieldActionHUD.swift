@@ -42,8 +42,7 @@ struct MapActionHUD: View {
                 }
             }
             .foregroundStyle(BattlefieldTheme.fieldPaper)
-            .frame(maxWidth: condensed ? 560 : 640, alignment: .leading)
-            .background(FieldPlate(emphasized: true, material: .gunmetal))
+            .background { FieldPlate(emphasized: true, material: .gunmetal) }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("battlefield-selected-unit")
             .accessibilityValue("q\(unit.position.q),r\(unit.position.r)，\(unit.hasMoved ? "移动已用" : "移动可用")，\(unit.hasAttacked ? "攻击已用" : "攻击可用")")

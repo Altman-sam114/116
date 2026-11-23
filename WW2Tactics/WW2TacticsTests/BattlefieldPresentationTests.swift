@@ -234,7 +234,9 @@ final class BattlefieldPresentationTests: XCTestCase {
         let originals = scenario.units
         let cases: [(String, BattlefieldVehicleVariant, UnitKind)] = [
             ("M10坦克歼击营", .tankDestroyer, .recon), ("M7牧师炮兵", .priest, .artillery),
-            ("虎式重装连", .tiger, .tank), ("豹式预备营", .panther, .tank)
+            ("远程炮兵群", .calliope, .artillery),
+            ("虎式重装连", .tiger, .tank), ("豹式预备营", .panther, .tank),
+            ("党卫装甲预备队", .kingTiger, .tank), ("火箭炮连", .panzerwerfer, .artillery)
         ]
         for (name, expected, kind) in cases {
             let unit = try XCTUnwrap(scenario.units.first { $0.name == name })
@@ -245,6 +247,8 @@ final class BattlefieldPresentationTests: XCTestCase {
             spent.hasAttacked = true
             XCTAssertEqual(BattlefieldVehicleVariant.matching(spent), expected)
         }
+        let elitePershing = BattleUnit(name: "重装突击坦克团", kind: .tank, faction: .allies, position: HexCoordinate(q: 2, r: 4), hp: 134, isElite: true)
+        XCTAssertEqual(BattlefieldVehicleVariant.matching(elitePershing), .pershing)
         XCTAssertEqual(scenario.units, originals)
     }
 
@@ -342,6 +346,14 @@ final class BattlefieldPresentationTests: XCTestCase {
         XCTAssertEqual(BattlefieldSceneryPlacement(tile: depot, layout: layout)?.kind, .supplyDepot)
         let town = try XCTUnwrap(tiles.first { $0.objectiveName == "巴斯托涅" })
         XCTAssertEqual(BattlefieldSceneryPlacement(tile: town, layout: layout)?.kind, .village)
+        let citadel = try XCTUnwrap(tiles.first { $0.objectiveName == "圣维特" })
+        XCTAssertEqual(BattlefieldSceneryPlacement(tile: citadel, layout: layout)?.kind, .hqCitadel)
+        let bunker = try XCTUnwrap(tiles.first { $0.objectiveName == "南部桥头堡" })
+        XCTAssertEqual(BattlefieldSceneryPlacement(tile: bunker, layout: layout)?.kind, .fortifiedBunker)
+        let airfield = try XCTUnwrap(tiles.first { $0.objectiveName == "铁路枢纽" })
+        XCTAssertEqual(BattlefieldSceneryPlacement(tile: airfield, layout: layout)?.kind, .militaryAirfield)
+        let metropolis = try XCTUnwrap(tiles.first { $0.objectiveName == "马尔梅迪" })
+        XCTAssertEqual(BattlefieldSceneryPlacement(tile: metropolis, layout: layout)?.kind, .majorMetropolis)
         XCTAssertEqual(scenario.tiles, tiles)
     }
 
@@ -578,7 +590,7 @@ final class BattlefieldPresentationTests: XCTestCase {
             images.append(first)
         }
         var portraits: [CGImage] = []
-        for commander in [Commander.patton, .montgomery, .guderian, .manstein] {
+        for commander in Commander.dossierAllCatalog {
             let first = try XCTUnwrap(BattlefieldArtwork.commander(commander))
             XCTAssertTrue(first === BattlefieldArtwork.commander(commander))
             XCTAssertFalse(portraits.contains { $0 === first })
@@ -587,11 +599,27 @@ final class BattlefieldPresentationTests: XCTestCase {
         }
         let unknown = Commander(name: "无名", nation: "", rank: "", armor: 0, tactics: 0, morale: 0, trait: "")
         XCTAssertNil(BattlefieldArtwork.commander(unknown))
-        XCTAssertEqual(images.count, 26)
+        XCTAssertEqual(images.count, 38)
+        let v51Sprites: [CGImage] = [
+            BattlefieldArtwork.scenery(.hqCitadel),
+            BattlefieldArtwork.scenery(.fortifiedBunker),
+            BattlefieldArtwork.scenery(.militaryAirfield),
+            BattlefieldArtwork.scenery(.majorMetropolis),
+            BattlefieldArtwork.vehicle(.pershing),
+            BattlefieldArtwork.vehicle(.kingTiger),
+            BattlefieldArtwork.vehicle(.calliope),
+            BattlefieldArtwork.vehicle(.panzerwerfer),
+            BattlefieldArtwork.commander(.eisenhower),
+            BattlefieldArtwork.commander(.bradley),
+            BattlefieldArtwork.commander(.rommel),
+            BattlefieldArtwork.commander(.zhukov)
+        ].compactMap { $0 }
+        XCTAssertEqual(v51Sprites.count, 12)
         for image in images {
             let standalone = image === BattlefieldArtwork.scenery(.industrialCity) || image === BattlefieldArtwork.scenery(.supplyDepot)
-            XCTAssertEqual(image.width, standalone ? 1024 : 768)
-            XCTAssertEqual(image.height, standalone ? 682 : 512)
+            let isV51 = v51Sprites.contains { $0 === image }
+            XCTAssertEqual(image.width, standalone ? 1024 : (isV51 ? 512 : 768))
+            XCTAssertEqual(image.height, standalone ? 682 : (isV51 ? 341 : 512))
             var pixels = [UInt8](repeating: 0, count: 64 * 64 * 4)
             try pixels.withUnsafeMutableBytes { buffer in
                 let context = try XCTUnwrap(CGContext(

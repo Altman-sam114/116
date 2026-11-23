@@ -86,20 +86,20 @@ struct BattlefieldTerrainRenderer: View, Equatable {
     private func paintSnow(context: inout GraphicsContext) {
         let drifts = Path(BattlefieldSnowfield(tiles: tiles, layout: layout).outline)
         guard !drifts.isEmpty else { return }
-        // Soft feathered frost halo blending snowdrifts naturally into surrounding autumn grass
+        // Crisp feathered frost skirt blending winter snowdrifts naturally into surrounding autumn grass
         context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 11))
-            layer.fill(drifts, with: .color(Color(red: 0.84, green: 0.88, blue: 0.88).opacity(0.72)))
+            layer.addFilter(.blur(radius: 5.5))
+            layer.fill(drifts, with: .color(Color(red: 0.72, green: 0.79, blue: 0.84).opacity(0.60)))
         }
-        // Clip painted seamless winter snowfield texture directly to the snowfield geometry
+        // Clip sculpted seamless winter snowfield texture directly to the snowfield geometry
         if let snowTexture = BattlefieldArtwork.snowGround {
             let bounds = drifts.boundingRect
             if !bounds.isEmpty && bounds.minX.isFinite && bounds.minY.isFinite {
                 let resolved = context.resolve(BattlefieldArtwork.image(snowTexture))
                 var clipped = context
                 clipped.clip(to: drifts)
-                clipped.opacity = 0.94
-                let step: CGFloat = 256
+                clipped.opacity = 0.96
+                let step: CGFloat = 192
                 let startX = floor(bounds.minX / step) * step
                 let startY = floor(bounds.minY / step) * step
                 for y in stride(from: startY, to: bounds.maxY + step, by: step) {
@@ -107,7 +107,16 @@ struct BattlefieldTerrainRenderer: View, Equatable {
                         clipped.draw(resolved, in: CGRect(x: x, y: y, width: step, height: step))
                     }
                 }
-                clipped.stroke(drifts, with: .color(Color(red: 0.66, green: 0.73, blue: 0.78).opacity(0.45)), lineWidth: 2.2)
+                clipped.fill(drifts, with: .linearGradient(
+                    Gradient(colors: [
+                        Color.white.opacity(0.10),
+                        Color.clear,
+                        Color(red: 0.42, green: 0.52, blue: 0.64).opacity(0.16)
+                    ]),
+                    startPoint: CGPoint(x: bounds.minX, y: bounds.minY),
+                    endPoint: CGPoint(x: bounds.maxX, y: bounds.maxY)
+                ))
+                clipped.stroke(drifts, with: .color(Color(red: 0.54, green: 0.64, blue: 0.72).opacity(0.46)), lineWidth: 2.0)
             }
         } else {
             context.drawLayer { layer in

@@ -8,6 +8,8 @@ struct ContentView: View {
         GeometryReader { geometry in
             ZStack(alignment: .trailing) {
                 BattlefieldView(isInspectorExpanded: $isInspectorExpanded)
+                    .allowsHitTesting(!isInspectorExpanded)
+                    .zIndex(0)
                 if isInspectorExpanded {
                     Color.black.opacity(0.20).ignoresSafeArea()
                         .onTapGesture { isInspectorExpanded = false }

@@ -5,19 +5,25 @@ import SwiftUI
 enum BattlefieldScenery: Int, CaseIterable {
     case forest, mountain, village, winterForest
     case openWoodland, mixedWoodland, sparseWinterWoodland, farmstead, industrialCity, supplyDepot
+    case hqCitadel, fortifiedBunker, militaryAirfield, majorMetropolis
 }
 
 enum BattlefieldVehicleVariant: Int, CaseIterable {
     case tankDestroyer, tiger, priest, panther
+    case pershing, kingTiger, calliope, panzerwerfer
 
     /// Appearance only: a historical name never changes the unit's rule archetype.
     static func matching(_ unit: BattleUnit) -> Self? {
         if unit.faction == .allies {
             if unit.kind == .recon && unit.name.contains("M10") { return .tankDestroyer }
             if unit.kind == .artillery && unit.name.contains("M7") { return .priest }
+            if unit.kind == .artillery && (unit.name.contains("火箭") || unit.name.contains("远程炮兵群")) { return .calliope }
+            if unit.kind == .tank && (unit.name.contains("重装突击") || unit.name.contains("潘兴") || unit.isElite) { return .pershing }
         } else {
             if unit.kind == .tank && unit.name.contains("虎式") { return .tiger }
             if unit.kind == .tank && unit.name.contains("豹式") { return .panther }
+            if unit.kind == .tank && (unit.name.contains("虎王") || unit.name.contains("党卫装甲")) { return .kingTiger }
+            if unit.kind == .artillery && unit.name.contains("火箭") { return .panzerwerfer }
         }
         return nil
     }
@@ -67,12 +73,15 @@ enum BattlefieldArtwork {
         BattlefieldAssetDescriptor(name: "woodland-campaign", subfolder: "Terrain", isAtlas2x2: true),
         BattlefieldAssetDescriptor(name: "industrial-city", subfolder: "Terrain", isAtlas2x2: false),
         BattlefieldAssetDescriptor(name: "supply-depot", subfolder: "Terrain", isAtlas2x2: false),
+        BattlefieldAssetDescriptor(name: "city-landmarks", subfolder: "Terrain", isAtlas2x2: true),
         // Units
         BattlefieldAssetDescriptor(name: "vehicles-field-v2", subfolder: "Units", isAtlas2x2: true),
         BattlefieldAssetDescriptor(name: "troops", subfolder: "Units", isAtlas2x2: true),
         BattlefieldAssetDescriptor(name: "armor-detail", subfolder: "Units", isAtlas2x2: true),
+        BattlefieldAssetDescriptor(name: "elite-units", subfolder: "Units", isAtlas2x2: true),
         // Commanders
         BattlefieldAssetDescriptor(name: "commanders", subfolder: "Commanders", isAtlas2x2: true),
+        BattlefieldAssetDescriptor(name: "commanders-hq", subfolder: "Commanders", isAtlas2x2: true),
         // VFX
         BattlefieldAssetDescriptor(name: "combat-vfx", subfolder: "VFX", isAtlas2x2: true),
         // UI
@@ -138,19 +147,38 @@ enum BattlefieldArtwork {
     }
 
     static func scenery(_ kind: BattlefieldScenery) -> CGImage? {
-        if kind == .industrialCity { return sheets["industrial-city"] }
-        if kind == .supplyDepot { return sheets["supply-depot"] }
-        let index = kind.rawValue
-        return index < 4 ? sprites["scenery-campaign"]?[index] : sprites["woodland-campaign"]?[index - 4]
+        switch kind {
+        case .industrialCity:
+            return sheets["industrial-city"]
+        case .supplyDepot:
+            return sheets["supply-depot"]
+        case .hqCitadel:
+            return sprites["city-landmarks"]?[0]
+        case .fortifiedBunker:
+            return sprites["city-landmarks"]?[1]
+        case .militaryAirfield:
+            return sprites["city-landmarks"]?[2]
+        case .majorMetropolis:
+            return sprites["city-landmarks"]?[3]
+        default:
+            let index = kind.rawValue
+            return index < 4 ? sprites["scenery-campaign"]?[index] : sprites["woodland-campaign"]?[index - 4]
+        }
     }
 
     static func vehicle(_ variant: BattlefieldVehicleVariant) -> CGImage? {
-        sprites["armor-detail"]?[variant.rawValue]
+        let index = variant.rawValue
+        return index < 4 ? sprites["armor-detail"]?[index] : sprites["elite-units"]?[index - 4]
     }
 
     static func commander(_ commander: Commander) -> CGImage? {
-        guard let index = ["巴顿", "蒙哥马利", "古德里安", "曼施坦因"].firstIndex(of: commander.name) else { return nil }
-        return sprites["commanders"]?[index]
+        if let index = ["巴顿", "蒙哥马利", "古德里安", "曼施坦因"].firstIndex(of: commander.name) {
+            return sprites["commanders"]?[index]
+        }
+        if let index = ["艾森豪威尔", "布莱德雷", "隆美尔", "朱可夫"].firstIndex(of: commander.name) {
+            return sprites["commanders-hq"]?[index]
+        }
+        return nil
     }
 
     static func vfx(_ effect: BattlefieldVFX) -> CGImage? {

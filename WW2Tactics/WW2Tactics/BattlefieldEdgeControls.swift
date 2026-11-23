@@ -180,8 +180,7 @@ private struct BattlefieldDispatch: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, condensed ? 4 : 5)
-        .frame(maxWidth: condensed ? 380 : 480, alignment: .leading)
-        .background(FieldPlate(material: .gunmetal, showsRivets: false))
+        .background { FieldPlate(material: .gunmetal, showsRivets: false) }
         .allowsHitTesting(false)
     }
 }
@@ -241,7 +240,7 @@ struct BattlefieldDrawerPanel: View {
             }
         }
         .frame(maxWidth: drawer == .cityProduction ? 680 : 580, maxHeight: maxHeight)
-        .background(FieldPlate(emphasized: true, material: .brassDossier))
+        .background { FieldPlate(emphasized: true, material: .brassDossier) }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

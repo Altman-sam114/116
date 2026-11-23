@@ -25,11 +25,12 @@ struct BattlefieldInspectorOverlay: View {
             .padding(.leading, 14)
             .foregroundStyle(BattlefieldTheme.fieldPaper)
             .frame(height: 54)
+            .zIndex(2)
             Rectangle().fill(BattlefieldTheme.brass.opacity(0.3)).frame(height: 1)
             InspectorPanel()
         }
         .frame(width: size.width, height: size.height)
-        .background(FieldPlate(emphasized: true))
+        .background { FieldPlate(emphasized: true) }
         .clipShape(BeveledFieldShape())
         .accessibilityElement(children: .contain)
         .accessibilityAction(.escape) { close() }

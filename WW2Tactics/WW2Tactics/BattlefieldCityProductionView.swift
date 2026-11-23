@@ -130,6 +130,7 @@ private struct ProductionUnitCard: View {
     private var variantForOption: BattlefieldVehicleVariant? {
         if option.title.contains("M10") { return .tankDestroyer }
         if option.title.contains("M7") { return .priest }
+        if option.title.contains("重装突击") { return .pershing }
         return nil
     }
 
@@ -249,7 +250,7 @@ struct BattlefieldCityHQModal: View {
                 }
             }
         }
-        .background(FieldPlate(emphasized: true, material: .brassDossier))
+        .background { FieldPlate(emphasized: true, material: .brassDossier) }
         .clipShape(BeveledFieldShape())
     }
 

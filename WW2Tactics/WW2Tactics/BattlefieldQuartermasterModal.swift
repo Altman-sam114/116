@@ -10,6 +10,7 @@ struct BattlefieldQuartermasterModal: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+                .zIndex(2)
             Rectangle().fill(BattlefieldTheme.brass.opacity(0.4)).frame(height: 1)
 
             HStack(spacing: 8) {
@@ -38,7 +39,7 @@ struct BattlefieldQuartermasterModal: View {
             }
             .padding(12)
         }
-        .background(FieldPlate(emphasized: true, material: .brassDossier))
+        .background { FieldPlate(emphasized: true, material: .brassDossier) }
         .clipShape(BeveledFieldShape())
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("battlefield-shop-modal")

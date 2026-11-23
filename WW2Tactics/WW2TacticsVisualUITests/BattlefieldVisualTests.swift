@@ -61,7 +61,7 @@ final class BattlefieldVisualTests: XCTestCase {
         XCTAssertLessThanOrEqual(close.frame.maxX, app.frame.maxX)
         XCTAssertLessThanOrEqual(close.frame.maxY, app.frame.maxY)
         close.tap()
-        XCTAssertFalse(close.exists)
+        assertDismissed(close)
         XCTAssertTrue(endTurn.isHittable)
 
         for index in 1...2 {
@@ -83,7 +83,7 @@ final class BattlefieldVisualTests: XCTestCase {
             XCTAssertTrue(dismiss.waitForExistence(timeout: 10))
             XCTAssertTrue(dismiss.isHittable)
             dismiss.tap()
-            XCTAssertFalse(dismiss.exists)
+            assertDismissed(dismiss)
         }
 
         // Verify EasyTech Generals HQ and Quartermaster Store modals open and close cleanly in landscape.
@@ -95,7 +95,7 @@ final class BattlefieldVisualTests: XCTestCase {
         XCTAssertTrue(generalsClose.waitForExistence(timeout: 10))
         XCTAssertTrue(generalsClose.isHittable)
         generalsClose.tap()
-        XCTAssertFalse(generalsClose.exists)
+        assertDismissed(generalsClose)
 
         let shopToggle = app.buttons["battlefield-shop-toggle"]
         XCTAssertTrue(shopToggle.waitForExistence(timeout: 10))
@@ -105,7 +105,7 @@ final class BattlefieldVisualTests: XCTestCase {
         XCTAssertTrue(shopClose.waitForExistence(timeout: 10))
         XCTAssertTrue(shopClose.isHittable)
         shopClose.tap()
-        XCTAssertFalse(shopClose.exists)
+        assertDismissed(shopClose)
 
         app.buttons["下一支待命部队"].tap()
         XCTAssertTrue(app.staticTexts["第4装甲师"].firstMatch.waitForExistence(timeout: 10))
@@ -161,6 +161,12 @@ final class BattlefieldVisualTests: XCTestCase {
         XCTAssertFalse(combatMessage.exists)
         executeAttack.tap()
         XCTAssertTrue(combatMessage.waitForExistence(timeout: 10))
+    }
+
+    private func assertDismissed(_ element: XCUIElement, timeout: TimeInterval = 5,
+                                 file: StaticString = #filePath, line: UInt = #line) {
+        let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element)
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: timeout), .completed, file: file, line: line)
     }
 
     private func displaySize(of screenshot: XCUIScreenshot) -> CGSize {

@@ -49,6 +49,7 @@ struct MapCommandCenter: View {
             ScrollViewReader { proxy in
                 ZStack {
                     battlefield(proxy: proxy, size: geometry.size)
+                        .allowsHitTesting(activeModal == nil)
                     BattlefieldEdgeShade()
 
                     // Floating EasyTech edge-anchored landscape HUD (zero full-width dead black slabs!)
@@ -124,6 +125,7 @@ struct MapCommandCenter: View {
                     }
                     .padding(.horizontal, viewport.isShallow ? 8 : 14)
                     .padding(.vertical, viewport.isShallow ? 6 : 10)
+                    .allowsHitTesting(activeModal == nil)
                     .zIndex(1)
 
                     if let modal = activeModal {

@@ -67,17 +67,32 @@ struct BattlefieldSceneryPlacement: Equatable {
             kind = .mountain
             width = 137; height = 103
         case .city:
-            if tile.objectiveName?.contains("工业") == true || tile.objectiveName?.contains("工厂") == true {
+            let name = tile.objectiveName ?? ""
+            if name.contains("工业") || name.contains("工厂") {
                 kind = .industrialCity
-            } else if tile.objectiveName?.contains("补给") == true {
+                width = 124; height = 88
+            } else if name.contains("补给") {
                 kind = .supplyDepot
+                width = 122; height = 86
+            } else if name.contains("圣维特") || name.contains("滩头阵地") {
+                kind = .hqCitadel
+                width = 128; height = 92
+            } else if name.contains("桥头堡") || name.contains("工事") || name.contains("渡口") {
+                kind = .fortifiedBunker
+                width = 124; height = 88
+            } else if name.contains("机场") || name.contains("铁路枢纽") {
+                kind = .militaryAirfield
+                width = 128; height = 92
+            } else if name.contains("马尔梅迪") || name.contains("卡昂") || name.contains("列日") || name.contains("装甲集结地") {
+                kind = .majorMetropolis
+                width = 130; height = 94
             } else {
                 kind = tile.isObjective ? .village : .farmstead
+                width = 119; height = 86
             }
-            width = 119; height = 86
         case .snow:
-            guard Self.noise(seed, 29) > 0.50 else { return nil }
-            kind = Self.noise(seed, 37) > 0.30 ? .sparseWinterWoodland : .winterForest
+            guard Self.noise(seed, 29) > 0.34 else { return nil }
+            kind = Self.noise(seed, 37) > 0.32 ? .sparseWinterWoodland : .winterForest
             width = 109; height = 81
         default:
             guard tile.isObjective else { return nil }
