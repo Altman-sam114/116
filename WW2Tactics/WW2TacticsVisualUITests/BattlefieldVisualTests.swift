@@ -75,7 +75,7 @@ final class BattlefieldVisualTests: XCTestCase {
             if index == 1 { Thread.sleep(forTimeInterval: 1) }
         }
 
-        for title in ["编队与据点定位", "战术支援"] {
+        for title in ["编队与据点定位", "战术支援", "城市建设与造兵"] {
             let toggle = app.buttons[title]
             XCTAssertTrue(toggle.isHittable)
             toggle.tap()
@@ -85,6 +85,27 @@ final class BattlefieldVisualTests: XCTestCase {
             dismiss.tap()
             XCTAssertFalse(dismiss.exists)
         }
+
+        // Verify EasyTech Generals HQ and Quartermaster Store modals open and close cleanly in landscape.
+        let generalsToggle = app.buttons["battlefield-generals-toggle"]
+        XCTAssertTrue(generalsToggle.waitForExistence(timeout: 10))
+        XCTAssertTrue(generalsToggle.isHittable)
+        generalsToggle.tap()
+        let generalsClose = app.buttons["battlefield-generals-close"]
+        XCTAssertTrue(generalsClose.waitForExistence(timeout: 10))
+        XCTAssertTrue(generalsClose.isHittable)
+        generalsClose.tap()
+        XCTAssertFalse(generalsClose.exists)
+
+        let shopToggle = app.buttons["battlefield-shop-toggle"]
+        XCTAssertTrue(shopToggle.waitForExistence(timeout: 10))
+        XCTAssertTrue(shopToggle.isHittable)
+        shopToggle.tap()
+        let shopClose = app.buttons["battlefield-shop-close"]
+        XCTAssertTrue(shopClose.waitForExistence(timeout: 10))
+        XCTAssertTrue(shopClose.isHittable)
+        shopClose.tap()
+        XCTAssertFalse(shopClose.exists)
 
         app.buttons["下一支待命部队"].tap()
         XCTAssertTrue(app.staticTexts["第4装甲师"].firstMatch.waitForExistence(timeout: 10))

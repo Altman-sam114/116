@@ -1,52 +1,93 @@
 import SwiftUI
 
+/// GoG3-style sleek battlefield unit piece:
+/// Luminous radial ground aura + crisp vehicle/troop sprite + ornate floating commander medallion +
+/// attached micro enameled branch medallion & segmented HP bar (eliminating bulky black boxes).
 struct UnitCounter: View {
     @EnvironmentObject private var game: GameState
     let unit: BattleUnit
 
     var body: some View {
-        VStack(spacing: -3) {
+        VStack(spacing: -6) {
             MapUnitPiece(
                 kind: unit.kind, faction: unit.faction, rank: unit.rank,
                 supplyState: game.supplyState(for: unit), tacticalStatus: unit.tacticalStatus,
-                isSpent: readiness.isSpent, width: unit.kind.mapPieceWidth, height: 62,
-                variant: BattlefieldVehicleVariant.matching(unit)
+                isSpent: readiness.isSpent, width: unit.kind.mapPieceWidth, height: 64,
+                variant: BattlefieldVehicleVariant.matching(unit),
+                isElite: unit.isElite
             )
-            .overlay(alignment: .topLeading) {
+            .overlay(alignment: .top) {
                 if let commander = unit.commander {
-                    CommanderBadge(commander: commander, faction: unit.faction).offset(x: 3, y: -4)
+                    CommanderBadge(commander: commander, faction: unit.faction)
+                        .offset(x: unit.faction == .allies ? -10 : 10, y: -12)
                 }
             }
-            HStack(alignment: .center, spacing: 3) {
-                UnitBranchMedallion(kind: unit.kind, faction: unit.faction)
-                VStack(alignment: .leading, spacing: 2) {
+            .overlay(alignment: .topTrailing) {
+                if unit.equippedMedal != nil, let medal = BattlefieldArtwork.shopIcon(.heroCross) {
+                    BattlefieldArtwork.image(medal)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 14, height: 14)
+                        .shadow(color: .black.opacity(0.8), radius: 1.5)
+                        .offset(x: -2, y: 0)
+                }
+            }
+
+            // Sleek GoG3-style circular branch medallion overlapping a slim segmented HP bar
+            HStack(spacing: -4) {
+                UnitBranchMedallion(kind: unit.kind, faction: unit.faction, isElite: unit.isElite)
+                    .zIndex(2)
+
+                VStack(alignment: .leading, spacing: 1.5) {
                     HStack(spacing: 3) {
-                        MiniHealthBar(ratio: unit.hpRatio, factionTint: unit.faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing)
-                            .frame(width: 30, height: 4)
-                        Text("\(unit.hp)").font(BattlefieldTheme.militaryFont(10)).foregroundStyle(BattlefieldTheme.fieldPaper)
+                        MiniHealthBar(
+                            ratio: unit.hpRatio,
+                            factionTint: unit.faction == .allies
+                                ? Color(red: 0.28, green: 0.76, blue: 0.98)
+                                : Color(red: 0.94, green: 0.26, blue: 0.22)
+                        )
+                        .frame(width: 38, height: 5)
+                        Text("\(unit.hp)")
+                            .font(BattlefieldTheme.militaryFont(10))
+                            .foregroundStyle(Color.white)
+                            .shadow(color: .black, radius: 1.2, y: 0.6)
                     }
-                    .frame(height: 7)
-                    HStack(spacing: 2) {
-                        Text(unit.faction.shortTitle).font(BattlefieldTheme.militaryFont(8))
-                            .foregroundStyle(BattlefieldTheme.fieldPaper.opacity(0.8))
+                    HStack(spacing: 2.5) {
                         UnitReadinessPip(symbol: readiness.moveSymbol, available: readiness.canMove,
                                          tint: BattlefieldTheme.movement)
                         UnitReadinessPip(symbol: readiness.attackSymbol, available: readiness.canAttack,
-                                         tint: BattlefieldTheme.brass)
+                                         tint: BattlefieldTheme.selectedPiece)
                         Spacer(minLength: 0)
-                        Text(unit.rank.insignia).font(BattlefieldTheme.militaryFont(8))
-                            .foregroundStyle(BattlefieldTheme.selectedPiece).shadow(color: .black, radius: 1)
+                        Text(unit.rank.insignia)
+                            .font(BattlefieldTheme.militaryFont(8.5))
+                            .foregroundStyle(BattlefieldTheme.selectedPiece)
+                            .shadow(color: .black, radius: 1)
                     }
-                    .frame(height: 8)
+                    .frame(width: 48, height: 7)
                 }
-                .frame(width: 48)
+                .padding(.leading, 7)
+                .padding(.trailing, 4)
+                .padding(.vertical, 2)
+                .background(
+                    LinearGradient(
+                        colors: [Color.black.opacity(0.76), Color.black.opacity(0.54)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    in: RoundedRectangle(cornerRadius: 3)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(
+                            (unit.faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing).opacity(0.52),
+                            lineWidth: 0.6
+                        )
+                )
             }
-            .padding(.horizontal, 3).padding(.vertical, 2)
-            .background(BattlefieldTheme.commandDeckDeep.opacity(0.88), in: BeveledFieldShape())
-            .overlay { BeveledFieldShape().stroke(.white.opacity(0.16), lineWidth: 0.5) }
+            .shadow(color: .black.opacity(0.55), radius: 2, y: 1)
             .accessibilityHidden(true)
         }
-        .opacity(readiness.isSpent ? 0.83 : 1)
+        .opacity(readiness.isSpent ? 0.84 : 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
     }
@@ -61,16 +102,18 @@ struct UnitCounter: View {
     }
 }
 
-/// Tinted pip = action available, dark pip with a check = spent; move sits left of attack.
+/// Luminous pip = action available, dimmed check = spent; move sits left of attack.
 struct UnitReadinessPip: View {
     let symbol: String
     let available: Bool
     let tint: Color
 
     var body: some View {
-        Image(systemName: symbol).font(.system(size: 7, weight: .heavy))
-            .foregroundStyle(available ? tint : Color.white.opacity(0.38))
-            .frame(width: 10, height: 8)
+        Image(systemName: symbol)
+            .font(.system(size: 7, weight: .black))
+            .foregroundStyle(available ? tint : Color.white.opacity(0.32))
+            .frame(width: 9, height: 7)
+            .shadow(color: available ? tint.opacity(0.65) : .clear, radius: 1.5)
             .accessibilityHidden(true)
     }
 }
@@ -91,8 +134,8 @@ struct UnitReadinessTag: View {
         .lineLimit(1).fixedSize()
         .foregroundStyle(available ? tint : BattlefieldTheme.mutedInk)
         .padding(.horizontal, 5).frame(height: 16)
-        .background((available ? tint : Color.white).opacity(available ? 0.16 : 0.06), in: Capsule())
-        .overlay { Capsule().stroke((available ? tint : Color.white).opacity(0.30), lineWidth: 0.6) }
+        .background((available ? tint : Color.white).opacity(available ? 0.18 : 0.06), in: Capsule())
+        .overlay { Capsule().stroke((available ? tint : Color.white).opacity(0.36), lineWidth: 0.6) }
         .accessibilityHidden(true)
     }
 }
@@ -107,24 +150,49 @@ struct MapUnitPiece: View {
     let width: CGFloat
     let height: CGFloat
     var variant: BattlefieldVehicleVariant? = nil
+    var isElite = false
 
     var body: some View {
+        let ringColor = faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing
         ZStack {
-            Ellipse().fill(.black.opacity(0.21))
-                .frame(width: width * 0.82, height: height * 0.30)
-                .blur(radius: 1.5).offset(y: height * 0.26)
+            // GoG3 luminous tactical ground base disc
             Ellipse()
-                .fill(faction.accentColor.opacity(isSpent ? 0.02 : 0.06))
-                .overlay {
-                    Ellipse().stroke(faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing,
-                                     style: StrokeStyle(lineWidth: 1, dash: faction == .allies ? [] : [4, 2]))
-                }
-                .frame(width: width * 0.86, height: height * 0.31)
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            ringColor.opacity(isSpent ? 0.12 : 0.30),
+                            ringColor.opacity(isSpent ? 0.05 : 0.14),
+                            Color.clear
+                        ],
+                        center: .center,
+                        startRadius: 2,
+                        endRadius: width * 0.44
+                    )
+                )
+                .frame(width: width * 0.88, height: height * 0.36)
+                .offset(y: height * 0.24)
+
+            // Soft ground contact shadow under tracks/wheels
+            Ellipse()
+                .fill(Color.black.opacity(0.34))
+                .frame(width: width * 0.72, height: height * 0.24)
+                .blur(radius: 2)
+                .offset(y: height * 0.26)
+
+            // Crisp glowing tactical perimeter ring
+            Ellipse()
+                .stroke(
+                    isElite ? BattlefieldTheme.selectedPiece : ringColor.opacity(isSpent ? 0.55 : 0.92),
+                    style: StrokeStyle(lineWidth: isElite ? 1.6 : 1.2, dash: faction == .allies ? [] : [5, 2.5])
+                )
+                .frame(width: width * 0.84, height: height * 0.32)
                 .offset(y: height * 0.25)
+
             UnitModelView(kind: kind, faction: faction, isSpent: isSpent,
                           presentation: .mapPiece, variant: variant)
                 .frame(width: width, height: height)
-                .shadow(color: .black.opacity(0.36), radius: 0.8, x: 1, y: 2)
+                .shadow(color: .black.opacity(0.42), radius: 1.2, x: 1, y: 2.2)
+
             if supplyState == .isolated {
                 status("CUT", color: BattlefieldTheme.alert)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -139,25 +207,45 @@ struct MapUnitPiece: View {
     }
 
     private func status(_ title: String, color: Color) -> some View {
-        Text(title).font(BattlefieldTheme.militaryFont(8)).foregroundStyle(.white)
-            .padding(.horizontal, 3).padding(.vertical, 1)
-            .background(color.opacity(0.90), in: RoundedRectangle(cornerRadius: 1))
+        Text(title)
+            .font(BattlefieldTheme.militaryFont(8))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 3.5)
+            .padding(.vertical, 1)
+            .background(color.opacity(0.92), in: RoundedRectangle(cornerRadius: 2))
+            .overlay(RoundedRectangle(cornerRadius: 2).stroke(Color.black.opacity(0.65), lineWidth: 0.5))
     }
 }
 
+/// GoG3-style enameled circular branch badge with metallic faction rim.
 struct UnitBranchMedallion: View {
     let kind: UnitKind
     let faction: Faction
+    var isElite = false
 
     var body: some View {
+        let rim = isElite ? BattlefieldTheme.selectedPiece : (faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing)
         ZStack {
-            Circle().fill(BattlefieldTheme.commandDeckDeep)
-            Circle().stroke(faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing,
-                            style: StrokeStyle(lineWidth: 1, dash: faction == .axis ? [3, 1] : []))
-            UnitBranchGlyph(kind: kind).fill(BattlefieldTheme.fieldPaper).padding(4)
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            faction == .allies ? Color(red: 0.14, green: 0.34, blue: 0.62) : Color(red: 0.58, green: 0.14, blue: 0.13),
+                            BattlefieldTheme.commandDeckDeep
+                        ],
+                        center: .topLeading,
+                        startRadius: 1,
+                        endRadius: 12
+                    )
+                )
+            Circle()
+                .stroke(rim, lineWidth: isElite ? 1.8 : 1.3)
+            UnitBranchGlyph(kind: kind)
+                .fill(Color.white)
+                .padding(4.2)
         }
-        .frame(width: 18, height: 18)
-        .shadow(color: .black.opacity(0.65), radius: 0.5, y: 1)
+        .frame(width: 20, height: 20)
+        .shadow(color: .black.opacity(0.72), radius: 1.5, y: 1)
         .accessibilityHidden(true)
     }
 }

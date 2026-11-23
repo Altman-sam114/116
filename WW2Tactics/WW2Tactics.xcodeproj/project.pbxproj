@@ -53,6 +53,9 @@
 		A31100000000000000000008 /* BattlefieldCampaignBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000108 /* BattlefieldCampaignBar.swift */; };
 		A31100000000000000000009 /* BattlefieldActionHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31100000000000000000109 /* BattlefieldActionHUD.swift */; };
 		A32000000000000000000001 /* BattlefieldInfrastructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32000000000000000000101 /* BattlefieldInfrastructure.swift */; };
+		A35000000000000000000001 /* BattlefieldGeneralsModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35000000000000000001001 /* BattlefieldGeneralsModal.swift */; };
+		A35000000000000000000002 /* BattlefieldCityProductionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35000000000000000001002 /* BattlefieldCityProductionView.swift */; };
+		A35000000000000000000003 /* BattlefieldQuartermasterModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35000000000000000001003 /* BattlefieldQuartermasterModal.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -115,6 +118,9 @@
 		A31100000000000000000107 /* BattlefieldReplayInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldReplayInspector.swift; sourceTree = "<group>"; };
 		A31100000000000000000108 /* BattlefieldCampaignBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldCampaignBar.swift; sourceTree = "<group>"; };
 		A31100000000000000000109 /* BattlefieldActionHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldActionHUD.swift; sourceTree = "<group>"; };
+		A35000000000000000001001 /* BattlefieldGeneralsModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldGeneralsModal.swift; sourceTree = "<group>"; };
+		A35000000000000000001002 /* BattlefieldCityProductionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldCityProductionView.swift; sourceTree = "<group>"; };
+		A35000000000000000001003 /* BattlefieldQuartermasterModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldQuartermasterModal.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -187,6 +193,9 @@
 				A31100000000000000000107 /* BattlefieldReplayInspector.swift */,
 				A31100000000000000000108 /* BattlefieldCampaignBar.swift */,
 				A31100000000000000000109 /* BattlefieldActionHUD.swift */,
+				A35000000000000000001001 /* BattlefieldGeneralsModal.swift */,
+				A35000000000000000001002 /* BattlefieldCityProductionView.swift */,
+				A35000000000000000001003 /* BattlefieldQuartermasterModal.swift */,
 				A30000000000000000000106 /* BattlefieldRoadNetwork.swift */,
 				A30000000000000000000107 /* BattlefieldCombatFeedback.swift */,
 				A30000000000000000000108 /* BattlefieldArtwork.swift */,
@@ -373,6 +382,9 @@
 				A31100000000000000000007 /* BattlefieldReplayInspector.swift in Sources */,
 				A31100000000000000000008 /* BattlefieldCampaignBar.swift in Sources */,
 				A31100000000000000000009 /* BattlefieldActionHUD.swift in Sources */,
+				A35000000000000000000001 /* BattlefieldGeneralsModal.swift in Sources */,
+				A35000000000000000000002 /* BattlefieldCityProductionView.swift in Sources */,
+				A35000000000000000000003 /* BattlefieldQuartermasterModal.swift in Sources */,
 				A30000000000000000000006 /* BattlefieldRoadNetwork.swift in Sources */,
 				A30000000000000000000007 /* BattlefieldCombatFeedback.swift in Sources */,
 				A30000000000000000000008 /* BattlefieldArtwork.swift in Sources */,

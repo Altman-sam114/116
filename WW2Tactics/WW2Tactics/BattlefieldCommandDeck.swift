@@ -20,7 +20,17 @@ struct BattlefieldView: View {
     }
 }
 
-enum BattlefieldDrawer { case roster, support }
+enum BattlefieldDrawer: Equatable {
+    case roster
+    case support
+    case cityProduction
+}
+
+enum BattlefieldModal: Equatable {
+    case generals
+    case shop
+    case cityHQ
+}
 
 struct MapCommandCenter: View {
     @EnvironmentObject private var game: GameState
@@ -28,6 +38,7 @@ struct MapCommandCenter: View {
     @Binding var mapScaleMode: MapScaleMode
     @Binding var isInspectorExpanded: Bool
     @State private var drawer: BattlefieldDrawer?
+    @State private var activeModal: BattlefieldModal?
     @State private var overviewVisibility: Bool?
     @State private var isFrontlineCamera = true
 
@@ -39,61 +50,110 @@ struct MapCommandCenter: View {
                 ZStack {
                     battlefield(proxy: proxy, size: geometry.size)
                     BattlefieldEdgeShade()
-                    VStack(spacing: viewport.isShallow ? 5 : 9) {
-                        HStack(spacing: 8) {
-                            TopCommandBar(condensed: viewport.isShallow)
-                            if viewport.isShallow {
-                                mapTools(showsOverview: showsOverview, condensed: true)
+
+                    // Floating EasyTech edge-anchored landscape HUD (zero full-width dead black slabs!)
+                    VStack(spacing: viewport.isShallow ? 5 : 8) {
+                        // Top Floating Row: Left Resources | Center Turn Shield | Right Tools
+                        HStack(alignment: .top, spacing: 8) {
+                            TopCommandBar(condensed: viewport.isShallow, onOpenShop: { activeModal = .shop })
+                            Spacer(minLength: 4)
+                            if geometry.size.width >= 1050 {
+                                TurnObjectiveShield(condensed: viewport.isShallow)
+                                Spacer(minLength: 4)
                             }
+                            BattlefieldMapTools(
+                                scaleMode: $mapScaleMode,
+                                showsOverview: showsOverview,
+                                condensed: viewport.isShallow,
+                                isInspectorExpanded: $isInspectorExpanded,
+                                toggleOverview: { overviewVisibility = !showsOverview },
+                                onOpenGenerals: { activeModal = .generals },
+                                onOpenShop: { activeModal = .shop }
+                            )
                         }
+
+                        // Open Battlefield Workspace + Optional Floating Minimap
                         Spacer(minLength: 0)
                             .frame(maxWidth: .infinity)
-                            .overlay(alignment: .top) {
-                                if drawer == nil {
-                                    HStack(alignment: .top) {
-                                        if showsOverview {
-                                            BattlefieldOverviewMap(
-                                                tiles: game.tiles, units: game.units, focusedCoordinate: game.focusedCoordinate,
-                                                onFocus: { game.focus(coordinate: $0); scrollToFocus(proxy, animated: true) },
-                                                onFrontline: { scrollToFrontline(proxy, animated: true) }
-                                            )
-                                        }
-                                        Spacer(minLength: 4)
-                                        if !viewport.isShallow {
-                                            mapTools(showsOverview: showsOverview, condensed: false)
-                                        }
-                                    }
+                            .overlay(alignment: .topLeading) {
+                                if drawer == nil && showsOverview {
+                                    BattlefieldOverviewMap(
+                                        tiles: game.tiles, units: game.units, focusedCoordinate: game.focusedCoordinate,
+                                        onFocus: { game.focus(coordinate: $0); scrollToFocus(proxy, animated: true) },
+                                        onFrontline: { scrollToFrontline(proxy, animated: true) }
+                                    )
                                 }
                             }
-                        if let drawer {
-                            BattlefieldDrawerPanel(drawer: drawer, maxHeight: geometry.size.height * 0.45,
-                                                   close: { self.drawer = nil })
-                        } else if game.selectedUnit != nil {
-                            MapActionHUD(compact: viewport.compactControls, condensed: viewport.isShallow,
-                                         inlineOrders: BattlefieldHUDLayout(size: geometry.size).inlineOrders)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                        // Bottom Floating Row: Left Command Stack | Open Map | Right Sculpted End Turn
+                        HStack(alignment: .bottom, spacing: 10) {
+                            VStack(alignment: .leading, spacing: viewport.isShallow ? 5 : 7) {
+                                if let drawer {
+                                    BattlefieldDrawerPanel(
+                                        drawer: drawer,
+                                        maxHeight: geometry.size.height * (viewport.isShallow ? 0.50 : 0.44),
+                                        close: { self.drawer = nil },
+                                        onOpenFullCityModal: {
+                                            self.drawer = nil
+                                            self.activeModal = .cityHQ
+                                        }
+                                    )
+                                } else if game.selectedUnit != nil {
+                                    MapActionHUD(
+                                        compact: viewport.compactControls,
+                                        condensed: viewport.isShallow,
+                                        inlineOrders: BattlefieldHUDLayout(size: geometry.size).inlineOrders,
+                                        onOpenGenerals: { activeModal = .generals }
+                                    )
+                                }
+
+                                BattlefieldBottomEdge(
+                                    condensed: viewport.isShallow,
+                                    drawer: drawer,
+                                    toggleRoster: { toggleDrawer(.roster) },
+                                    toggleSupport: { toggleDrawer(.support) },
+                                    toggleCityProduction: { toggleDrawer(.cityProduction) },
+                                    returnToFrontline: { scrollToFrontline(proxy, animated: true) }
+                                )
+                            }
+
+                            Spacer(minLength: 8)
+
+                            EndTurnButton(condensed: viewport.isShallow, compact: geometry.size.width < 560)
                         }
-                        BattlefieldBottomEdge(
-                            condensed: viewport.isShallow, drawer: drawer,
-                            toggleRoster: { toggleDrawer(.roster) }, toggleSupport: { toggleDrawer(.support) },
-                            returnToFrontline: { scrollToFrontline(proxy, animated: true) }
-                        )
                     }
-                    .padding(.horizontal, viewport.isShallow ? 6 : 10)
-                    .padding(.vertical, viewport.isShallow ? 4 : 8)
+                    .padding(.horizontal, viewport.isShallow ? 8 : 14)
+                    .padding(.vertical, viewport.isShallow ? 6 : 10)
                     .zIndex(1)
+
+                    if let modal = activeModal {
+                        Color.black.opacity(0.56)
+                            .ignoresSafeArea()
+                            .onTapGesture { activeModal = nil }
+                            .zIndex(4)
+
+                        Group {
+                            switch modal {
+                            case .generals:
+                                BattlefieldGeneralsModal(close: { activeModal = nil })
+                            case .shop:
+                                BattlefieldQuartermasterModal(close: { activeModal = nil })
+                            case .cityHQ:
+                                BattlefieldCityHQModal(close: { activeModal = nil })
+                            }
+                        }
+                        .frame(
+                            maxWidth: min(geometry.size.width - 36, 860),
+                            maxHeight: min(geometry.size.height - 28, 560)
+                        )
+                        .transition(.scale(scale: 0.96).combined(with: .opacity))
+                        .zIndex(5)
+                    }
                 }
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: activeModal)
                 .background(BattlefieldTheme.mapGround.ignoresSafeArea())
             }
         }
-    }
-
-    private func mapTools(showsOverview: Bool, condensed: Bool) -> some View {
-        BattlefieldMapTools(
-            scaleMode: $mapScaleMode, showsOverview: showsOverview,
-            condensed: condensed, isInspectorExpanded: $isInspectorExpanded,
-            toggleOverview: { overviewVisibility = !showsOverview }
-        )
     }
 
     private func battlefield(proxy: ScrollViewProxy, size: CGSize) -> some View {
@@ -152,9 +212,9 @@ struct MapCommandCenter: View {
 
     private func scroll(to targetID: String, proxy: ScrollViewProxy, animated: Bool) {
         if animated && !reduceMotion {
-            withAnimation(.easeInOut(duration: 0.22)) { proxy.scrollTo(targetID, anchor: UnitPoint(x: 0.5, y: 0.43)) }
+            withAnimation(.easeInOut(duration: 0.22)) { proxy.scrollTo(targetID, anchor: UnitPoint(x: 0.5, y: 0.45)) }
         } else {
-            proxy.scrollTo(targetID, anchor: UnitPoint(x: 0.5, y: 0.43))
+            proxy.scrollTo(targetID, anchor: UnitPoint(x: 0.5, y: 0.45))
         }
     }
 }
@@ -164,15 +224,14 @@ private struct BattlefieldEdgeShade: View {
         GeometryReader { geometry in
             let radius = (geometry.size.width * geometry.size.width + geometry.size.height * geometry.size.height).squareRoot() / 2
             ZStack {
-                // Lens falloff keeps the centre untouched and settles the corners under the HUD plates.
-                RadialGradient(colors: [.clear, .clear, BattlefieldTheme.mapVignette],
+                RadialGradient(colors: [.clear, .clear, Color.black.opacity(0.18)],
                                center: .center, startRadius: 0, endRadius: max(1, radius))
                 VStack(spacing: 0) {
-                    LinearGradient(colors: [.black.opacity(0.10), .clear], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 80)
+                    LinearGradient(colors: [.black.opacity(0.16), .clear], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 64)
                     Spacer(minLength: 0)
-                    LinearGradient(colors: [.clear, .black.opacity(0.13)], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 80)
+                    LinearGradient(colors: [.clear, .black.opacity(0.18)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 68)
                 }
             }
         }

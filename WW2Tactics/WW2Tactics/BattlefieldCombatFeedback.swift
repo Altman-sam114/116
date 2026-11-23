@@ -97,31 +97,82 @@ struct CombatResolutionOverlay: View {
             let conclusion = combatConclusion
 
             ZStack {
+                // Glowing fiery artillery/cannon shell tracer line
                 Path { path in
                     path.move(to: layout.trimmedStart)
                     path.addLine(to: layout.trimmedEnd)
                 }
-                .stroke(Color.black.opacity(0.74), style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                .stroke(Color.black.opacity(0.65), style: StrokeStyle(lineWidth: 6, lineCap: .round))
 
                 Path { path in
                     path.move(to: layout.trimmedStart)
                     path.addLine(to: layout.trimmedEnd)
                 }
                 .stroke(
-                    conclusion.color.opacity(activePhase == .impact ? 0.84 : 0.66),
+                    LinearGradient(
+                        colors: [BattlefieldTheme.selectedPiece, Color.orange, Color.red],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
                     style: StrokeStyle(
-                        lineWidth: activePhase == .impact ? 2.8 : 2.1,
+                        lineWidth: activePhase == .impact ? 3.4 : 2.5,
                         lineCap: .round,
-                        dash: [5, 4]
+                        dash: [8, 4]
                     )
                 )
+                .shadow(color: Color.orange.opacity(0.75), radius: 4)
+
+                // Painted muzzle flash at attacker firing point
+                if let flash = BattlefieldArtwork.vfx(.muzzleFlash) {
+                    BattlefieldArtwork.image(flash)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(width: 44, height: 44)
+                        .opacity(activePhase == .impact ? 0.95 : 0.58)
+                        .position(layout.trimmedStart)
+                }
+
+                // Painted volumetric smoke plume rising on defender
+                if let smoke = BattlefieldArtwork.vfx(.smokePlume) {
+                    BattlefieldArtwork.image(smoke)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(width: summary.didDestroyDefender ? 88 : 66, height: summary.didDestroyDefender ? 88 : 66)
+                        .opacity(summary.didDestroyDefender ? 0.92 : 0.72)
+                        .position(CGPoint(x: defenderPoint.x + 4, y: defenderPoint.y - 14))
+                }
+
+                // Painted volumetric fiery artillery explosion burst on defender hex
+                if let explosion = BattlefieldArtwork.vfx(.explosion) {
+                    BattlefieldArtwork.image(explosion)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(width: summary.didDestroyDefender ? 94 : 74, height: summary.didDestroyDefender ? 94 : 74)
+                        .scaleEffect((reduceMotion || isSteadyState) ? 1.0 : (activePhase == .impact ? 1.15 : 0.94))
+                        .opacity(activePhase == .impact ? 1.0 : 0.88)
+                        .position(defenderPoint)
+                }
+
+                // Counter-fire spark burst on attacker when retaliated
+                if summary.hasCounterAttack, let counterFlash = BattlefieldArtwork.vfx(.muzzleFlash) {
+                    BattlefieldArtwork.image(counterFlash)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(width: 48, height: 48)
+                        .opacity(showsCounterDamage ? 0.78 : 0)
+                        .position(attackerPoint)
+                }
 
                 CombatImpactMarker(
                     color: conclusion.color,
                     isImpactPhase: activePhase == .impact,
                     reduceMotion: reduceMotion || isSteadyState
                 )
-                .frame(width: 58, height: 58)
+                .frame(width: 62, height: 62)
                 .position(defenderPoint)
 
                 CombatDamagePlate(

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HexTileView: View {
     let tile: TerrainTile
+    var cityFacility: CityFacilityState? = nil
     let supplyLineConnectionDirections: [Int]
     let unit: BattleUnit?
     let isSelected: Bool
@@ -35,23 +36,32 @@ struct HexTileView: View {
 
             if let owner = tile.owner {
                 Hexagon()
-                    .fill(owner.accentColor.opacity(tile.isObjective ? 0.055 : 0.02))
+                    .fill(owner.accentColor.opacity(tile.isObjective ? 0.11 : 0.03))
                     .overlay(
                         Hexagon()
-                            .stroke(owner.accentColor.opacity(0.055), lineWidth: 0.6)
+                            .stroke(owner.accentColor.opacity(tile.isObjective ? 0.34 : 0.08), lineWidth: tile.isObjective ? 1.1 : 0.6)
                     )
             }
 
-            // GoG3-style soft range tinting: threatened / control-zone tiles
-            // read as a translucent wash instead of hard red outlines.
+            if isSelected {
+                Hexagon()
+                    .fill(BattlefieldTheme.selectedPiece.opacity(0.14))
+            }
+
+            // GoG3-style glowing tactical range overlays
             if !isAttackFocusMode {
                 if isThreatenedMoveTile {
-                    Hexagon().fill(Color.red.opacity(0.10))
+                    Hexagon().fill(Color.red.opacity(0.14))
                 } else if isEnemyControlZone {
-                    Hexagon().fill(Color.red.opacity(0.06))
+                    Hexagon().fill(Color.red.opacity(0.08))
                 }
                 if actionHint.isMove {
-                    Hexagon().fill(BattlefieldTheme.movement.opacity(0.12))
+                    Hexagon()
+                        .fill(BattlefieldTheme.movement.opacity(isFocused || isRouteDestination ? 0.26 : 0.16))
+                        .overlay(Hexagon().stroke(BattlefieldTheme.movement.opacity(0.42), lineWidth: 0.9))
+                }
+                if actionHint.isAttack {
+                    Hexagon().fill(Color.red.opacity(0.18))
                 }
             }
 
@@ -155,7 +165,7 @@ struct HexTileView: View {
                             y: isSelected ? 4 : 0
                         )
                 } else if let objectiveName = tile.objectiveName {
-                    ObjectiveNamePlate(name: objectiveName, owner: tile.owner)
+                    ObjectiveNamePlate(name: objectiveName, owner: tile.owner, facility: cityFacility)
                 } else {
                     Spacer(minLength: 32)
                 }

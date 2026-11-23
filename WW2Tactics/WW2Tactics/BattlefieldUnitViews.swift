@@ -144,14 +144,28 @@ struct CommanderBadge: View {
     let faction: Faction
 
     var body: some View {
-        CommanderPortrait(commander: commander, faction: faction)
-            .frame(width: 25, height: 29)
-            .shadow(color: .black.opacity(0.32), radius: 1, y: 1)
+        VStack(spacing: -2) {
+            CommanderPortrait(commander: commander, faction: faction)
+                .frame(width: 28, height: 32)
+            HStack(spacing: 0.5) {
+                ForEach(0..<min(5, max(3, commander.tactics)), id: \.self) { _ in
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 4.5))
+                        .foregroundStyle(BattlefieldTheme.selectedPiece)
+                }
+            }
+            .padding(.horizontal, 3)
+            .padding(.vertical, 1)
+            .background(Color.black.opacity(0.84), in: Capsule())
+            .overlay(Capsule().stroke(BattlefieldTheme.brass.opacity(0.75), lineWidth: 0.5))
+        }
+        .shadow(color: .black.opacity(0.55), radius: 2, y: 1.5)
         .accessibilityHidden(true)
     }
 }
 
-/// Original painted portrait; unknown commanders keep an honest initial fallback.
+/// Original painted portrait inside an ornate GoG3 brass crest; newly recruited commanders without
+/// a dedicated portrait sheet render a high-craft military marshal emblem + monogram.
 struct CommanderPortrait: View {
     let commander: Commander
     let faction: Faction
@@ -159,20 +173,52 @@ struct CommanderPortrait: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                BattlefieldTheme.commandMetal
+                BattlefieldTheme.brassDeck
+                if let texture = BattlefieldArtwork.brassPanel {
+                    BattlefieldArtwork.image(texture)
+                        .resizable()
+                        .scaledToFill()
+                        .opacity(0.45)
+                }
                 if let portrait = BattlefieldArtwork.commander(commander) {
-                    BattlefieldArtwork.image(portrait).resizable().scaledToFill()
+                    BattlefieldArtwork.image(portrait)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFill()
                         .frame(width: geometry.size.width, height: geometry.size.height)
                 } else {
-                    Text(String(commander.name.prefix(1))).font(.system(size: 16, weight: .bold, design: .serif))
-                        .foregroundStyle(BattlefieldTheme.fieldPaper)
+                    ZStack {
+                        if let laurel = BattlefieldArtwork.emblem(.hqLaurel) {
+                            BattlefieldArtwork.image(laurel)
+                                .resizable()
+                                .scaledToFit()
+                                .padding(4)
+                                .opacity(0.32)
+                        }
+                        Text(String(commander.name.prefix(1)))
+                            .font(.system(size: min(geometry.size.width * 0.48, 22), weight: .black, design: .serif))
+                            .foregroundStyle(BattlefieldTheme.selectedPiece)
+                            .shadow(color: .black, radius: 1.5, y: 1)
+                    }
                 }
             }
-            .clipShape(BeveledFieldShape())
-            .overlay { BeveledFieldShape().stroke(BattlefieldTheme.brass, lineWidth: 1) }
+            .clipShape(BeveledFieldShape(cornerCut: 4))
+            .overlay {
+                BeveledFieldShape(cornerCut: 4)
+                    .stroke(
+                        LinearGradient(
+                            colors: [BattlefieldTheme.selectedPiece, BattlefieldTheme.brass, Color(red: 0.45, green: 0.34, blue: 0.16)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.4
+                    )
+            }
             .overlay(alignment: .bottom) {
-                Rectangle().fill(faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing)
-                    .frame(height: 2).padding(.horizontal, 3)
+                Rectangle()
+                    .fill(faction == .allies ? BattlefieldTheme.alliesRing : BattlefieldTheme.axisRing)
+                    .frame(height: 2.5)
+                    .padding(.horizontal, 3)
             }
         }
         .accessibilityHidden(true)

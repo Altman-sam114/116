@@ -1,38 +1,137 @@
 import SwiftUI
 
-/// One restrained material for battle chrome, drawers and orders.
+enum FieldPlateMaterial {
+    case gunmetal
+    case brassDossier
+}
+
+/// Textured brushed-gunmetal or hammered-brass military plate with specular bevel and corner rivets.
 struct FieldPlate: View {
+    var emphasized = false
+    var material: FieldPlateMaterial = .gunmetal
+    var showsRivets = true
+
+    var body: some View {
+        ZStack {
+            BeveledFieldShape()
+                .fill(material == .brassDossier ? BattlefieldTheme.brassDeck : BattlefieldTheme.commandMetal)
+
+            if let texture = material == .brassDossier ? BattlefieldArtwork.brassPanel : BattlefieldArtwork.metalPlate {
+                BattlefieldArtwork.image(texture)
+                    .resizable(resizingMode: .tile)
+                    .opacity(material == .brassDossier ? 0.62 : 0.56)
+                    .blendMode(.overlay)
+                    .clipShape(BeveledFieldShape())
+            }
+
+            BeveledFieldShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(emphasized ? 0.14 : 0.08),
+                            Color.clear,
+                            Color.black.opacity(0.32)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+
+            // Machined top specular bevel
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.clear, (emphasized ? BattlefieldTheme.selectedPiece : BattlefieldTheme.fieldPaper).opacity(emphasized ? 0.45 : 0.22), .clear],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 1)
+                    .padding(.horizontal, 8)
+                Spacer(minLength: 0)
+                Rectangle()
+                    .fill(Color.black.opacity(0.42))
+                    .frame(height: 2)
+                    .padding(.horizontal, 8)
+            }
+
+            // Outer metallic trim border
+            BeveledFieldShape()
+                .stroke(
+                    LinearGradient(
+                        colors: emphasized
+                            ? [BattlefieldTheme.selectedPiece.opacity(0.95), BattlefieldTheme.brass.opacity(0.75), Color(red: 0.48, green: 0.36, blue: 0.18)]
+                            : [BattlefieldTheme.brass.opacity(0.58), BattlefieldTheme.steelEdge.opacity(0.65), Color.black.opacity(0.55)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: emphasized ? 1.4 : 1.0
+                )
+
+            if showsRivets {
+                BrassCornerRivets(emphasized: emphasized)
+            }
+        }
+        .shadow(color: .black.opacity(0.42), radius: emphasized ? 9 : 6, y: 3)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+struct BrassCornerRivets: View {
     var emphasized = false
 
     var body: some View {
-        BeveledFieldShape()
-            .fill(BattlefieldTheme.commandMetal)
-            .overlay(alignment: .top) {
-                Rectangle().fill(BattlefieldTheme.fieldPaper.opacity(0.15)).frame(height: 1)
-                    .padding(.horizontal, 7)
+        VStack {
+            HStack {
+                rivet
+                Spacer(minLength: 0)
+                rivet
             }
-            .overlay {
-                BeveledFieldShape()
-                    .stroke(emphasized ? BattlefieldTheme.brass.opacity(0.85) : BattlefieldTheme.steelEdge.opacity(0.75), lineWidth: 1)
+            Spacer(minLength: 0)
+            HStack {
+                rivet
+                Spacer(minLength: 0)
+                rivet
             }
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(.black.opacity(0.28)).frame(height: 2).padding(.horizontal, 7)
-            }
-            .shadow(color: .black.opacity(0.28), radius: 5, y: 3)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        }
+        .padding(5)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var rivet: some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [
+                        emphasized ? BattlefieldTheme.selectedPiece : BattlefieldTheme.brass.opacity(0.85),
+                        Color(red: 0.36, green: 0.28, blue: 0.16)
+                    ],
+                    center: .topLeading,
+                    startRadius: 0,
+                    endRadius: 3
+                )
+            )
+            .frame(width: 3.5, height: 3.5)
+            .overlay(Circle().stroke(Color.black.opacity(0.65), lineWidth: 0.5))
     }
 }
 
 struct BeveledFieldShape: Shape {
+    var cornerCut: CGFloat = 6
+
     func path(in rect: CGRect) -> Path {
-        let cut = min(5, min(rect.width, rect.height) / 4)
+        let cut = min(cornerCut, min(rect.width, rect.height) / 4)
         return Path { path in
             path.move(to: CGPoint(x: rect.minX + cut, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX - cut, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + cut))
             path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - cut))
             path.addLine(to: CGPoint(x: rect.maxX - cut, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX + cut, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - cut))
             path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + cut))
             path.closeSubpath()
         }
@@ -43,6 +142,8 @@ struct FieldControlButton: View {
     let title: String
     let icon: String
     var caption: String? = nil
+    var artworkImage: CGImage? = nil
+    var badgeCount: Int? = nil
     var selected = false
     var isToggle = true
     var plated = true
@@ -50,8 +151,8 @@ struct FieldControlButton: View {
 
     var body: some View {
         Button(action: action) {
-            FieldControlLabel(icon: icon, caption: caption, selected: selected)
-                .background { if plated { FieldPlate(emphasized: selected) } }
+            FieldControlLabel(icon: icon, caption: caption, artworkImage: artworkImage, badgeCount: badgeCount, selected: selected)
+                .background { if plated { FieldPlate(emphasized: selected, showsRivets: false) } }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
@@ -59,52 +160,86 @@ struct FieldControlButton: View {
     }
 }
 
-/// Icon plus optional short caption; the full name stays on the accessibility label.
+/// Icon (or painted game emblem) plus optional short caption; full name stays on the accessibility label.
 struct FieldControlLabel: View {
     let icon: String
     var caption: String? = nil
+    var artworkImage: CGImage? = nil
+    var badgeCount: Int? = nil
     var selected = false
 
     var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon).font(.system(size: caption == nil ? 18 : 17, weight: .regular))
-            if let caption {
-                Text(caption).font(BattlefieldTheme.hudCaption).lineLimit(1).fixedSize()
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 3) {
+                if let artworkImage {
+                    BattlefieldArtwork.image(artworkImage)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(width: caption == nil ? 22 : 20, height: caption == nil ? 22 : 20)
+                        .shadow(color: .black.opacity(0.65), radius: 1.5, y: 1)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: caption == nil ? 17 : 15, weight: .semibold))
+                }
+                if let caption {
+                    Text(caption)
+                        .font(BattlefieldTheme.hudCaption)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
             }
-        }
-        .foregroundStyle(selected ? BattlefieldTheme.brass : BattlefieldTheme.fieldPaper)
-        .frame(minWidth: 44, minHeight: 44)
-        .background {
-            if selected { Rectangle().fill(BattlefieldTheme.brass.opacity(0.10)) }
-        }
-        .overlay(alignment: .bottom) {
-            if selected { Rectangle().fill(BattlefieldTheme.brass).frame(height: 2).padding(.horizontal, 8) }
+            .foregroundStyle(selected ? BattlefieldTheme.selectedPiece : BattlefieldTheme.fieldPaper)
+            .frame(minWidth: 44, minHeight: 44)
+            .background {
+                if selected {
+                    BeveledFieldShape(cornerCut: 4)
+                        .fill(BattlefieldTheme.brass.opacity(0.18))
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if selected {
+                    Rectangle().fill(BattlefieldTheme.selectedPiece).frame(height: 2).padding(.horizontal, 6)
+                }
+            }
+
+            if let badgeCount, badgeCount > 0 {
+                Text("\(badgeCount)")
+                    .font(BattlefieldTheme.militaryFont(9))
+                    .foregroundStyle(BattlefieldTheme.commandDeckDeep)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(BattlefieldTheme.selectedPiece, in: Capsule())
+                    .overlay(Capsule().stroke(Color.black.opacity(0.65), lineWidth: 0.6))
+                    .offset(x: -2, y: 2)
+            }
         }
         .contentShape(Rectangle())
     }
 }
 
-/// Groups related edge tools on one metal plate instead of a row of separate tiles.
+/// Groups related edge tools on one riveted brushed-metal plate.
 struct FieldToolRail<Content: View>: View {
     var axis: Axis = .vertical
     var plated = true
+    var material: FieldPlateMaterial = .gunmetal
     @ViewBuilder let content: Content
 
     var body: some View {
         let layout = axis == .vertical ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
         layout { content }
-            .padding(2)
-            .background { if plated { FieldPlate() } }
+            .padding(3)
+            .background { if plated { FieldPlate(material: material, showsRivets: false) } }
     }
 }
 
-/// Etched separator running across the rail axis.
+/// Etched brass separator running across the rail axis.
 struct FieldToolDivider: View {
     var axis: Axis = .vertical
 
     var body: some View {
-        Rectangle().fill(BattlefieldTheme.brass.opacity(0.28))
-            .frame(width: axis == .vertical ? 28 : 1, height: axis == .vertical ? 1 : 28)
+        Rectangle().fill(BattlefieldTheme.brass.opacity(0.32))
+            .frame(width: axis == .vertical ? 26 : 1, height: axis == .vertical ? 1 : 26)
             .accessibilityHidden(true)
     }
 }

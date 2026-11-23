@@ -25,7 +25,7 @@ stages = [
 outcomes = {name: {"0": "success", "1": "failure"}.get(os.environ.get(key), "skipped") for name, key, _ in stages}
 artwork = [{"path": str(path), "bytes": path.stat().st_size,
             "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
-           for path in sorted(Path("WW2Tactics/WW2Tactics/BattlefieldArt").glob("*.png"))]
+           for path in sorted(Path("WW2Tactics/WW2Tactics/BattlefieldArt").rglob("*.png"))]
 (root / "artwork-resources.json").write_text(json.dumps(artwork, indent=2) + "\n")
 manifest = {
     "version": os.environ["CI_VERSION"], "branch": os.environ["GITHUB_REF_NAME"],

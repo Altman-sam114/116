@@ -7484,4 +7484,92 @@ final class GameStateTests: XCTestCase {
             ]
         )
     }
+
+    func testWarEconomyIncomeAndCityFacilityUpgradesAffectProductionAndCombat() throws {
+        let game = GameState()
+        let city = try XCTUnwrap(game.controlledAlliedCities.first)
+        let beforeIncome = game.cityIncome(at: city.coordinate)
+        let beforeCommandIncome = game.commandIncome(for: .allies)
+        let beforeGold = game.warResources.gold
+        let beforeIndustry = game.warResources.industry
+
+        XCTAssertTrue(game.upgradeCityFacility(.factory, at: city.coordinate))
+        XCTAssertEqual(game.cityFacility(at: city.coordinate).factoryLevel, 2)
+        XCTAssertEqual(game.cityIncome(at: city.coordinate).industry, beforeIncome.industry + 15)
+        XCTAssertLessThan(game.warResources.gold, beforeGold)
+        XCTAssertLessThan(game.warResources.industry, beforeIndustry)
+
+        XCTAssertTrue(game.upgradeCityFacility(.treasury, at: city.coordinate))
+        XCTAssertEqual(game.cityFacility(at: city.coordinate).treasuryLevel, 2)
+        XCTAssertEqual(game.cityIncome(at: city.coordinate).gold, beforeIncome.gold + 35)
+        XCTAssertEqual(game.commandIncome(for: .allies), beforeCommandIncome + 1)
+
+        XCTAssertTrue(game.upgradeCityFacility(.fortification, at: city.coordinate))
+        XCTAssertEqual(game.cityFacility(at: city.coordinate).fortificationDefenseBonus, 4)
+        XCTAssertEqual(game.cityFacility(at: city.coordinate).fortificationHealBonus, 4)
+    }
+
+    func testCityProductionSpawnsStandardAndEliteUnitsAtControlledCities() throws {
+        let game = GameState()
+        let city = try XCTUnwrap(game.controlledAlliedCities.first)
+        let option = try XCTUnwrap(CityProductionOption.alliedCatalog.first { $0.isElite && $0.kind == .tank })
+        let beforeCount = game.units(for: .allies).count
+
+        XCTAssertTrue(game.produceUnit(option: option, at: city.coordinate))
+        XCTAssertEqual(game.units(for: .allies).count, beforeCount + 1)
+        let spawned = try XCTUnwrap(game.selectedUnit)
+        XCTAssertEqual(spawned.name, option.title)
+        XCTAssertTrue(spawned.isElite)
+        XCTAssertEqual(spawned.maxHP, UnitKind.tank.baseHP + 16)
+        XCTAssertEqual(spawned.hp, spawned.maxHP)
+    }
+
+    func testGeneralsHQRecruitmentAssignmentAndMedalEquipment() throws {
+        let game = GameState()
+        XCTAssertTrue(game.isCommanderRecruited(.patton))
+        XCTAssertFalse(game.isCommanderRecruited(.eisenhower))
+        let medalsBefore = game.warResources.honorMedals
+
+        XCTAssertTrue(game.recruitCommander(.eisenhower))
+        XCTAssertTrue(game.isCommanderRecruited(.eisenhower))
+        XCTAssertEqual(game.warResources.honorMedals, medalsBefore - Commander.eisenhower.recruitMedalCost)
+
+        let unled = try XCTUnwrap(game.units.first { $0.faction == .allies && $0.commander == nil })
+        let baseAttack = unled.attack
+        XCTAssertTrue(game.assignCommander(.eisenhower, to: unled.id))
+        let assigned = try XCTUnwrap(game.units.first { $0.id == unled.id })
+        XCTAssertEqual(assigned.commander?.name, Commander.eisenhower.name)
+        XCTAssertGreaterThan(assigned.attack, baseAttack)
+
+        let attackWithGeneral = assigned.attack
+        XCTAssertTrue(game.equipMedal(.heroCross, to: assigned.id))
+        let equipped = try XCTUnwrap(game.units.first { $0.id == assigned.id })
+        XCTAssertEqual(equipped.equippedMedal, .heroCross)
+        XCTAssertEqual(equipped.attack, attackWithGeneral + EquipmentMedal.heroCross.attackBonus)
+    }
+
+    func testQuartermasterStoreOffersAndFieldSupplyItemsWorkEndToEnd() throws {
+        let game = GameState()
+        let daily = try XCTUnwrap(QuartermasterOffer.catalog.first { $0.isDailyFree })
+        let medalsBefore = game.warResources.honorMedals
+        XCTAssertTrue(game.claimQuartermasterOffer(daily))
+        XCTAssertEqual(game.warResources.honorMedals, medalsBefore + daily.honorMedals)
+        XCTAssertFalse(game.claimQuartermasterOffer(daily))
+
+        let bundle = try XCTUnwrap(QuartermasterOffer.catalog.first { !$0.isDailyFree })
+        let goldBeforeBundle = game.warResources.gold
+        XCTAssertTrue(game.claimQuartermasterOffer(bundle))
+        XCTAssertEqual(game.warResources.gold, goldBeforeBundle + bundle.gold)
+        XCTAssertEqual(game.shopPurchaseCount, 1)
+
+        XCTAssertTrue(game.buyMedal(.panzerShield))
+        XCTAssertGreaterThanOrEqual(game.ownedMedals[.panzerShield, default: 0], 1)
+
+        // Verify field ammo crate adds +3 command points and boosts morale
+        let allied = try XCTUnwrap(game.units.first { $0.faction == .allies })
+        game.select(unitID: allied.id)
+        let cpBefore = game.commandPoints(for: .allies)
+        XCTAssertTrue(game.useFieldItem(.ammoCrate))
+        XCTAssertEqual(game.commandPoints(for: .allies), cpBefore + 3)
+    }
 }

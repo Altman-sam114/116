@@ -25,9 +25,15 @@ struct BattlefieldTerrainRenderer: View, Equatable {
                 paintScenery(tile, context: &context)
             }
             for tile in tiles {
-                context.stroke(Hexagon().path(in: layout.frame(for: tile.coordinate)),
-                               with: .color(Color(red: 0.16, green: 0.23, blue: 0.15).opacity(tile.terrain == .snow ? 0.13 : 0.095)),
-                               lineWidth: 0.50)
+                let isSnow = tile.terrain == .snow
+                let hex = Hexagon().path(in: layout.frame(for: tile.coordinate))
+                context.stroke(
+                    hex,
+                    with: .color(isSnow
+                        ? Color(red: 0.24, green: 0.30, blue: 0.36).opacity(0.28)
+                        : Color(red: 0.12, green: 0.18, blue: 0.11).opacity(0.19)),
+                    lineWidth: isSnow ? 0.72 : 0.62
+                )
             }
         }
         .frame(width: layout.size.width, height: layout.size.height)
@@ -41,7 +47,7 @@ struct BattlefieldTerrainRenderer: View, Equatable {
         guard let ground = BattlefieldArtwork.ground else { return }
         let image = context.resolve(BattlefieldArtwork.image(ground))
         var material = context
-        material.opacity = 0.72
+        material.opacity = 0.90
         let step: CGFloat = 512
         for (row, y) in stride(from: CGFloat.zero, to: size.height, by: step).enumerated() {
             for (column, x) in stride(from: CGFloat.zero, to: size.width, by: step).enumerated() {
@@ -53,8 +59,11 @@ struct BattlefieldTerrainRenderer: View, Equatable {
             }
         }
         context.fill(Path(CGRect(origin: .zero, size: size)),
-                     with: .linearGradient(Gradient(colors: [.white.opacity(0.045), .black.opacity(0.025)]),
-                                           startPoint: .zero, endPoint: CGPoint(x: size.width, y: size.height)))
+                     with: .linearGradient(Gradient(colors: [
+                        Color(red: 1.0, green: 0.97, blue: 0.86).opacity(0.07),
+                        Color.clear,
+                        Color.black.opacity(0.06)
+                     ]), startPoint: .zero, endPoint: CGPoint(x: size.width, y: size.height)))
     }
 
     private func paintRelief(context: inout GraphicsContext) {
@@ -67,8 +76,8 @@ struct BattlefieldTerrainRenderer: View, Equatable {
                 let rect = CGRect(x: center.x - 95, y: center.y - 46, width: 190, height: 92)
                 let shade = tile.terrain == .forest || tile.terrain == .mountain
                 layer.fill(Path(ellipseIn: rect), with: .color(
-                    shade ? Color(red: 0.21, green: 0.31, blue: 0.17).opacity(0.20)
-                          : Color(red: 0.79, green: 0.76, blue: 0.55).opacity(0.15)
+                    shade ? Color(red: 0.16, green: 0.25, blue: 0.13).opacity(0.24)
+                          : Color(red: 0.82, green: 0.78, blue: 0.56).opacity(0.14)
                 ))
             }
         }
@@ -77,16 +86,37 @@ struct BattlefieldTerrainRenderer: View, Equatable {
     private func paintSnow(context: inout GraphicsContext) {
         let drifts = Path(BattlefieldSnowfield(tiles: tiles, layout: layout).outline)
         guard !drifts.isEmpty else { return }
+        // Soft feathered frost halo blending snowdrifts naturally into surrounding autumn grass
         context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 18))
-            layer.fill(drifts, with: .color(Color(red: 0.87, green: 0.90, blue: 0.85).opacity(0.85)))
+            layer.addFilter(.blur(radius: 11))
+            layer.fill(drifts, with: .color(Color(red: 0.84, green: 0.88, blue: 0.88).opacity(0.72)))
         }
-        context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 3))
-            layer.fill(drifts, with: .linearGradient(
-                Gradient(colors: [Color(red: 0.91, green: 0.93, blue: 0.88).opacity(0.82),
-                                  Color(red: 0.78, green: 0.83, blue: 0.78).opacity(0.72)]),
-                startPoint: .zero, endPoint: CGPoint(x: layout.size.width, y: layout.size.height)))
+        // Clip painted seamless winter snowfield texture directly to the snowfield geometry
+        if let snowTexture = BattlefieldArtwork.snowGround {
+            let bounds = drifts.boundingRect
+            if !bounds.isEmpty && bounds.minX.isFinite && bounds.minY.isFinite {
+                let resolved = context.resolve(BattlefieldArtwork.image(snowTexture))
+                var clipped = context
+                clipped.clip(to: drifts)
+                clipped.opacity = 0.94
+                let step: CGFloat = 256
+                let startX = floor(bounds.minX / step) * step
+                let startY = floor(bounds.minY / step) * step
+                for y in stride(from: startY, to: bounds.maxY + step, by: step) {
+                    for x in stride(from: startX, to: bounds.maxX + step, by: step) {
+                        clipped.draw(resolved, in: CGRect(x: x, y: y, width: step, height: step))
+                    }
+                }
+                clipped.stroke(drifts, with: .color(Color(red: 0.66, green: 0.73, blue: 0.78).opacity(0.45)), lineWidth: 2.2)
+            }
+        } else {
+            context.drawLayer { layer in
+                layer.addFilter(.blur(radius: 3))
+                layer.fill(drifts, with: .linearGradient(
+                    Gradient(colors: [Color(red: 0.91, green: 0.93, blue: 0.88).opacity(0.84),
+                                      Color(red: 0.78, green: 0.83, blue: 0.78).opacity(0.76)]),
+                    startPoint: .zero, endPoint: CGPoint(x: layout.size.width, y: layout.size.height)))
+            }
         }
     }
 
@@ -148,13 +178,31 @@ struct BattlefieldTerrainRenderer: View, Equatable {
             water.addEllipse(in: pool)
         }
         context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 4))
-            layer.fill(shore, with: .color(Color(red: 0.16, green: 0.27, blue: 0.14).opacity(0.50)))
+            layer.addFilter(.blur(radius: 5))
+            layer.fill(shore, with: .color(Color(red: 0.13, green: 0.22, blue: 0.11).opacity(0.56)))
         }
-        context.fill(bank, with: .color(Color(red: 0.56, green: 0.54, blue: 0.35)))
+        context.fill(bank, with: .color(Color(red: 0.52, green: 0.49, blue: 0.33)))
         context.fill(water, with: .linearGradient(
-            Gradient(colors: [Color(red: 0.38, green: 0.56, blue: 0.56), Color(red: 0.20, green: 0.38, blue: 0.41)]),
+            Gradient(colors: [Color(red: 0.22, green: 0.41, blue: 0.49), Color(red: 0.12, green: 0.26, blue: 0.34)]),
             startPoint: .zero, endPoint: CGPoint(x: layout.size.width, y: layout.size.height)))
+        // Tile hand-painted river water surface texture inside the exact water channel
+        if !water.isEmpty, let riverTexture = BattlefieldArtwork.riverWater {
+            let bounds = water.boundingRect
+            if !bounds.isEmpty && bounds.minX.isFinite && bounds.minY.isFinite {
+                let resolved = context.resolve(BattlefieldArtwork.image(riverTexture))
+                var clippedWater = context
+                clippedWater.clip(to: water)
+                clippedWater.opacity = 0.88
+                let step: CGFloat = 256
+                let startX = floor(bounds.minX / step) * step
+                let startY = floor(bounds.minY / step) * step
+                for y in stride(from: startY, to: bounds.maxY + step, by: step) {
+                    for x in stride(from: startX, to: bounds.maxX + step, by: step) {
+                        clippedWater.draw(resolved, in: CGRect(x: x, y: y, width: step, height: step))
+                    }
+                }
+            }
+        }
         for ribbon in geometry.ribbons {
             context.stroke(Path(ribbon.surfaceTrace(lane: -1)),
                            with: .color(Color(red: 0.80, green: 0.78, blue: 0.56).opacity(0.46)), lineWidth: 0.9)

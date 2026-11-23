@@ -370,6 +370,349 @@ struct Commander: Identifiable, Equatable {
         morale: 4,
         trait: "机动作战：反击伤害 +5"
     )
+
+    static let eisenhower = Commander(
+        name: "艾森豪威尔",
+        nation: "美国",
+        rank: "五星上将",
+        armor: 4,
+        tactics: 5,
+        morale: 5,
+        trait: "统帅光环：全兵种攻击 +6"
+    )
+
+    static let bradley = Commander(
+        name: "布莱德雷",
+        nation: "美国",
+        rank: "集团军司令",
+        armor: 3,
+        tactics: 5,
+        morale: 4,
+        trait: "步炮协同：步兵与火炮攻击 +7"
+    )
+
+    static let zhukov = Commander(
+        name: "朱可夫",
+        nation: "盟军",
+        rank: "方面军元帅",
+        armor: 5,
+        tactics: 5,
+        morale: 5,
+        trait: "钢铁洪流：坦克与火炮攻击 +8"
+    )
+
+    static let rommel = Commander(
+        name: "隆美尔",
+        nation: "德国",
+        rank: "元帅",
+        armor: 5,
+        tactics: 5,
+        morale: 4,
+        trait: "闪电穿插：坦克移动 +1，攻击 +6"
+    )
+
+    var recruitMedalCost: Int {
+        switch name {
+        case "巴顿", "蒙哥马利": 0
+        case "布莱德雷": 160
+        case "艾森豪威尔": 220
+        case "隆美尔": 250
+        case "朱可夫": 280
+        default: 200
+        }
+    }
+
+    var specialtyTitle: String {
+        switch name {
+        case "巴顿", "古德里安", "隆美尔": "装甲突击"
+        case "蒙哥马利": "城防稳守"
+        case "曼施坦因": "机动反击"
+        case "艾森豪威尔": "联合统帅"
+        case "布莱德雷": "步炮协同"
+        case "朱可夫": "重炮装甲"
+        default: "前线指挥"
+        }
+    }
+
+    static let hqAlliedCatalog: [Commander] = [
+        .patton, .montgomery, .bradley, .eisenhower, .zhukov, .rommel
+    ]
+
+    static let dossierAllCatalog: [Commander] = [
+        .patton, .montgomery, .bradley, .eisenhower, .zhukov, .guderian, .manstein, .rommel
+    ]
+}
+
+struct WarEconomyResources: Equatable {
+    var gold: Int
+    var industry: Int
+    var honorMedals: Int
+
+    static let initialAllied = WarEconomyResources(gold: 360, industry: 160, honorMedals: 320)
+}
+
+enum CityFacilityKind: String, CaseIterable, Identifiable {
+    case factory
+    case fortification
+    case treasury
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .factory: "军工厂"
+        case .fortification: "防御工事"
+        case .treasury: "财政补给"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .factory: "工厂"
+        case .fortification: "工事"
+        case .treasury: "财政"
+        }
+    }
+
+    var effectSummary: String {
+        switch self {
+        case .factory: "每回合工业 +15，加速重装生产"
+        case .fortification: "城市防御 +4，据点休整 +4 耐久"
+        case .treasury: "每回合金币 +35，指令产出 +1"
+        }
+    }
+
+    func upgradeCost(from currentLevel: Int) -> (gold: Int, industry: Int) {
+        let scale = max(1, currentLevel)
+        switch self {
+        case .factory: (gold: 90 * scale, industry: 25 * scale)
+        case .fortification: (gold: 70 * scale, industry: 35 * scale)
+        case .treasury: (gold: 100 * scale, industry: 20 * scale)
+        }
+    }
+}
+
+struct CityFacilityState: Equatable {
+    static let maxLevel = 3
+
+    var factoryLevel: Int = 1
+    var fortificationLevel: Int = 1
+    var treasuryLevel: Int = 1
+
+    func level(for kind: CityFacilityKind) -> Int {
+        switch kind {
+        case .factory: factoryLevel
+        case .fortification: fortificationLevel
+        case .treasury: treasuryLevel
+        }
+    }
+
+    mutating func upgrade(_ kind: CityFacilityKind) -> Bool {
+        switch kind {
+        case .factory:
+            guard factoryLevel < Self.maxLevel else { return false }
+            factoryLevel += 1
+            return true
+        case .fortification:
+            guard fortificationLevel < Self.maxLevel else { return false }
+            fortificationLevel += 1
+            return true
+        case .treasury:
+            guard treasuryLevel < Self.maxLevel else { return false }
+            treasuryLevel += 1
+            return true
+        }
+    }
+
+    var bonusGoldIncome: Int { (treasuryLevel - 1) * 35 }
+    var bonusIndustryIncome: Int { (factoryLevel - 1) * 15 }
+    var bonusCommandIncome: Int { treasuryLevel - 1 }
+    var fortificationDefenseBonus: Int { (fortificationLevel - 1) * 4 }
+    var fortificationHealBonus: Int { (fortificationLevel - 1) * 4 }
+
+    var visualTier: Int {
+        min(4, 1 + (factoryLevel + fortificationLevel + treasuryLevel - 3) / 2)
+    }
+}
+
+struct CityProductionOption: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let kind: UnitKind
+    let isElite: Bool
+    let goldCost: Int
+    let industryCost: Int
+    let requiredFactoryLevel: Int
+
+    static let alliedCatalog: [CityProductionOption] = [
+        CityProductionOption(id: "prod-inf", title: "步兵营", subtitle: "城市攻防与占点主力", kind: .infantry, isElite: false, goldCost: 80, industryCost: 10, requiredFactoryLevel: 1),
+        CityProductionOption(id: "prod-rcn", title: "装甲侦察排", subtitle: "高机动侦察与侧翼包抄", kind: .recon, isElite: false, goldCost: 100, industryCost: 25, requiredFactoryLevel: 1),
+        CityProductionOption(id: "prod-art", title: "榴弹炮连", subtitle: "3格远程火力压制", kind: .artillery, isElite: false, goldCost: 120, industryCost: 45, requiredFactoryLevel: 1),
+        CityProductionOption(id: "prod-tnk", title: "谢尔曼坦克连", subtitle: "装甲突破与正面交锋", kind: .tank, isElite: false, goldCost: 150, industryCost: 65, requiredFactoryLevel: 1),
+        CityProductionOption(id: "prod-m10", title: "M10坦克歼击营", subtitle: "王牌精锐 · 耐久+16 攻击+6", kind: .recon, isElite: true, goldCost: 165, industryCost: 65, requiredFactoryLevel: 1),
+        CityProductionOption(id: "prod-m7", title: "M7牧师炮兵", subtitle: "王牌自行炮 · 耐久+16 攻击+6", kind: .artillery, isElite: true, goldCost: 185, industryCost: 80, requiredFactoryLevel: 1),
+        CityProductionOption(id: "prod-heavy", title: "重装突击坦克团", subtitle: "王牌重甲 · 耐久+16 攻击+6", kind: .tank, isElite: true, goldCost: 220, industryCost: 100, requiredFactoryLevel: 1)
+    ]
+}
+
+enum EquipmentMedal: String, CaseIterable, Identifiable {
+    case heroCross
+    case panzerShield
+    case artilleryOptic
+    case marshalStar
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .heroCross: "英雄十字勋章"
+        case .panzerShield: "装甲钢盾徽章"
+        case .artilleryOptic: "炮兵测距仪"
+        case .marshalStar: "元帅指挥星"
+        }
+    }
+
+    var effectText: String {
+        switch self {
+        case .heroCross: "攻击 +6"
+        case .panzerShield: "耐久上限 +20"
+        case .artilleryOptic: "攻击 +5 · 耐久 +10"
+        case .marshalStar: "攻击 +4 · 移动 +1"
+        }
+    }
+
+    var medalCost: Int {
+        switch self {
+        case .heroCross: 90
+        case .panzerShield: 90
+        case .artilleryOptic: 110
+        case .marshalStar: 150
+        }
+    }
+
+    var attackBonus: Int {
+        switch self {
+        case .heroCross: 6
+        case .panzerShield: 0
+        case .artilleryOptic: 5
+        case .marshalStar: 4
+        }
+    }
+
+    var hpBonus: Int {
+        switch self {
+        case .heroCross: 0
+        case .panzerShield: 20
+        case .artilleryOptic: 10
+        case .marshalStar: 0
+        }
+    }
+
+    var movementBonus: Int {
+        self == .marshalStar ? 1 : 0
+    }
+}
+
+enum FieldSupplyItem: String, CaseIterable, Identifiable {
+    case fieldMedkit
+    case ammoCrate
+    case hqFireSupport
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .fieldMedkit: "野战急救箱"
+        case .ammoCrate: "紧急空投补给"
+        case .hqFireSupport: "重炮火力呼叫"
+        }
+    }
+
+    var effectText: String {
+        switch self {
+        case .fieldMedkit: "选中友军立即恢复 +30 耐久"
+        case .ammoCrate: "选中友军士气 +15，指令 +3"
+        case .hqFireSupport: "对当前聚焦敌军立即轰炸 −16 HP"
+        }
+    }
+
+    var goldCost: Int {
+        switch self {
+        case .fieldMedkit: 60
+        case .ammoCrate: 80
+        case .hqFireSupport: 100
+        }
+    }
+}
+
+struct QuartermasterOffer: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let priceLabel: String
+    let tag: String
+    let honorMedals: Int
+    let gold: Int
+    let industry: Int
+    let bonusMedkitCount: Int
+    let bonusMedal: EquipmentMedal?
+    let isDailyFree: Bool
+
+    static let catalog: [QuartermasterOffer] = [
+        QuartermasterOffer(
+            id: "daily-ration",
+            title: "每日战备签收",
+            subtitle: "战区司令部免费补给，每场战役限领一次",
+            priceLabel: "免费领取",
+            tag: "每日福利",
+            honorMedals: 80,
+            gold: 100,
+            industry: 40,
+            bonusMedkitCount: 1,
+            bonusMedal: nil,
+            isDailyFree: true
+        ),
+        QuartermasterOffer(
+            id: "pack-scout",
+            title: "侦察勋章补给",
+            subtitle: "快速补充荣誉勋章与前线军费（离线模拟体验）",
+            priceLabel: "¥6 模拟",
+            tag: "超值",
+            honorMedals: 160,
+            gold: 140,
+            industry: 50,
+            bonusMedkitCount: 1,
+            bonusMedal: nil,
+            isDailyFree: false
+        ),
+        QuartermasterOffer(
+            id: "pack-panzer",
+            title: "装甲师军备箱",
+            subtitle: "含大量勋章、工业产能与野战急救物资（离线模拟体验）",
+            priceLabel: "¥30 模拟",
+            tag: "热销",
+            honorMedals: 520,
+            gold: 320,
+            industry: 160,
+            bonusMedkitCount: 2,
+            bonusMedal: .panzerShield,
+            isDailyFree: false
+        ),
+        QuartermasterOffer(
+            id: "pack-supreme",
+            title: "最高统帅部黄金宝箱",
+            subtitle: "招募全名将与精锐装甲军团的豪华战备包（离线模拟体验）",
+            priceLabel: "¥68 模拟",
+            tag: "统帅特惠",
+            honorMedals: 1200,
+            gold: 640,
+            industry: 300,
+            bonusMedkitCount: 3,
+            bonusMedal: .heroCross,
+            isDailyFree: false
+        )
+    ]
 }
 
 struct CombatPreview: Equatable {
@@ -3044,14 +3387,19 @@ struct BattleUnit: Identifiable, Equatable {
     var hasAttacked = false
     var isEntrenched = false
     var tacticalStatus: UnitTacticalStatus = .normal
+    var equippedMedal: EquipmentMedal? = nil
+    var isElite = false
 
     var rank: UnitRank { UnitRank.rank(for: experience) }
     var moraleState: MoraleState { MoraleState.state(for: morale) }
-    var maxHP: Int { kind.baseHP + rank.hpBonus }
+    var maxHP: Int { kind.baseHP + rank.hpBonus + (equippedMedal?.hpBonus ?? 0) + (isElite ? 16 : 0) }
     var isDestroyed: Bool { hp <= 0 }
     var movement: Int {
-        var value = kind.movement
+        var value = kind.movement + (equippedMedal?.movementBonus ?? 0)
         if commander?.name == "古德里安", kind == .tank {
+            value += 1
+        }
+        if commander?.name == "隆美尔", kind == .tank {
             value += 1
         }
         return value
@@ -3061,11 +3409,23 @@ struct BattleUnit: Identifiable, Equatable {
     var canAttack: Bool { !hasAttacked && !isDestroyed }
 
     var attack: Int {
-        var value = kind.baseAttack + rank.attackBonus
+        var value = kind.baseAttack + rank.attackBonus + (equippedMedal?.attackBonus ?? 0) + (isElite ? 6 : 0)
         if let commander {
             value += commander.tactics * 2
             if commander.name == "巴顿", kind == .tank {
                 value += 8
+            }
+            if commander.name == "艾森豪威尔" {
+                value += 6
+            }
+            if commander.name == "布莱德雷", (kind == .infantry || kind == .artillery) {
+                value += 7
+            }
+            if commander.name == "朱可夫", (kind == .tank || kind == .artillery) {
+                value += 8
+            }
+            if commander.name == "隆美尔", kind == .tank {
+                value += 6
             }
         }
         return value

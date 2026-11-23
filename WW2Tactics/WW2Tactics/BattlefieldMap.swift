@@ -88,6 +88,7 @@ struct HexMapView: View {
                         : []
                     HexTileView(
                         tile: tile,
+                        cityFacility: tile.isObjective ? game.cityFacility(at: tile.coordinate) : nil,
                         supplyLineConnectionDirections: supplyLineConnectionDirections,
                         unit: unit,
                         isSelected: tileIsSelected,

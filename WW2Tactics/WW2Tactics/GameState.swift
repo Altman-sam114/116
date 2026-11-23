@@ -14,6 +14,13 @@ final class GameState: ObservableObject {
     @Published private(set) var guidedObjectiveCoordinate: HexCoordinate?
     @Published private(set) var focusedSafeEngagementDestination: HexCoordinate?
     @Published var commandPoints: [Faction: Int]
+    @Published var warResources: WarEconomyResources = .initialAllied
+    @Published private(set) var cityFacilities: [HexCoordinate: CityFacilityState] = [:]
+    @Published private(set) var recruitedCommanderNames: Set<String> = ["巴顿", "蒙哥马利"]
+    @Published private(set) var ownedMedals: [EquipmentMedal: Int] = [.heroCross: 1]
+    @Published private(set) var ownedFieldItems: [FieldSupplyItem: Int] = [.fieldMedkit: 2, .ammoCrate: 1]
+    @Published private(set) var claimedDailySupply = false
+    @Published private(set) var shopPurchaseCount = 0
     @Published private(set) var latestCombatResult: CombatResultSummary?
     @Published private(set) var latestTacticalCommandResult: TacticalCommandResultSummary?
     @Published private(set) var latestObjectiveCaptureResult: ObjectiveCaptureResultSummary?
@@ -2715,7 +2722,335 @@ final class GameState: ObservableObject {
     }
 
     func commandIncome(for faction: Faction) -> Int {
-        3 + objectiveTiles.filter { $0.owner == faction }.count * 2
+        let ownedObjectives = objectiveTiles.filter { $0.owner == faction }
+        let treasuryBonus = ownedObjectives.reduce(0) { $0 + (cityFacilities[$1.coordinate]?.bonusCommandIncome ?? 0) }
+        return 3 + ownedObjectives.count * 2 + treasuryBonus
+    }
+
+    func cityFacility(at coordinate: HexCoordinate) -> CityFacilityState {
+        cityFacilities[coordinate] ?? CityFacilityState()
+    }
+
+    func cityBaseIncome(for tile: TerrainTile) -> (gold: Int, industry: Int) {
+        guard tile.isObjective || tile.terrain == .city else { return (0, 0) }
+        let name = tile.objectiveName ?? ""
+        if name.contains("工业") || name.contains("工厂") {
+            return (gold: 60, industry: 48)
+        }
+        if name.contains("补给") || name.contains("枢纽") || name.contains("机场") {
+            return (gold: 45, industry: 28)
+        }
+        if tile.isObjective {
+            return (gold: 40, industry: 20)
+        }
+        return (gold: 25, industry: 12)
+    }
+
+    func cityIncome(at coordinate: HexCoordinate) -> (gold: Int, industry: Int) {
+        guard let tile = tile(at: coordinate) else { return (0, 0) }
+        let base = cityBaseIncome(for: tile)
+        let facility = cityFacility(at: coordinate)
+        return (gold: base.gold + facility.bonusGoldIncome,
+                industry: base.industry + facility.bonusIndustryIncome)
+    }
+
+    func totalTurnEconomyIncome(for faction: Faction) -> (gold: Int, industry: Int) {
+        let controlled = objectiveTiles.filter { $0.owner == faction }
+        var totalGold = 50
+        var totalIndustry = 20
+        for tile in controlled {
+            let inc = cityIncome(at: tile.coordinate)
+            totalGold += inc.gold
+            totalIndustry += inc.industry
+        }
+        return (totalGold, totalIndustry)
+    }
+
+    var controlledAlliedCities: [TerrainTile] {
+        objectiveTiles
+            .filter { $0.owner == .allies }
+            .sorted { ($0.objectiveName ?? $0.id) < ($1.objectiveName ?? $1.id) }
+    }
+
+    func productionSpawnCoordinate(for cityCoordinate: HexCoordinate) -> HexCoordinate? {
+        guard let city = tile(at: cityCoordinate),
+              city.isObjective,
+              city.owner == .allies else { return nil }
+        let candidates = [cityCoordinate] + cityCoordinate.neighbors
+        return candidates.first { candidate in
+            tile(at: candidate) != nil && unit(at: candidate) == nil
+        }
+    }
+
+    @discardableResult
+    func upgradeCityFacility(_ kind: CityFacilityKind, at coordinate: HexCoordinate) -> Bool {
+        guard winner == nil,
+              let tile = tile(at: coordinate),
+              tile.isObjective,
+              tile.owner == .allies else {
+            message = "仅可建设己方控制的战略城市。"
+            return false
+        }
+        var state = cityFacility(at: coordinate)
+        let current = state.level(for: kind)
+        guard current < CityFacilityState.maxLevel else {
+            message = "\(tile.objectiveName ?? "城市") 的\(kind.title)已升至最高级。"
+            return false
+        }
+        let cost = kind.upgradeCost(from: current)
+        guard warResources.gold >= cost.gold && warResources.industry >= cost.industry else {
+            message = "资源不足：升级\(kind.title)需 \(cost.gold) 金币、\(cost.industry) 工业。"
+            return false
+        }
+        warResources.gold -= cost.gold
+        warResources.industry -= cost.industry
+        _ = state.upgrade(kind)
+        cityFacilities[coordinate] = state
+        message = "\(tile.objectiveName ?? "城市") \(kind.title)升至 Lv.\(state.level(for: kind))！"
+        appendLog(message)
+        return true
+    }
+
+    @discardableResult
+    func produceUnit(option: CityProductionOption, at cityCoordinate: HexCoordinate) -> Bool {
+        guard winner == nil,
+              let city = tile(at: cityCoordinate),
+              city.isObjective,
+              city.owner == .allies else {
+            message = "请先选择一座己方控制城市进行造兵。"
+            return false
+        }
+        let facility = cityFacility(at: cityCoordinate)
+        guard facility.factoryLevel >= option.requiredFactoryLevel else {
+            message = "需要军工厂 Lv.\(option.requiredFactoryLevel) 方可生产 \(option.title)。"
+            return false
+        }
+        guard warResources.gold >= option.goldCost && warResources.industry >= option.industryCost else {
+            message = "资源不足：生产 \(option.title) 需 \(option.goldCost) 金币、\(option.industryCost) 工业。"
+            return false
+        }
+        guard let spawn = productionSpawnCoordinate(for: cityCoordinate) else {
+            message = "\(city.objectiveName ?? "城市") 周边已满员，请先腾出空位。"
+            return false
+        }
+        warResources.gold -= option.goldCost
+        warResources.industry -= option.industryCost
+        clearObjectiveGuidance()
+        let maxHP = option.kind.baseHP + (option.isElite ? 16 : 0)
+        let unit = BattleUnit(
+            name: option.title,
+            kind: option.kind,
+            faction: .allies,
+            position: spawn,
+            hp: maxHP,
+            commander: nil,
+            hasMoved: true,
+            hasAttacked: true,
+            isElite: option.isElite
+        )
+        scenario.units.append(unit)
+        selectedUnitID = unit.id
+        focusedCoordinate = spawn
+        latestDeploymentResult = DeploymentResultSummary(
+            sourceObjectiveName: city.objectiveName ?? "据点",
+            coordinate: spawn,
+            unitID: unit.id,
+            unitName: unit.name,
+            unitKind: unit.kind,
+            faction: .allies,
+            commandCost: 0,
+            commandPointsAfterDeployment: commandPoints(for: .allies)
+        )
+        latestCombatResult = nil
+        message = "\(city.objectiveName ?? "城市") 生产 \(unit.name) 编入前线，消耗 \(option.goldCost) 金币、\(option.industryCost) 工业。"
+        appendLog(message)
+        checkVictory()
+        return true
+    }
+
+    func isCommanderRecruited(_ commander: Commander) -> Bool {
+        recruitedCommanderNames.contains(commander.name)
+    }
+
+    func assignedUnit(for commander: Commander) -> BattleUnit? {
+        units.first { $0.faction == .allies && $0.commander?.name == commander.name }
+    }
+
+    @discardableResult
+    func recruitCommander(_ commander: Commander) -> Bool {
+        guard !isCommanderRecruited(commander) else {
+            message = "\(commander.name) 已在统帅部名录中。"
+            return false
+        }
+        let cost = commander.recruitMedalCost
+        guard warResources.honorMedals >= cost else {
+            message = "荣誉勋章不足：招募 \(commander.name) 需 \(cost) 勋章。"
+            return false
+        }
+        warResources.honorMedals -= cost
+        recruitedCommanderNames.insert(commander.name)
+        message = "成功招募名将 \(commander.name)（\(commander.rank)），消耗 \(cost) 勋章！"
+        appendLog(message)
+        return true
+    }
+
+    @discardableResult
+    func assignCommander(_ commander: Commander, to unitID: BattleUnit.ID) -> Bool {
+        guard winner == nil else { return false }
+        guard isCommanderRecruited(commander) else {
+            message = "请先招募 \(commander.name)。"
+            return false
+        }
+        guard assignedUnit(for: commander) == nil else {
+            message = "\(commander.name) 已在前线指挥部队。"
+            return false
+        }
+        guard let index = scenario.units.firstIndex(where: { $0.id == unitID && $0.faction == .allies && !$0.isDestroyed }) else {
+            message = "请先选择一支存活的己方部队。"
+            return false
+        }
+        guard scenario.units[index].commander == nil else {
+            message = "\(scenario.units[index].name) 已有指挥官。"
+            return false
+        }
+        scenario.units[index].commander = commander
+        selectedUnitID = unitID
+        focusedCoordinate = scenario.units[index].position
+        message = "委任 \(commander.name) 指挥 \(scenario.units[index].name)（\(commander.trait)）。"
+        appendLog(message)
+        return true
+    }
+
+    @discardableResult
+    func buyMedal(_ medal: EquipmentMedal) -> Bool {
+        guard warResources.honorMedals >= medal.medalCost else {
+            message = "勋章不足：兑换 \(medal.title) 需 \(medal.medalCost) 勋章。"
+            return false
+        }
+        warResources.honorMedals -= medal.medalCost
+        ownedMedals[medal, default: 0] += 1
+        message = "军需处获得 \(medal.title)（\(medal.effectText)）。"
+        appendLog(message)
+        return true
+    }
+
+    @discardableResult
+    func equipMedal(_ medal: EquipmentMedal, to unitID: BattleUnit.ID) -> Bool {
+        guard winner == nil, ownedMedals[medal, default: 0] > 0 else {
+            message = "仓库中暂无 \(medal.title)。"
+            return false
+        }
+        guard let index = scenario.units.firstIndex(where: { $0.id == unitID && $0.faction == .allies && !$0.isDestroyed }) else {
+            message = "请先在地图选择一支友军部队再佩戴勋章。"
+            return false
+        }
+        if let previous = scenario.units[index].equippedMedal {
+            ownedMedals[previous, default: 0] += 1
+        }
+        ownedMedals[medal, default: 0] = max(0, ownedMedals[medal, default: 0] - 1)
+        let oldMax = scenario.units[index].maxHP
+        scenario.units[index].equippedMedal = medal
+        let hpGain = max(0, scenario.units[index].maxHP - oldMax)
+        scenario.units[index].hp = min(scenario.units[index].maxHP, scenario.units[index].hp + hpGain)
+        message = "\(scenario.units[index].name) 佩戴 \(medal.title)（\(medal.effectText)）。"
+        appendLog(message)
+        return true
+    }
+
+    @discardableResult
+    func buyFieldItem(_ item: FieldSupplyItem) -> Bool {
+        guard warResources.gold >= item.goldCost else {
+            message = "金币不足：采购 \(item.title) 需 \(item.goldCost) 金币。"
+            return false
+        }
+        warResources.gold -= item.goldCost
+        ownedFieldItems[item, default: 0] += 1
+        message = "采购 \(item.title) ×1，已入库。"
+        appendLog(message)
+        return true
+    }
+
+    @discardableResult
+    func useFieldItem(_ item: FieldSupplyItem) -> Bool {
+        guard winner == nil, ownedFieldItems[item, default: 0] > 0 else {
+            message = "库存不足：暂无 \(item.title)。"
+            return false
+        }
+        switch item {
+        case .fieldMedkit:
+            guard let selected = selectedUnit,
+                  selected.faction == .allies,
+                  selected.hp < selected.maxHP,
+                  let index = scenario.units.firstIndex(where: { $0.id == selected.id }) else {
+                message = "请先选择一支受损的己方部队使用野战急救箱。"
+                return false
+            }
+            ownedFieldItems[item, default: 0] -= 1
+            let before = scenario.units[index].hp
+            scenario.units[index].hp = min(scenario.units[index].maxHP, before + 30)
+            let healed = scenario.units[index].hp - before
+            message = "\(selected.name) 使用野战急救箱，恢复 +\(healed) 耐久。"
+            appendLog(message)
+            return true
+        case .ammoCrate:
+            guard let selected = selectedUnit,
+                  selected.faction == .allies,
+                  let index = scenario.units.firstIndex(where: { $0.id == selected.id }) else {
+                message = "请先选择一支己方部队接收空投补给。"
+                return false
+            }
+            ownedFieldItems[item, default: 0] -= 1
+            scenario.units[index].morale = min(100, scenario.units[index].morale + 15)
+            commandPoints[.allies, default: 0] += 3
+            message = "\(selected.name) 接收紧急空投：士气 +15，盟军指令 +3。"
+            appendLog(message)
+            return true
+        case .hqFireSupport:
+            guard let target = focusedUnit,
+                  target.faction == .axis,
+                  !target.isDestroyed,
+                  let index = scenario.units.firstIndex(where: { $0.id == target.id }) else {
+                message = "请先在地图聚焦一支敌军目标再呼叫重炮支援。"
+                return false
+            }
+            ownedFieldItems[item, default: 0] -= 1
+            scenario.units[index].hp = max(0, scenario.units[index].hp - 16)
+            let destroyed = scenario.units[index].isDestroyed
+            if destroyed {
+                warResources.honorMedals += 15
+                warResources.gold += 25
+            }
+            message = "统帅部重炮轰击 \(target.name) −16 HP\(destroyed ? "，目标击毁！" : "。") "
+            appendLog(message)
+            checkVictory()
+            return true
+        }
+    }
+
+    @discardableResult
+    func claimQuartermasterOffer(_ offer: QuartermasterOffer) -> Bool {
+        if offer.isDailyFree && claimedDailySupply {
+            message = "本场战役每日战备补给已签收。"
+            return false
+        }
+        if offer.isDailyFree {
+            claimedDailySupply = true
+        } else {
+            shopPurchaseCount += 1
+        }
+        warResources.honorMedals += offer.honorMedals
+        warResources.gold += offer.gold
+        warResources.industry += offer.industry
+        if offer.bonusMedkitCount > 0 {
+            ownedFieldItems[.fieldMedkit, default: 0] += offer.bonusMedkitCount
+        }
+        if let bonusMedal = offer.bonusMedal {
+            ownedMedals[bonusMedal, default: 0] += 1
+        }
+        let medalText = offer.bonusMedal.map { "、\($0.title)" } ?? ""
+        message = "军需处签收「\(offer.title)」：勋章 +\(offer.honorMedals)、金币 +\(offer.gold)、工业 +\(offer.industry)\(medalText)。"
+        appendLog(message)
+        return true
     }
 
     func deploymentSites(for faction: Faction) -> [DeploymentSite] {
@@ -3038,7 +3373,8 @@ final class GameState: ObservableObject {
               let tile = tile(at: unit.position),
               tile.isObjective,
               tile.owner == unit.faction else { return 0 }
-        return min(Self.objectiveRestRecoveryAmount, unit.maxHP - unit.hp)
+        let fortHeal = cityFacilities[unit.position]?.fortificationHealBonus ?? 0
+        return min(Self.objectiveRestRecoveryAmount + fortHeal, unit.maxHP - unit.hp)
     }
 
     func canUseManeuverPursuit(afterDestroyingWith unit: BattleUnit) -> Bool {
@@ -5416,7 +5752,10 @@ final class GameState: ObservableObject {
 
             if winner == nil {
                 addCommandIncome(for: .allies)
-                message = "第 \(turn) 回合，盟军行动。获得 \(commandIncome(for: .allies)) 指令点。"
+                let econ = totalTurnEconomyIncome(for: .allies)
+                warResources.gold += econ.gold
+                warResources.industry += econ.industry
+                message = "第 \(turn) 回合，盟军行动。获得 \(commandIncome(for: .allies)) 指令点、\(econ.gold) 金币、\(econ.industry) 工业。"
                 appendLog("第 \(turn) 回合：盟军行动。")
                 selectNextReadyUnit()
             }
@@ -5457,6 +5796,13 @@ final class GameState: ObservableObject {
         activeAIPhaseTimeline = []
         pendingEnemyThreatCountermeasureFollowUpBaseline = nil
         commandPoints = [.allies: 6, .axis: 6]
+        warResources = .initialAllied
+        cityFacilities = [:]
+        recruitedCommanderNames = ["巴顿", "蒙哥马利"]
+        ownedMedals = [.heroCross: 1]
+        ownedFieldItems = [.fieldMedkit: 2, .ammoCrate: 1]
+        claimedDailySupply = false
+        shopPurchaseCount = 0
         message = Self.openingMessage(for: newScenario)
         battleLog = [Self.openingLog(for: newScenario)]
     }
@@ -5586,6 +5932,10 @@ final class GameState: ObservableObject {
         let counterDamage: Int
         if targetDestroyed {
             counterDamage = 0
+            if attacker.faction == .allies {
+                warResources.honorMedals += 15
+                warResources.gold += 25
+            }
             let pursuitText = keepsMovementAfterKill ? "，可继续机动" : ""
             message = "\(attacker.name) 击毁 \(defender.name)，造成 \(damage) 伤害\(supportText)\(pursuitText)。"
         } else {
@@ -6048,7 +6398,9 @@ final class GameState: ObservableObject {
     }
 
     private func damageValue(attacker: BattleUnit, defender: BattleUnit) -> Int {
-        let terrainDefense = tile(at: defender.position)?.terrain.defenseBonus ?? 0
+        let baseTerrainDefense = tile(at: defender.position)?.terrain.defenseBonus ?? 0
+        let fortDefense = cityFacilities[defender.position]?.fortificationDefenseBonus ?? 0
+        let terrainDefense = baseTerrainDefense + fortDefense
         var commanderDefense = defender.commander?.morale ?? 0
         if defender.commander?.name == "蒙哥马利",
            tile(at: defender.position)?.terrain == .city {
@@ -6432,6 +6784,11 @@ final class GameState: ObservableObject {
         previousOwner: Faction?
     ) {
         commandPoints[unit.faction, default: 0] += Self.objectiveCaptureCommandReward
+        if unit.faction == .allies {
+            warResources.gold += 60
+            warResources.industry += 25
+            warResources.honorMedals += 30
+        }
         awardExperience(
             to: unit.id,
             amount: Self.objectiveCaptureExperienceReward,

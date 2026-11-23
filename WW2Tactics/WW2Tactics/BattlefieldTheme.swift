@@ -29,15 +29,37 @@ enum BattlefieldTheme {
     static let hudBody = Font.system(size: 12, weight: .medium)
 
     static var commandMetal: LinearGradient {
-        LinearGradient(colors: [Color(red: 0.23, green: 0.27, blue: 0.24),
-                                commandDeck, commandDeckDeep],
+        LinearGradient(colors: [Color(red: 0.21, green: 0.25, blue: 0.23),
+                                Color(red: 0.13, green: 0.16, blue: 0.15),
+                                Color(red: 0.06, green: 0.08, blue: 0.075)],
+                       startPoint: .top, endPoint: .bottom)
+    }
+
+    static var brassDeck: LinearGradient {
+        LinearGradient(colors: [Color(red: 0.27, green: 0.22, blue: 0.14),
+                                Color(red: 0.17, green: 0.14, blue: 0.095),
+                                Color(red: 0.09, green: 0.075, blue: 0.055)],
                        startPoint: .top, endPoint: .bottom)
     }
 
     static var actionBrass: LinearGradient {
-        LinearGradient(colors: [Color(red: 0.96, green: 0.87, blue: 0.65), brass,
-                                Color(red: 0.65, green: 0.49, blue: 0.27)],
+        LinearGradient(colors: [Color(red: 0.98, green: 0.88, blue: 0.60),
+                                Color(red: 0.85, green: 0.67, blue: 0.34),
+                                Color(red: 0.60, green: 0.43, blue: 0.19)],
                        startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    static var crimsonSeal: LinearGradient {
+        LinearGradient(colors: [Color(red: 0.86, green: 0.28, blue: 0.20),
+                                Color(red: 0.64, green: 0.15, blue: 0.12),
+                                Color(red: 0.42, green: 0.09, blue: 0.08)],
+                       startPoint: .top, endPoint: .bottom)
+    }
+
+    static var alliedAzure: LinearGradient {
+        LinearGradient(colors: [Color(red: 0.36, green: 0.76, blue: 0.98),
+                                Color(red: 0.18, green: 0.50, blue: 0.84)],
+                       startPoint: .top, endPoint: .bottom)
     }
 
     // v2.57 War Ledger tokens: warm map-room chrome and faction-readable rings.

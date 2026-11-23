@@ -590,8 +590,8 @@ final class BattlefieldPresentationTests: XCTestCase {
         XCTAssertEqual(images.count, 26)
         for image in images {
             let standalone = image === BattlefieldArtwork.scenery(.industrialCity) || image === BattlefieldArtwork.scenery(.supplyDepot)
-            XCTAssertEqual(image.width, standalone ? 1536 : 768)
-            XCTAssertEqual(image.height, standalone ? 1024 : 512)
+            XCTAssertEqual(image.width, standalone ? 1024 : 768)
+            XCTAssertEqual(image.height, standalone ? 682 : 512)
             var pixels = [UInt8](repeating: 0, count: 64 * 64 * 4)
             try pixels.withUnsafeMutableBytes { buffer in
                 let context = try XCTUnwrap(CGContext(
@@ -604,6 +604,60 @@ final class BattlefieldPresentationTests: XCTestCase {
             let alpha = stride(from: 3, to: pixels.count, by: 4).map { pixels[$0] }
             XCTAssertGreaterThan(alpha.filter { $0 < 8 }.count, 4096 / 8, "No opaque atlas backdrop")
             XCTAssertGreaterThan(alpha.filter { $0 > 180 }.count, 4096 / 8, "No empty/transparent sprite")
+        }
+    }
+
+    func testEasyTechV5TerrainUIAndVFXArtworkAssetsAreBundledTransparentAndCached() throws {
+        // Opaque seamless textures: snow, river water, brushed metal plate, hammered brass panel.
+        for texture in [BattlefieldArtwork.snowGround, BattlefieldArtwork.riverWater,
+                        BattlefieldArtwork.metalPlate, BattlefieldArtwork.brassPanel] {
+            let image = try XCTUnwrap(texture)
+            XCTAssertEqual(image.width, 512)
+            XCTAssertEqual(image.height, 512)
+        }
+        XCTAssertTrue(BattlefieldArtwork.snowGround === BattlefieldArtwork.snowGround)
+        XCTAssertTrue(BattlefieldArtwork.riverWater === BattlefieldArtwork.riverWater)
+        XCTAssertTrue(BattlefieldArtwork.metalPlate === BattlefieldArtwork.metalPlate)
+        XCTAssertTrue(BattlefieldArtwork.brassPanel === BattlefieldArtwork.brassPanel)
+
+        // Transparent 2x2 atlases: VFX, resource icons, shop items, military emblems.
+        var alphaSprites: [CGImage] = []
+        for effect in BattlefieldVFX.allCases {
+            let sprite = try XCTUnwrap(BattlefieldArtwork.vfx(effect))
+            XCTAssertTrue(sprite === BattlefieldArtwork.vfx(effect))
+            alphaSprites.append(sprite)
+        }
+        for icon in BattlefieldResourceIcon.allCases {
+            let sprite = try XCTUnwrap(BattlefieldArtwork.resourceIcon(icon))
+            XCTAssertTrue(sprite === BattlefieldArtwork.resourceIcon(icon))
+            alphaSprites.append(sprite)
+        }
+        for item in BattlefieldShopIcon.allCases {
+            let sprite = try XCTUnwrap(BattlefieldArtwork.shopIcon(item))
+            XCTAssertTrue(sprite === BattlefieldArtwork.shopIcon(item))
+            alphaSprites.append(sprite)
+        }
+        for emblem in BattlefieldEmblem.allCases {
+            let sprite = try XCTUnwrap(BattlefieldArtwork.emblem(emblem))
+            XCTAssertTrue(sprite === BattlefieldArtwork.emblem(emblem))
+            alphaSprites.append(sprite)
+        }
+        XCTAssertEqual(alphaSprites.count, 16)
+        for sprite in alphaSprites {
+            XCTAssertEqual(sprite.width, 512)
+            XCTAssertEqual(sprite.height, 512)
+            var pixels = [UInt8](repeating: 0, count: 64 * 64 * 4)
+            try pixels.withUnsafeMutableBytes { buffer in
+                let context = try XCTUnwrap(CGContext(
+                    data: buffer.baseAddress, width: 64, height: 64, bitsPerComponent: 8,
+                    bytesPerRow: 64 * 4, space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                ))
+                context.draw(sprite, in: CGRect(x: 0, y: 0, width: 64, height: 64))
+            }
+            let alpha = stride(from: 3, to: pixels.count, by: 4).map { pixels[$0] }
+            XCTAssertGreaterThan(alpha.filter { $0 < 12 }.count, 4096 / 8, "Sprite must retain transparent margin")
+            XCTAssertGreaterThan(alpha.filter { $0 > 150 }.count, 4096 / 10, "Sprite must contain visible painted content")
         }
     }
 

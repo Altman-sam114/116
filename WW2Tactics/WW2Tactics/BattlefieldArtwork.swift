@@ -23,37 +23,104 @@ enum BattlefieldVehicleVariant: Int, CaseIterable {
     }
 }
 
-/// Bundled, original artwork. Decode each sheet once; all map instances share its CGImages.
+enum BattlefieldVFX: Int, CaseIterable {
+    case explosion, muzzleFlash, smokePlume, commandBurst
+}
+
+enum BattlefieldResourceIcon: Int, CaseIterable {
+    case gold, industry, medal, supply
+}
+
+enum BattlefieldShopIcon: Int, CaseIterable {
+    case heroCross, panzerShield, fieldMedkit, warChest
+}
+
+enum BattlefieldEmblem: Int, CaseIterable {
+    case hourglass, alliedCrest, axisCrest, hqLaurel
+}
+
+struct BattlefieldAssetDescriptor: Equatable {
+    let name: String
+    let subfolder: String
+    let isAtlas2x2: Bool
+
+    var relativePath: String {
+        subfolder.isEmpty ? name : "\(subfolder)/\(name)"
+    }
+}
+
+/// Bundled, original artwork organized cleanly under BattlefieldArt/{Terrain,Units,Commanders,VFX,UI}.
+/// Decode each sheet once; all map and HUD instances share its CGImages.
 enum BattlefieldArtwork {
     static let groundResourceName = "ground-field-v2"
-    static let resourceNames = ["vehicles-field-v2", "troops", groundResourceName, "armor-detail", "woodland-campaign", "scenery-campaign", "commanders", "industrial-city", "supply-depot"]
+    static let snowGroundResourceName = "ground-snow"
+    static let riverWaterResourceName = "water-river"
+    static let metalPlateResourceName = "ui-metal-plate"
+    static let brassPanelResourceName = "ui-brass-panel"
+
+    static let descriptors: [BattlefieldAssetDescriptor] = [
+        // Terrain
+        BattlefieldAssetDescriptor(name: groundResourceName, subfolder: "Terrain", isAtlas2x2: false),
+        BattlefieldAssetDescriptor(name: snowGroundResourceName, subfolder: "Terrain", isAtlas2x2: false),
+        BattlefieldAssetDescriptor(name: riverWaterResourceName, subfolder: "Terrain", isAtlas2x2: false),
+        BattlefieldAssetDescriptor(name: "scenery-campaign", subfolder: "Terrain", isAtlas2x2: true),
+        BattlefieldAssetDescriptor(name: "woodland-campaign", subfolder: "Terrain", isAtlas2x2: true),
+        BattlefieldAssetDescriptor(name: "industrial-city", subfolder: "Terrain", isAtlas2x2: false),
+        BattlefieldAssetDescriptor(name: "supply-depot", subfolder: "Terrain", isAtlas2x2: false),
+        // Units
+        BattlefieldAssetDescriptor(name: "vehicles-field-v2", subfolder: "Units", isAtlas2x2: true),
+        BattlefieldAssetDescriptor(name: "troops", subfolder: "Units", isAtlas2x2: true),
+        BattlefieldAssetDescriptor(name: "armor-detail", subfolder: "Units", isAtlas2x2: true),
+        // Commanders
+        BattlefieldAssetDescriptor(name: "commanders", subfolder: "Commanders", isAtlas2x2: true),
+        // VFX
+        BattlefieldAssetDescriptor(name: "combat-vfx", subfolder: "VFX", isAtlas2x2: true),
+        // UI
+        BattlefieldAssetDescriptor(name: metalPlateResourceName, subfolder: "UI", isAtlas2x2: false),
+        BattlefieldAssetDescriptor(name: brassPanelResourceName, subfolder: "UI", isAtlas2x2: false),
+        BattlefieldAssetDescriptor(name: "ui-icons-resources", subfolder: "UI", isAtlas2x2: true),
+        BattlefieldAssetDescriptor(name: "ui-items-shop", subfolder: "UI", isAtlas2x2: true),
+        BattlefieldAssetDescriptor(name: "ui-emblems", subfolder: "UI", isAtlas2x2: true)
+    ]
+
+    static let resourceNames: [String] = descriptors.map(\.name)
+
+    private static let descriptorByName: [String: BattlefieldAssetDescriptor] = Dictionary(
+        uniqueKeysWithValues: descriptors.map { ($0.name, $0) }
+    )
 
     private static let sheets: [String: CGImage] = {
         var result: [String: CGImage] = [:]
-        for name in resourceNames {
-            guard let url = resourceURL(name),
+        for item in descriptors {
+            guard let url = resourceURL(item.name),
                   let source = CGImageSourceCreateWithURL(url as CFURL, nil),
                   let image = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) else { continue }
-            result[name] = image
+            result[item.name] = image
         }
         return result
     }()
 
     private static let sprites: [String: [CGImage]] = {
         var result: [String: [CGImage]] = [:]
-        for name in resourceNames where name != groundResourceName && name != "industrial-city" && name != "supply-depot" {
-            guard let sheet = sheets[name] else { continue }
+        for item in descriptors where item.isAtlas2x2 {
+            guard let sheet = sheets[item.name] else { continue }
             let cells = (0..<4).compactMap { index in
                 sheet.cropping(to: cellRect(column: index % 2, row: index / 2,
                                             width: sheet.width, height: sheet.height))
             }
-            if cells.count == 4 { result[name] = cells }
+            if cells.count == 4 { result[item.name] = cells }
         }
         return result
     }()
 
     static func resourceURL(_ name: String) -> URL? {
-        Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "BattlefieldArt")
+        if let desc = descriptorByName[name] {
+            let sub = desc.subfolder.isEmpty ? "BattlefieldArt" : "BattlefieldArt/\(desc.subfolder)"
+            if let url = Bundle.main.url(forResource: desc.name, withExtension: "png", subdirectory: sub) {
+                return url
+            }
+        }
+        return Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "BattlefieldArt")
     }
 
     static func cellRect(column: Int, row: Int, width: Int, height: Int) -> CGRect {
@@ -86,7 +153,27 @@ enum BattlefieldArtwork {
         return sprites["commanders"]?[index]
     }
 
+    static func vfx(_ effect: BattlefieldVFX) -> CGImage? {
+        sprites["combat-vfx"]?[effect.rawValue]
+    }
+
+    static func resourceIcon(_ icon: BattlefieldResourceIcon) -> CGImage? {
+        sprites["ui-icons-resources"]?[icon.rawValue]
+    }
+
+    static func shopIcon(_ icon: BattlefieldShopIcon) -> CGImage? {
+        sprites["ui-items-shop"]?[icon.rawValue]
+    }
+
+    static func emblem(_ emblem: BattlefieldEmblem) -> CGImage? {
+        sprites["ui-emblems"]?[emblem.rawValue]
+    }
+
     static var ground: CGImage? { sheets[groundResourceName] }
+    static var snowGround: CGImage? { sheets[snowGroundResourceName] }
+    static var riverWater: CGImage? { sheets[riverWaterResourceName] }
+    static var metalPlate: CGImage? { sheets[metalPlateResourceName] }
+    static var brassPanel: CGImage? { sheets[brassPanelResourceName] }
 
     static func image(_ cgImage: CGImage) -> Image {
         Image(decorative: cgImage, scale: 1, orientation: .up)

@@ -1,49 +1,38 @@
 import SwiftUI
 
+/// EasyTech GoG3 / WC4 metallic painted faction city roundel.
 struct ObjectiveFlagMarker: View {
-    @ScaledMetric(relativeTo: .caption) private var ownerFontSize: CGFloat = 5.5
-
     let owner: Faction?
 
     var body: some View {
-        // GoG3-style banner on a pole instead of a pill chip.
-        ZStack(alignment: .topLeading) {
-            // Pole.
-            RoundedRectangle(cornerRadius: 0.75)
-                .fill(Color(red: 0.35, green: 0.30, blue: 0.24))
-                .frame(width: 1.8, height: 21)
-                .offset(x: 1, y: 0)
-
-            // Waving banner.
-            WavingFlagShape()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            (owner?.accentColor ?? Color(white: 0.55)),
-                            (owner?.accentColor ?? Color(white: 0.55)).opacity(0.72)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .overlay(
-                    WavingFlagShape()
-                        .stroke(Color.black.opacity(0.30), lineWidth: 0.7)
-                )
-                .frame(width: 15, height: 10)
-                .offset(x: 2.6, y: 1)
-
-            Text(owner?.shortTitle ?? "NEU")
-                .font(.system(size: ownerFontSize, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.6), radius: 0.5)
-                .lineLimit(1)
-                .allowsTightening(true)
-                .minimumScaleFactor(0.52)
-                .offset(x: 4.6, y: 3)
+        ZStack {
+            if let owner, let crest = BattlefieldArtwork.emblem(owner == .allies ? .alliedCrest : .axisCrest) {
+                BattlefieldArtwork.image(crest)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(width: 21, height: 21)
+            } else {
+                ZStack {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color(red: 0.42, green: 0.41, blue: 0.36), Color(red: 0.18, green: 0.18, blue: 0.15)],
+                                center: .topLeading,
+                                startRadius: 1,
+                                endRadius: 11
+                            )
+                        )
+                    Circle()
+                        .stroke(BattlefieldTheme.brass, lineWidth: 1.4)
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 8.5, weight: .black))
+                        .foregroundStyle(BattlefieldTheme.fieldPaper.opacity(0.9))
+                }
+                .frame(width: 19, height: 19)
+            }
         }
-        .frame(width: 18, height: 22, alignment: .topLeading)
-        .shadow(color: .black.opacity(0.35), radius: 1, x: 0.5, y: 1)
+        .shadow(color: .black.opacity(0.55), radius: 2, y: 1.2)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
@@ -70,61 +59,77 @@ struct WavingFlagShape: Shape {
     }
 }
 
-/// Two stacked triangles forming a stylized conifer silhouette.
 struct TerrainCodeBadge: View {
     let code: String
 
     var body: some View {
         Text(code)
             .font(.system(size: 8, weight: .black, design: .rounded))
-            .foregroundStyle(BattlefieldTheme.commandDeckDeep.opacity(0.72))
+            .foregroundStyle(BattlefieldTheme.fieldPaper.opacity(0.88))
             .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-            .background(Color.white.opacity(0.22), in: Capsule())
+            .padding(.vertical, 1.5)
+            .background(BattlefieldTheme.commandDeckDeep.opacity(0.68), in: Capsule())
             .overlay(
                 Capsule()
-                    .stroke(Color.black.opacity(0.16), lineWidth: 1)
+                    .stroke(BattlefieldTheme.brass.opacity(0.45), lineWidth: 0.7)
             )
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
 }
 
+/// EasyTech city nameplate with live City Tier stars & upgraded facility indicators.
 struct ObjectiveNamePlate: View {
     @ScaledMetric(relativeTo: .caption) private var nameFontSize: CGFloat = 9
 
     let name: String
     let owner: Faction?
     var compact = false
+    var facility: CityFacilityState? = nil
 
     var body: some View {
-        // Parchment nameplate under objective settlements, GoG3 city-label style.
-        Text(name)
-            .font(.system(size: nameFontSize, weight: .semibold))
-            .foregroundStyle(Color(red: 0.24, green: 0.20, blue: 0.13))
-            .lineLimit(1)
-            .allowsTightening(true)
-            .minimumScaleFactor(0.8)
-            .padding(.horizontal, compact ? 3 : 5)
-            .padding(.vertical, compact ? 1.5 : 2.5)
-            .frame(maxWidth: .infinity)
-            .background(
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.94, green: 0.89, blue: 0.76),
-                        Color(red: 0.85, green: 0.78, blue: 0.62)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                ),
-                in: BeveledFieldShape()
-            )
-            .overlay(
-                BeveledFieldShape()
-                    .stroke((owner?.accentColor ?? BattlefieldTheme.brass).opacity(0.55), lineWidth: 0.7)
-            )
-            .shadow(color: .black.opacity(compact ? 0.20 : 0.28), radius: compact ? 1 : 2, x: 0, y: 1)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        let rimColor: Color = {
+            switch owner {
+            case .allies: BattlefieldTheme.alliesRing
+            case .axis: BattlefieldTheme.axisRing
+            case nil: BattlefieldTheme.brass
+            }
+        }()
+
+        HStack(spacing: 3) {
+            Text(name)
+                .font(.system(size: nameFontSize, weight: .bold))
+                .foregroundStyle(BattlefieldTheme.fieldPaper)
+                .lineLimit(1)
+                .allowsTightening(true)
+                .minimumScaleFactor(0.75)
+
+            if let facility, !compact {
+                Text(String(repeating: "★", count: max(1, min(4, facility.visualTier))))
+                    .font(.system(size: 6.5))
+                    .foregroundStyle(BattlefieldTheme.selectedPiece)
+            }
+        }
+        .padding(.horizontal, compact ? 4 : 6)
+        .padding(.vertical, compact ? 1.5 : 2.5)
+        .frame(maxWidth: .infinity)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(red: 0.14, green: 0.16, blue: 0.14).opacity(0.92),
+                    Color(red: 0.07, green: 0.09, blue: 0.08).opacity(0.95)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            ),
+            in: BeveledFieldShape(cornerCut: 3)
+        )
+        .overlay(
+            BeveledFieldShape(cornerCut: 3)
+                .stroke(rimColor.opacity(0.85), lineWidth: 0.9)
+        )
+        .shadow(color: .black.opacity(compact ? 0.35 : 0.48), radius: compact ? 1.5 : 2.5, x: 0, y: 1.2)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
