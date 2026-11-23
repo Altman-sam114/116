@@ -485,9 +485,9 @@ enum CityFacilityKind: String, CaseIterable, Identifiable {
     func upgradeCost(from currentLevel: Int) -> (gold: Int, industry: Int) {
         let scale = max(1, currentLevel)
         switch self {
-        case .factory: (gold: 90 * scale, industry: 25 * scale)
-        case .fortification: (gold: 70 * scale, industry: 35 * scale)
-        case .treasury: (gold: 100 * scale, industry: 20 * scale)
+        case .factory: return (gold: 90 * scale, industry: 25 * scale)
+        case .fortification: return (gold: 70 * scale, industry: 35 * scale)
+        case .treasury: return (gold: 100 * scale, industry: 20 * scale)
         }
     }
 }
