@@ -271,7 +271,8 @@ struct EndTurnButton: View {
                     .foregroundStyle(BattlefieldTheme.commandDeckDeep.opacity(0.85))
             }
             .padding(.horizontal, condensed ? 12 : 16)
-            .frame(minWidth: condensed ? 122 : 148, height: condensed ? 48 : 56)
+            .frame(minWidth: condensed ? 122 : 148)
+            .frame(height: condensed ? 48 : 56)
             .background {
                 ZStack {
                     BeveledFieldShape(cornerCut: 9)
