@@ -96,6 +96,8 @@ struct CombatResolutionOverlay: View {
             )
             let conclusion = combatConclusion
 
+            let fireAngle = Angle(radians: Double(atan2(defenderPoint.y - attackerPoint.y, defenderPoint.x - attackerPoint.x)))
+
             ZStack {
                 // Glowing fiery artillery/cannon shell tracer line
                 Path { path in
@@ -122,26 +124,38 @@ struct CombatResolutionOverlay: View {
                 )
                 .shadow(color: Color.orange.opacity(0.75), radius: 4)
 
-                // Painted muzzle flash at attacker firing point
+                // Golden ground shockwave ring on defender impact hex
+                if let shockwave = BattlefieldArtwork.vfx(.commandBurst) {
+                    BattlefieldArtwork.image(shockwave)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(width: summary.didDestroyDefender ? 98 : 80, height: summary.didDestroyDefender ? 98 : 80)
+                        .opacity(activePhase == .impact ? 0.88 : 0.62)
+                        .position(defenderPoint)
+                }
+
+                // Directional painted cannon muzzle flash aligned toward defender
                 if let flash = BattlefieldArtwork.vfx(.muzzleFlash) {
                     BattlefieldArtwork.image(flash)
                         .resizable()
                         .interpolation(.high)
                         .scaledToFit()
-                        .frame(width: 44, height: 44)
-                        .opacity(activePhase == .impact ? 0.95 : 0.58)
+                        .frame(width: 56, height: 56)
+                        .rotationEffect(fireAngle)
+                        .opacity(activePhase == .impact ? 0.96 : 0.72)
                         .position(layout.trimmedStart)
                 }
 
-                // Painted volumetric smoke plume rising on defender
+                // Painted volumetric ember-lit smoke plume rising behind explosion
                 if let smoke = BattlefieldArtwork.vfx(.smokePlume) {
                     BattlefieldArtwork.image(smoke)
                         .resizable()
                         .interpolation(.high)
                         .scaledToFit()
-                        .frame(width: summary.didDestroyDefender ? 88 : 66, height: summary.didDestroyDefender ? 88 : 66)
-                        .opacity(summary.didDestroyDefender ? 0.92 : 0.72)
-                        .position(CGPoint(x: defenderPoint.x + 4, y: defenderPoint.y - 14))
+                        .frame(width: summary.didDestroyDefender ? 92 : 70, height: summary.didDestroyDefender ? 92 : 70)
+                        .opacity(summary.didDestroyDefender ? 0.92 : 0.76)
+                        .position(CGPoint(x: defenderPoint.x + 3, y: defenderPoint.y - 16))
                 }
 
                 // Painted volumetric fiery artillery explosion burst on defender hex
@@ -150,20 +164,21 @@ struct CombatResolutionOverlay: View {
                         .resizable()
                         .interpolation(.high)
                         .scaledToFit()
-                        .frame(width: summary.didDestroyDefender ? 94 : 74, height: summary.didDestroyDefender ? 94 : 74)
+                        .frame(width: summary.didDestroyDefender ? 96 : 78, height: summary.didDestroyDefender ? 96 : 78)
                         .scaleEffect((reduceMotion || isSteadyState) ? 1.0 : (activePhase == .impact ? 1.15 : 0.94))
-                        .opacity(activePhase == .impact ? 1.0 : 0.88)
+                        .opacity(activePhase == .impact ? 1.0 : 0.90)
                         .position(defenderPoint)
                 }
 
-                // Counter-fire spark burst on attacker when retaliated
+                // Directional counter-fire muzzle blast pointing back toward attacker when retaliated
                 if summary.hasCounterAttack, let counterFlash = BattlefieldArtwork.vfx(.muzzleFlash) {
                     BattlefieldArtwork.image(counterFlash)
                         .resizable()
                         .interpolation(.high)
                         .scaledToFit()
                         .frame(width: 48, height: 48)
-                        .opacity(showsCounterDamage ? 0.78 : 0)
+                        .rotationEffect(fireAngle + .degrees(180))
+                        .opacity(showsCounterDamage ? 0.82 : 0)
                         .position(attackerPoint)
                 }
 

@@ -86,37 +86,44 @@ struct BattlefieldTerrainRenderer: View, Equatable {
     private func paintSnow(context: inout GraphicsContext) {
         let drifts = Path(BattlefieldSnowfield(tiles: tiles, layout: layout).outline)
         guard !drifts.isEmpty else { return }
-        // Crisp feathered frost skirt blending winter snowdrifts naturally into surrounding autumn grass
+        // Organic Ardennes frost-grass transition skirt so snow patches never look like pasted white stickers
         context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 5.5))
-            layer.fill(drifts, with: .color(Color(red: 0.72, green: 0.79, blue: 0.84).opacity(0.60)))
+            layer.addFilter(.blur(radius: 7.5))
+            layer.fill(drifts, with: .color(Color(red: 0.62, green: 0.68, blue: 0.64).opacity(0.46)))
         }
-        // Clip sculpted seamless winter snowfield texture directly to the snowfield geometry
+        // Mirror-tile hand-painted winter snowfield texture clipped to snow geometry
         if let snowTexture = BattlefieldArtwork.snowGround {
             let bounds = drifts.boundingRect
             if !bounds.isEmpty && bounds.minX.isFinite && bounds.minY.isFinite {
                 let resolved = context.resolve(BattlefieldArtwork.image(snowTexture))
                 var clipped = context
                 clipped.clip(to: drifts)
-                clipped.opacity = 0.96
-                let step: CGFloat = 192
-                let startX = floor(bounds.minX / step) * step
-                let startY = floor(bounds.minY / step) * step
-                for y in stride(from: startY, to: bounds.maxY + step, by: step) {
-                    for x in stride(from: startX, to: bounds.maxX + step, by: step) {
-                        clipped.draw(resolved, in: CGRect(x: x, y: y, width: step, height: step))
+                clipped.opacity = 0.92
+                let step: CGFloat = 256
+                let startCol = Int(floor(bounds.minX / step))
+                let endCol = Int(ceil(bounds.maxX / step))
+                let startRow = Int(floor(bounds.minY / step))
+                let endRow = Int(ceil(bounds.maxY / step))
+                for row in startRow...endRow {
+                    for col in startCol...endCol {
+                        var patch = clipped
+                        let cx = CGFloat(col) * step + step / 2
+                        let cy = CGFloat(row) * step + step / 2
+                        patch.translateBy(x: cx, y: cy)
+                        patch.scaleBy(x: col.isMultiple(of: 2) ? 1 : -1, y: row.isMultiple(of: 2) ? 1 : -1)
+                        patch.draw(resolved, in: CGRect(x: -step / 2, y: -step / 2, width: step, height: step))
                     }
                 }
                 clipped.fill(drifts, with: .linearGradient(
                     Gradient(colors: [
-                        Color.white.opacity(0.10),
+                        Color.white.opacity(0.06),
                         Color.clear,
-                        Color(red: 0.42, green: 0.52, blue: 0.64).opacity(0.16)
+                        Color(red: 0.36, green: 0.44, blue: 0.54).opacity(0.14)
                     ]),
                     startPoint: CGPoint(x: bounds.minX, y: bounds.minY),
                     endPoint: CGPoint(x: bounds.maxX, y: bounds.maxY)
                 ))
-                clipped.stroke(drifts, with: .color(Color(red: 0.54, green: 0.64, blue: 0.72).opacity(0.46)), lineWidth: 2.0)
+                clipped.stroke(drifts, with: .color(Color(red: 0.48, green: 0.56, blue: 0.58).opacity(0.28)), lineWidth: 1.5)
             }
         } else {
             context.drawLayer { layer in
@@ -201,8 +208,8 @@ struct BattlefieldTerrainRenderer: View, Equatable {
                 let resolved = context.resolve(BattlefieldArtwork.image(riverTexture))
                 var clippedWater = context
                 clippedWater.clip(to: water)
-                clippedWater.opacity = 0.88
-                let step: CGFloat = 256
+                clippedWater.opacity = 0.94
+                let step: CGFloat = 220
                 let startX = floor(bounds.minX / step) * step
                 let startY = floor(bounds.minY / step) * step
                 for y in stride(from: startY, to: bounds.maxY + step, by: step) {

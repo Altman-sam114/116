@@ -11,7 +11,7 @@ struct ObjectiveFlagMarker: View {
                     .resizable()
                     .interpolation(.high)
                     .scaledToFit()
-                    .frame(width: 21, height: 21)
+                    .frame(width: 23, height: 23)
             } else {
                 ZStack {
                     Circle()

@@ -5,130 +5,105 @@ enum FieldPlateMaterial {
     case brassDossier
 }
 
-/// Textured brushed-gunmetal or hammered-brass military plate rendered in a single flat Canvas
-/// so zero background subviews or images ever leak into hit-testing or accessibility hierarchies.
+/// Textured brushed-gunmetal or hammered-brass military plate rendered purely with SwiftUI Shapes
+/// and ImagePaint — zero Canvas/UIView backing, zero blendMode compositing traps, and zero
+/// accessibility or hit-testing leakage.
 struct FieldPlate: View {
     var emphasized = false
     var material: FieldPlateMaterial = .gunmetal
     var showsRivets = true
 
     var body: some View {
-        Canvas { context, size in
-            guard size.width > 1, size.height > 1 else { return }
-            let rect = CGRect(origin: .zero, size: size)
-            let bevel = BeveledFieldShape().path(in: rect)
-
-            // 1. Base gunmetal / antique bronze substrate
-            let baseColors: [Color] = material == .brassDossier
-                ? [Color(red: 0.27, green: 0.22, blue: 0.14),
-                   Color(red: 0.17, green: 0.14, blue: 0.095),
-                   Color(red: 0.09, green: 0.075, blue: 0.055)]
-                : [Color(red: 0.21, green: 0.25, blue: 0.23),
-                   Color(red: 0.13, green: 0.16, blue: 0.15),
-                   Color(red: 0.06, green: 0.08, blue: 0.075)]
-            context.fill(
-                bevel,
-                with: .linearGradient(
-                    Gradient(colors: baseColors),
-                    startPoint: CGPoint(x: rect.midX, y: rect.minY),
-                    endPoint: CGPoint(x: rect.midX, y: rect.maxY)
-                )
-            )
-
-            // 2. Clipped tiled brushed-metal or hammered-brass texture
-            if let texture = material == .brassDossier ? BattlefieldArtwork.brassPanel : BattlefieldArtwork.metalPlate {
-                var tiled = context
-                tiled.clip(to: bevel)
-                tiled.opacity = material == .brassDossier ? 0.54 : 0.48
-                tiled.blendMode = .overlay
-                let resolved = tiled.resolve(BattlefieldArtwork.image(texture))
-                let step: CGFloat = 256
-                for y in stride(from: CGFloat.zero, to: size.height, by: step) {
-                    for x in stride(from: CGFloat.zero, to: size.width, by: step) {
-                        tiled.draw(resolved, in: CGRect(x: x, y: y, width: step, height: step))
-                    }
+        BeveledFieldShape()
+            .fill(material == .brassDossier ? BattlefieldTheme.brassDeck : BattlefieldTheme.commandMetal)
+            .overlay {
+                if let texture = material == .brassDossier ? BattlefieldArtwork.brassPanel : BattlefieldArtwork.metalPlate {
+                    BeveledFieldShape()
+                        .fill(ImagePaint(image: BattlefieldArtwork.image(texture), scale: 0.45))
+                        .opacity(material == .brassDossier ? 0.36 : 0.30)
                 }
             }
-
-            // 3. Top-to-bottom directional metallic shading
-            context.fill(
-                bevel,
-                with: .linearGradient(
-                    Gradient(colors: [
-                        Color.white.opacity(emphasized ? 0.14 : 0.08),
-                        Color.clear,
-                        Color.black.opacity(0.32)
-                    ]),
-                    startPoint: CGPoint(x: rect.midX, y: rect.minY),
-                    endPoint: CGPoint(x: rect.midX, y: rect.maxY)
-                )
-            )
-
-            // 4. Machined top specular bevel & bottom recessed edge
-            if size.width > 20 {
-                let topEdge = CGRect(x: 8, y: 0.5, width: size.width - 16, height: 1)
-                context.fill(
-                    Path(topEdge),
-                    with: .linearGradient(
-                        Gradient(colors: [
-                            Color.clear,
-                            (emphasized ? BattlefieldTheme.selectedPiece : BattlefieldTheme.fieldPaper).opacity(emphasized ? 0.45 : 0.22),
-                            Color.clear
-                        ]),
-                        startPoint: CGPoint(x: topEdge.minX, y: topEdge.midY),
-                        endPoint: CGPoint(x: topEdge.maxX, y: topEdge.midY)
-                    )
-                )
-                let bottomEdge = CGRect(x: 8, y: max(0, size.height - 2), width: size.width - 16, height: 2)
-                context.fill(Path(bottomEdge), with: .color(Color.black.opacity(0.42)))
-            }
-
-            // 5. Outer metallic trim border
-            let borderColors = emphasized
-                ? [BattlefieldTheme.selectedPiece.opacity(0.95), BattlefieldTheme.brass.opacity(0.75), Color(red: 0.48, green: 0.36, blue: 0.18)]
-                : [BattlefieldTheme.brass.opacity(0.58), BattlefieldTheme.steelEdge.opacity(0.65), Color.black.opacity(0.55)]
-            context.stroke(
-                bevel,
-                with: .linearGradient(
-                    Gradient(colors: borderColors),
-                    startPoint: .zero,
-                    endPoint: CGPoint(x: size.width, y: size.height)
-                ),
-                lineWidth: emphasized ? 1.4 : 1.0
-            )
-
-            // 6. Machined brass corner rivets
-            if showsRivets, size.width >= 36, size.height >= 24 {
-                let inset: CGFloat = 6.5
-                let radius: CGFloat = 1.8
-                let points = [
-                    CGPoint(x: inset, y: inset),
-                    CGPoint(x: size.width - inset, y: inset),
-                    CGPoint(x: inset, y: size.height - inset),
-                    CGPoint(x: size.width - inset, y: size.height - inset)
-                ]
-                let rivetGradient = Gradient(colors: [
-                    emphasized ? BattlefieldTheme.selectedPiece : BattlefieldTheme.brass.opacity(0.88),
-                    Color(red: 0.36, green: 0.28, blue: 0.16)
-                ])
-                for pt in points {
-                    let circle = Path(ellipseIn: CGRect(x: pt.x - radius, y: pt.y - radius, width: radius * 2, height: radius * 2))
-                    context.fill(
-                        circle,
-                        with: .radialGradient(
-                            rivetGradient,
-                            center: CGPoint(x: pt.x - 0.5, y: pt.y - 0.5),
-                            startRadius: 0,
-                            endRadius: radius * 1.4
+            .overlay {
+                BeveledFieldShape()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(emphasized ? 0.14 : 0.08),
+                                Color.clear,
+                                Color.black.opacity(0.32)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
                     )
-                    context.stroke(circle, with: .color(Color.black.opacity(0.65)), lineWidth: 0.5)
+            }
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                .clear,
+                                (emphasized ? BattlefieldTheme.selectedPiece : BattlefieldTheme.fieldPaper).opacity(emphasized ? 0.48 : 0.24),
+                                .clear
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 1)
+                    .padding(.horizontal, 8)
+            }
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color.black.opacity(0.42))
+                    .frame(height: 2)
+                    .padding(.horizontal, 8)
+            }
+            .overlay {
+                BeveledFieldShape()
+                    .stroke(
+                        LinearGradient(
+                            colors: emphasized
+                                ? [BattlefieldTheme.selectedPiece.opacity(0.95), BattlefieldTheme.brass.opacity(0.76), Color(red: 0.48, green: 0.36, blue: 0.18)]
+                                : [BattlefieldTheme.brass.opacity(0.60), BattlefieldTheme.steelEdge.opacity(0.65), Color.black.opacity(0.55)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: emphasized ? 1.4 : 1.0
+                    )
+            }
+            .overlay {
+                if showsRivets {
+                    FieldPlateRivetsShape()
+                        .fill(emphasized ? BattlefieldTheme.selectedPiece.opacity(0.90) : BattlefieldTheme.brass.opacity(0.84))
+                        .overlay {
+                            FieldPlateRivetsShape()
+                                .stroke(Color.black.opacity(0.68), lineWidth: 0.5)
+                        }
                 }
             }
+            .shadow(color: .black.opacity(0.42), radius: emphasized ? 8 : 5, y: 3)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct FieldPlateRivetsShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        guard rect.width >= 36, rect.height >= 24 else { return Path() }
+        let inset: CGFloat = 6.5
+        let radius: CGFloat = 1.8
+        let points = [
+            CGPoint(x: rect.minX + inset, y: rect.minY + inset),
+            CGPoint(x: rect.maxX - inset, y: rect.minY + inset),
+            CGPoint(x: rect.minX + inset, y: rect.maxY - inset),
+            CGPoint(x: rect.maxX - inset, y: rect.maxY - inset)
+        ]
+        var path = Path()
+        for pt in points {
+            path.addEllipse(in: CGRect(x: pt.x - radius, y: pt.y - radius, width: radius * 2, height: radius * 2))
         }
-        .shadow(color: .black.opacity(0.42), radius: emphasized ? 9 : 6, y: 3)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+        return path
     }
 }
 
